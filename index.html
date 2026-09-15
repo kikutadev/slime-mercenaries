@@ -28,8 +28,8 @@
 
         <div class="enemy-hud" aria-label="enemy health">
           <div class="enemy-hud__row">
-            <strong>Forest Mushroom</strong>
-            <span id="enemy-hp-label">5 / 5</span>
+            <strong>Forest Mushrooms</strong>
+            <span id="enemy-hp-label">3体 · 12 / 12</span>
           </div>
           <div class="enemy-hp-track"><div id="enemy-hp-fill" class="enemy-hp-fill"></div></div>
         </div>
@@ -38,24 +38,26 @@
 
         <footer class="hud hud--bottom">
           <div class="roster">
-            <div class="unit-card">
+            <div class="unit-card" id="sword-card">
               <div class="unit-icon unit-icon--sword"><img src="./assets/sword-slime-icon.svg" alt="" aria-hidden="true" /></div>
               <div>
                 <strong>Sword Slime</strong>
                 <span>前進して近接攻撃</span>
+                <small id="sword-hp-label" class="unit-hp">HP 6 / 6</small>
               </div>
             </div>
-            <div class="unit-card">
+            <div class="unit-card" id="archer-card">
               <div class="unit-icon unit-icon--bow"><img src="./assets/bow-slime-icon.svg" alt="" aria-hidden="true" /></div>
               <div>
                 <strong>Bow Slime</strong>
                 <span>後衛から矢を射撃</span>
+                <small id="archer-hp-label" class="unit-hp">HP 4 / 4</small>
               </div>
             </div>
           </div>
           <div class="auto-strip">
             <span class="auto-strip__pulse"></span>
-            敵を倒すと前衛が帰還し、次の敵へ自動で再出撃します
+            敵味方が自動で交戦し、決着後は次の戦闘へ自動で再出撃します
           </div>
         </footer>
 

@@ -216,6 +216,22 @@ h1 {
   white-space: nowrap;
 }
 
+.unit-hp {
+  margin-top: 4px;
+  color: rgb(255 255 255 / 88%);
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.unit-card.is-defeated {
+  opacity: 0.58;
+}
+
+.unit-card.is-defeated .unit-hp {
+  color: rgb(255 190 180 / 92%);
+}
+
 .unit-icon {
   width: 52px;
   height: 42px;
