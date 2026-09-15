@@ -23,6 +23,15 @@
 - [`docs/specs/ux-ui.md`](docs/specs/ux-ui.md) — 画面構成と主要導線
 - [`docs/specs/art-direction.md`](docs/specs/art-direction.md) — キャラクター、背景、VFX、アセット方針
 
+## Runtime prototype
+
+Plain Slime の最初の実働PoCを実装済み。Blender Pythonを正本としてGLBを生成し、WebランタイムではMorph Targetを使ってSquash / Stretch / Lean / Hitを合成する。
+
+- GitHub Pages: https://kikutadev.github.io/slime-mercenaries/
+- `npm run generate:model` — Blender 4.5 LTSで `public/assets/plain-slime.glb` を再生成
+- `npm run dev` — ローカル実行
+- `npm run build` — GitHub Pages向け静的ビルド
+
 ## Current phase
 
-現在は product specification / pre-production。実装より先に、進化・戦闘・報酬・UI・アートの相互依存を固定する段階。
+Product specification / pre-production から、アートパイプラインとruntime vertical sliceの検証へ移行中。まずPlain Slimeで、固定3/4カメラ、小画面可読性、ぷるぷる変形、接地感を確定し、その後Sword Slimeへ拡張する。
