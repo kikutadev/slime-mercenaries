@@ -38,16 +38,19 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 const clock = new THREE.Clock();
 const loader = new GLTFLoader();
 const tempQuaternion = new THREE.Quaternion();
+const tempQuaternion2 = new THREE.Quaternion();
 const tempVector = new THREE.Vector3();
 const tempVector2 = new THREE.Vector3();
-const localZAxis = new THREE.Vector3(0, 0, 1);
+const tempVector3 = new THREE.Vector3();
+const localXAxis = new THREE.Vector3(1, 0, 0);
 const localYAxis = new THREE.Vector3(0, 1, 0);
+const localZAxis = new THREE.Vector3(0, 0, 1);
 
 const SCALE = 0.19;
 const SWORD_HOME = new THREE.Vector3(-0.24, 0.02, 1.20);
 const ARCHER_HOME = new THREE.Vector3(0.30, 0.02, 1.38);
 const TARGET_HOME = new THREE.Vector3(0.12, 0.0, -1.42);
-const SWORD_ATTACK_POS = new THREE.Vector3(-0.02, 0.02, -0.66);
+const SWORD_ATTACK_POS = new THREE.Vector3(-0.02, 0.02, -0.80);
 const ENEMY_MAX_HP = 6;
 
 const runtime = {
@@ -335,7 +338,7 @@ function createSlashArc() {
     blending: THREE.AdditiveBlending,
   });
   const arc = new THREE.Mesh(
-    new THREE.TorusGeometry(0.38, 0.035, 8, 44, Math.PI * 0.90),
+    new THREE.TorusGeometry(0.17, 0.024, 8, 36, Math.PI * 0.62),
     material,
   );
   arc.visible = false;
@@ -370,7 +373,9 @@ function createArrowMesh() {
     blending: THREE.AdditiveBlending,
   });
   const trail = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.016, 0.28, 6), trailMaterial);
+  trail.name = 'ArrowTrail';
   trail.position.y = -0.31;
+  trail.visible = false;
   group.add(trail);
 
   return group;
@@ -490,12 +495,22 @@ function applyUnitDeformation(unit, { squash = 0, stretch = 0, lean = 0, wobble 
   }
 }
 
-function setEquipmentSwing(unit, angle, lift = 0) {
+function setEquipmentSwing(unit, angle, lift = 0, sweep = 0) {
   if (!unit?.equipmentAnchor) {
     return;
   }
-  tempQuaternion.setFromAxisAngle(localZAxis, angle);
+
+  // glTF axis conversion makes both generated weapons extend mainly along local Y.
+  // Sword attacks therefore rotate around local X (toward/through the target), with
+  // a smaller local-Z sweep for a diagonal cut. Bow motion stays on local Z so it
+  // reads as a restrained aiming/recoil tilt instead of rolling along the bow.
+  const primaryAxis = unit.kind === 'Sword' ? localXAxis : localZAxis;
+  tempQuaternion.setFromAxisAngle(primaryAxis, angle);
   unit.equipmentAnchor.quaternion.copy(unit.equipmentBaseQuaternion).multiply(tempQuaternion);
+  if (unit.kind === 'Sword' && Math.abs(sweep) > 0.0001) {
+    tempQuaternion2.setFromAxisAngle(localZAxis, sweep);
+    unit.equipmentAnchor.quaternion.multiply(tempQuaternion2);
+  }
   unit.equipmentAnchor.position.y = unit.equipmentBasePosition.y + lift;
 }
 
@@ -544,70 +559,100 @@ function updateSwordAttack(now) {
   const unit = runtime.sword;
   const battle = runtime.battle;
   const elapsed = now - battle.swordAttackStartedAt;
-  const duration = runtime.reducedMotion ? 0.56 : 0.86;
+  const duration = runtime.reducedMotion ? 0.58 : 0.88;
   const u = clamp01(elapsed / duration);
 
   let squash = 0;
   let stretch = 0;
   let lean = 0;
   let weaponAngle = 0;
+  let weaponSweep = 0;
   let weaponLift = 0;
+  let bodyOffset = 0;
+  let releaseProgress = -1;
 
-  if (u < 0.30) {
-    const p = u / 0.30;
-    const anticipation = easeOutCubic(p);
-    squash = anticipation * 0.34;
-    lean = -0.24 * anticipation;
-    weaponAngle = THREE.MathUtils.lerp(0, -1.38, easeInOutCubic(p));
-    weaponLift = THREE.MathUtils.lerp(0, 0.025, anticipation);
-  } else if (u < 0.58) {
-    const p = (u - 0.30) / 0.28;
+  // Phase 1: visibly load the strike. Pull the body away from the target and
+  // bring the blade behind the slime so the next motion has a clear direction.
+  if (u < 0.32) {
+    const p = easeInOutCubic(u / 0.32);
+    squash = p * 0.32;
+    lean = -p * 0.20;
+    weaponAngle = THREE.MathUtils.lerp(0, -0.72, p);
+    weaponSweep = THREE.MathUtils.lerp(0, -0.22, p);
+    weaponLift = p * 0.018;
+    bodyOffset = -p * 0.045;
+  } else if (u < 0.62) {
+    // Phase 2: one committed forward slash. Body travel, blade travel and hit
+    // timing all move in the same direction through the target.
+    const p = (u - 0.32) / 0.30;
     const release = easeOutCubic(p);
-    stretch = Math.sin(p * Math.PI) * 0.27;
-    lean = THREE.MathUtils.lerp(-0.24, 0.42, release);
-    weaponAngle = THREE.MathUtils.lerp(-1.38, 1.24, release);
-    weaponLift = Math.sin(p * Math.PI) * 0.04;
-
-    if (runtime.slashArc) {
-      const arcU = clamp01((p - 0.06) / 0.82);
-      const arcPulse = Math.sin(arcU * Math.PI);
-      runtime.slashArc.visible = arcPulse > 0.01;
-      runtime.slashArc.position.lerpVectors(unit.root.position, runtime.enemy.root.position, 0.60);
-      runtime.slashArc.position.y = 0.34;
-      runtime.slashArc.quaternion.copy(camera.quaternion);
-      runtime.slashArc.rotateZ(-0.76 + arcU * 1.15);
-      runtime.slashArc.scale.set(1.12 + easeOutCubic(arcU) * 1.02, 0.68 + easeOutCubic(arcU) * 0.22, 1);
-      runtime.slashArc.material.opacity = arcPulse * 0.92;
-    }
-
-    if (!battle.swordHitApplied && p >= 0.50 && battle.enemyAlive) {
-      battle.swordHitApplied = true;
-      applyDamage(2, 'sword');
-    }
+    releaseProgress = p;
+    squash = Math.max(0, 0.10 * (1 - p));
+    stretch = Math.sin(p * Math.PI) * 0.24;
+    lean = THREE.MathUtils.lerp(-0.20, 0.34, release);
+    weaponAngle = THREE.MathUtils.lerp(-0.72, 1.34, release);
+    weaponSweep = THREE.MathUtils.lerp(-0.22, 0.18, release);
+    weaponLift = Math.sin(p * Math.PI) * 0.026;
+    bodyOffset = THREE.MathUtils.lerp(-0.045, 0.32, release);
   } else {
-    const p = (u - 0.58) / 0.42;
-    weaponAngle = THREE.MathUtils.lerp(1.24, 0, easeInOutCubic(p));
-    const spring = Math.sin(p * Math.PI * 2.4) * Math.exp(-3.7 * p);
-    squash = Math.max(0, -spring) * 0.30;
-    stretch = Math.max(0, spring) * 0.21;
-    lean = spring * 0.14;
-    weaponLift = Math.max(0, spring) * 0.018;
-    if (runtime.slashArc) {
-      runtime.slashArc.material.opacity *= 0.70;
-      if (runtime.slashArc.material.opacity < 0.02) {
-        runtime.slashArc.visible = false;
-      }
-    }
+    // Phase 3: recover from the follow-through rather than snapping directly
+    // back to idle.
+    const p = (u - 0.62) / 0.38;
+    const recovery = easeInOutCubic(p);
+    const spring = Math.sin(p * Math.PI * 2.0) * Math.exp(-4.2 * p);
+    weaponAngle = THREE.MathUtils.lerp(1.34, 0, recovery);
+    weaponSweep = THREE.MathUtils.lerp(0.18, 0, recovery);
+    bodyOffset = THREE.MathUtils.lerp(0.32, 0, recovery);
+    squash = Math.max(0, -spring) * 0.20;
+    stretch = Math.max(0, spring) * 0.15;
+    lean = spring * 0.09;
   }
 
-  const strikeForward = u < 0.58
-    ? Math.sin((u / 0.58) * Math.PI) * 0.12
-    : (1 - clamp01((u - 0.58) / 0.42)) * 0.035;
-  tempVector.copy(runtime.enemy.root.position).sub(SWORD_ATTACK_POS).setY(0).normalize();
-  unit.root.position.copy(SWORD_ATTACK_POS).addScaledVector(tempVector, strikeForward);
-  applyUnitDeformation(unit, { squash, stretch, lean, jump: 0, impact: 0 });
-  setEquipmentSwing(unit, weaponAngle, weaponLift);
+  tempVector.copy(runtime.enemy.root.position).sub(SWORD_ATTACK_POS).setY(0);
+  if (tempVector.lengthSq() > 0.0001) {
+    tempVector.normalize();
+  }
+  unit.root.position.copy(SWORD_ATTACK_POS).addScaledVector(tempVector, bodyOffset);
   facePoint(unit, runtime.enemy.root.position);
+  applyUnitDeformation(unit, { squash, stretch, lean, jump: 0, impact: 0 });
+  setEquipmentSwing(unit, weaponAngle, weaponLift, weaponSweep);
+
+  // Update the actual weapon transform before deriving trail/contact feedback.
+  // This keeps the VFX attached to where the sword is on this exact frame.
+  unit.root.updateMatrixWorld(true);
+
+  if (releaseProgress >= 0 && unit.weaponTip) {
+    unit.weaponTip.getWorldPosition(tempVector3);
+    const arcU = clamp01((releaseProgress - 0.08) / 0.82);
+    const arcPulse = Math.sin(arcU * Math.PI);
+    runtime.slashArc.visible = arcPulse > 0.01;
+    runtime.slashArc.position.copy(tempVector3);
+    runtime.slashArc.position.y += 0.012;
+    runtime.slashArc.quaternion.copy(camera.quaternion);
+    runtime.slashArc.rotateZ(-0.95 + arcU * 1.15);
+    runtime.slashArc.scale.set(
+      0.90 + arcU * 0.52,
+      0.68 + arcU * 0.16,
+      1,
+    );
+    runtime.slashArc.material.opacity = arcPulse * 0.88;
+
+    // Trigger impact only after the blade pose has been applied. Distance is a
+    // guard against visibly early hits; the progress fallback keeps the attack
+    // deterministic if model proportions change slightly later.
+    tempVector2.copy(runtime.enemy.root.position);
+    tempVector2.y += 0.30;
+    const tipDistance = tempVector3.distanceTo(tempVector2);
+    const crossedContact = releaseProgress >= 0.46 && tipDistance <= 0.30;
+    const lateContact = releaseProgress >= 0.72 && tipDistance <= 0.34;
+    if (!battle.swordHitApplied && battle.enemyAlive && (crossedContact || lateContact)) {
+      battle.swordHitApplied = true;
+      applyDamage(2, 'sword', tempVector3);
+    }
+  } else if (runtime.slashArc) {
+    runtime.slashArc.visible = false;
+    runtime.slashArc.material.opacity = 0;
+  }
 
   if (elapsed >= duration) {
     battle.swordAttackStartedAt = -Infinity;
@@ -667,23 +712,16 @@ function fireArrow(now) {
 
   runtime.battle.archerShotStartedAt = now;
   const arrow = createArrowMesh();
-  const start = new THREE.Vector3();
-  unit.root.updateMatrixWorld(true);
-  unit.equipmentAnchor.getWorldPosition(start);
-  start.y += 0.025;
-  const end = runtime.enemy.root.position.clone();
-  end.y += 0.27;
-
-  arrow.position.copy(start);
-  arrow.visible = false;
+  arrow.visible = true;
   scene.add(arrow);
   runtime.arrows.push({
     mesh: arrow,
+    trail: arrow.getObjectByName('ArrowTrail'),
     launchAt: now + 0.30,
     startedAt: now + 0.30,
     duration: 0.48,
-    start,
-    end,
+    start: new THREE.Vector3(),
+    end: new THREE.Vector3(),
     launched: false,
     applied: false,
   });
@@ -693,13 +731,50 @@ function updateArrows(now) {
   for (let i = runtime.arrows.length - 1; i >= 0; i -= 1) {
     const arrow = runtime.arrows[i];
     if (now < arrow.launchAt) {
+      // Keep the nocked arrow attached to the moving bow during anticipation.
+      // A small backward offset sells the draw even though the low-detail bow
+      // itself does not have a deforming string rig.
+      const drawU = clamp01((now - runtime.battle.archerShotStartedAt) / 0.30);
+      runtime.archer.root.updateMatrixWorld(true);
+      runtime.archer.equipmentAnchor.getWorldPosition(tempVector3);
+      tempVector3.y += 0.028;
+      tempVector2.copy(runtime.enemy.root.position);
+      tempVector2.y += 0.27;
+      tempVector2.sub(tempVector3);
+      if (tempVector2.lengthSq() > 0.0001) {
+        tempVector2.normalize();
+      }
+      arrow.mesh.position.copy(tempVector3).addScaledVector(
+        tempVector2,
+        THREE.MathUtils.lerp(0.055, 0.018, easeInOutCubic(drawU)),
+      );
+      arrow.mesh.quaternion.setFromUnitVectors(localYAxis, tempVector2);
       continue;
     }
 
     if (!arrow.launched) {
       arrow.launched = true;
+
+      // Sample the bow on the actual release frame. Previously this position
+      // was captured when the draw animation started, which made the projectile
+      // visibly detach from the moving bow.
+      runtime.archer.root.updateMatrixWorld(true);
+      runtime.archer.equipmentAnchor.getWorldPosition(arrow.start);
+      arrow.start.y += 0.028;
+      tempVector.copy(runtime.enemy.root.position).sub(arrow.start).setY(0);
+      if (tempVector.lengthSq() > 0.0001) {
+        tempVector.normalize();
+        arrow.start.addScaledVector(tempVector, 0.055);
+      }
+
+      arrow.end.copy(runtime.enemy.root.position);
+      arrow.end.y += 0.27;
+      arrow.mesh.position.copy(arrow.start);
       arrow.mesh.visible = true;
-      createImpactFlash(arrow.start, '#eaffd9', 0.055, 0.16, 4);
+      if (arrow.trail) {
+        arrow.trail.visible = true;
+      }
+      createImpactFlash(arrow.start, '#eaffd9', 0.032, 0.11, 3);
     }
 
     const u = clamp01((now - arrow.startedAt) / arrow.duration);
@@ -745,7 +820,7 @@ function updateImpacts(now) {
   }
 }
 
-function applyDamage(amount, source) {
+function applyDamage(amount, source, contactPosition = null) {
   const battle = runtime.battle;
   if (!battle.enemyAlive) {
     return;
@@ -755,18 +830,22 @@ function applyDamage(amount, source) {
   updateEnemyHud();
 
   const isArrow = source === 'arrow';
-  const impactPosition = runtime.enemy.root.position.clone();
-  impactPosition.y += isArrow ? 0.31 : 0.33;
-  impactPosition.x += isArrow ? 0.05 : -0.04;
+  const impactPosition = contactPosition
+    ? contactPosition.clone()
+    : runtime.enemy.root.position.clone();
+  if (!contactPosition) {
+    impactPosition.y += isArrow ? 0.31 : 0.33;
+    impactPosition.x += isArrow ? 0.05 : -0.04;
+  }
   createImpactFlash(
     impactPosition,
     isArrow ? '#dcffd1' : '#ffe98c',
-    isArrow ? 0.10 : 0.155,
-    isArrow ? 0.24 : 0.32,
-    isArrow ? 6 : 9,
+    isArrow ? 0.085 : 0.125,
+    isArrow ? 0.20 : 0.26,
+    isArrow ? 5 : 7,
   );
   if (!isArrow) {
-    createImpactFlash(impactPosition, '#ffffff', 0.052, 0.15, 4);
+    createImpactFlash(impactPosition, '#ffffff', 0.038, 0.12, 4);
     startHitStop(0.038);
     startCameraShake(0.12, 0.020);
   }
@@ -1029,11 +1108,15 @@ async function loadUnit(url, kind, home, equipmentName) {
   const body = root.getObjectByName('Body');
   const faceRoot = root.getObjectByName('FaceRoot');
   const equipmentAnchor = root.getObjectByName(equipmentName);
+  const weaponTip = kind === 'Sword' ? root.getObjectByName('Sword_Tip') : null;
   if (!body?.morphTargetDictionary) {
     throw new Error(`${kind} slime is missing morph targets.`);
   }
   if (!equipmentAnchor) {
     throw new Error(`${kind} slime is missing ${equipmentName}.`);
+  }
+  if (kind === 'Sword' && !weaponTip) {
+    throw new Error('Sword slime is missing Sword_Tip contact marker.');
   }
 
   const shadow = makeShadow(0.24);
@@ -1044,6 +1127,7 @@ async function loadUnit(url, kind, home, equipmentName) {
     body,
     faceRoot,
     equipmentAnchor,
+    weaponTip,
     equipmentBaseQuaternion: equipmentAnchor.quaternion.clone(),
     equipmentBasePosition: equipmentAnchor.position.clone(),
     shadow,
