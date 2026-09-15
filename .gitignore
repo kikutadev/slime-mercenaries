@@ -1,0 +1,7 @@
+# OS / editor
+.DS_Store
+
+# Local artifacts
+tmp/
+dist/
+node_modules/
