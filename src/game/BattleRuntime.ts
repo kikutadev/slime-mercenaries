@@ -121,6 +121,7 @@ const SWORD_MAX_HP = 6;
 const BOW_MAX_HP = 4;
 const ENEMY_ATTACK_RANGE = 0.72;
 const ENEMY_MOVE_SPEED = 0.74;
+const MELEE_BODY_GAP = 0.58;
 const RESULT_HOLD_SECONDS = 1.85;
 const CAMERA_BASE_POSITION = new THREE.Vector3(2.8, 5.35, 8.9);
 const CAMERA_LOOK_AT = new THREE.Vector3(0, 0.38, -1.05);
@@ -647,6 +648,34 @@ export class BattleRuntime {
     return this.allies.filter((ally) => ally.alive);
   }
 
+  private getSafeSwordForwardOffset(direction: THREE.Vector3, desiredOffset: number): number {
+    if (desiredOffset <= 0) return desiredOffset;
+    let safeOffset = desiredOffset;
+    for (const enemy of this.getLivingEnemies()) {
+      const dx = SWORD_ATTACK_POS.x - enemy.root.position.x;
+      const dz = SWORD_ATTACK_POS.z - enemy.root.position.z;
+      const projection = dx * direction.x + dz * direction.z;
+      const c = dx * dx + dz * dz - MELEE_BODY_GAP * MELEE_BODY_GAP;
+      const discriminant = projection * projection - c;
+      if (discriminant <= 0) continue;
+      const root = Math.sqrt(discriminant);
+      const enter = -projection - root;
+      const exit = -projection + root;
+      if (enter <= 0 && exit > 0) return 0;
+      if (enter > 0 && safeOffset > enter) safeOffset = enter;
+    }
+    return Math.max(0, safeOffset - 0.002);
+  }
+
+  private getEnemyTargetPosition(target: AllyUnit): THREE.Vector3 {
+    // During combat, navigation must target the sword slime's stable battle
+    // anchor rather than the temporary root movement used by its slash.
+    // Otherwise enemies chase the attack animation itself and collapse into the
+    // slime's body.
+    if (target.kind === 'Sword' && this.phase === 'combat') return SWORD_ATTACK_POS;
+    return target.root.position;
+  }
+
   private findNearest<T extends AllyUnit | EnemyUnit>(source: AllyUnit | EnemyUnit, candidates: T[]): T | null {
     let nearest: T | null = null;
     let nearestDistanceSq = Infinity;
@@ -829,12 +858,19 @@ export class BattleRuntime {
     const duration = 1.55;
     this.updateHopTravel(this.sword, now, this.phaseStartedAt, SWORD_HOME, SWORD_ATTACK_POS, duration);
     this.updateBow(now);
-    this.enemies.forEach((enemy) => this.updateEnemyUnit(enemy, now));
+    this.enemies.forEach((enemy) => this.updateEnemyApproachIdle(enemy, now));
     if (now - this.phaseStartedAt >= duration) {
       this.sword.root.position.copy(SWORD_ATTACK_POS);
       this.phase = 'combat';
       this.phaseStartedAt = now;
       this.nextSwordAttackAt = now + 0.12;
+      this.enemies.forEach((enemy, index) => {
+        enemy.attackStartedAt = -Infinity;
+        enemy.attackTarget = null;
+        enemy.attackHitApplied = false;
+        enemy.nextAttackAt = now + 0.38 + index * 0.18;
+        enemy.lastUpdateAt = now;
+      });
       this.emitSnapshot(true);
     }
   }
@@ -930,7 +966,12 @@ export class BattleRuntime {
     }
 
     this.tempVector.copy(target.root.position).sub(SWORD_ATTACK_POS).setY(0);
+    const targetDistanceFromAnchor = this.tempVector.length();
     if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
+    if (bodyOffset > 0) {
+      bodyOffset = Math.min(bodyOffset, Math.max(0, targetDistanceFromAnchor - MELEE_BODY_GAP));
+      bodyOffset = this.getSafeSwordForwardOffset(this.tempVector, bodyOffset);
+    }
     sword.root.position.copy(SWORD_ATTACK_POS).addScaledVector(this.tempVector, bodyOffset);
     this.facePoint(sword, target.root.position);
     this.applyUnitDeformation(sword, squash, stretch, lean, 0, 0);
@@ -1066,6 +1107,22 @@ export class BattleRuntime {
     }
   }
 
+  private updateEnemyApproachIdle(enemy: EnemyUnit, now: number): void {
+    if (!enemy.alive || enemy.state === 'defeat' || enemy.state === 'dead') return;
+    enemy.root.position.copy(enemy.home);
+    enemy.root.position.y = 0;
+    const idlePulse = Math.sin(now * 5 + enemy.index) * 0.018;
+    enemy.root.scale.set(
+      enemy.baseScale * (1 + idlePulse),
+      enemy.baseScale * (1 - idlePulse * 0.7),
+      enemy.baseScale,
+    );
+    this.facePoint(enemy, SWORD_ATTACK_POS);
+    enemy.shadow.position.set(enemy.home.x, 0.011, enemy.home.z);
+    enemy.shadow.scale.set(1.35, 0.68, 1);
+    enemy.shadow.material.opacity = 0.22;
+  }
+
   private updateEnemyUnit(enemy: EnemyUnit, now: number): void {
     if (enemy.state === 'defeat' || enemy.state === 'dead') {
       this.updateEnemyDefeat(enemy, now);
@@ -1082,12 +1139,21 @@ export class BattleRuntime {
       return;
     }
 
-    this.facePoint(enemy, target.root.position);
-    this.tempVector.copy(target.root.position).sub(enemy.root.position).setY(0);
+    const targetPosition = this.getEnemyTargetPosition(target);
+    this.facePoint(enemy, targetPosition);
+    this.tempVector.copy(targetPosition).sub(enemy.root.position).setY(0);
     const distance = this.tempVector.length();
     if (distance > ENEMY_ATTACK_RANGE) {
       this.tempVector.normalize();
-      enemy.root.position.addScaledVector(this.tempVector, Math.min(distance - ENEMY_ATTACK_RANGE, ENEMY_MOVE_SPEED * dt));
+      let step = Math.min(distance - ENEMY_ATTACK_RANGE, ENEMY_MOVE_SPEED * dt);
+      if (target.kind === 'Sword' && this.phase === 'combat') {
+        const actualSwordDistance = Math.hypot(
+          target.root.position.x - enemy.root.position.x,
+          target.root.position.z - enemy.root.position.z,
+        );
+        step = Math.min(step, Math.max(0, actualSwordDistance - MELEE_BODY_GAP));
+      }
+      enemy.root.position.addScaledVector(this.tempVector, step);
       const hop = Math.abs(Math.sin(now * 8 + enemy.index * 1.2)) * 0.045;
       enemy.root.position.y = hop;
       enemy.root.scale.set(enemy.baseScale * (1 - hop * 0.3), enemy.baseScale * (1 + hop * 0.55), enemy.baseScale);
@@ -1124,16 +1190,18 @@ export class BattleRuntime {
     }
     const duration = 0.5;
     const u = clamp01((now - enemy.attackStartedAt) / duration);
-    this.tempVector.copy(target.root.position).sub(enemy.attackOrigin).setY(0);
+    const targetPosition = target.root.position;
+    this.tempVector.copy(targetPosition).sub(enemy.attackOrigin).setY(0);
     const distance = this.tempVector.length();
-    this.tempVector.normalize();
+    if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
     const lunge = u < 0.56 ? Math.sin((u / 0.56) * Math.PI * 0.5) : 1 - clamp01((u - 0.56) / 0.44);
-    const travel = Math.min(distance * 0.42, 0.4) * lunge;
+    const maxTravel = Math.max(0, distance - MELEE_BODY_GAP);
+    const travel = Math.min(distance * 0.42, 0.4, maxTravel) * lunge;
     const jump = Math.sin(u * Math.PI) * 0.08;
     enemy.root.position.copy(enemy.attackOrigin).addScaledVector(this.tempVector, travel);
     enemy.root.position.y = jump;
     enemy.root.scale.set(enemy.baseScale * (1 + 0.18 * lunge), enemy.baseScale * (1 - 0.22 * lunge + jump * 0.35), enemy.baseScale);
-    this.facePoint(enemy, target.root.position);
+    this.facePoint(enemy, targetPosition);
     if (!enemy.attackHitApplied && u >= 0.57) {
       enemy.attackHitApplied = true;
       this.applyDamage(target, 1, 'enemy', enemy.root.position);
