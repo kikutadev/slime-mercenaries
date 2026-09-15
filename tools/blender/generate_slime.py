@@ -202,6 +202,10 @@ def create_face(root: bpy.types.Object, eye_material: bpy.types.Material) -> bpy
     face_root = bpy.data.objects.new("FaceRoot", None)
     bpy.context.scene.collection.objects.link(face_root)
     face_root.parent = root
+    # The thicker jelly silhouette extends farther forward than the original
+    # sphere-derived body. Push the whole rigid face onto the visible surface
+    # so eyes/mouth never become buried inside the body.
+    face_root.location = (0.0, -0.24, 0.0)
 
     for name, x in (("Eye_L", -0.225), ("Eye_R", 0.225)):
         create_ellipsoid(

@@ -329,15 +329,10 @@ function facePoint(unit, point) {
   }
   const dx = point.x - unit.root.position.x;
   const dz = point.z - unit.root.position.z;
-  unit.root.rotation.y = Math.atan2(dx, dz);
-}
 
-function faceCamera(unit) {
-  if (!unit?.root) {
-    return;
-  }
-  tempVector.set(camera.position.x, unit.root.position.y, camera.position.z);
-  facePoint(unit, tempVector);
+  // The exported GLB was verified directly: the eyes sit on local +Z.
+  // Point that actual forward axis at the requested world-space point.
+  unit.root.rotation.y = Math.atan2(dx, dz);
 }
 
 function applyUnitDeformation(unit, { squash = 0, stretch = 0, lean = 0, wobble = 0, jump = 0, impact = 0 }) {
@@ -718,10 +713,10 @@ function updateDefeat(now) {
 
 function updateReturn(now) {
   const duration = 1.45;
-  // Retreat while looking back toward the player/camera. This keeps the face
-  // readable during return instead of showing an eyeless rear silhouette.
-  faceCamera(runtime.sword);
-  const arrived = updateHopTravel(runtime.sword, now, runtime.battle.stateStartedAt, SWORD_ATTACK_POS, SWORD_HOME, duration, false);
+  // Return normally: the slime's face points in the same direction it travels.
+  // Since the unit is moving back toward its home position/camera, its face is
+  // visible naturally rather than being forced toward the camera independently.
+  const arrived = updateHopTravel(runtime.sword, now, runtime.battle.stateStartedAt, SWORD_ATTACK_POS, SWORD_HOME, duration, true);
   updateIdle(runtime.archer, now, 1.2);
 
   if (arrived) {
@@ -862,7 +857,21 @@ async function initialize() {
   facePoint(archer, TARGET_HOME);
   updateEnemyHud();
   loadingElement?.classList.add('is-hidden');
-  startBattle(clock.elapsedTime + 0.15);
+
+  const qaMode = new URLSearchParams(window.location.search).get('qa');
+  if (qaMode === 'return') {
+    sword.root.position.copy(SWORD_ATTACK_POS);
+    runtime.enemy.root.visible = false;
+    runtime.enemy.shadow.visible = false;
+    runtime.battle.enemyAlive = false;
+    runtime.battle.enemyHp = 0;
+    updateEnemyHud();
+    runtime.battle.state = 'return';
+    runtime.battle.stateStartedAt = clock.elapsedTime;
+    battleStateElement.textContent = '帰還中';
+  } else {
+    startBattle(clock.elapsedTime + 0.15);
+  }
 }
 
 initialize().catch((error) => {
