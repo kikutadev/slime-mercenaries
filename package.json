@@ -9,12 +9,21 @@
     "preview": "vite preview",
     "generate:model": "npm run generate:sword && npm run generate:archer",
     "generate:sword": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant sword --output public/assets/sword-slime.glb",
-    "generate:archer": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant archer --output public/assets/archer-slime.glb"
+    "generate:archer": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant archer --output public/assets/archer-slime.glb",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@react-three/fiber": "^9.7.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "three": "^0.180.0"
   },
   "devDependencies": {
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@types/three": "^0.180.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "typescript": "^5.9.2",
     "vite": "^7.1.5"
   }
 }

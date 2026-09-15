@@ -27,11 +27,12 @@
 
 ## Runtime prototype
 
-Sword Slime / Bow Slime の自動戦闘PoCを実装済み。Blender Pythonを正本として職業別GLBを生成し、WebランタイムではMorph Targetによる移動・攻撃・被弾表現と、複数敵との相互攻撃、HP、敗北時の潰れ表現を検証している。
+Sword Slime / Bow Slime の自動戦闘PoCを実装済み。Web runtimeは React + TypeScript + React Three Fiber。Blender Pythonを正本として職業別GLBを生成し、Morph Targetによる移動・攻撃・被弾表現、複数敵との相互攻撃、HP、敗北時の潰れ表現を動かしている。Slimes画面では同種合成の進捗・次のbehavior unlock・live 3D previewを実装し、Swordのfusion rankを実戦闘の連撃数へ反映する。
 
 - GitHub Pages: https://kikutadev.github.io/slime-mercenaries/
 - `npm run generate:model` — Blender 4.5 LTSで Sword / Bow の両GLBを再生成
 - `npm run dev` — ローカル実行
+- `npm run typecheck` — TypeScript static check
 - `npm run build` — GitHub Pages向け静的ビルド
 
 ## Current phase

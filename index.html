@@ -4,70 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#b9e988" />
-    <meta
-      name="description"
-      content="Slime Mercenaries — automatic Sword + Archer Slime battle prototype."
-    />
-    <title>Slime Mercenaries — Auto Battle PoC</title>
+    <link rel="icon" href="%BASE_URL%assets/sword-slime-icon.svg" />
+    <meta name="description" content="Slime Mercenaries — auto-battle slime fusion RPG prototype." />
+    <title>Slime Mercenaries</title>
   </head>
   <body>
-    <main class="page">
-      <section class="game-shell" aria-label="Slime Mercenaries automatic battle prototype">
-        <canvas id="game-canvas"></canvas>
-
-        <header class="hud hud--top">
-          <div>
-            <p class="eyebrow">CLOVER ROAD · AUTO BATTLE</p>
-            <h1>Slime Mercenaries</h1>
-          </div>
-          <div class="status-chip" aria-label="battle status">
-            <span class="status-dot"></span>
-            AUTO
-          </div>
-        </header>
-
-        <div class="enemy-hud" aria-label="enemy health">
-          <div class="enemy-hud__row">
-            <strong>Forest Mushrooms</strong>
-            <span id="enemy-hp-label">3体 · 12 / 12</span>
-          </div>
-          <div class="enemy-hp-track"><div id="enemy-hp-fill" class="enemy-hp-fill"></div></div>
-        </div>
-
-        <div class="battle-message" id="battle-state">接敵中</div>
-
-        <footer class="hud hud--bottom">
-          <div class="roster">
-            <div class="unit-card" id="sword-card">
-              <div class="unit-icon unit-icon--sword"><img src="./assets/sword-slime-icon.svg" alt="" aria-hidden="true" /></div>
-              <div>
-                <strong>Sword Slime</strong>
-                <span>前進して近接攻撃</span>
-                <small id="sword-hp-label" class="unit-hp">HP 6 / 6</small>
-              </div>
-            </div>
-            <div class="unit-card" id="archer-card">
-              <div class="unit-icon unit-icon--bow"><img src="./assets/bow-slime-icon.svg" alt="" aria-hidden="true" /></div>
-              <div>
-                <strong>Bow Slime</strong>
-                <span>後衛から矢を射撃</span>
-                <small id="archer-hp-label" class="unit-hp">HP 4 / 4</small>
-              </div>
-            </div>
-          </div>
-          <div class="auto-strip">
-            <span class="auto-strip__pulse"></span>
-            敵味方が自動で交戦し、決着後は次の戦闘へ自動で再出撃します
-          </div>
-        </footer>
-
-        <div class="loading" id="loading" role="status" aria-live="polite">
-          <div class="loading-blob"></div>
-          <span>Deploying squad...</span>
-        </div>
-      </section>
-    </main>
-
-    <script type="module" src="/src/main.js"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
