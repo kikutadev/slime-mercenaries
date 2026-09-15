@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#b9e988" />
+    <meta
+      name="description"
+      content="Slime Mercenaries — automatic Sword + Archer Slime battle prototype."
+    />
+    <title>Slime Mercenaries — Auto Battle PoC</title>
+    <script type="module" crossorigin src="./assets/index-6bPmjIZf.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-ceAywxmE.css">
+  </head>
+  <body>
+    <main class="page">
+      <section class="game-shell" aria-label="Slime Mercenaries automatic battle prototype">
+        <canvas id="game-canvas"></canvas>
+
+        <header class="hud hud--top">
+          <div>
+            <p class="eyebrow">CLOVER ROAD · AUTO BATTLE</p>
+            <h1>Slime Mercenaries</h1>
+          </div>
+          <div class="status-chip" aria-label="battle status">
+            <span class="status-dot"></span>
+            AUTO
+          </div>
+        </header>
+
+        <div class="enemy-hud" aria-label="enemy health">
+          <div class="enemy-hud__row">
+            <strong>Forest Mushroom</strong>
+            <span id="enemy-hp-label">5 / 5</span>
+          </div>
+          <div class="enemy-hp-track"><div id="enemy-hp-fill" class="enemy-hp-fill"></div></div>
+        </div>
+
+        <div class="battle-message" id="battle-state">接敵中</div>
+
+        <footer class="hud hud--bottom">
+          <div class="roster">
+            <div class="unit-card">
+              <div class="unit-icon unit-icon--sword"><img src="./assets/sword-slime-icon.svg" alt="" aria-hidden="true" /></div>
+              <div>
+                <strong>Sword Slime</strong>
+                <span>前進して近接攻撃</span>
+              </div>
+            </div>
+            <div class="unit-card">
+              <div class="unit-icon unit-icon--bow"><img src="./assets/bow-slime-icon.svg" alt="" aria-hidden="true" /></div>
+              <div>
+                <strong>Bow Slime</strong>
+                <span>後衛から矢を射撃</span>
+              </div>
+            </div>
+          </div>
+          <div class="auto-strip">
+            <span class="auto-strip__pulse"></span>
+            敵を倒すと前衛が帰還し、次の敵へ自動で再出撃します
+          </div>
+        </footer>
+
+        <div class="loading" id="loading" role="status" aria-live="polite">
+          <div class="loading-blob"></div>
+          <span>Deploying squad...</span>
+        </div>
+      </section>
+    </main>
+
+  </body>
+</html>
