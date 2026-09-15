@@ -6,48 +6,62 @@
     <meta name="theme-color" content="#b9e988" />
     <meta
       name="description"
-      content="Slime Mercenaries — Blender Python generated Sword Slime combat prototype."
+      content="Slime Mercenaries — automatic Sword + Archer Slime battle prototype."
     />
-    <title>Slime Mercenaries — Sword Slime Combat PoC</title>
+    <title>Slime Mercenaries — Auto Battle PoC</title>
   </head>
   <body>
     <main class="page">
-      <section class="game-shell" aria-label="Slime Mercenaries Sword Slime combat prototype">
+      <section class="game-shell" aria-label="Slime Mercenaries automatic battle prototype">
         <canvas id="game-canvas"></canvas>
 
         <header class="hud hud--top">
           <div>
-            <p class="eyebrow">CLOVER ROAD · COMBAT POC</p>
-            <h1>Sword Slime</h1>
+            <p class="eyebrow">CLOVER ROAD · AUTO BATTLE</p>
+            <h1>Slime Mercenaries</h1>
           </div>
-          <div class="status-chip" aria-label="runtime status">
+          <div class="status-chip" aria-label="battle status">
             <span class="status-dot"></span>
-            Blender GLB
+            AUTO
           </div>
         </header>
 
-        <div class="hint" id="hint">スライムをタップすると体当たりします</div>
+        <div class="enemy-hud" aria-label="enemy health">
+          <div class="enemy-hud__row">
+            <strong>Forest Mushroom</strong>
+            <span id="enemy-hp-label">5 / 5</span>
+          </div>
+          <div class="enemy-hp-track"><div id="enemy-hp-fill" class="enemy-hp-fill"></div></div>
+        </div>
+
+        <div class="battle-message" id="battle-state">接敵中</div>
 
         <footer class="hud hud--bottom">
-          <div class="unit-card">
-            <div class="unit-icon" aria-hidden="true">◆</div>
-            <div>
-              <strong>Sword Slime</strong>
-              <span>Gravity · Tackle · Sword follow-through</span>
+          <div class="roster">
+            <div class="unit-card">
+              <div class="unit-icon unit-icon--sword" aria-hidden="true">◆</div>
+              <div>
+                <strong>Sword Slime</strong>
+                <span>前進して近接攻撃</span>
+              </div>
+            </div>
+            <div class="unit-card">
+              <div class="unit-icon unit-icon--bow" aria-hidden="true">⌁</div>
+              <div>
+                <strong>Bow Slime</strong>
+                <span>後衛から矢を射撃</span>
+              </div>
             </div>
           </div>
-
-          <div class="controls" role="group" aria-label="Slime animation controls">
-            <button type="button" data-action="idle" class="control is-active">Idle</button>
-            <button type="button" data-action="hop" class="control">Hop</button>
-            <button type="button" data-action="tackle" class="control">Tackle</button>
-            <button type="button" data-action="slash" class="control">Slash</button>
+          <div class="auto-strip">
+            <span class="auto-strip__pulse"></span>
+            敵を倒すと前衛が帰還し、次の敵へ自動で再出撃します
           </div>
         </footer>
 
         <div class="loading" id="loading" role="status" aria-live="polite">
           <div class="loading-blob"></div>
-          <span>Forging slime...</span>
+          <span>Deploying squad...</span>
         </div>
       </section>
     </main>

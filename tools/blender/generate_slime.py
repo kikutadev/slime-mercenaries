@@ -1,8 +1,7 @@
-"""Generate the canonical combat slime GLB for Slime Mercenaries.
+"""Generate compact combat-slime GLBs for Slime Mercenaries.
 
-The body owns the soft deformation targets. Face and weapon stay rigid and are
-moved by runtime secondary motion so the slime reads as soft while equipment
-keeps a clean silhouette.
+The generated body owns soft morph targets. Face and equipment remain rigid and
+are driven by the runtime so the same jelly motion can be reused across jobs.
 """
 
 from __future__ import annotations
@@ -15,7 +14,6 @@ import sys
 import bpy
 from mathutils import Vector
 
-
 BODY_HEIGHT = 1.42
 BODY_BASE_Z = 0.035
 
@@ -24,6 +22,7 @@ def parse_args() -> argparse.Namespace:
     """Read arguments passed after Blender's `--` separator."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True, help="Destination .glb path")
+    parser.add_argument("--variant", choices=("sword", "archer"), default="sword")
     argv: list[str] = []
     if "--" in sys.argv:
         argv = sys.argv[sys.argv.index("--") + 1 :]
@@ -31,7 +30,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def clear_scene() -> None:
-    """Remove every object from the temporary generation scene."""
+    """Remove startup objects from the temporary generation scene."""
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
 
@@ -52,21 +51,21 @@ def make_material(
     bsdf.inputs["Roughness"].default_value = roughness
     bsdf.inputs["Metallic"].default_value = metallic
     if "Coat Weight" in bsdf.inputs:
-        bsdf.inputs["Coat Weight"].default_value = 0.18 if metallic < 0.2 else 0.08
+        bsdf.inputs["Coat Weight"].default_value = 0.16 if metallic < 0.2 else 0.06
     if "Coat Roughness" in bsdf.inputs:
-        bsdf.inputs["Coat Roughness"].default_value = 0.12
+        bsdf.inputs["Coat Roughness"].default_value = 0.14
     return material
 
 
 def create_root() -> bpy.types.Object:
-    """Create the stable root used by generated slime variants."""
+    """Create the stable root shared by every slime variant."""
     root = bpy.data.objects.new("SlimeRoot", None)
     bpy.context.scene.collection.objects.link(root)
     return root
 
 
 def deform_base_vertex(co: Vector) -> Vector:
-    """Turn a unit UV sphere into a low, bottom-heavy jelly silhouette."""
+    """Turn a unit sphere into a low, bottom-heavy jelly silhouette."""
     normalized_z = max(0.0, min(1.0, (co.z + 1.0) * 0.5))
     lower_weight = 1.0 - normalized_z
     width = 1.08 + 0.22 * (lower_weight**1.35)
@@ -75,13 +74,12 @@ def deform_base_vertex(co: Vector) -> Vector:
     z = ((co.z + 1.0) * 0.5) ** 0.94 * BODY_HEIGHT
     if z < 0.13:
         z = BODY_BASE_Z + (z / 0.13) ** 2 * 0.095
-
     return Vector((co.x * width, co.y * depth, z))
 
 
 def create_body(root: bpy.types.Object, material: bpy.types.Material) -> bpy.types.Object:
-    """Create the body mesh and reusable deformation targets."""
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=48, ring_count=28, radius=1.0)
+    """Create the jelly mesh and reusable squash/stretch targets."""
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=40, ring_count=24, radius=1.0)
     body = bpy.context.active_object
     assert body is not None
     body.name = "Body"
@@ -151,10 +149,10 @@ def create_ellipsoid(
     material: bpy.types.Material,
     parent: bpy.types.Object,
     *,
-    segments: int = 24,
-    rings: int = 16,
+    segments: int = 20,
+    rings: int = 12,
 ) -> bpy.types.Object:
-    """Create a rigid ellipsoid for face components."""
+    """Create a rigid ellipsoid for simple face details."""
     bpy.ops.mesh.primitive_uv_sphere_add(segments=segments, ring_count=rings, radius=1.0)
     obj = bpy.context.active_object
     assert obj is not None
@@ -168,22 +166,17 @@ def create_ellipsoid(
     return obj
 
 
-def create_face(
-    root: bpy.types.Object,
-    eye_material: bpy.types.Material,
-) -> bpy.types.Object:
-    """Create rigid face parts under a runtime-adjustable FaceRoot anchor."""
+def create_face(root: bpy.types.Object, eye_material: bpy.types.Material) -> bpy.types.Object:
+    """Create two small matte-black eyes and a tiny mouth, with no highlights."""
     face_root = bpy.data.objects.new("FaceRoot", None)
     bpy.context.scene.collection.objects.link(face_root)
     face_root.parent = root
 
-    # Keep the face intentionally simple at gameplay scale: two small, dark eyes
-    # with no painted/specular highlight geometry.
     for name, x in (("Eye_L", -0.225), ("Eye_R", 0.225)):
         create_ellipsoid(
             name,
             (x, -0.792, 0.82),
-            (0.105, 0.052, 0.142),
+            (0.105, 0.050, 0.142),
             eye_material,
             face_root,
         )
@@ -191,11 +184,11 @@ def create_face(
     create_ellipsoid(
         "Mouth",
         (0.0, -0.842, 0.57),
-        (0.07, 0.025, 0.038),
+        (0.055, 0.020, 0.026),
         eye_material,
         face_root,
-        segments=20,
-        rings=12,
+        segments=16,
+        rings=10,
     )
     return face_root
 
@@ -209,14 +202,14 @@ def create_box(
     *,
     bevel: float = 0.0,
 ) -> bpy.types.Object:
-    """Create a simple rigid box as a modular equipment part."""
+    """Create a small rigid equipment part."""
     bpy.ops.mesh.primitive_cube_add(size=1.0)
     obj = bpy.context.active_object
     assert obj is not None
     obj.name = name
     obj.parent = parent
     obj.location = location
-    obj.scale = (size[0], size[1], size[2])
+    obj.scale = size
     obj.data.materials.append(material)
     if bevel > 0:
         modifier = obj.modifiers.new(name="SoftEdges", type="BEVEL")
@@ -225,65 +218,95 @@ def create_box(
     return obj
 
 
-def create_weapon(
+def create_cylinder_between(
+    name: str,
+    start: tuple[float, float, float],
+    end: tuple[float, float, float],
+    radius: float,
+    material: bpy.types.Material,
+    parent: bpy.types.Object,
+    *,
+    vertices: int = 10,
+) -> bpy.types.Object:
+    """Create a cylinder aligned between two local points."""
+    start_v = Vector(start)
+    end_v = Vector(end)
+    direction = end_v - start_v
+    midpoint = (start_v + end_v) * 0.5
+    bpy.ops.mesh.primitive_cylinder_add(vertices=vertices, radius=radius, depth=direction.length)
+    obj = bpy.context.active_object
+    assert obj is not None
+    obj.name = name
+    obj.parent = parent
+    obj.location = midpoint
+    obj.rotation_mode = "QUATERNION"
+    obj.rotation_quaternion = direction.to_track_quat("Z", "Y")
+    obj.data.materials.append(material)
+    return obj
+
+
+def create_sword(
     root: bpy.types.Object,
     blade_material: bpy.types.Material,
     guard_material: bpy.types.Material,
     grip_material: bpy.types.Material,
 ) -> bpy.types.Object:
-    """Create an oversized toy sword on a single runtime weapon anchor."""
+    """Create a compact sword on the slime's front-right flank."""
     anchor = bpy.data.objects.new("WeaponAnchor", None)
     bpy.context.scene.collection.objects.link(anchor)
     anchor.parent = root
-    # Keep the rigid sword on the camera-side flank while the slime itself
-    # faces up-field toward the opponent. The slime has no humanoid hand, so
-    # this reads as a weapon gripped by the body edge rather than an arm.
-    anchor.location = (-1.08, 0.34, 0.52)
-    anchor.rotation_euler[1] = math.radians(-18.0)
-    anchor.rotation_euler[2] = math.radians(-12.0)
+    # Face points toward -Y in Blender. Put the blade on the right-front flank so
+    # it is visible while the slime faces an enemy up-field.
+    anchor.location = (-1.04, 0.52, 0.50)
+    anchor.rotation_euler[0] = math.radians(-12.0)
+    anchor.rotation_euler[1] = math.radians(-22.0)
+    anchor.rotation_euler[2] = math.radians(18.0)
 
-    create_box(
-        "Sword_Blade",
-        (0.14, 0.07, 0.84),
-        (0.0, 0.0, 0.56),
-        blade_material,
-        anchor,
-        bevel=0.025,
-    )
-    create_box(
-        "Sword_Guard",
-        (0.48, 0.10, 0.09),
-        (0.0, 0.0, 0.095),
-        guard_material,
-        anchor,
-        bevel=0.025,
-    )
-    create_box(
-        "Sword_Grip",
-        (0.11, 0.10, 0.28),
-        (0.0, 0.0, -0.09),
-        grip_material,
-        anchor,
-        bevel=0.018,
-    )
+    create_box("Sword_Blade", (0.12, 0.060, 0.90), (0.0, 0.0, 0.66), blade_material, anchor, bevel=0.02)
+    create_box("Sword_Guard", (0.42, 0.09, 0.08), (0.0, 0.0, 0.10), guard_material, anchor, bevel=0.02)
+    create_box("Sword_Grip", (0.095, 0.080, 0.27), (0.0, 0.0, -0.085), grip_material, anchor, bevel=0.015)
 
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=16, ring_count=10, radius=1.0)
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=1.0)
     pommel = bpy.context.active_object
     assert pommel is not None
     pommel.name = "Sword_Pommel"
     pommel.parent = anchor
-    pommel.location = (0.0, 0.0, -0.30)
-    pommel.scale = (0.09, 0.09, 0.09)
+    pommel.location = (0.0, 0.0, -0.275)
+    pommel.scale = (0.07, 0.07, 0.07)
     pommel.data.materials.append(guard_material)
 
-    bpy.ops.mesh.primitive_cone_add(vertices=4, radius1=0.11, radius2=0.0, depth=0.18)
+    bpy.ops.mesh.primitive_cone_add(vertices=4, radius1=0.09, radius2=0.0, depth=0.16)
     tip = bpy.context.active_object
     assert tip is not None
     tip.name = "Sword_Tip"
     tip.parent = anchor
-    tip.location = (0.0, 0.0, 1.07)
+    tip.location = (0.0, 0.0, 1.20)
     tip.rotation_euler[2] = math.radians(45.0)
     tip.data.materials.append(blade_material)
+    return anchor
+
+
+def create_bow(
+    root: bpy.types.Object,
+    wood_material: bpy.types.Material,
+    string_material: bpy.types.Material,
+) -> bpy.types.Object:
+    """Create a readable low-detail bow and string on a single BowAnchor."""
+    anchor = bpy.data.objects.new("BowAnchor", None)
+    bpy.context.scene.collection.objects.link(anchor)
+    anchor.parent = root
+    anchor.location = (1.00, 0.52, 0.54)
+    anchor.rotation_euler[0] = math.radians(4.0)
+    anchor.rotation_euler[1] = math.radians(-12.0)
+    anchor.rotation_euler[2] = math.radians(-10.0)
+
+    # Three rigid segments are enough to read as an oversized toy bow at mobile scale.
+    create_cylinder_between("Bow_Upper", (0.0, 0.0, 0.0), (0.22, 0.0, 0.48), 0.040, wood_material, anchor)
+    create_cylinder_between("Bow_Lower", (0.0, 0.0, 0.0), (0.22, 0.0, -0.48), 0.040, wood_material, anchor)
+    create_cylinder_between("Bow_UpperTip", (0.22, 0.0, 0.48), (0.12, 0.0, 0.66), 0.032, wood_material, anchor)
+    create_cylinder_between("Bow_LowerTip", (0.22, 0.0, -0.48), (0.12, 0.0, -0.66), 0.032, wood_material, anchor)
+    create_cylinder_between("Bow_StringUpper", (0.12, 0.0, 0.66), (-0.06, 0.0, 0.0), 0.008, string_material, anchor, vertices=6)
+    create_cylinder_between("Bow_StringLower", (-0.06, 0.0, 0.0), (0.12, 0.0, -0.66), 0.008, string_material, anchor, vertices=6)
     return anchor
 
 
@@ -304,12 +327,13 @@ def export_glb(output_path: Path) -> None:
 
 
 def main() -> None:
-    """Build the combat slime and write it as a game-ready GLB."""
+    """Build one slime job variant and export it."""
     args = parse_args()
     clear_scene()
 
     root = create_root()
-    body_material = make_material("SlimeBlue", (0.045, 0.48, 0.96, 1.0), roughness=0.24)
+    body_color = (0.045, 0.48, 0.96, 1.0) if args.variant == "sword" else (0.06, 0.55, 0.88, 1.0)
+    body_material = make_material("SlimeBlue", body_color, roughness=0.24)
     eye_material = make_material("SlimeEyeBlack", (0.003, 0.005, 0.008, 1.0), roughness=1.0)
     eye_bsdf = eye_material.node_tree.nodes.get("Principled BSDF")
     if eye_bsdf is not None:
@@ -317,15 +341,20 @@ def main() -> None:
             eye_bsdf.inputs["Coat Weight"].default_value = 0.0
         if "Specular IOR Level" in eye_bsdf.inputs:
             eye_bsdf.inputs["Specular IOR Level"].default_value = 0.0
-    blade_material = make_material("SwordSteel", (0.66, 0.78, 0.88, 1.0), roughness=0.24, metallic=0.72)
-    guard_material = make_material("SwordGold", (0.92, 0.55, 0.12, 1.0), roughness=0.32, metallic=0.28)
-    grip_material = make_material("SwordGrip", (0.24, 0.10, 0.08, 1.0), roughness=0.72)
 
     create_body(root, body_material)
     create_face(root, eye_material)
-    create_weapon(root, blade_material, guard_material, grip_material)
 
-    root.rotation_euler[2] = math.radians(-8.0)
+    if args.variant == "sword":
+        blade_material = make_material("SwordSteel", (0.66, 0.78, 0.88, 1.0), roughness=0.24, metallic=0.72)
+        guard_material = make_material("SwordGold", (0.92, 0.55, 0.12, 1.0), roughness=0.32, metallic=0.28)
+        grip_material = make_material("SwordGrip", (0.24, 0.10, 0.08, 1.0), roughness=0.72)
+        create_sword(root, blade_material, guard_material, grip_material)
+    else:
+        wood_material = make_material("BowWood", (0.37, 0.18, 0.07, 1.0), roughness=0.78)
+        string_material = make_material("BowString", (0.08, 0.08, 0.08, 1.0), roughness=0.95)
+        create_bow(root, wood_material, string_material)
+
     export_glb(Path(args.output).expanduser().resolve())
 
 

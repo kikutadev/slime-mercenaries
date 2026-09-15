@@ -25,13 +25,13 @@
 
 ## Runtime prototype
 
-Plain Slimeから一段進め、Sword Slimeの戦闘PoCを実装済み。Blender Pythonを正本としてGLBを生成し、WebランタイムではMorph Targetを使ったSquash / Stretch / Lean / Hitに加えて、重力ベースのHop、体当たり、剣の遅れ追従を伴うSlashを合成する。
+Sword Slime / Bow Slime の自動戦闘PoCを実装済み。Blender Pythonを正本として職業別GLBを生成し、WebランタイムではMorph Targetによる移動・攻撃・被弾表現と、自動接敵→攻撃→撃破→帰還→再出撃のループを実行する。
 
 - GitHub Pages: https://kikutadev.github.io/slime-mercenaries/
-- `npm run generate:model` — Blender 4.5 LTSで `public/assets/sword-slime.glb` を再生成
+- `npm run generate:model` — Blender 4.5 LTSで Sword / Bow の両GLBを再生成
 - `npm run dev` — ローカル実行
 - `npm run build` — GitHub Pages向け静的ビルド
 
 ## Current phase
 
-Product specification / pre-production から、アートパイプラインとruntime vertical sliceの検証へ移行中。現在は実戦サイズへ縮小したSword Slimeで、重力感、接地、Tackle、Slash、装備追従を検証している。
+Product specification / pre-production から、runtime vertical sliceの検証へ移行中。現在はSword Slimeが前進して近接攻撃し、Bow Slimeが後衛から矢を放ち、敵撃破後に前衛が定位置へ帰還する自動戦闘ループを検証している。キャラクターサイズは20〜30体編成を想定した小画面可読性基準へ寄せている。
