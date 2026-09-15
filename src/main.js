@@ -75,6 +75,8 @@ const runtime = {
   slashArc: null,
   arrows: [],
   impacts: [],
+  qaMode: null,
+  qaArmy: [],
   simulationNow: 0,
   pausedDuration: 0,
   hitStopStartedAt: -Infinity,
@@ -1643,6 +1645,112 @@ async function loadUnit(url, kind, home, equipmentName) {
   return unit;
 }
 
+function cloneQaUnit(template, kind, position, index) {
+  const root = template.root.clone(true);
+  root.name = `Qa${kind}Slime${index + 1}`;
+  root.visible = true;
+  root.position.copy(position);
+  root.scale.setScalar(SCALE);
+
+  const body = root.getObjectByName('Body');
+  const faceRoot = root.getObjectByName('FaceRoot');
+  const equipmentName = kind === 'Sword' ? 'WeaponAnchor' : 'BowAnchor';
+  const equipmentAnchor = root.getObjectByName(equipmentName);
+  const weaponTip = kind === 'Sword' ? root.getObjectByName('Sword_Tip') : null;
+
+  // Mesh.clone() may retain morph influence arrays by reference depending on
+  // renderer/version details. Give every QA body its own array so 30 idle
+  // deformations can be inspected independently.
+  if (body?.morphTargetInfluences) {
+    body.morphTargetInfluences = [...body.morphTargetInfluences];
+  }
+
+  const shadow = makeShadow(0.24);
+  shadow.position.set(position.x, 0.011, position.z);
+  const unit = {
+    id: `qa-${kind.toLowerCase()}-${index + 1}`,
+    side: 'ally',
+    kind,
+    root,
+    body,
+    faceRoot,
+    equipmentAnchor,
+    weaponTip,
+    equipmentBaseQuaternion: equipmentAnchor?.quaternion.clone() ?? new THREE.Quaternion(),
+    equipmentBasePosition: equipmentAnchor?.position.clone() ?? new THREE.Vector3(),
+    bodyBaseScale: body?.scale.clone() ?? new THREE.Vector3(1, 1, 1),
+    faceBasePosition: faceRoot?.position.clone() ?? new THREE.Vector3(),
+    shadow,
+    home: position.clone(),
+    alive: true,
+    state: 'idle',
+    qaPhase: index * 0.47,
+  };
+  scene.add(root);
+  return unit;
+}
+
+function setupThirtyUnitQa(swordTemplate, archerTemplate) {
+  runtime.qaMode = '30';
+  runtime.battle.state = 'qa';
+
+  // Keep the normal two combatants as templates only; the actual density test
+  // uses 6 logical squads x 5 visible bodies.
+  for (const template of [swordTemplate, archerTemplate]) {
+    template.root.visible = false;
+    template.shadow.visible = false;
+    if (template.healthBar) {
+      template.healthBar.visible = false;
+    }
+  }
+  runtime.allies = [];
+
+  const squadCenters = [
+    new THREE.Vector3(-0.86, 0.02, 0.10),
+    new THREE.Vector3(0.00, 0.02, 0.06),
+    new THREE.Vector3(0.86, 0.02, 0.10),
+    new THREE.Vector3(-0.86, 0.02, 0.94),
+    new THREE.Vector3(0.00, 0.02, 0.90),
+    new THREE.Vector3(0.86, 0.02, 0.94),
+  ];
+  const bodyOffsets = [
+    new THREE.Vector3(-0.20, 0, -0.18),
+    new THREE.Vector3(0.20, 0, -0.18),
+    new THREE.Vector3(-0.30, 0, 0.16),
+    new THREE.Vector3(0.00, 0, 0.22),
+    new THREE.Vector3(0.30, 0, 0.16),
+  ];
+
+  runtime.qaArmy.length = 0;
+  let bodyIndex = 0;
+  for (let squadIndex = 0; squadIndex < squadCenters.length; squadIndex += 1) {
+    const kind = squadIndex < 3 ? 'Sword' : 'Bow';
+    const template = kind === 'Sword' ? swordTemplate : archerTemplate;
+    for (const offset of bodyOffsets) {
+      const position = squadCenters[squadIndex].clone().add(offset);
+      const unit = cloneQaUnit(template, kind, position, bodyIndex);
+      facePoint(unit, TARGET_HOME);
+      runtime.qaArmy.push(unit);
+      bodyIndex += 1;
+    }
+  }
+
+  battleStateElement.textContent = '30体密度テスト';
+  if (enemyHpLabel) {
+    enemyHpLabel.textContent = '6部隊 × 5匹 = 30匹';
+  }
+  if (enemyHpFill) {
+    enemyHpFill.style.transform = 'scaleX(1)';
+  }
+}
+
+function updateThirtyUnitQa(now) {
+  for (const unit of runtime.qaArmy) {
+    updateIdle(unit, now, unit.qaPhase);
+    facePoint(unit, TARGET_HOME);
+  }
+}
+
 async function initialize() {
   createEnvironment();
   createLighting();
@@ -1664,7 +1772,9 @@ async function initialize() {
   loadingElement?.classList.add('is-hidden');
 
   const qaMode = new URLSearchParams(window.location.search).get('qa');
-  if (qaMode === 'defeat') {
+  if (qaMode === '30') {
+    setupThirtyUnitQa(sword, archer);
+  } else if (qaMode === 'defeat') {
     runtime.battle.state = 'result';
     runtime.battle.stateStartedAt = clock.elapsedTime;
     runtime.battle.result = 'defeat';
@@ -1692,7 +1802,11 @@ function render() {
   const simulationNow = getSimulationTime(rawNow);
   runtime.simulationNow = simulationNow;
   if (!hitStopActive) {
-    updateBattle(simulationNow);
+    if (runtime.qaMode === '30') {
+      updateThirtyUnitQa(simulationNow);
+    } else {
+      updateBattle(simulationNow);
+    }
   }
   updateCameraTransform(rawNow);
   updateAllyHealthBars();
