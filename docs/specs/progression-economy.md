@@ -1,44 +1,48 @@
-# Progression, Loot & Economy
+# Progression, Loot, Dispatch & Economy
 
 Status: Current
-Date: 2026-09-15
+Date: 2026-09-16
 
 ## 1. Economy goal
 
 The economy exists to keep one question alive:
 
-> **次の宝箱・進化・部隊増員で、戦場がどう変わるか。**
+> **次の宝箱・同種入手・進化・装備更新で、このスライムの戦い方がどう変わるか。**
 
-Do not create many currencies merely to add systems. Every resource must have an obvious sink and visual payoff.
+Do not create currencies merely to add systems. Every resource must have an obvious sink and payoff.
 
-## 2. Core resources
+## 2. Core resources and growth inputs
 
-| Resource | Source | Primary sink | Purpose |
+| Input | Source | Primary sink | Purpose |
 |---|---|---|---|
-| Gold | kills, stage rewards, offline | type level, promotion fees | frequent growth |
-| Slime Gel | elite enemies, chest, duplicates | population milestones / squad growth | more visible bodies |
-| Forge Key | boss, objectives, chest | equipment forge draw | deliberate equipment pull |
-| Promotion Material | area/boss family | Tier 2/3 promotion | deterministic evolution |
-| Mutation Fragments | mutation-related encounters | guaranteed mutation unlock | RNG backstop |
+| Gold | kills, stage, dispatch, offline | type level, promotion fees | frequent growth |
+| Same-type slime copy | chest/recruitment/progression reward | fusion | strengthen owned slime type |
+| Forge Key | boss, objectives, chest, dispatch | equipment forge draw | deliberate equipment pull |
+| Promotion Material | area/boss/dispatch | Tier promotion | deterministic evolution |
+| Mutation Fragments | mutation encounters | guaranteed mutation unlock | RNG backstop |
 
-Premium currency / monetized purchase currency is intentionally not part of the initial product specification. Monetization can be layered later without making core slime types premium-only.
+A slime duplicate is a growth input, not a permanent population unit.
+
+`Slime Gel -> visible body count` is removed from current design. If a Gel resource is reintroduced later, it must serve a new explicit purpose rather than resurrecting population growth implicitly.
+
+Premium currency is intentionally outside the initial product specification.
 
 ## 3. Areas
 
-Initial world contains eight areas. Each introduces a visual theme, enemy behavior, and progression opportunity.
+Initial world horizon contains eight areas.
 
 | Area | Theme | Primary new question | Major boss | Important unlock |
 |---|---|---|---|---|
-| 1 Clover Road | bright grass road | how do jobs work? | Great Mushroom | Sword/Bow foundation |
+| 1 Clover Road | bright grass road | jobs + first fusion | Great Mushroom | Sword/Bow foundation |
 | 2 Mushroom Forest | giant colorful fungi | ranged vs swarm | Spore Boar | Wand/Dagger families |
 | 3 Amber Mine | crystal mine | armor/break | Amber Golem | Shield/Gun families |
 | 4 Sunken Marsh | shallow water/ruins | movement/control | Mire Hydra | first Tier 3 crests |
 | 5 Frost Ruins | snow + blue ruins | slowing fields | Frost Colossus | Frost/precision paths |
 | 6 Ember Canyon | volcanic red rock | burst/survival | Magma Tortoise | Dragon fragments begin |
-| 7 Moonlit Castle | moonlit fantasy keep | mixed elite formations | Crown Warden | King/Prism paths |
-| 8 Dragon Crater | black rock, stars, lava | full composition test | Ancient Sky Dragon | guaranteed Dragon Core / world clear |
+| 7 Moonlit Castle | moonlit keep | mixed elites | Crown Warden | King/Prism paths |
+| 8 Dragon Crater | black rock, stars, lava | full composition test | Ancient Sky Dragon | Dragon Core / world clear |
 
-Area unlock is sequential for the first world. Normal stages inside an area can be farmed after the player hits a blocking boss.
+Area unlock is sequential for the first world. Normal stages can be farmed after a blocking boss.
 
 ## 4. Chest cadence
 
@@ -52,27 +56,43 @@ Initial target cadence while actively progressing:
 - bosses guarantee at least Gold-equivalent reward
 - Rainbow chests are rare excitement events and also appear at selected deterministic milestones
 
-The exact drop table is balance data. The following chest identities are product-level:
+Chest contents may include slime acquisition, equipment, Gold, keys, promotion materials, or mutation progress.
 
-### Wood Chest
+A chest auto-opens after a short delay when ignored. Tapping it is faster, never mandatory.
 
-Frequent. Gold, Gel, common/rare equipment.
+## 5. Slime acquisition and duplicate value
 
-### Silver Chest
+The first acquisition of a type creates/discovers that roster entry.
 
-Noticeably better reveal. Rare/epic equipment, keys, promotion material.
+A later acquisition of the same type becomes fusion input for that type.
 
-### Gold Chest
+The product must avoid two failure modes:
 
-Boss/elite reward. Epic+ emphasis, larger progression materials.
+1. duplicate = useless trash
+2. duplicate = another body that clutters the battle screen
 
-### Rainbow Chest
+Fusion solves duplicate value without turning collection into population management.
 
-Major event. High-rarity equipment and special mutation/material chance. A Rainbow reveal must have a distinct short animation and battlefield celebration.
+Core normal-job discovery remains deterministic enough that unlucky acquisition cannot block the basic game.
 
-A chest auto-opens after a short delay when ignored. Tapping it is faster and more satisfying, never mandatory.
+Exact slime acquisition pools/rates are balance/content data and are not fixed by this document yet.
 
-## 5. Equipment families
+## 6. Fusion economy
+
+Fusion requirements may scale by fusion rank, but the system should remain readable.
+
+A fusion action should show:
+
+- current rank/progress
+- copies required
+- resulting combat improvement
+- any visible behavior milestone
+
+Do not require a long list of unrelated currencies for routine fusion.
+
+Fusion does not alter slime body size.
+
+## 7. Equipment families
 
 Six weapon families align with the six normal branches:
 
@@ -83,13 +103,13 @@ Six weapon families align with the six normal branches:
 - Dagger
 - Gun
 
-A slime type equips one family-compatible weapon. This keeps equipment readable and avoids multi-slot inventory micromanagement.
+A slime type equips one family-compatible weapon. This avoids multi-slot inventory micromanagement.
 
-Tier-1 job discovery requires access to the family, but never requires rolling a rare item. A basic family item becomes craftable/guaranteed when the corresponding branch is unlocked.
+Basic family access for normal jobs is deterministic. Random drops improve quality rather than deciding whether the branch exists at all.
 
-## 6. Rarity
+## 8. Equipment rarity
 
-Five equipment rarities:
+Five equipment rarities remain the content target:
 
 1. Common
 2. Rare
@@ -97,166 +117,131 @@ Five equipment rarities:
 4. Legendary
 5. Mythic
 
-Rarity is not only a scalar.
+Rarity should increasingly affect visible behavior.
 
 - Common: clear base attack identity
 - Rare: one readable modifier
 - Epic: stronger modifier + improved projectile/impact presentation
 - Legendary: build-defining behavior change
-- Mythic: unique named weapon, signature VFX, strong collection identity
+- Mythic: named weapon + signature VFX/behavior
 
-## 7. Forge draw / gacha
+## 9. Forge draw
 
 Random equipment acquisition has two sources:
 
-1. **battle chest drop** — ambient variable reward
-2. **Forge draw** using Forge Keys — deliberate player-initiated draw
+1. battle chest drop
+2. Forge draw using Forge Keys
 
-The Forge is the conventional gacha-like presentation, but its pool contains equipment rather than slime characters.
+Forge draws equipment, not mandatory core-job access.
 
-Initial rarity targets for a single Forge result:
+Initial rarity targets may use conventional weighted rates and pity, but exact probabilities remain tuning data. Pity counters must persist and cannot be rerolled by reload.
 
-| Rarity | Base rate |
-|---|---:|
-| Common | 48% |
-| Rare | 30% |
-| Epic | 15% |
-| Legendary | 6% |
-| Mythic | 1% |
+### Equipment duplicates
 
-These are initial tuning values and can change with simulation, but the pity behavior below is a design contract.
+A duplicate weapon feeds that exact weapon's refinement track first. Once capped, overflow may convert to family material.
 
-### Pity
+Slime duplicate fusion and weapon duplicate refinement are intentionally separate systems.
 
-- every 10 draws: Epic+ guaranteed if the preceding nine had no Epic+
-- by 50 draws since last Legendary+: Legendary+ guaranteed
-- by 120 draws since last Mythic: Mythic guaranteed
-- pulling the guaranteed class naturally resets that class’s counter
-- pity state persists across sessions
+## 10. Mythic collection
 
-### Duplicate handling
+Longer-term target contains multiple Mythics per weapon family so collection does not collapse into one universal best item.
 
-A duplicate weapon is never discarded for generic currency only.
-
-Duplicates feed that exact weapon’s refinement track first. Refinement increases strength and, at key levels, improves the weapon’s visible effect. Once refinement is capped, overflow converts to family mastery material.
-
-## 8. Mythic collection
-
-Launch target contains at least 12 Mythic weapons, two per family. There is deliberately no single universal Mythic that ends collection desire.
+Examples:
 
 | Family | Mythic A | Identity | Mythic B | Identity |
 |---|---|---|---|---|
-| Sword | Starcleaver | long crescent slash travels forward | Bloodmoon Edge | frenzy echoes repeat last strike |
-| Shield | Aegis of Dawn | periodic team barrier wave | Worldshell | absorbs a heavy hit then shockwaves |
-| Bow | Comet String | piercing star arrow | Tempest Branch | chain-lightning multishot |
-| Wand | Sunseed Staff | miniature meteor bloom | Zero Crystal | freeze field then shatter burst |
-| Dagger | Nightglass Twins | teleport echo strikes | Kingbee Fang | rapid execute marks spread on kill |
-| Gun | Jellynova | explosive bouncing rounds | Clockwork Choir | deploys synchronized mini-cannons |
+| Sword | Starcleaver | traveling crescent slash | Bloodmoon Edge | echo strike |
+| Shield | Aegis of Dawn | team barrier wave | Worldshell | absorb then shockwave |
+| Bow | Comet String | piercing star arrow | Tempest Branch | chain multishot |
+| Wand | Sunseed Staff | miniature meteor bloom | Zero Crystal | freeze then shatter |
+| Dagger | Nightglass Twins | teleport echo strikes | Kingbee Fang | execute mark spread |
+| Gun | Jellynova | explosive bouncing rounds | Clockwork Choir | synchronized mini-cannons |
 
-Names are current content names but may be localized later. Their behavioral identities should remain differentiated even if names change.
+Names are content-level and may change; behavioral differentiation is the important contract.
 
-## 9. Equipment effect examples
+## 11. Dispatch
 
-A modifier vocabulary should favor visible behavior:
+Dispatch gives reserve slime types productive work outside the main battlefield.
 
-- +1 projectile
-- pierce 1 target
-- projectile splits after first hit
-- explosion radius
-- ricochet
-- attack leaves short-lived field
-- critical hit creates a visible follow-up
-- shield bash emits wave
-- dagger kill resets dash
-- turret duration / count
+### Assignment rule
 
-Flat attack/HP multipliers still exist for balance but should not be the only reason to care about a high-rarity item.
+- only owned, non-battle slime types can be dispatched
+- one type cannot be assigned to battle and dispatch simultaneously
+- same-type duplicate stock is not a dispatchable extra body
 
-## 10. Squad growth
+### Initial contract families
 
-Slime Gel is primarily the population-growth resource.
+| Contract | Typical duration | Reward bias |
+|---|---:|---|
+| Road Escort | short | Gold |
+| Forest Exploration | medium | equipment / Forge Key |
+| Material Gathering | medium/long | promotion materials |
 
-Population milestones unlock visible bodies 1→2→3→4→5. Costs rise by milestone and by Tier.
+Exact durations are balance data.
 
-The first few additional bodies should be cheap enough that a new player sees the army grow during the first session.
+### Complexity guardrail
 
-Past five visible bodies, further Gel investment may grant squad-size stat bonuses without spawning extra runtime entities.
+Initial dispatch does **not** require:
 
-## 11. Evolution materials
+- percentage failure chance
+- fatigue/stamina
+- per-body headcount requirements
+- elaborate element/role bonus matrices
+- dozens of simultaneous chores
 
-Promotion materials are area-linked, not random-exclusive.
-
-- Tier 2 material: common area crest/ore, farmable
-- Tier 3 branch crest: boss/elite progression reward plus farmable fragments
-- mutation: surprise item can skip grind, deterministic fragment path guarantees eventual acquisition
-
-The player should not spend days waiting for one specific low-probability core before accessing a normal branch.
+A simple `choose reserve slime -> choose job -> wait -> return with reward` loop is enough.
 
 ## 12. Stage growth and blockers
 
-Normal progression uses stage numbers inside the current area. Enemy power rises smoothly until a boss checkpoint.
+Enemy power rises smoothly until a boss checkpoint.
 
 If a boss is too strong:
 
-- the player returns to the best cleared farming stage
-- Gold/Gel/chests continue accumulating
-- the UI surfaces 1–3 concrete improvement opportunities
+- return to the best cleared farming stage
+- Gold/chests/slime acquisition continue
+- UI surfaces a few concrete improvement opportunities such as level/fusion/equipment
 - offline progress stops at the blocking boss rather than faking a clear
 
-## 13. Offline rewards
+## 13. Offline progression
 
-Offline simulation uses capped effective time, initially targeting 8 hours without special upgrades.
+Offline combat uses analytical simulation.
 
-Return summary prioritizes changes over raw totals:
+Return summary prioritizes changes over accounting detail:
 
 ```text
 OFFLINE 3h 42m
-+ 128K Gold
-+ 84 Gel
-+ 7 chests
++ Gold
++ chests / equipment
++ slime copies
 
-NEW! Legendary Wand
-Population ready: Ranger 2 -> 3
+Fusion ready: Sword Slime
+Dispatch complete: Forest Exploration
 Boss reached: Frost Colossus
 ```
 
-The player can inspect details, but the default return surface must not become an accounting report.
+Completed dispatches should be resolved deterministically and included in the same concise return flow where practical.
 
 ## 14. Daily/recurring systems
 
-Do not lead with a checklist-heavy daily mission system.
+Do not lead with checklist-heavy daily missions.
 
-Initial recurring incentives should be lightweight:
-
-- first boss clear rewards
-- Forge Key earned naturally through play
-- optional daily bonus chest may exist later
-
-The battle/evolution loop must stand on its own without login chores.
+The battle/fusion/evolution/dispatch loop must stand on its own without login chores.
 
 ## 15. Long-term prestige
 
-A reset-style prestige system named **Migration** is reserved for post-base-world expansion.
+A reset-style prestige system may be considered only after the base world loop proves itself. Do not add prestige merely because this is an idle game.
 
-It must not be implemented merely because this is an idle game. Add it only after the 8-area loop proves that replay compression creates a desirable new experience.
-
-If adopted, Migration should preserve:
-
-- Codex discovery
-- Mythic weapon ownership/refinement
-- mutation unlocks
-- major account-level achievements
-
-and reset/recompress ordinary area/stage growth. Exact behavior is deferred.
+If adopted, it should preserve major collection/fusion achievements unless a stronger product reason emerges.
 
 ## 16. Economy acceptance
 
 Simulation and play testing should eventually confirm:
 
-- first 10 minutes contain at least two visible roster changes
-- chest droughts do not create long dead stretches
+- first 10 minutes include at least one new job and one fusion
+- duplicate slime acquisition always has clear value
+- fusion does not create extra battlefield bodies
 - normal branch completion is not RNG-gated
-- duplicate equipment remains useful
-- pity cannot be rerolled by reload
-- five-body population milestones feel visually valuable enough to justify Gel spending
-- Mythics are exciting but normal progression remains functional without them
+- equipment duplicates remain useful
+- reserve roster has useful dispatch work
+- dispatch does not become mandatory spreadsheet maintenance
+- high-rarity equipment is exciting while normal progression remains functional without it

@@ -1,24 +1,27 @@
 # Slime Mercenaries — Current Specification
 
 Status: Current
-Date: 2026-09-15
+Date: 2026-09-16
 
 ## 1. Product form
 
 - Platform baseline: smartphone portrait, 9:19.5 reference viewport
-- Genre: auto-battle idle RPG / collection progression
+- Genre: auto-battle idle RPG / collection + fusion progression
 - Session shape: 30 secondsでも進み、5〜15分触ると複数のmeaningful rewardが返る
-- Core controlled objects: 6 squad slots
-- Runtime battlefield population: 味方最大おおむね30体、敵は通常3〜12体、bossは1体＋必要に応じてadds
+- Main combat formation: 最大6枠、1枠につき1 slime type / 1 visible body
+- Enemy population: 通常3〜12体、bossは1体 + 必要に応じてadds
 - Primary presentation: fixed 3/4 top-down battlefield, characters move from lower field toward upper field
+- Secondary idle use: main formation外のowned slime typesをdispatchへ割り当てる
+
+`6 slots × 5 bodies = 30 friendly bodies` は現行仕様ではない。30体密度検証で小画面可読性とcharacter identityを損なうことを確認したため、メイン画面は少数表示へ変更した。
 
 ## 2. Canonical systems
 
 Detailed behavior is owned by:
 
-- evolution / roster -> [`specs/evolution-roster.md`](specs/evolution-roster.md)
+- evolution / fusion / roster -> [`specs/evolution-roster.md`](specs/evolution-roster.md)
 - battle -> [`specs/combat.md`](specs/combat.md)
-- progression / economy / loot -> [`specs/progression-economy.md`](specs/progression-economy.md)
+- progression / economy / loot / dispatch -> [`specs/progression-economy.md`](specs/progression-economy.md)
 - UX/UI -> [`specs/ux-ui.md`](specs/ux-ui.md)
 - art -> [`specs/art-direction.md`](specs/art-direction.md)
 
@@ -37,13 +40,23 @@ Progression
 
 Roster
 - discoveredSlimeTypeIds
-- squadProgressByType
-- plainSlimePopulation
+- slimeProgressByType
+    - level
+    - fusionRank / fusionProgress
+    - promotion state
+    - equipped weapon
+- duplicateStockByType or equivalent unresolved-copy state
 - mutationProgress
 
 Formation
-- six squad slots
+- up to six active slots
 - assigned slime type per slot
+
+Dispatch
+- unlocked contract families
+- active dispatch assignments
+- startedAt / completesAt
+- persisted reward resolution
 
 Equipment
 - owned equipment / refinement state
@@ -52,8 +65,8 @@ Equipment
 
 Economy
 - gold
-- slimeGel
 - forgeKeys
+- promotion materials
 - mutationFragmentsByFamily
 
 Meta
@@ -63,53 +76,84 @@ Meta
 - timestamps required for offline progress
 ```
 
-Exact runtime schema may differ, but the implementation must preserve these product concepts.
+Exact runtime schema may differ, but implementation must preserve these product concepts.
 
-## 4. Unit model
+## 4. Roster model
 
-A slime type is not a named individual hero.
+A slime type is not a collection of persistent individual bodies.
 
-Each discovered type owns:
+Each discovered type owns one canonical progression state:
 
-- `type level`: ordinary Gold-based growth
-- `mastery`: usage/evolution progression
-- `population`: how many bodies that type can field
-- `equipped weapon`: one weapon record or weapon family state
-- `promotion`: branch-specific Tier
+- `type level`: frequent Gold-based growth
+- `fusion rank / progress`: same-type reacquisition-based growth
+- `promotion`: branch-specific evolution Tier
+- `equipped weapon`: one family-compatible weapon state
+- `assignment`: battle / dispatch / reserve
 
-The player does not manage separate per-body inventories or random personal stats.
+A second copy of a discovered type is primarily fusion input. It does not permanently increase a population counter and does not add another same-type body to the battlefield.
 
-## 5. Six-slot formation
+## 5. Main formation
 
-Exactly six squad slots form the normal combat team.
+Normal combat uses up to six unique slime types.
 
-Each slot represents one slime type. Duplicate slime types cannot occupy multiple formation slots simultaneously; increasing the same type is expressed through its population and squad growth instead.
+Each occupied slot deploys exactly one visible slime body. Duplicate slime types cannot occupy several slots simultaneously; repeated acquisition strengthens the existing type through fusion instead.
 
-A type deploys multiple visible bodies according to squad size:
+Formation is a small-party composition decision, not a squad-size management system.
 
-| Squad milestone | Visible bodies |
-|---|---:|
-| initial | 1 |
-| early growth | 2 |
-| established | 3 |
-| veteran | 4 |
-| endgame cap | 5 |
+Initial product may unlock fewer than six slots during onboarding, but six is the cap unless a later product decision explicitly changes it.
 
-Six maxed squads therefore produce up to 30 visible friendly slimes.
+## 6. Fusion contract
 
-## 6. Evolution structure
+Fusion is a core growth path.
 
-The launch roster contains exactly 30 discoverable slime types:
+- reacquiring an already-discovered slime type grants fusion input for that type
+- fusion raises that type's persistent fusion progression
+- fusion must produce meaningful combat growth
+- exact rank count, duplicate requirements, and coefficients are balance data
+- reload must not duplicate or reroll a resolved fusion/acquisition result
+
+### Body-size invariant
+
+Fusion rank must **not** permanently increase the slime body's gameplay scale.
+
+Strength progression should instead surface through:
+
+- weapon quality / accents
+- minor non-body silhouette accessories
+- attack timing / count
+- projectile / slash behavior
+- trail / impact / VFX intensity
+- unlocked signature behavior
+
+A stronger slime should look more capable, not simply larger.
+
+## 7. Evolution structure
+
+The current content target retains 30 discoverable slime forms:
 
 - 1 Plain Slime
 - 6 Tier-1 job slimes
 - 6 Tier-2 job slimes
 - 12 Tier-3 specializations
-- 5 rare mutation slimes
+- 5 rare mutation forms
 
-Core jobs are never locked behind premium-only acquisition or extremely low RNG.
+This is a content target, not a requirement to produce all 30 before validating the core loop.
 
-## 7. Battle continuity
+Core normal jobs are never locked solely behind premium acquisition or extremely low RNG.
+
+## 8. Assignment contract
+
+An owned slime type is conceptually in one of three states:
+
+- `battle`: occupies one main formation slot
+- `dispatch`: assigned to one active external contract
+- `reserve`: owned but currently unassigned
+
+A type cannot be in battle and dispatch at the same time.
+
+Fusion input is not an independent deployable character and therefore has no assignment state.
+
+## 9. Battle continuity
 
 Combat is continuous.
 
@@ -125,52 +169,64 @@ wave enters
 
 Routine rewards must not require a claim modal.
 
-When the player is idle, full Jelly Rush gauge auto-fires after a short grace period; active players can fire immediately. Manual interaction accelerates gratification but does not determine whether offline/idle combat functions.
+## 10. Loot contract
 
-## 8. Loot contract
+Enemies can produce battle drops and treasure chests. Chests are a primary excitement container.
 
-Enemies can produce battle drops and treasure chests. Chests are the primary excitement container.
+Contents can include:
 
-Chest contents can include:
-
+- slime acquisition / duplicate acquisition where appropriate
 - equipment
 - Gold
-- Slime Gel
 - Forge Keys
 - promotion materials
 - mutation fragments / rare cores
 
 A dropped chest appears physically on the battlefield. The player may tap it to open immediately; if ignored it auto-opens so idle progression never stalls.
 
-## 9. Equipment contract
+First-time normal job access remains deterministic even if repeated slime acquisition later contains variable rewards.
 
-Equipment acquisition is the main random-draw collection system.
+## 11. Equipment contract
 
-- character/slime types are not sold as a conventional hero gacha pool
+Equipment remains a major random-draw collection system.
+
 - equipment rarity and named weapons create collection depth
 - duplicates convert into refinement progress, not dead inventory
 - core evolution branches have deterministic unlock paths
 - highest rarity contains multiple desirable items rather than one universal best item
+- high-rarity equipment changes readable battle presentation, not only hidden stat multipliers
 
-Equipment must affect readable battle presentation at higher rarity, not only hidden stat multipliers.
+Slime fusion and equipment refinement are separate growth axes: slime duplicates strengthen the type; weapon duplicates strengthen the weapon.
 
-## 10. Progression layers
+## 12. Dispatch contract
 
-Progression is split into four visible horizons.
+Dispatch provides productive use for developed slime types that are not in the active battle formation.
+
+Initial contract families stay simple:
+
+- escort / guard -> Gold-biased
+- exploration -> equipment / Forge Key-biased
+- gathering -> promotion-material-biased
+
+Dispatch is time-based and deterministic enough for an idle product. Initial core does not require failure chance, fatigue, elemental staffing grids, or per-body headcount.
+
+A dispatch reward must be persisted when resolved so reload cannot reroll or duplicate it.
+
+## 13. Progression layers
 
 ### Seconds/minutes
 
 - Gold
 - chest drops
-- squad attacks / kills
-- Jelly Rush
+- attacks / kills / hit reactions
 
 ### Minutes
 
-- equipment upgrades
 - type levels
-- squad population increase
-- Tier progression
+- fusion opportunities
+- equipment upgrades
+- job discovery / promotion
+- dispatch start / return
 
 ### Session/day
 
@@ -182,12 +238,12 @@ Progression is split into four visible horizons.
 
 ### Long-term
 
-- full 30-type discovery
+- broad job/form discovery
+- high fusion ranks on favorite types
 - Mythic equipment collection
-- high squad population
-- post-launch Migration prestige, only after the base world loop is proven
+- post-launch prestige only after the base world loop is proven
 
-## 11. Offline progression
+## 14. Offline progression
 
 Offline progression simulates expected combat output rather than replaying every entity.
 
@@ -195,51 +251,55 @@ On return, show one concise summary:
 
 - elapsed effective offline time
 - stages progressed or boss block reached
-- Gold / Gel earned
-- chests/equipment obtained in aggregated form
+- Gold / equipment / material gains in aggregated form
+- completed dispatches
 - any NEW discovery separately emphasized
 
-Offline progress may advance normal stages but must stop at an uncleared major boss that is intended as a progression checkpoint. It must never silently discard overflow reward.
+Offline normal-stage progress stops at an uncleared major boss intended as a progression checkpoint. It must never silently discard overflow reward.
 
-## 12. Save and determinism expectations
+## 15. Save and determinism expectations
 
 Important progression actions must be idempotent where practical, especially:
 
+- slime acquisition / duplicate resolution
+- fusion
 - chest opening
 - equipment draw and pity advancement
-- duplicate refinement conversion
+- duplicate weapon refinement conversion
 - evolution/promotion
-- mutation fragment redemption
+- mutation redemption
+- dispatch reward resolution / claim
 - offline reward claim
 
-Random reward results should be persisted at resolution time so reloads do not reroll already-resolved outcomes.
+Random results should be persisted at resolution time so reloads do not reroll already-resolved outcomes.
 
-## 13. Initial content scope
+## 16. Initial content scope
 
-Initial content target:
+Longer-term content target:
 
-- 30 slime types
+- 30 slime forms
 - 8 areas
 - 8 major bosses
 - 6 weapon families
 - 5 equipment rarities
 - at least 12 Mythic named weapons
 - 5 rare mutation paths
-- 1 Jelly Rush system
 - Codex for slime and equipment discovery
+- several reusable dispatch contract families
 
-The first implementation may ship with less content while preserving data structures capable of the target set.
+The first production-quality vertical slice should use a much smaller subset while preserving data structures capable of the target set.
 
-## 14. Acceptance principles
+## 17. Acceptance principles
 
 The product is not accepted solely because numbers progress correctly.
 
 A representative mobile play session must confirm:
 
-- battle space visually dominates UI
-- 10+ friendly bodies remain readable
-- 20〜30 friendly bodies still look intentional rather than noisy
+- battlefield visually dominates UI
+- 3〜6 friendly slimes remain individually readable
+- each active slime's HP, attack source, hit reaction, and defeat are understandable
+- fusion growth is noticeable without increasing body scale
 - new job acquisition visibly changes silhouette and attack behavior
 - high-rarity equipment visibly changes effects
-- chest cadence produces anticipation without interrupting battle every few seconds
-- player can understand formation and improvement opportunities without reading stat spreadsheets
+- repeated slime acquisition creates a satisfying fusion opportunity rather than unwanted battlefield clutter
+- reserve slimes can produce useful dispatch value without becoming spreadsheet micromanagement

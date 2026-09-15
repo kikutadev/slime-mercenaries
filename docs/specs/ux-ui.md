@@ -1,7 +1,7 @@
 # UX / UI Specification
 
 Status: Current
-Date: 2026-09-15
+Date: 2026-09-16
 
 ## 1. UX goal
 
@@ -9,23 +9,24 @@ The primary screen should make the game understandable by watching it.
 
 At rest, the player should see:
 
-- slimes fighting
+- a small number of slimes clearly fighting
+- each active slime's condition/HP
 - current progress
-- whether a chest / Forge / evolution opportunity is ready
-- one obvious way to inspect and strengthen squads
+- whether a chest, fusion, equipment, evolution, or dispatch return is ready
+- one obvious route to strengthen the roster
 
-Do not turn the main view into six large stat cards surrounding a tiny battlefield.
+Do not turn the main view into stat cards around a tiny battlefield.
 
 ## 2. Navigation model
 
-Persistent bottom navigation has four destinations:
+Persistent bottom navigation has four primary destinations:
 
-1. **Battle** — main battlefield and quick squad actions
-2. **Squads** — six-slot formation, type levels, population, evolution
-3. **Forge** — equipment draws, owned equipment, refinement
-4. **Codex** — slime and equipment discovery
+1. **Battle** — main battlefield and quick formation access
+2. **Slimes** — roster, fusion, level, evolution, equipment assignment
+3. **Dispatch** — reserve slime jobs and returns
+4. **Forge** — equipment draw, owned equipment, refinement
 
-Settings and secondary information live behind a small overflow/settings entry, not a fifth equal-weight tab.
+Codex is accessible from Slimes as a secondary destination rather than consuming a fifth persistent tab. Settings remain secondary.
 
 ## 3. Battle screen
 
@@ -33,271 +34,265 @@ Reference composition:
 
 ```text
 ┌────────────────────────┐
-│ Area 3-12        Gold  │  compact HUD
+│ Area 3-12        Gold  │
 │ ▰▰▰▰▱ boss progress    │
 │                        │
 │        ENEMIES         │
-│      enemy group       │
 │                        │
 │      combat / VFX      │
 │                        │
-│   slime army 10–30     │
+│  active slimes 1–6     │
 │                        │
 │ [chest in battlefield] │
 │                        │
 ├────────────────────────┤
-│ Jelly Rush   78%       │  compact action strip
-│ Squad power ↑ ready    │
+│ ready / result strip   │
 ├────────────────────────┤
-│ Battle Squads Forge Codex│
+│ Battle Slimes Dispatch Forge │
 └────────────────────────┘
 ```
 
-The battlefield must remain visually dominant. HUD and controls should float/overlay lightly rather than reserve multiple card rows.
+The battlefield remains visually dominant. HUD and controls float lightly rather than reserving many card rows.
 
-## 4. Top HUD
+## 4. Active slime HP
 
-Persistent information is intentionally small:
+Because the active party is small, each visible slime may have a compact world-space HP bar.
 
-- current Area / stage
-- boss/progression strip when meaningful
-- Gold
-- one context-sensitive secondary currency only when relevant
+Rules:
 
-Do not permanently display every resource. Forge Keys and mutation fragments are visible inside their relevant surfaces.
+- bar follows the character without covering its face/weapon
+- exact numeric HP may appear in a selected/roster surface; it need not be permanently printed over every body
+- defeated slime's bar empties and may fade after the defeat reaction is readable
+- avoid individual bars for enemies if they create unnecessary clutter; boss/aggregate enemy HUD may be used contextually
 
 ## 5. Battlefield chest interaction
 
-A chest drops into the actual field with a short bounce and rarity-specific glint.
+A chest drops into the field with a short bounce and rarity-specific glint.
 
-- tap: immediately open with compact reveal
+- tap: open immediately with compact reveal
 - ignore: auto-open after short delay
-- NEW/Legendary/Mythic: stronger reveal strip and short battle slow
-- ordinary duplicate: small non-blocking result chip
+- NEW slime/job or high rarity: stronger reveal
+- slime duplicate: concise fusion-progress result
+- ordinary equipment duplicate: compact refinement result
 
-The chest must never sit on the field indefinitely waiting for a tap.
+The chest never waits indefinitely for mandatory input.
 
-## 6. Jelly Rush control
+## 6. Slimes screen
 
-Jelly Rush sits immediately above bottom navigation on Battle.
+The Slimes screen replaces the old population/squad-management concept.
 
-Collapsed state:
+Top area shows the active formation with up to six slots, one slime per slot.
 
-```text
-JELLY RUSH  ▰▰▰▰▰▰▱  84%
-```
+The selected slime detail shows:
 
-Ready state becomes a large tactile button without covering the army.
-
-At full gauge, subtle pulse is allowed. Avoid full-screen flashing until activation.
-
-## 7. Squads screen
-
-The top half shows the current six-slot formation with miniature animated slime previews.
-
-The lower section focuses on the selected type.
-
-Required information:
-
-- type name / Tier / role
-- type level and next cost
-- visible population 1–5
-- mastery progress when near a meaningful unlock
+- type/form name and Tier
+- type level
+- fusion rank/progress
 - equipped weapon
+- current assignment: Battle / Dispatch / Reserve
 - next evolution or specialization opportunity
 
 Primary actions:
 
 - Level Up
-- +10 / Max affordable after unlocked
-- Grow Squad when Gel milestone is ready
-- Evolve when requirements are met
+- +10 / Max affordable after appropriate unlock
+- Fuse when enough same-type input exists
+- Evolve/Promote when requirements are met
 - Change weapon
+- Add/remove from battle formation
 
-Do not show a giant table of all stats by default. Detailed stats may be a secondary sheet.
+Do not show a population count whose purpose is spawning more same-type bodies.
 
-## 8. Formation editing
+## 7. Formation editing
 
-Formation editing is direct manipulation:
+Formation editing is direct and small-party oriented.
 
-- tap a slot to choose from discovered types
-- long-press/drag between slots to swap where reliable
-- prevent duplicate type assignment with immediate explanatory feedback
-- role icon and Front/Back recommendation visible in picker
+- tap a slot to select an owned available type
+- prevent duplicate type assignment
+- a dispatched type cannot be selected until it returns
+- swapping should be immediate and visually clear
+- front/back recommendation may be shown as guidance, not as opaque penalty math
 
-The system should provide quick recommendations such as "Front向き" rather than opaque score optimization.
+Each slot always corresponds to one visible battle body.
+
+## 8. Fusion UI
+
+Fusion is a first-class surface inside Slimes.
+
+Recommended selected-slime layout:
+
+```text
+Sword Slime
+Fusion Rank 2
+●●○○  2 / 3 copies
+
+Next milestone
+2-hit slash -> 3-hit slash
+Body size: unchanged
+
+[Fuse]
+```
+
+The actual rank visualization need not literally use stars or dots; the contract is that the player can answer:
+
+- how close am I?
+- what do I spend?
+- what gets better?
+
+Do not imply power by scaling the character preview larger after fusion.
+
+### Fusion result
+
+Normal fusion:
+
+- short jelly compression
+- weapon/VFX accent pulse
+- rank/progress update
+- if behavior milestone unlocked, immediately preview the changed attack
+
+This should be shorter than a NEW job reveal.
 
 ## 9. Evolution UI
 
-Evolution is one of the product’s signature surfaces.
+Evolution remains a signature surface.
 
 ### Tier 1
 
-Plain Slime centered, six job objects arranged around it:
-
-```text
-          Shield
-   Sword          Bow
-
-      Plain Slime
-
-   Dagger         Wand
-           Gun
-```
-
-Locked-but-near branches can show silhouettes and unlock hints.
+Plain Slime with available job gear families around it. Locked-near branches show silhouettes and hints.
 
 ### Tier 2
 
-Single clear promotion path. The UI should not pretend there is a choice.
+Single clear promotion path where no choice exists.
 
 ### Tier 3
 
-Two large side-by-side choices with animated preview:
+Two large behavior-focused choices with animated preview.
+
+Explain behavior before coefficient detail, e.g.:
+
+- 「前方をすり抜けて複数体を斬る」
+- 「HPが減るほど攻撃が速くなる」
+
+## 10. Dispatch screen
+
+Dispatch should feel like sending guild members to work, not filling an optimization spreadsheet.
+
+Top:
+
+- active dispatch cards with remaining time
+- completed return ready state
+
+Available contracts:
 
 ```text
-Blademaster             Berserker
-fast cleave              risky burst
-[preview]                 [preview]
-
-        Fighter Slime
+Road Escort        Gold
+Forest Exploration Equipment / Key
+Material Gathering Promotion material
 ```
 
-Show behavioral differences in plain language before detailed percentages.
+Flow:
 
-Example:
+1. choose contract
+2. choose one available reserve slime type
+3. confirm duration/reward emphasis
+4. slime visibly departs
+5. return state shows compact reward
 
-- "前方をすり抜けて複数体を斬る"
-- "HPが減るほど攻撃が速くなる"
+Do not require selecting multiple duplicate bodies or satisfying hidden success percentages in the initial design.
 
-This is more important than exposing raw coefficient formulas.
+## 11. Forge screen
 
-## 10. Forge screen
-
-Forge is visually rewarding but compact.
+Forge remains equipment-focused.
 
 Core layout:
 
 - key count
-- single draw / 10 draw
-- current pity progress for Epic+, Legendary+, Mythic
-- featured owned/new equipment carousel only when useful
-- equipment family filters below draw area
+- single / multi draw
+- pity progress if applicable
+- important new/refinement results
+- equipment family filters
 
-The draw button must state cost before tap.
+Draw button states cost before tap.
 
-A 10-draw animation may group Common/Rare reveals and individually emphasize Epic+ results. Do not force ten identical reveal taps.
-
-## 11. Equipment result hierarchy
+## 12. Equipment result hierarchy
 
 ### Common / Rare duplicate
 
 Inline result tile, fast.
 
+### Slime duplicate
+
+Fusion-progress chip or compact slime result. If fusion becomes ready, emphasize that action without forcing an immediate modal.
+
 ### Epic new / refinement milestone
 
 Short card rise + weapon motion.
 
-### Legendary
+### Legendary / Mythic
 
-Battle pauses if drawn from battlefield; strong weapon silhouette reveal, rarity sound/VFX.
+Strong but short weapon reveal with immediate compatible equip affordance.
 
-### Mythic
+## 13. Codex
 
-Highest presentation tier: family-colored field, weapon signature animation, named title, then immediate option to equip to a compatible active squad.
+Codex lives under Slimes and has at least:
 
-Target: exciting in a few seconds, not a long cinematic that becomes annoying on repeat.
+- Slime/forms discovery
+- Weapons discovery
 
-## 12. Codex
+Slime Codex prioritizes the evolution tree over a flat grid.
 
-Codex has two top-level filters:
+Fusion rank is player progression, not separate Codex entries. Reacquiring the same slime does not create duplicate collection cards.
 
-- Slimes `x / 30`
-- Weapons `x / total`
+## 14. Offline return
 
-Slime Codex prioritizes the evolution tree over a flat grid. It should make undiscovered possibilities legible.
-
-Discovered node:
-
-- animated mini sprite
-- role
-- discovery source
-- current population / mastery summary
-
-Undiscovered node:
-
-- silhouette
-- vague or explicit hint based on prerequisite proximity
-
-Mutation nodes sit outside the six normal branches and use a visibly different frame language.
-
-## 13. Offline return
-
-One bottom sheet, not a sequence of claim dialogs.
+One compact sheet, not a sequence of claims.
 
 Priority order:
 
-1. NEW slime/weapon/mutation event
-2. blocked boss / furthest progress
-3. Gold / Gel / chest totals
-4. ready-to-spend opportunities
+1. NEW slime/weapon/mutation
+2. fusion-ready state
+3. completed dispatch
+4. blocked boss / furthest progress
+5. aggregate Gold/rewards
 
-Primary action returns directly to Battle.
+Primary action returns to Battle.
 
-## 14. First-use teaching
+## 15. First-use teaching
 
 Tutorial principle:
 
 `short cue -> real action -> visible consequence`
 
+First sequence:
+
+1. Plain Slime attacks automatically
+2. first chest appears
+3. Rusty Sword appears
+4. player gives Sword to Plain Slime
+5. it becomes Sword Slime and immediately attacks differently
+6. second Sword Slime acquisition occurs soon after
+7. player performs first fusion
+8. same-size Sword Slime demonstrates a stronger attack
+9. Bow is discovered
+10. later, an unused type receives the first simple dispatch tutorial
+
 Avoid modal tours.
 
-First tutorial sequence:
+## 16. Notifications and badges
 
-1. Plain Slime attacks automatically; player watches a few seconds
-2. first chest bounces onto field; pointer cue says tap
-3. Rusty Sword appears
-4. cue points to "渡す"
-5. actual on-field slime evolves and immediately attacks differently
-6. no further explanation until next meaningful system unlock
+Use badges only for actionable high-value states:
 
-## 15. Notifications and badges
-
-Use badges only for immediately actionable, high-value states:
-
+- fusion ready
 - evolution ready
-- population milestone ready
-- free/earned Forge draw available
+- dispatch complete
+- earned Forge draw available
 - NEW Codex item not yet viewed
 
-Do not badge every routine level-up affordability state.
+Do not badge every affordable level-up.
 
-Battlefield toasts should be short and non-layout-shifting. Repeated gains can merge into a ticker-style line rather than stack vertically.
-
-## 16. Responsive / safe-area rules
+## 17. Responsive / safe-area rules
 
 - design for portrait first
 - respect top and bottom safe areas
-- combat field must not be hidden behind home indicator/navigation
-- short-height devices compress HUD/control spacing before shrinking character scale excessively
-- landscape is not a first-class play layout in the initial scope; if opened, present a supported fallback rather than attempting a separate dense desktop HUD
-
-## 17. Accessibility/readability
-
-- role identity must not depend on color alone; silhouette and equipment matter
-- rarity uses label/icon in addition to color
-- large VFX must preserve boss telegraph edges
-- damage numbers may be reduced/disabled without losing battle comprehension
-- motion reduction setting can reduce camera shake/flashes while preserving attack timing
-
-## 18. UI acceptance
-
-Rendered mobile review must verify:
-
-- battle remains the largest visual object
-- 30 slimes do not sit behind bottom chrome
-- top HUD is readable but not dominant
-- player can reach evolution from Battle -> Squads in at most two intentional actions
-- pity state is understandable in Forge
-- Tier-3 choice communicates behavior before numbers
-- Codex makes "what can I discover next?" obvious within a few seconds
+- preserve enough battlefield height for 1–6 active slimes and enemy movement
+- do not shrink slimes merely to fit a discarded 20–30-body requirement

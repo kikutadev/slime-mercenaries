@@ -1,7 +1,9 @@
 # ADR 0001 — Type-squad roster and equipment-led acquisition
 
-Status: Accepted
+Status: Superseded by ADR 0002
 Date: 2026-09-15
+
+Superseded note: 2026-09-16に、30体密度検証とfusion中心のproduct方針を踏まえ [`0002-small-party-fusion-and-dispatch.md`](0002-small-party-fusion-and-dispatch.md) へ置き換えた。以下は旧判断のrationaleとして保持する。
 
 ## Context
 
