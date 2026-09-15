@@ -332,6 +332,14 @@ function facePoint(unit, point) {
   unit.root.rotation.y = Math.atan2(dx, dz);
 }
 
+function faceCamera(unit) {
+  if (!unit?.root) {
+    return;
+  }
+  tempVector.set(camera.position.x, unit.root.position.y, camera.position.z);
+  facePoint(unit, tempVector);
+}
+
 function applyUnitDeformation(unit, { squash = 0, stretch = 0, lean = 0, wobble = 0, jump = 0, impact = 0 }) {
   clearMorphs(unit);
   setMorph(unit, 'Squash', squash);
@@ -391,7 +399,7 @@ function updateIdle(unit, now, phaseOffset = 0) {
   setEquipmentSwing(unit, lean * 0.18, 0);
 }
 
-function updateHopTravel(unit, now, startTime, start, end, duration) {
+function updateHopTravel(unit, now, startTime, start, end, duration, faceTravelDirection = true) {
   const u = clamp01((now - startTime) / duration);
   const eased = easeInOutCubic(u);
   unit.root.position.lerpVectors(start, end, eased);
@@ -410,7 +418,9 @@ function updateHopTravel(unit, now, startTime, start, end, duration) {
 
   applyUnitDeformation(unit, { squash, stretch, lean, wobble, jump, impact: landing * 0.34 });
   setEquipmentSwing(unit, lean * 0.22, jump * 0.03);
-  facePoint(unit, end);
+  if (faceTravelDirection) {
+    facePoint(unit, end);
+  }
   return u >= 1;
 }
 
@@ -708,8 +718,10 @@ function updateDefeat(now) {
 
 function updateReturn(now) {
   const duration = 1.45;
-  facePoint(runtime.sword, SWORD_HOME);
-  const arrived = updateHopTravel(runtime.sword, now, runtime.battle.stateStartedAt, SWORD_ATTACK_POS, SWORD_HOME, duration);
+  // Retreat while looking back toward the player/camera. This keeps the face
+  // readable during return instead of showing an eyeless rear silhouette.
+  faceCamera(runtime.sword);
+  const arrived = updateHopTravel(runtime.sword, now, runtime.battle.stateStartedAt, SWORD_ATTACK_POS, SWORD_HOME, duration, false);
   updateIdle(runtime.archer, now, 1.2);
 
   if (arrived) {
