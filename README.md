@@ -25,13 +25,13 @@
 
 ## Runtime prototype
 
-Plain Slime の最初の実働PoCを実装済み。Blender Pythonを正本としてGLBを生成し、WebランタイムではMorph Targetを使ってSquash / Stretch / Lean / Hitを合成する。
+Plain Slimeから一段進め、Sword Slimeの戦闘PoCを実装済み。Blender Pythonを正本としてGLBを生成し、WebランタイムではMorph Targetを使ったSquash / Stretch / Lean / Hitに加えて、重力ベースのHop、体当たり、剣の遅れ追従を伴うSlashを合成する。
 
 - GitHub Pages: https://kikutadev.github.io/slime-mercenaries/
-- `npm run generate:model` — Blender 4.5 LTSで `public/assets/plain-slime.glb` を再生成
+- `npm run generate:model` — Blender 4.5 LTSで `public/assets/sword-slime.glb` を再生成
 - `npm run dev` — ローカル実行
 - `npm run build` — GitHub Pages向け静的ビルド
 
 ## Current phase
 
-Product specification / pre-production から、アートパイプラインとruntime vertical sliceの検証へ移行中。まずPlain Slimeで、固定3/4カメラ、小画面可読性、ぷるぷる変形、接地感を確定し、その後Sword Slimeへ拡張する。
+Product specification / pre-production から、アートパイプラインとruntime vertical sliceの検証へ移行中。現在は実戦サイズへ縮小したSword Slimeで、重力感、接地、Tackle、Slash、装備追従を検証している。

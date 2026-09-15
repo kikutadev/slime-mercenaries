@@ -183,18 +183,18 @@ h1 {
 
 .controls {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   pointer-events: auto;
 }
 
 .control {
-  min-height: 43px;
+  min-height: 41px;
   border: 1px solid rgb(255 255 255 / 14%);
   border-radius: 14px;
   background: rgb(255 255 255 / 10%);
   color: rgb(255 255 255 / 78%);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   cursor: pointer;
   transition: transform 110ms ease, background-color 110ms ease, color 110ms ease;

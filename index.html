@@ -6,19 +6,19 @@
     <meta name="theme-color" content="#b9e988" />
     <meta
       name="description"
-      content="Slime Mercenaries — Blender Python generated Plain Slime runtime prototype."
+      content="Slime Mercenaries — Blender Python generated Sword Slime combat prototype."
     />
-    <title>Slime Mercenaries — Plain Slime PoC</title>
+    <title>Slime Mercenaries — Sword Slime Combat PoC</title>
   </head>
   <body>
     <main class="page">
-      <section class="game-shell" aria-label="Slime Mercenaries Plain Slime prototype">
+      <section class="game-shell" aria-label="Slime Mercenaries Sword Slime combat prototype">
         <canvas id="game-canvas"></canvas>
 
         <header class="hud hud--top">
           <div>
-            <p class="eyebrow">CLOVER ROAD · UNIT 001</p>
-            <h1>Plain Slime</h1>
+            <p class="eyebrow">CLOVER ROAD · COMBAT POC</p>
+            <h1>Sword Slime</h1>
           </div>
           <div class="status-chip" aria-label="runtime status">
             <span class="status-dot"></span>
@@ -26,27 +26,28 @@
           </div>
         </header>
 
-        <div class="hint" id="hint">スライムをタップすると、ぷるんと跳ねます</div>
+        <div class="hint" id="hint">スライムをタップすると体当たりします</div>
 
         <footer class="hud hud--bottom">
           <div class="unit-card">
-            <div class="unit-icon" aria-hidden="true">●</div>
+            <div class="unit-icon" aria-hidden="true">◆</div>
             <div>
-              <strong>Plain Slime</strong>
-              <span>Squash / Stretch runtime</span>
+              <strong>Sword Slime</strong>
+              <span>Gravity · Tackle · Sword follow-through</span>
             </div>
           </div>
 
           <div class="controls" role="group" aria-label="Slime animation controls">
             <button type="button" data-action="idle" class="control is-active">Idle</button>
             <button type="button" data-action="hop" class="control">Hop</button>
-            <button type="button" data-action="hit" class="control">Hit</button>
+            <button type="button" data-action="tackle" class="control">Tackle</button>
+            <button type="button" data-action="slash" class="control">Slash</button>
           </div>
         </footer>
 
         <div class="loading" id="loading" role="status" aria-live="polite">
           <div class="loading-blob"></div>
-          <span>Generating jelly...</span>
+          <span>Forging slime...</span>
         </div>
       </section>
     </main>
