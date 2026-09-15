@@ -627,6 +627,71 @@ function findNearestLivingTarget(sourceUnit, candidates) {
   return nearest;
 }
 
+
+function createWorldHealthBar() {
+  const group = new THREE.Group();
+  group.renderOrder = 8;
+
+  const backMaterial = new THREE.MeshBasicMaterial({
+    color: '#173348',
+    transparent: true,
+    opacity: 0.78,
+    depthTest: false,
+    depthWrite: false,
+  });
+  const fillMaterial = new THREE.MeshBasicMaterial({
+    color: '#58d681',
+    transparent: true,
+    opacity: 0.96,
+    depthTest: false,
+    depthWrite: false,
+  });
+
+  const background = new THREE.Mesh(new THREE.PlaneGeometry(0.43, 0.060), backMaterial);
+  background.renderOrder = 8;
+  group.add(background);
+
+  const fillWidth = 0.39;
+  const fill = new THREE.Mesh(new THREE.PlaneGeometry(fillWidth, 0.028), fillMaterial);
+  fill.position.z = 0.002;
+  fill.renderOrder = 9;
+  group.add(fill);
+
+  group.userData.fill = fill;
+  group.userData.fillWidth = fillWidth;
+  scene.add(group);
+  return group;
+}
+
+function updateWorldHealthBar(unit) {
+  const bar = unit?.healthBar;
+  if (!bar || !unit?.root) {
+    return;
+  }
+
+  const ratio = unit.maxHp > 0 ? clamp01(unit.hp / unit.maxHp) : 0;
+  const fill = bar.userData.fill;
+  const fillWidth = bar.userData.fillWidth ?? 0.39;
+  if (fill) {
+    fill.scale.x = Math.max(0.001, ratio);
+    fill.position.x = -(fillWidth * (1 - ratio)) / 2;
+  }
+
+  bar.visible = unit.root.visible && (unit.alive || unit.state === 'defeat');
+  bar.position.set(
+    unit.root.position.x,
+    Math.max(0.31, unit.root.position.y + (unit.state === 'defeat' ? 0.18 : 0.34)),
+    unit.root.position.z + 0.015,
+  );
+  bar.quaternion.copy(camera.quaternion);
+}
+
+function updateAllyHealthBars() {
+  for (const ally of runtime.allies) {
+    updateWorldHealthBar(ally);
+  }
+}
+
 function createDefeatEyes(unit) {
   const normalEyes = ['Eye_L', 'Eye_R']
     .map((name) => unit.root.getObjectByName(name))
@@ -1569,6 +1634,7 @@ async function loadUnit(url, kind, home, equipmentName) {
     attackTarget: null,
     normalEyes: [],
     xEyes: [],
+    healthBar: createWorldHealthBar(),
   };
   const defeatEyes = createDefeatEyes(unit);
   unit.normalEyes = defeatEyes.normalEyes;
@@ -1629,6 +1695,7 @@ function render() {
     updateBattle(simulationNow);
   }
   updateCameraTransform(rawNow);
+  updateAllyHealthBars();
   renderer.render(scene, camera);
 }
 
