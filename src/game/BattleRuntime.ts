@@ -129,6 +129,11 @@ function clamp01(value: number): number {
   return THREE.MathUtils.clamp(value, 0, 1);
 }
 
+function easeOutCubic(value: number): number {
+  const t = clamp01(value);
+  return 1 - ((1 - t) ** 3);
+}
+
 function easeInOutCubic(value: number): number {
   const t = clamp01(value);
   return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
@@ -164,6 +169,9 @@ export class BattleRuntime {
   private initialized = false;
   private rawNow = 0;
   private simulationNow = 0;
+  private pausedDuration = 0;
+  private hitStopStartedAt = -Infinity;
+  private hitStopEndsAt = -Infinity;
   private phase: BattleSnapshot['phase'] = 'loading';
   private phaseStartedAt = 0;
   private result: BattleSnapshot['result'] = null;
@@ -214,27 +222,54 @@ export class BattleRuntime {
     this.allies.push(sword, bow);
     this.facePoint(sword, TARGET_HOME);
     this.facePoint(bow, TARGET_HOME);
-    this.startBattle(0.15);
+    this.startBattle(this.rawNow + 0.15);
     this.emitSnapshot(true);
   }
 
   tick(rawNow: number): void {
-    if (!this.initialized || this.disposed || !this.sword || !this.bow) return;
+    if (!this.initialized || this.disposed) return;
     this.rawNow = rawNow;
-    this.simulationNow = rawNow;
+    if (!this.sword || !this.bow) return;
+    const hitStopActive = rawNow < this.hitStopEndsAt;
+    const simulationNow = this.getSimulationTime(rawNow);
+    this.simulationNow = simulationNow;
 
-    if (this.phase === 'approach') this.updateApproach(rawNow);
-    else if (this.phase === 'combat') this.updateCombat(rawNow);
-    else if (this.phase === 'result') this.updateResult(rawNow);
+    if (!hitStopActive) {
+      if (this.phase === 'approach') this.updateApproach(simulationNow);
+      else if (this.phase === 'combat') this.updateCombat(simulationNow);
+      else if (this.phase === 'result') this.updateResult(simulationNow);
 
-    this.updateAllyDefeat(this.sword, rawNow);
-    this.updateAllyDefeat(this.bow, rawNow);
-    this.updateArrows(rawNow);
-    this.updateImpacts(rawNow);
+      this.updateAllyDefeat(this.sword, simulationNow);
+      this.updateAllyDefeat(this.bow, simulationNow);
+      this.updateArrows(simulationNow);
+      this.updateImpacts(simulationNow);
+      this.evaluateBattleOutcome(simulationNow);
+    }
     this.updateHealthBars();
     this.updateCamera(rawNow);
-    this.evaluateBattleOutcome(rawNow);
     this.emitSnapshot();
+  }
+
+  private startHitStop(durationSeconds: number): void {
+    if (durationSeconds <= 0) return;
+    if (this.rawNow < this.hitStopEndsAt) {
+      this.hitStopEndsAt = Math.max(this.hitStopEndsAt, this.rawNow + durationSeconds);
+      return;
+    }
+    this.hitStopStartedAt = this.rawNow;
+    this.hitStopEndsAt = this.rawNow + durationSeconds;
+  }
+
+  private getSimulationTime(rawNow: number): number {
+    if (this.hitStopEndsAt > this.hitStopStartedAt) {
+      if (rawNow < this.hitStopEndsAt) {
+        return this.hitStopStartedAt - this.pausedDuration;
+      }
+      this.pausedDuration += this.hitStopEndsAt - this.hitStopStartedAt;
+      this.hitStopStartedAt = -Infinity;
+      this.hitStopEndsAt = -Infinity;
+    }
+    return rawNow - this.pausedDuration;
   }
 
   dispose(): void {
@@ -692,7 +727,12 @@ export class BattleRuntime {
     unit.xEyes.forEach((eye) => { eye.visible = defeated; });
   }
 
-  private applyDamage(target: AllyUnit | EnemyUnit, amount: number, sourcePosition: THREE.Vector3): void {
+  private applyDamage(
+    target: AllyUnit | EnemyUnit,
+    amount: number,
+    source: 'sword' | 'arrow' | 'enemy',
+    sourcePosition: THREE.Vector3,
+  ): void {
     if (!target.alive) return;
     target.hp = Math.max(0, target.hp - amount);
     target.hitStartedAt = this.simulationNow;
@@ -700,8 +740,18 @@ export class BattleRuntime {
     this.tempVector.y += target.side === 'enemy' ? 0.28 : 0.22;
     this.createImpact(this.tempVector, target.side === 'enemy' ? '#fff0a0' : '#ffb4a8', target.side === 'enemy' ? 0.11 : 0.09);
     this.startCameraShake(0.12, target.side === 'enemy' ? 0.025 : 0.017);
-    this.tempVector2.copy(target.root.position).sub(sourcePosition).setY(0).normalize();
-    target.root.position.addScaledVector(this.tempVector2, 0.035);
+    if (source !== 'arrow') this.startHitStop(source === 'enemy' ? 0.028 : 0.038);
+
+    // Keep ally combat anchors stable. The pre-React runtime only knocked enemies
+    // back on hit; applying this displacement to allies causes the sword slime to
+    // drift away from its combat anchor after repeated enemy attacks.
+    if (target.side === 'enemy') {
+      this.tempVector2.copy(target.root.position).sub(sourcePosition).setY(0);
+      if (this.tempVector2.lengthSq() > 0.0001) {
+        this.tempVector2.normalize();
+        target.root.position.addScaledVector(this.tempVector2, source === 'arrow' ? 0.026 : 0.066);
+      }
+    }
     if (target.hp <= 0) {
       if (target.side === 'enemy') this.beginEnemyDefeat(target);
       else this.beginAllyDefeat(target);
@@ -760,8 +810,13 @@ export class BattleRuntime {
     this.phase = 'approach';
     this.phaseStartedAt = now;
     this.result = null;
-    this.nextSwordAttackAt = now + 1.1;
-    this.nextBowAttackAt = now + 1.35;
+    this.nextSwordAttackAt = now + 1.7;
+    this.nextBowAttackAt = now + 0.65;
+    const firstEnemy = this.findNearest(this.sword ?? this.bow!, this.getLivingEnemies());
+    if (firstEnemy) {
+      if (this.sword) this.facePoint(this.sword, firstEnemy.root.position);
+      if (this.bow) this.facePoint(this.bow, firstEnemy.root.position);
+    }
     this.enemies.forEach((enemy, index) => {
       enemy.nextAttackAt = now + 0.82 + index * 0.2;
       enemy.lastUpdateAt = now;
@@ -771,17 +826,15 @@ export class BattleRuntime {
 
   private updateApproach(now: number): void {
     if (!this.sword || !this.bow) return;
-    const duration = 1.15;
+    const duration = 1.55;
     this.updateHopTravel(this.sword, now, this.phaseStartedAt, SWORD_HOME, SWORD_ATTACK_POS, duration);
-    this.updateIdle(this.bow, now, 1.1);
-    this.facePoint(this.bow, TARGET_HOME);
+    this.updateBow(now);
     this.enemies.forEach((enemy) => this.updateEnemyUnit(enemy, now));
     if (now - this.phaseStartedAt >= duration) {
       this.sword.root.position.copy(SWORD_ATTACK_POS);
       this.phase = 'combat';
       this.phaseStartedAt = now;
-      this.nextSwordAttackAt = now + 0.18;
-      this.nextBowAttackAt = now + 0.42;
+      this.nextSwordAttackAt = now + 0.12;
       this.emitSnapshot(true);
     }
   }
@@ -796,6 +849,17 @@ export class BattleRuntime {
   private updateSword(now: number): void {
     const sword = this.sword;
     if (!sword || !sword.alive) return;
+
+    if (this.swordAttackStartedAt !== -Infinity && !this.swordAttackTarget?.alive) {
+      this.swordAttackStartedAt = -Infinity;
+      this.swordAttackTarget = null;
+      this.swordHitsApplied = 0;
+      this.swordAttackHitCount = 1;
+      sword.root.position.copy(SWORD_ATTACK_POS);
+      this.setEquipmentSwing(sword, 0);
+      this.resetSlash();
+    }
+
     if (this.swordAttackStartedAt === -Infinity && now >= this.nextSwordAttackAt) {
       const target = this.findNearest(sword, this.getLivingEnemies());
       if (target) {
@@ -803,40 +867,96 @@ export class BattleRuntime {
         this.swordAttackTarget = target;
         this.swordHitsApplied = 0;
         this.swordAttackHitCount = getSwordAttackHits(this.getSwordFusionRank());
+        this.nextSwordAttackAt = now + (this.swordAttackHitCount === 1 ? 1.08 : 1.55);
       }
     }
-    if (this.swordAttackStartedAt === -Infinity || !this.swordAttackTarget?.alive) {
-      this.updateIdle(sword, now);
+
+    if (this.swordAttackStartedAt === -Infinity || !this.swordAttackTarget) {
+      sword.root.position.copy(SWORD_ATTACK_POS);
+      this.updateIdle(sword, now, 0.2);
+      const target = this.findNearest(sword, this.getLivingEnemies());
+      if (target) this.facePoint(sword, target.root.position);
       return;
     }
 
     const hitCount = this.swordAttackHitCount;
-    const duration = hitCount === 1 ? 0.58 : hitCount === 2 ? 0.82 : 1.02;
+    // Rank 1 keeps the pre-React 0.88s sword swing. Fusion extends the same
+    // anchored motion into a two-hit sequence instead of replacing its feel.
+    const duration = hitCount === 1 ? 0.88 : 1.32;
     const u = clamp01((now - this.swordAttackStartedAt) / duration);
-    const target = this.swordAttackTarget;
-    this.facePoint(sword, target.root.position);
     const phase = Math.min(hitCount - 0.001, u * hitCount);
     const local = phase % 1;
     const hitIndex = Math.floor(phase);
-    const anticipation = clamp01(local / 0.33);
-    const release = clamp01((local - 0.33) / 0.33);
-    const recovery = clamp01((local - 0.66) / 0.34);
-    const swing = local < 0.33
-      ? THREE.MathUtils.lerp(-0.72, -1.0, anticipation)
-      : local < 0.66
-        ? THREE.MathUtils.lerp(-1.0, 1.0, release)
-        : THREE.MathUtils.lerp(1.0, 0, recovery);
-    const lean = local < 0.66 ? THREE.MathUtils.lerp(-0.08, 0.16, release) : THREE.MathUtils.lerp(0.16, 0, recovery);
-    const squash = local < 0.33 ? 0.2 * anticipation : 0.08 * (1 - recovery);
-    const stretch = local >= 0.33 && local < 0.66 ? 0.28 * Math.sin(release * Math.PI) : 0;
-    this.applyUnitDeformation(sword, squash, stretch, lean, lean * 0.35, 0);
-    this.setEquipmentSwing(sword, swing, 0.015 * Math.sin(local * Math.PI), 0.22 * Math.sin(release * Math.PI));
+    const target = this.swordAttackTarget;
 
-    if (local >= 0.5 && this.swordHitsApplied <= hitIndex && target.alive) {
-      this.swordHitsApplied += 1;
-      const contact = sword.weaponTip ? sword.weaponTip.getWorldPosition(this.tempVector3) : sword.root.getWorldPosition(this.tempVector3);
-      this.showSlash(contact, target.root.position, this.swordHitsApplied === hitCount);
-      this.applyDamage(target, 2, sword.root.position);
+    let squash = 0;
+    let stretch = 0;
+    let lean = 0;
+    let weaponAngle = 0;
+    let weaponSweep = 0;
+    let weaponLift = 0;
+    let bodyOffset = 0;
+    let releaseProgress = -1;
+
+    if (local < 0.32) {
+      const p = easeInOutCubic(local / 0.32);
+      squash = p * 0.32;
+      lean = -p * 0.20;
+      weaponAngle = THREE.MathUtils.lerp(0, -0.72, p);
+      weaponSweep = THREE.MathUtils.lerp(0, -0.22, p);
+      weaponLift = p * 0.018;
+      bodyOffset = -p * 0.045;
+    } else if (local < 0.62) {
+      const p = (local - 0.32) / 0.30;
+      const release = easeOutCubic(p);
+      releaseProgress = p;
+      squash = Math.max(0, 0.10 * (1 - p));
+      stretch = Math.sin(p * Math.PI) * 0.24;
+      lean = THREE.MathUtils.lerp(-0.20, 0.34, release);
+      weaponAngle = THREE.MathUtils.lerp(-0.72, 1.34, release);
+      weaponSweep = THREE.MathUtils.lerp(-0.22, 0.18, release);
+      weaponLift = Math.sin(p * Math.PI) * 0.026;
+      bodyOffset = THREE.MathUtils.lerp(-0.045, 0.32, release);
+    } else {
+      const p = (local - 0.62) / 0.38;
+      const recovery = easeInOutCubic(p);
+      const spring = Math.sin(p * Math.PI * 2) * Math.exp(-4.2 * p);
+      weaponAngle = THREE.MathUtils.lerp(1.34, 0, recovery);
+      weaponSweep = THREE.MathUtils.lerp(0.18, 0, recovery);
+      bodyOffset = THREE.MathUtils.lerp(0.32, 0, recovery);
+      squash = Math.max(0, -spring) * 0.20;
+      stretch = Math.max(0, spring) * 0.15;
+      lean = spring * 0.09;
+    }
+
+    this.tempVector.copy(target.root.position).sub(SWORD_ATTACK_POS).setY(0);
+    if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
+    sword.root.position.copy(SWORD_ATTACK_POS).addScaledVector(this.tempVector, bodyOffset);
+    this.facePoint(sword, target.root.position);
+    this.applyUnitDeformation(sword, squash, stretch, lean, 0, 0);
+    this.setEquipmentSwing(sword, weaponAngle, weaponLift, weaponSweep);
+    sword.root.updateMatrixWorld(true);
+
+    if (releaseProgress >= 0 && sword.weaponTip) {
+      sword.weaponTip.getWorldPosition(this.tempVector3);
+      const arcU = clamp01((releaseProgress - 0.08) / 0.82);
+      const arcPulse = Math.sin(arcU * Math.PI);
+      if (this.slashArc) {
+        this.slashArc.visible = arcPulse > 0.01;
+        this.slashArc.position.copy(this.tempVector3);
+        this.slashArc.position.y += 0.012;
+        this.slashArc.quaternion.copy(this.camera.quaternion);
+        this.slashArc.rotation.z = -0.95 + arcU * 1.15;
+        this.slashArc.scale.set(0.90 + arcU * 0.52, 0.68 + arcU * 0.16, 1);
+        this.slashArc.material.opacity = arcPulse * (hitIndex === hitCount - 1 ? 0.95 : 0.78);
+      }
+
+      if (releaseProgress >= 0.50 && this.swordHitsApplied <= hitIndex && target.alive) {
+        this.swordHitsApplied += 1;
+        this.applyDamage(target, 2, 'sword', sword.root.position);
+      }
+    } else {
+      this.resetSlash();
     }
 
     if (u >= 1 || !target.alive) {
@@ -844,9 +964,10 @@ export class BattleRuntime {
       this.swordAttackTarget = null;
       this.swordHitsApplied = 0;
       this.swordAttackHitCount = 1;
-      this.nextSwordAttackAt = now + 0.72;
+      sword.root.position.copy(SWORD_ATTACK_POS);
       this.setEquipmentSwing(sword, 0);
       this.resetSlash();
+      if (hitCount > 1) this.nextSwordAttackAt = Math.max(this.nextSwordAttackAt, now + 0.24);
     }
   }
 
@@ -922,7 +1043,7 @@ export class BattleRuntime {
       arrow.root.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), this.tempVector);
       if (!arrow.hitApplied && u >= 0.94) {
         arrow.hitApplied = true;
-        if (arrow.target.alive) this.applyDamage(arrow.target, 1, arrow.start);
+        if (arrow.target.alive) this.applyDamage(arrow.target, 1, 'arrow', arrow.start);
       }
       if (u >= 1) {
         this.scene.remove(arrow.root);
@@ -1015,7 +1136,7 @@ export class BattleRuntime {
     this.facePoint(enemy, target.root.position);
     if (!enemy.attackHitApplied && u >= 0.57) {
       enemy.attackHitApplied = true;
-      this.applyDamage(target, 1, enemy.root.position);
+      this.applyDamage(target, 1, 'enemy', enemy.root.position);
     }
     if (u >= 1) {
       enemy.attackStartedAt = -Infinity;
