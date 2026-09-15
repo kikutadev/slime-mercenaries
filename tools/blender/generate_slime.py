@@ -14,7 +14,7 @@ import sys
 import bpy
 from mathutils import Vector
 
-BODY_HEIGHT = 1.42
+BODY_HEIGHT = 1.18
 BODY_BASE_Z = 0.035
 
 
@@ -51,9 +51,9 @@ def make_material(
     bsdf.inputs["Roughness"].default_value = roughness
     bsdf.inputs["Metallic"].default_value = metallic
     if "Coat Weight" in bsdf.inputs:
-        bsdf.inputs["Coat Weight"].default_value = 0.16 if metallic < 0.2 else 0.06
+        bsdf.inputs["Coat Weight"].default_value = 0.30 if metallic < 0.2 else 0.06
     if "Coat Roughness" in bsdf.inputs:
-        bsdf.inputs["Coat Roughness"].default_value = 0.14
+        bsdf.inputs["Coat Roughness"].default_value = 0.10
     return material
 
 
@@ -65,16 +65,35 @@ def create_root() -> bpy.types.Object:
 
 
 def deform_base_vertex(co: Vector) -> Vector:
-    """Turn a unit sphere into a low, bottom-heavy jelly silhouette."""
-    normalized_z = max(0.0, min(1.0, (co.z + 1.0) * 0.5))
-    lower_weight = 1.0 - normalized_z
-    width = 1.08 + 0.22 * (lower_weight**1.35)
-    depth = 0.82 + 0.12 * (lower_weight**1.25)
+    """Map the sphere onto a squat pudding-like jelly profile.
 
-    z = ((co.z + 1.0) * 0.5) ** 0.94 * BODY_HEIGHT
-    if z < 0.13:
-        z = BODY_BASE_Z + (z / 0.13) ** 2 * 0.095
-    return Vector((co.x * width, co.y * depth, z))
+    The radius is driven by height rather than inheriting the sphere profile.
+    This deliberately creates a broad skirt, a soft shoulder and a low rounded
+    crown so the unit reads as jelly instead of a scaled ball.
+    """
+    t = max(0.0, min(1.0, (co.z + 1.0) * 0.5))
+    theta = math.atan2(co.y, co.x)
+
+    # A low exponent keeps the middle broad. The lower-body bias creates the
+    # weighty jelly skirt while the tiny harmonic breaks perfect rotational
+    # symmetry without making the production silhouette noisy.
+    dome = max(0.0, math.sin(math.pi * t)) ** 0.42
+    skirt = 1.0 + 0.20 * (1.0 - t) + 0.08 * math.sin(math.pi * t)
+    asymmetry = 1.0 + 0.022 * math.sin(theta * 3.0 + 0.65) * (math.sin(math.pi * t) ** 2)
+    radius = dome * skirt * asymmetry
+
+    x = math.cos(theta) * radius
+    y = math.sin(theta) * radius * 0.82 * (1.0 + 0.014 * math.cos(theta * 2.0 - 0.3))
+
+    # Pin the first rings close to the floor, then let the crown rise. This
+    # removes the egg-like lower curve and makes contact with the ground broad.
+    if t < 0.16:
+        z = BODY_BASE_Z + 0.050 * ((t / 0.16) ** 2)
+    else:
+        p = (t - 0.16) / 0.84
+        z = BODY_BASE_Z + 0.050 + (BODY_HEIGHT - 0.050) * (p ** 1.06)
+
+    return Vector((x, y, z))
 
 
 def create_body(root: bpy.types.Object, material: bpy.types.Material) -> bpy.types.Object:
@@ -103,9 +122,9 @@ def create_body(root: bpy.types.Object, material: bpy.types.Material) -> bpy.typ
         "Squash",
         lambda point: Vector(
             (
-                point.x * (1.20 - 0.03 * min(1.0, point.z / BODY_HEIGHT)),
-                point.y * 1.14,
-                BODY_BASE_Z + max(0.0, point.z - BODY_BASE_Z) * 0.78,
+                point.x * (1.24 - 0.04 * min(1.0, point.z / BODY_HEIGHT)),
+                point.y * 1.18,
+                BODY_BASE_Z + max(0.0, point.z - BODY_BASE_Z) * 0.70,
             )
         ),
     )
@@ -113,9 +132,9 @@ def create_body(root: bpy.types.Object, material: bpy.types.Material) -> bpy.typ
         "Stretch",
         lambda point: Vector(
             (
-                point.x * 0.90,
-                point.y * 0.94,
-                BODY_BASE_Z + max(0.0, point.z - BODY_BASE_Z) * 1.18,
+                point.x * 0.86,
+                point.y * 0.91,
+                BODY_BASE_Z + max(0.0, point.z - BODY_BASE_Z) * 1.24,
             )
         ),
     )
@@ -123,12 +142,24 @@ def create_body(root: bpy.types.Object, material: bpy.types.Material) -> bpy.typ
     def lean(point: Vector, direction: float) -> Vector:
         """Bend the upper jelly while keeping its contact pad planted."""
         t = max(0.0, min(1.0, point.z / BODY_HEIGHT))
-        point.x += direction * 0.18 * (t**1.55)
-        point.z -= 0.028 * (t**1.2)
+        point.x += direction * 0.22 * (t**1.45)
+        point.z -= 0.040 * (t**1.15)
         return point
 
     add_shape("LeanLeft", lambda point: lean(point, -1.0))
     add_shape("LeanRight", lambda point: lean(point, 1.0))
+
+    def wobble(point: Vector, direction: float) -> Vector:
+        """Shear the soft middle with opposite crown/skirt lag."""
+        t = max(0.0, min(1.0, (point.z - BODY_BASE_Z) / BODY_HEIGHT))
+        soft = math.sin(math.pi * t)
+        point.x += direction * 0.12 * soft * (0.30 + 0.70 * t)
+        point.y *= 1.0 + direction * 0.035 * soft
+        point.z += direction * 0.025 * math.sin(math.pi * t * 2.0)
+        return point
+
+    add_shape("WobbleLeft", lambda point: wobble(point, -1.0))
+    add_shape("WobbleRight", lambda point: wobble(point, 1.0))
 
     def hit(point: Vector, direction: float) -> Vector:
         """Compress the jelly laterally for impact and recoil."""
@@ -175,16 +206,16 @@ def create_face(root: bpy.types.Object, eye_material: bpy.types.Material) -> bpy
     for name, x in (("Eye_L", -0.225), ("Eye_R", 0.225)):
         create_ellipsoid(
             name,
-            (x, -0.792, 0.82),
-            (0.105, 0.050, 0.142),
+            (x, -0.765, 0.68),
+            (0.092, 0.046, 0.116),
             eye_material,
             face_root,
         )
 
     create_ellipsoid(
         "Mouth",
-        (0.0, -0.842, 0.57),
-        (0.055, 0.020, 0.026),
+        (0.0, -0.805, 0.47),
+        (0.050, 0.018, 0.023),
         eye_material,
         face_root,
         segments=16,
@@ -257,7 +288,7 @@ def create_sword(
     anchor.parent = root
     # Face points toward -Y in Blender. Put the blade on the right-front flank so
     # it is visible while the slime faces an enemy up-field.
-    anchor.location = (-1.04, 0.52, 0.50)
+    anchor.location = (-1.02, 0.50, 0.42)
     anchor.rotation_euler[0] = math.radians(-12.0)
     anchor.rotation_euler[1] = math.radians(-22.0)
     anchor.rotation_euler[2] = math.radians(18.0)
@@ -295,7 +326,7 @@ def create_bow(
     anchor = bpy.data.objects.new("BowAnchor", None)
     bpy.context.scene.collection.objects.link(anchor)
     anchor.parent = root
-    anchor.location = (1.00, 0.52, 0.54)
+    anchor.location = (0.98, 0.50, 0.44)
     anchor.rotation_euler[0] = math.radians(4.0)
     anchor.rotation_euler[1] = math.radians(-12.0)
     anchor.rotation_euler[2] = math.radians(-10.0)
@@ -333,7 +364,7 @@ def main() -> None:
 
     root = create_root()
     body_color = (0.045, 0.48, 0.96, 1.0) if args.variant == "sword" else (0.06, 0.55, 0.88, 1.0)
-    body_material = make_material("SlimeBlue", body_color, roughness=0.24)
+    body_material = make_material("SlimeBlue", body_color, roughness=0.16)
     eye_material = make_material("SlimeEyeBlack", (0.003, 0.005, 0.008, 1.0), roughness=1.0)
     eye_bsdf = eye_material.node_tree.nodes.get("Principled BSDF")
     if eye_bsdf is not None:

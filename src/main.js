@@ -332,7 +332,7 @@ function facePoint(unit, point) {
   unit.root.rotation.y = Math.atan2(dx, dz);
 }
 
-function applyUnitDeformation(unit, { squash = 0, stretch = 0, lean = 0, jump = 0, impact = 0 }) {
+function applyUnitDeformation(unit, { squash = 0, stretch = 0, lean = 0, wobble = 0, jump = 0, impact = 0 }) {
   clearMorphs(unit);
   setMorph(unit, 'Squash', squash);
   setMorph(unit, 'Stretch', stretch);
@@ -341,6 +341,11 @@ function applyUnitDeformation(unit, { squash = 0, stretch = 0, lean = 0, jump = 
   } else {
     setMorph(unit, 'LeanRight', lean);
   }
+  if (wobble < 0) {
+    setMorph(unit, 'WobbleLeft', Math.abs(wobble));
+  } else {
+    setMorph(unit, 'WobbleRight', wobble);
+  }
 
   if (unit.faceRoot) {
     unit.faceRoot.scale.set(
@@ -348,7 +353,7 @@ function applyUnitDeformation(unit, { squash = 0, stretch = 0, lean = 0, jump = 
       1 - squash * 0.040 + stretch * 0.028,
       1,
     );
-    unit.faceRoot.rotation.z = lean * 0.018;
+    unit.faceRoot.rotation.z = lean * 0.018 + wobble * 0.012;
   }
 
   if (unit.shadow) {
@@ -374,10 +379,12 @@ function updateIdle(unit, now, phaseOffset = 0) {
   const wave = Math.sin(now * 2.2 + phaseOffset);
   const breathe = 0.5 + 0.5 * wave;
   const lean = Math.sin(now * 1.25 + phaseOffset) * 0.05;
+  const wobble = Math.sin(now * 2.05 + phaseOffset * 1.7) * 0.055;
   applyUnitDeformation(unit, {
-    squash: 0.025 * breathe,
-    stretch: 0.014 * (1 - breathe),
+    squash: 0.040 * breathe,
+    stretch: 0.020 * (1 - breathe),
     lean,
+    wobble,
     jump: 0,
     impact: 0,
   });
@@ -396,11 +403,12 @@ function updateHopTravel(unit, now, startTime, start, end, duration) {
 
   const landing = cycle < 0.12 ? (1 - cycle / 0.12) : 0;
   const takeoff = cycle > 0.70 ? ((cycle - 0.70) / 0.30) : 0;
-  const stretch = Math.max(0, Math.sin(cycle * Math.PI)) * 0.16;
-  const squash = landing * 0.42 + takeoff * 0.22;
+  const stretch = Math.max(0, Math.sin(cycle * Math.PI)) * 0.22;
+  const squash = landing * 0.58 + takeoff * 0.30;
   const lean = Math.sin(u * Math.PI) * 0.08;
+  const wobble = Math.sin(cycle * Math.PI * 2.0) * (0.10 + landing * 0.20);
 
-  applyUnitDeformation(unit, { squash, stretch, lean, jump, impact: landing * 0.25 });
+  applyUnitDeformation(unit, { squash, stretch, lean, wobble, jump, impact: landing * 0.34 });
   setEquipmentSwing(unit, lean * 0.22, jump * 0.03);
   facePoint(unit, end);
   return u >= 1;
@@ -437,8 +445,9 @@ function updateSwordAttack(now) {
     const p = (u - 0.52) / 0.48;
     weaponAngle = THREE.MathUtils.lerp(0.92, 0, easeInOutCubic(p));
     const spring = Math.sin(p * Math.PI * 2.0) * Math.exp(-4.0 * p);
-    squash = Math.max(0, -spring) * 0.16;
-    stretch = Math.max(0, spring) * 0.12;
+    squash = Math.max(0, -spring) * 0.24;
+    stretch = Math.max(0, spring) * 0.18;
+    lean = spring * 0.10;
   }
 
   const strikeForward = u < 0.52
