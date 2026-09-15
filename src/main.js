@@ -16,9 +16,11 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color('#b7e8fa');
 scene.fog = new THREE.Fog('#ccecca', 9, 22);
 
+const CAMERA_BASE_POSITION = new THREE.Vector3(2.8, 5.35, 8.9);
+const CAMERA_LOOK_AT = new THREE.Vector3(0, 0.38, -1.05);
 const camera = new THREE.PerspectiveCamera(31, 1, 0.1, 50);
-camera.position.set(2.8, 5.35, 8.9);
-camera.lookAt(0, 0.38, -1.05);
+camera.position.copy(CAMERA_BASE_POSITION);
+camera.lookAt(CAMERA_LOOK_AT);
 
 const renderer = new THREE.WebGLRenderer({
   canvas,
@@ -39,6 +41,7 @@ const tempQuaternion = new THREE.Quaternion();
 const tempVector = new THREE.Vector3();
 const tempVector2 = new THREE.Vector3();
 const localZAxis = new THREE.Vector3(0, 0, 1);
+const localYAxis = new THREE.Vector3(0, 1, 0);
 
 const SCALE = 0.19;
 const SWORD_HOME = new THREE.Vector3(-0.24, 0.02, 1.20);
@@ -54,6 +57,13 @@ const runtime = {
   slashArc: null,
   arrows: [],
   impacts: [],
+  simulationNow: 0,
+  pausedDuration: 0,
+  hitStopStartedAt: -Infinity,
+  hitStopEndsAt: -Infinity,
+  cameraShakeStartedAt: -Infinity,
+  cameraShakeEndsAt: -Infinity,
+  cameraShakeAmplitude: 0,
   battle: {
     state: 'loading',
     stateStartedAt: 0,
@@ -88,6 +98,69 @@ function easeInOutCubic(value) {
   return t < 0.5
     ? 4 * t * t * t
     : 1 - ((-2 * t + 2) ** 3) / 2;
+}
+
+function startHitStop(durationSeconds) {
+  if (runtime.reducedMotion || durationSeconds <= 0) {
+    return;
+  }
+  const rawNow = clock.elapsedTime;
+  if (rawNow < runtime.hitStopEndsAt) {
+    runtime.hitStopEndsAt = Math.max(runtime.hitStopEndsAt, rawNow + durationSeconds);
+    return;
+  }
+  runtime.hitStopStartedAt = rawNow;
+  runtime.hitStopEndsAt = rawNow + durationSeconds;
+}
+
+function getSimulationTime(rawNow) {
+  if (runtime.hitStopEndsAt > runtime.hitStopStartedAt) {
+    if (rawNow < runtime.hitStopEndsAt) {
+      return runtime.hitStopStartedAt - runtime.pausedDuration;
+    }
+    runtime.pausedDuration += runtime.hitStopEndsAt - runtime.hitStopStartedAt;
+    runtime.hitStopStartedAt = -Infinity;
+    runtime.hitStopEndsAt = -Infinity;
+  }
+  return rawNow - runtime.pausedDuration;
+}
+
+function startCameraShake(durationSeconds, amplitude) {
+  if (runtime.reducedMotion || durationSeconds <= 0 || amplitude <= 0) {
+    return;
+  }
+  const rawNow = clock.elapsedTime;
+  runtime.cameraShakeStartedAt = rawNow;
+  runtime.cameraShakeEndsAt = Math.max(runtime.cameraShakeEndsAt, rawNow + durationSeconds);
+  runtime.cameraShakeAmplitude = Math.max(runtime.cameraShakeAmplitude, amplitude);
+}
+
+function updateCameraTransform(rawNow) {
+  camera.position.copy(CAMERA_BASE_POSITION);
+  if (rawNow < runtime.cameraShakeEndsAt) {
+    const duration = Math.max(0.001, runtime.cameraShakeEndsAt - runtime.cameraShakeStartedAt);
+    const u = clamp01((rawNow - runtime.cameraShakeStartedAt) / duration);
+    const envelope = (1 - u) * runtime.cameraShakeAmplitude;
+    camera.position.x += Math.sin(rawNow * 97) * envelope;
+    camera.position.y += Math.sin(rawNow * 131 + 0.7) * envelope * 0.55;
+  } else {
+    runtime.cameraShakeAmplitude = 0;
+  }
+  camera.lookAt(CAMERA_LOOK_AT);
+}
+
+function disposeObject3D(root) {
+  root.traverse((object) => {
+    if (!object.isMesh) {
+      return;
+    }
+    object.geometry?.dispose?.();
+    if (Array.isArray(object.material)) {
+      object.material.forEach((material) => material?.dispose?.());
+    } else {
+      object.material?.dispose?.();
+    }
+  });
 }
 
 function createMaterial(color, roughness = 0.8) {
@@ -253,19 +326,20 @@ function createTarget() {
 
 function createSlashArc() {
   const material = new THREE.MeshBasicMaterial({
-    color: '#fff0a6',
+    color: '#ffd85e',
     transparent: true,
     opacity: 0,
     side: THREE.DoubleSide,
     depthWrite: false,
+    depthTest: false,
     blending: THREE.AdditiveBlending,
   });
   const arc = new THREE.Mesh(
-    new THREE.TorusGeometry(0.24, 0.018, 8, 32, Math.PI * 0.62),
+    new THREE.TorusGeometry(0.38, 0.035, 8, 44, Math.PI * 0.90),
     material,
   );
-  arc.rotation.x = -0.08;
   arc.visible = false;
+  arc.renderOrder = 5;
   scene.add(arc);
   runtime.slashArc = arc;
 }
@@ -273,39 +347,86 @@ function createSlashArc() {
 function createArrowMesh() {
   const group = new THREE.Group();
   const wood = new THREE.MeshStandardMaterial({ color: '#8a5a2d', roughness: 0.85 });
-  const steel = new THREE.MeshStandardMaterial({ color: '#bcc8d0', roughness: 0.35, metalness: 0.6 });
-  const feather = new THREE.MeshStandardMaterial({ color: '#6faa67', roughness: 0.72 });
+  const steel = new THREE.MeshStandardMaterial({ color: '#d1dce3', roughness: 0.28, metalness: 0.65 });
+  const feather = new THREE.MeshStandardMaterial({ color: '#72bf68', roughness: 0.68 });
 
-  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.30, 6), wood);
-  shaft.position.y = 0.0;
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.38, 6), wood);
   group.add(shaft);
 
-  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.07, 6), steel);
-  tip.position.y = 0.185;
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.034, 0.09, 6), steel);
+  tip.position.y = 0.235;
   group.add(tip);
 
-  const fletching = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.055, 0.012), feather);
-  fletching.position.y = -0.15;
+  const fletching = new THREE.Mesh(new THREE.BoxGeometry(0.070, 0.065, 0.014), feather);
+  fletching.position.y = -0.195;
   fletching.rotation.y = Math.PI / 4;
   group.add(fletching);
 
-  group.scale.setScalar(0.95);
-  return group;
-}
-
-function createImpactFlash(position, color = '#fff1a5', size = 0.11) {
-  const material = new THREE.MeshBasicMaterial({
-    color,
+  const trailMaterial = new THREE.MeshBasicMaterial({
+    color: '#e9ffd9',
     transparent: true,
-    opacity: 0.9,
+    opacity: 0.55,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   });
-  const mesh = new THREE.Mesh(new THREE.RingGeometry(size * 0.35, size, 20), material);
-  mesh.position.copy(position);
-  mesh.rotation.x = -0.18;
-  scene.add(mesh);
-  runtime.impacts.push({ mesh, startedAt: clock.elapsedTime });
+  const trail = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.016, 0.28, 6), trailMaterial);
+  trail.position.y = -0.31;
+  group.add(trail);
+
+  return group;
+}
+
+function createImpactFlash(position, color = '#fff1a5', size = 0.11, duration = 0.28, sparkCount = 7) {
+  const group = new THREE.Group();
+  group.position.copy(position);
+  group.quaternion.copy(camera.quaternion);
+
+  const materials = [];
+  const ringMaterial = new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity: 0.92,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    depthTest: false,
+    blending: THREE.AdditiveBlending,
+  });
+  materials.push(ringMaterial);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(size * 0.52, size, 24), ringMaterial);
+  group.add(ring);
+
+  for (let i = 0; i < sparkCount; i += 1) {
+    const angle = (i / sparkCount) * Math.PI * 2 + 0.22;
+    const sparkMaterial = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.95,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      depthTest: false,
+      blending: THREE.AdditiveBlending,
+    });
+    materials.push(sparkMaterial);
+    const spark = new THREE.Mesh(
+      new THREE.PlaneGeometry(size * 0.12, size * 0.78),
+      sparkMaterial,
+    );
+    spark.position.set(
+      Math.cos(angle) * size * 0.62,
+      Math.sin(angle) * size * 0.62,
+      0.002,
+    );
+    spark.rotation.z = angle - Math.PI / 2;
+    group.add(spark);
+  }
+
+  scene.add(group);
+  runtime.impacts.push({
+    group,
+    materials,
+    startedAt: runtime.simulationNow,
+    duration,
+  });
 }
 
 function setMorph(unit, name, value) {
@@ -423,45 +544,69 @@ function updateSwordAttack(now) {
   const unit = runtime.sword;
   const battle = runtime.battle;
   const elapsed = now - battle.swordAttackStartedAt;
-  const duration = runtime.reducedMotion ? 0.52 : 0.78;
+  const duration = runtime.reducedMotion ? 0.56 : 0.86;
   const u = clamp01(elapsed / duration);
 
   let squash = 0;
   let stretch = 0;
   let lean = 0;
   let weaponAngle = 0;
+  let weaponLift = 0;
 
-  if (u < 0.24) {
-    const p = u / 0.24;
-    squash = easeOutCubic(p) * 0.22;
-    lean = -0.18 * p;
-    weaponAngle = THREE.MathUtils.lerp(0, -1.05, easeInOutCubic(p));
-  } else if (u < 0.52) {
-    const p = (u - 0.24) / 0.28;
-    stretch = Math.sin(p * Math.PI) * 0.16;
-    lean = THREE.MathUtils.lerp(-0.18, 0.30, p);
-    weaponAngle = THREE.MathUtils.lerp(-1.05, 0.92, easeOutCubic(p));
+  if (u < 0.30) {
+    const p = u / 0.30;
+    const anticipation = easeOutCubic(p);
+    squash = anticipation * 0.34;
+    lean = -0.24 * anticipation;
+    weaponAngle = THREE.MathUtils.lerp(0, -1.38, easeInOutCubic(p));
+    weaponLift = THREE.MathUtils.lerp(0, 0.025, anticipation);
+  } else if (u < 0.58) {
+    const p = (u - 0.30) / 0.28;
+    const release = easeOutCubic(p);
+    stretch = Math.sin(p * Math.PI) * 0.27;
+    lean = THREE.MathUtils.lerp(-0.24, 0.42, release);
+    weaponAngle = THREE.MathUtils.lerp(-1.38, 1.24, release);
+    weaponLift = Math.sin(p * Math.PI) * 0.04;
 
-    if (!battle.swordHitApplied && p >= 0.58 && battle.enemyAlive) {
+    if (runtime.slashArc) {
+      const arcU = clamp01((p - 0.06) / 0.82);
+      const arcPulse = Math.sin(arcU * Math.PI);
+      runtime.slashArc.visible = arcPulse > 0.01;
+      runtime.slashArc.position.lerpVectors(unit.root.position, runtime.enemy.root.position, 0.60);
+      runtime.slashArc.position.y = 0.34;
+      runtime.slashArc.quaternion.copy(camera.quaternion);
+      runtime.slashArc.rotateZ(-0.76 + arcU * 1.15);
+      runtime.slashArc.scale.set(1.12 + easeOutCubic(arcU) * 1.02, 0.68 + easeOutCubic(arcU) * 0.22, 1);
+      runtime.slashArc.material.opacity = arcPulse * 0.92;
+    }
+
+    if (!battle.swordHitApplied && p >= 0.50 && battle.enemyAlive) {
       battle.swordHitApplied = true;
       applyDamage(2, 'sword');
     }
   } else {
-    const p = (u - 0.52) / 0.48;
-    weaponAngle = THREE.MathUtils.lerp(0.92, 0, easeInOutCubic(p));
-    const spring = Math.sin(p * Math.PI * 2.0) * Math.exp(-4.0 * p);
-    squash = Math.max(0, -spring) * 0.24;
-    stretch = Math.max(0, spring) * 0.18;
-    lean = spring * 0.10;
+    const p = (u - 0.58) / 0.42;
+    weaponAngle = THREE.MathUtils.lerp(1.24, 0, easeInOutCubic(p));
+    const spring = Math.sin(p * Math.PI * 2.4) * Math.exp(-3.7 * p);
+    squash = Math.max(0, -spring) * 0.30;
+    stretch = Math.max(0, spring) * 0.21;
+    lean = spring * 0.14;
+    weaponLift = Math.max(0, spring) * 0.018;
+    if (runtime.slashArc) {
+      runtime.slashArc.material.opacity *= 0.70;
+      if (runtime.slashArc.material.opacity < 0.02) {
+        runtime.slashArc.visible = false;
+      }
+    }
   }
 
-  const strikeForward = u < 0.52
-    ? Math.sin((u / 0.52) * Math.PI) * 0.07
-    : (1 - clamp01((u - 0.52) / 0.48)) * 0.025;
+  const strikeForward = u < 0.58
+    ? Math.sin((u / 0.58) * Math.PI) * 0.12
+    : (1 - clamp01((u - 0.58) / 0.42)) * 0.035;
   tempVector.copy(runtime.enemy.root.position).sub(SWORD_ATTACK_POS).setY(0).normalize();
   unit.root.position.copy(SWORD_ATTACK_POS).addScaledVector(tempVector, strikeForward);
   applyUnitDeformation(unit, { squash, stretch, lean, jump: 0, impact: 0 });
-  setEquipmentSwing(unit, weaponAngle, 0);
+  setEquipmentSwing(unit, weaponAngle, weaponLift);
   facePoint(unit, runtime.enemy.root.position);
 
   if (elapsed >= duration) {
@@ -478,21 +623,39 @@ function updateSwordAttack(now) {
 function updateArcherAttack(now) {
   const unit = runtime.archer;
   const elapsed = now - runtime.battle.archerShotStartedAt;
-  if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > 0.46) {
+  if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > 0.62) {
+    unit.root.position.copy(ARCHER_HOME);
     updateIdle(unit, now, 1.2);
     return;
   }
 
-  const u = elapsed / 0.46;
-  const draw = u < 0.52 ? easeInOutCubic(u / 0.52) : 1 - easeOutCubic((u - 0.52) / 0.48);
-  applyUnitDeformation(unit, {
-    squash: draw * 0.10,
-    stretch: 0.02 * (1 - draw),
-    lean: -draw * 0.08,
-    jump: 0,
-    impact: 0,
-  });
-  setEquipmentSwing(unit, -draw * 0.12, 0);
+  const u = elapsed / 0.62;
+  let squash = 0;
+  let stretch = 0;
+  let lean = 0;
+  let weaponAngle = 0;
+  let bodyOffset = 0;
+
+  if (u < 0.50) {
+    const p = easeInOutCubic(u / 0.50);
+    squash = p * 0.17;
+    lean = -p * 0.14;
+    weaponAngle = -p * 0.27;
+    bodyOffset = -p * 0.045;
+  } else {
+    const p = (u - 0.50) / 0.50;
+    const recoil = Math.sin(p * Math.PI) * Math.exp(-2.2 * p);
+    squash = Math.max(0, recoil) * 0.09;
+    stretch = Math.max(0, 1 - p) * 0.10;
+    lean = recoil * 0.11;
+    weaponAngle = THREE.MathUtils.lerp(0.11, 0, easeOutCubic(p)) + recoil * 0.05;
+    bodyOffset = recoil * 0.038;
+  }
+
+  tempVector.copy(runtime.enemy.root.position).sub(ARCHER_HOME).setY(0).normalize();
+  unit.root.position.copy(ARCHER_HOME).addScaledVector(tempVector, bodyOffset);
+  applyUnitDeformation(unit, { squash, stretch, lean, jump: 0, impact: 0 });
+  setEquipmentSwing(unit, weaponAngle, 0);
   facePoint(unit, runtime.enemy.root.position);
 }
 
@@ -507,18 +670,21 @@ function fireArrow(now) {
   const start = new THREE.Vector3();
   unit.root.updateMatrixWorld(true);
   unit.equipmentAnchor.getWorldPosition(start);
-  start.y += 0.02;
+  start.y += 0.025;
   const end = runtime.enemy.root.position.clone();
-  end.y += 0.24;
+  end.y += 0.27;
 
   arrow.position.copy(start);
+  arrow.visible = false;
   scene.add(arrow);
   runtime.arrows.push({
     mesh: arrow,
-    startedAt: now,
-    duration: 0.62,
+    launchAt: now + 0.30,
+    startedAt: now + 0.30,
+    duration: 0.48,
     start,
     end,
+    launched: false,
     applied: false,
   });
 }
@@ -526,17 +692,27 @@ function fireArrow(now) {
 function updateArrows(now) {
   for (let i = runtime.arrows.length - 1; i >= 0; i -= 1) {
     const arrow = runtime.arrows[i];
+    if (now < arrow.launchAt) {
+      continue;
+    }
+
+    if (!arrow.launched) {
+      arrow.launched = true;
+      arrow.mesh.visible = true;
+      createImpactFlash(arrow.start, '#eaffd9', 0.055, 0.16, 4);
+    }
+
     const u = clamp01((now - arrow.startedAt) / arrow.duration);
     arrow.mesh.position.lerpVectors(arrow.start, arrow.end, u);
-    arrow.mesh.position.y += Math.sin(u * Math.PI) * 0.13;
+    arrow.mesh.position.y += Math.sin(u * Math.PI) * 0.11;
 
-    const futureU = Math.min(1, u + 0.02);
+    const futureU = Math.min(1, u + 0.025);
     tempVector.lerpVectors(arrow.start, arrow.end, futureU);
-    tempVector.y += Math.sin(futureU * Math.PI) * 0.13;
+    tempVector.y += Math.sin(futureU * Math.PI) * 0.11;
     tempVector2.copy(tempVector).sub(arrow.mesh.position).normalize();
-    arrow.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tempVector2);
+    arrow.mesh.quaternion.setFromUnitVectors(localYAxis, tempVector2);
 
-    if (!arrow.applied && u >= 0.96) {
+    if (!arrow.applied && u >= 0.94) {
       arrow.applied = true;
       if (runtime.battle.enemyAlive) {
         applyDamage(1, 'arrow');
@@ -545,6 +721,7 @@ function updateArrows(now) {
 
     if (u >= 1) {
       scene.remove(arrow.mesh);
+      disposeObject3D(arrow.mesh);
       runtime.arrows.splice(i, 1);
     }
   }
@@ -553,11 +730,16 @@ function updateArrows(now) {
 function updateImpacts(now) {
   for (let i = runtime.impacts.length - 1; i >= 0; i -= 1) {
     const impact = runtime.impacts[i];
-    const u = clamp01((now - impact.startedAt) / 0.28);
-    impact.mesh.scale.setScalar(1 + u * 1.6);
-    impact.mesh.material.opacity = (1 - u) * 0.85;
+    const u = clamp01((now - impact.startedAt) / impact.duration);
+    const burst = easeOutCubic(u);
+    impact.group.scale.setScalar(0.86 + burst * 1.85);
+    impact.group.rotation.z = u * 0.16;
+    for (const material of impact.materials) {
+      material.opacity = (1 - u) * 0.92;
+    }
     if (u >= 1) {
-      scene.remove(impact.mesh);
+      scene.remove(impact.group);
+      disposeObject3D(impact.group);
       runtime.impacts.splice(i, 1);
     }
   }
@@ -572,17 +754,45 @@ function applyDamage(amount, source) {
   battle.enemyHp = Math.max(0, battle.enemyHp - amount);
   updateEnemyHud();
 
+  const isArrow = source === 'arrow';
   const impactPosition = runtime.enemy.root.position.clone();
-  impactPosition.y += 0.30;
-  impactPosition.x += source === 'arrow' ? 0.05 : -0.04;
-  createImpactFlash(impactPosition, source === 'arrow' ? '#d9ffd0' : '#fff1a5', source === 'arrow' ? 0.085 : 0.12);
-
-  runtime.enemy.root.rotation.z = source === 'arrow' ? -0.07 : -0.15;
-  runtime.enemy.root.scale.set(
-    runtime.enemy.baseScale * 1.06,
-    runtime.enemy.baseScale * 0.84,
-    runtime.enemy.baseScale,
+  impactPosition.y += isArrow ? 0.31 : 0.33;
+  impactPosition.x += isArrow ? 0.05 : -0.04;
+  createImpactFlash(
+    impactPosition,
+    isArrow ? '#dcffd1' : '#ffe98c',
+    isArrow ? 0.10 : 0.155,
+    isArrow ? 0.24 : 0.32,
+    isArrow ? 6 : 9,
   );
+  if (!isArrow) {
+    createImpactFlash(impactPosition, '#ffffff', 0.052, 0.15, 4);
+    startHitStop(0.038);
+    startCameraShake(0.12, 0.020);
+  }
+
+  const sourcePosition = isArrow ? runtime.archer.root.position : runtime.sword.root.position;
+  tempVector.copy(runtime.enemy.root.position).sub(sourcePosition).setY(0);
+  if (tempVector.lengthSq() > 0.0001) {
+    tempVector.normalize();
+    runtime.enemy.root.position.addScaledVector(tempVector, isArrow ? 0.032 : 0.082);
+  }
+  runtime.enemy.root.rotation.z = isArrow ? -0.09 : -0.19;
+  runtime.enemy.root.scale.set(
+    runtime.enemy.baseScale * (isArrow ? 1.07 : 1.12),
+    runtime.enemy.baseScale * (isArrow ? 0.82 : 0.76),
+    runtime.enemy.baseScale * (isArrow ? 1.00 : 1.04),
+  );
+
+  if (enemyHpFill?.animate) {
+    enemyHpFill.animate(
+      [
+        { filter: 'brightness(1.75) saturate(1.15)' },
+        { filter: 'brightness(1) saturate(1)' },
+      ],
+      { duration: runtime.reducedMotion ? 1 : 150, easing: 'ease-out' },
+    );
+  }
 
   if (battle.enemyHp <= 0) {
     battle.enemyAlive = false;
@@ -594,7 +804,7 @@ function applyDamage(amount, source) {
       runtime.slashArc.material.opacity = 0;
     }
     battle.state = 'defeat';
-    battle.stateStartedAt = clock.elapsedTime;
+    battle.stateStartedAt = runtime.simulationNow;
     battleStateElement.textContent = '撃破';
   }
 }
@@ -756,6 +966,8 @@ function updateEnemyRecovery(now) {
   }
   const wobble = Math.sin(now * 8.5) * 0.008;
   runtime.enemy.root.rotation.z = THREE.MathUtils.lerp(runtime.enemy.root.rotation.z, wobble, 0.12);
+  runtime.enemy.root.position.x = THREE.MathUtils.lerp(runtime.enemy.root.position.x, TARGET_HOME.x, 0.13);
+  runtime.enemy.root.position.z = THREE.MathUtils.lerp(runtime.enemy.root.position.z, TARGET_HOME.z, 0.13);
   runtime.enemy.root.scale.x = THREE.MathUtils.lerp(runtime.enemy.root.scale.x, runtime.enemy.baseScale, 0.14);
   runtime.enemy.root.scale.y = THREE.MathUtils.lerp(runtime.enemy.root.scale.y, runtime.enemy.baseScale, 0.14);
   runtime.enemy.root.scale.z = THREE.MathUtils.lerp(runtime.enemy.root.scale.z, runtime.enemy.baseScale, 0.14);
@@ -844,6 +1056,7 @@ async function initialize() {
   createEnvironment();
   createLighting();
   createTarget();
+  createSlashArc();
 
   const baseUrl = import.meta.env.BASE_URL;
   const [sword, archer] = await Promise.all([
@@ -884,7 +1097,14 @@ initialize().catch((error) => {
 function render() {
   requestAnimationFrame(render);
   resizeRenderer();
-  updateBattle(clock.getElapsedTime());
+  const rawNow = clock.getElapsedTime();
+  const hitStopActive = rawNow < runtime.hitStopEndsAt;
+  const simulationNow = getSimulationTime(rawNow);
+  runtime.simulationNow = simulationNow;
+  if (!hitStopActive) {
+    updateBattle(simulationNow);
+  }
+  updateCameraTransform(rawNow);
   renderer.render(scene, camera);
 }
 

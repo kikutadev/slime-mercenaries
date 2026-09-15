@@ -286,36 +286,39 @@ def create_sword(
     guard_material: bpy.types.Material,
     grip_material: bpy.types.Material,
 ) -> bpy.types.Object:
-    """Create a compact sword on the slime's front-right flank."""
+    """Create an oversized, mobile-readable sword on the slime's front-right flank."""
     anchor = bpy.data.objects.new("WeaponAnchor", None)
     bpy.context.scene.collection.objects.link(anchor)
     anchor.parent = root
     # Face points toward -Y in Blender. Put the blade on the right-front flank so
     # it is visible while the slime faces an enemy up-field.
-    anchor.location = (-1.02, 0.50, 0.42)
+    anchor.location = (-1.08, 0.50, 0.43)
     anchor.rotation_euler[0] = math.radians(-12.0)
     anchor.rotation_euler[1] = math.radians(-22.0)
     anchor.rotation_euler[2] = math.radians(18.0)
 
-    create_box("Sword_Blade", (0.12, 0.060, 0.90), (0.0, 0.0, 0.66), blade_material, anchor, bevel=0.02)
-    create_box("Sword_Guard", (0.42, 0.09, 0.08), (0.0, 0.0, 0.10), guard_material, anchor, bevel=0.02)
-    create_box("Sword_Grip", (0.095, 0.080, 0.27), (0.0, 0.0, -0.085), grip_material, anchor, bevel=0.015)
+    # Deliberately oversized for small-screen combat readability. The weapon is
+    # part of the class silhouette, so it should remain legible even when 20–30
+    # units eventually share the battlefield.
+    create_box("Sword_Blade", (0.15, 0.072, 1.16), (0.0, 0.0, 0.79), blade_material, anchor, bevel=0.024)
+    create_box("Sword_Guard", (0.52, 0.105, 0.095), (0.0, 0.0, 0.105), guard_material, anchor, bevel=0.024)
+    create_box("Sword_Grip", (0.115, 0.095, 0.33), (0.0, 0.0, -0.105), grip_material, anchor, bevel=0.018)
 
     bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=1.0)
     pommel = bpy.context.active_object
     assert pommel is not None
     pommel.name = "Sword_Pommel"
     pommel.parent = anchor
-    pommel.location = (0.0, 0.0, -0.275)
-    pommel.scale = (0.07, 0.07, 0.07)
+    pommel.location = (0.0, 0.0, -0.335)
+    pommel.scale = (0.082, 0.082, 0.082)
     pommel.data.materials.append(guard_material)
 
-    bpy.ops.mesh.primitive_cone_add(vertices=4, radius1=0.09, radius2=0.0, depth=0.16)
+    bpy.ops.mesh.primitive_cone_add(vertices=4, radius1=0.11, radius2=0.0, depth=0.20)
     tip = bpy.context.active_object
     assert tip is not None
     tip.name = "Sword_Tip"
     tip.parent = anchor
-    tip.location = (0.0, 0.0, 1.20)
+    tip.location = (0.0, 0.0, 1.47)
     tip.rotation_euler[2] = math.radians(45.0)
     tip.data.materials.append(blade_material)
     return anchor
@@ -330,18 +333,20 @@ def create_bow(
     anchor = bpy.data.objects.new("BowAnchor", None)
     bpy.context.scene.collection.objects.link(anchor)
     anchor.parent = root
-    anchor.location = (0.98, 0.50, 0.44)
+    anchor.location = (1.04, 0.50, 0.45)
     anchor.rotation_euler[0] = math.radians(4.0)
     anchor.rotation_euler[1] = math.radians(-12.0)
     anchor.rotation_euler[2] = math.radians(-10.0)
 
-    # Three rigid segments are enough to read as an oversized toy bow at mobile scale.
-    create_cylinder_between("Bow_Upper", (0.0, 0.0, 0.0), (0.22, 0.0, 0.48), 0.040, wood_material, anchor)
-    create_cylinder_between("Bow_Lower", (0.0, 0.0, 0.0), (0.22, 0.0, -0.48), 0.040, wood_material, anchor)
-    create_cylinder_between("Bow_UpperTip", (0.22, 0.0, 0.48), (0.12, 0.0, 0.66), 0.032, wood_material, anchor)
-    create_cylinder_between("Bow_LowerTip", (0.22, 0.0, -0.48), (0.12, 0.0, -0.66), 0.032, wood_material, anchor)
-    create_cylinder_between("Bow_StringUpper", (0.12, 0.0, 0.66), (-0.06, 0.0, 0.0), 0.008, string_material, anchor, vertices=6)
-    create_cylinder_between("Bow_StringLower", (-0.06, 0.0, 0.0), (0.12, 0.0, -0.66), 0.008, string_material, anchor, vertices=6)
+    # Keep the bow intentionally large and strongly curved so the ranged class
+    # remains readable at gameplay scale. The string is slightly thicker than a
+    # physically accurate one because silhouette readability matters more here.
+    create_cylinder_between("Bow_Upper", (0.0, 0.0, 0.0), (0.29, 0.0, 0.60), 0.050, wood_material, anchor)
+    create_cylinder_between("Bow_Lower", (0.0, 0.0, 0.0), (0.29, 0.0, -0.60), 0.050, wood_material, anchor)
+    create_cylinder_between("Bow_UpperTip", (0.29, 0.0, 0.60), (0.13, 0.0, 0.83), 0.040, wood_material, anchor)
+    create_cylinder_between("Bow_LowerTip", (0.29, 0.0, -0.60), (0.13, 0.0, -0.83), 0.040, wood_material, anchor)
+    create_cylinder_between("Bow_StringUpper", (0.13, 0.0, 0.83), (-0.10, 0.0, 0.0), 0.010, string_material, anchor, vertices=6)
+    create_cylinder_between("Bow_StringLower", (-0.10, 0.0, 0.0), (0.13, 0.0, -0.83), 0.010, string_material, anchor, vertices=6)
     return anchor
 
 
