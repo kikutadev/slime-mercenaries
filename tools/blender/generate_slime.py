@@ -171,29 +171,21 @@ def create_ellipsoid(
 def create_face(
     root: bpy.types.Object,
     eye_material: bpy.types.Material,
-    highlight_material: bpy.types.Material,
 ) -> bpy.types.Object:
     """Create rigid face parts under a runtime-adjustable FaceRoot anchor."""
     face_root = bpy.data.objects.new("FaceRoot", None)
     bpy.context.scene.collection.objects.link(face_root)
     face_root.parent = root
 
-    for name, x in (("Eye_L", -0.285), ("Eye_R", 0.285)):
+    # Keep the face intentionally simple at gameplay scale: two small, dark eyes
+    # with no painted/specular highlight geometry.
+    for name, x in (("Eye_L", -0.225), ("Eye_R", 0.225)):
         create_ellipsoid(
             name,
-            (x, -0.792, 0.84),
-            (0.155, 0.075, 0.205),
+            (x, -0.792, 0.82),
+            (0.105, 0.052, 0.142),
             eye_material,
             face_root,
-        )
-        create_ellipsoid(
-            f"{name}_Highlight",
-            (x - 0.045, -0.858, 0.91),
-            (0.038, 0.018, 0.052),
-            highlight_material,
-            face_root,
-            segments=16,
-            rings=10,
         )
 
     create_ellipsoid(
@@ -243,7 +235,10 @@ def create_weapon(
     anchor = bpy.data.objects.new("WeaponAnchor", None)
     bpy.context.scene.collection.objects.link(anchor)
     anchor.parent = root
-    anchor.location = (1.12, -0.58, 0.52)
+    # Keep the rigid sword on the camera-side flank while the slime itself
+    # faces up-field toward the opponent. The slime has no humanoid hand, so
+    # this reads as a weapon gripped by the body edge rather than an arm.
+    anchor.location = (-1.08, 0.34, 0.52)
     anchor.rotation_euler[1] = math.radians(-18.0)
     anchor.rotation_euler[2] = math.radians(-12.0)
 
@@ -315,14 +310,19 @@ def main() -> None:
 
     root = create_root()
     body_material = make_material("SlimeBlue", (0.045, 0.48, 0.96, 1.0), roughness=0.24)
-    eye_material = make_material("SlimeNavy", (0.015, 0.045, 0.13, 1.0), roughness=0.34)
-    highlight_material = make_material("SlimeHighlight", (0.76, 0.95, 1.0, 1.0), roughness=0.14)
+    eye_material = make_material("SlimeEyeBlack", (0.003, 0.005, 0.008, 1.0), roughness=1.0)
+    eye_bsdf = eye_material.node_tree.nodes.get("Principled BSDF")
+    if eye_bsdf is not None:
+        if "Coat Weight" in eye_bsdf.inputs:
+            eye_bsdf.inputs["Coat Weight"].default_value = 0.0
+        if "Specular IOR Level" in eye_bsdf.inputs:
+            eye_bsdf.inputs["Specular IOR Level"].default_value = 0.0
     blade_material = make_material("SwordSteel", (0.66, 0.78, 0.88, 1.0), roughness=0.24, metallic=0.72)
     guard_material = make_material("SwordGold", (0.92, 0.55, 0.12, 1.0), roughness=0.32, metallic=0.28)
     grip_material = make_material("SwordGrip", (0.24, 0.10, 0.08, 1.0), roughness=0.72)
 
     create_body(root, body_material)
-    create_face(root, eye_material, highlight_material)
+    create_face(root, eye_material)
     create_weapon(root, blade_material, guard_material, grip_material)
 
     root.rotation_euler[2] = math.radians(-8.0)

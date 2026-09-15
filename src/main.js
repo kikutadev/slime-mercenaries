@@ -40,6 +40,10 @@ const localZAxis = new THREE.Vector3(0, 0, 1);
 
 const SLIME_HOME = Object.freeze({ x: 0.02, y: 0.02, z: 0.76 });
 const TARGET_HOME = Object.freeze({ x: 0.46, y: 0.0, z: -0.90 });
+const SLIME_TARGET_YAW = Math.atan2(
+  TARGET_HOME.x - SLIME_HOME.x,
+  TARGET_HOME.z - SLIME_HOME.z,
+);
 
 const runtime = {
   slime: null,
@@ -651,7 +655,9 @@ async function loadSlime() {
   slime.name = 'SwordSlimeRuntime';
   slime.scale.setScalar(0.34);
   slime.position.set(SLIME_HOME.x, SLIME_HOME.y, SLIME_HOME.z);
-  slime.rotation.y = THREE.MathUtils.degToRad(2);
+  // The face is authored along local +Z after glTF axis conversion. Point that
+  // direction at the opponent instead of toward the camera.
+  slime.rotation.y = SLIME_TARGET_YAW;
 
   slime.traverse((object) => {
     if (object.isMesh) {
