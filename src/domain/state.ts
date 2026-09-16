@@ -1,8 +1,8 @@
-import { GameNumber, createRngStreams, createTimedActivityState, type GameNumberSerialized, type GameState, type TimedActivityState } from 'idle-game-kit';
-import { dispatchContractDefinitions, ids, initialEconomyBalance, type DispatchContractId, type JobSlimeId } from './definitions';
+import { GameNumber, createLoadoutState, createRngStreams, createTimedActivityState, type GameNumberSerialized, type GameState, type InventoryState, type LoadoutState, type TimedActivityState } from 'idle-game-kit';
+import { dispatchContractDefinitions, ids, initialEconomyBalance, slimeWeaponLoadoutDefinitions, type DispatchContractId, type JobSlimeId } from './definitions';
 
-export const SLIME_MERCENARIES_SCHEMA_VERSION = 0;
-export const SLIME_MERCENARIES_DEFINITION_VERSION = '2026-09-16.2';
+export const SLIME_MERCENARIES_SCHEMA_VERSION = 1;
+export const SLIME_MERCENARIES_DEFINITION_VERSION = '2026-09-16.3';
 
 export type SlimeAssignment = 'battle' | 'reserve' | 'dispatch';
 
@@ -20,6 +20,24 @@ export type SlimeProgress = Readonly<{
   assignment: SlimeAssignment;
 }>;
 
+
+export type WeaponInstanceData = Readonly<{ refinementRank: number }>;
+
+export type EquipmentState = Readonly<{
+  inventory: InventoryState<WeaponInstanceData>;
+  loadouts: Readonly<Record<JobSlimeId, LoadoutState>>;
+}>;
+
+export function createInitialEquipmentState(): EquipmentState {
+  return {
+    inventory: {},
+    loadouts: {
+      sword: createLoadoutState(slimeWeaponLoadoutDefinitions.sword),
+      bow: createLoadoutState(slimeWeaponLoadoutDefinitions.bow),
+    },
+  };
+}
+
 export type SlimeMercenariesData = Readonly<{
   progression: Readonly<{
     currentAreaId: string;
@@ -35,6 +53,7 @@ export type SlimeMercenariesData = Readonly<{
   dispatch: Readonly<{
     contracts: Readonly<Record<DispatchContractId, Readonly<{ slimeId: JobSlimeId | null; activity: TimedActivityState }>>>;
   }>;
+  equipment: EquipmentState;
   economy: Readonly<{
     /** Index into the Plain Slime shop price curve. */
     plainSlimeShopPurchaseCount: number;
@@ -101,6 +120,7 @@ export function createInitialSlimeMercenariesState(
           ]),
         ) as SlimeMercenariesData['dispatch']['contracts'],
       },
+      equipment: createInitialEquipmentState(),
       economy: {
         plainSlimeShopPurchaseCount: 0,
       },

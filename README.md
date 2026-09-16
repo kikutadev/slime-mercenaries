@@ -2,7 +2,7 @@
 
 かわいいスライムの職業進化・同種合成・装備収集・派遣を軸にした、スマートフォン縦画面向けのバトル系放置RPG。
 
-本作は `idle-game-kit` の公開package境界へ接続する独立ゲームリポジトリとして管理する。Domain側のCurrency/Token/Level/RNG接続は開始済みで、React/Three runtimeは段階移行中のpresentation prototype。接続境界は `docs/specs/kit-integration.md` を正本とする。
+本作は `idle-game-kit` の公開package境界へ接続する独立ゲームリポジトリとして管理する。Currency / Token / Level / Gacha / Inventory / Loadout / Timed Activity / ProfileRepository / Simulator をauthoritative product Domainへ接続済みで、React/Three runtimeはその保存stateを読むpresentation層として動作する。接続境界は `docs/specs/kit-integration.md` を正本とする。
 
 ## Product statement
 
@@ -38,4 +38,4 @@ Sword Slime / Bow Slime の自動戦闘PoCを実装済み。Web runtimeは React
 
 ## Current phase
 
-Product specificationを「大人数部隊」前提から「少数編成 + 同種合成 + 控え派遣」へ更新し、runtime vertical sliceで戦闘の読みやすさとキャラクターfeelを検証中。30体密度テストの結果、常時大人数を表示する方式は採用しない。今後は合成・職業発見・報酬が実際の戦闘表現へ戻るcore loopを優先して実装する。
+少数編成 + 同種合成 + 控え派遣を前提に、Plain生成/購入、職業作成、Level、Fusion、Promotion、Equipment Forge/Refinement/Loadout、Dispatch、Stage/Boss報酬、offline save、same-core simulatorまでauthoritative Domainへ接続済み。現在のSword/Bow vertical sliceを基準にバランスと戦闘feelを検証し、職業・地域・装備のコンテンツ量を順次拡張する。

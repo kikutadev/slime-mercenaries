@@ -1,5 +1,6 @@
 export * from './world';
 export * from './dispatch';
+export * from './equipment';
 export * from './simulator';
 export * from './combat';
 export * from './balance';

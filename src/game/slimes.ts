@@ -1,7 +1,7 @@
-import { ids } from '../domain/definitions';
+import { ids, type JobSlimeId } from '../domain/definitions';
+import type { SlimeProgress } from '../domain/state';
 
-export type SlimeId = 'sword' | 'bow';
-export type SlimeAssignment = 'battle' | 'reserve' | 'dispatch';
+export type SlimeId = JobSlimeId;
 export type FusionItemCategory = 'slime' | 'weapon' | 'material';
 export type FusionItemId =
   | typeof ids.token.swordCore
@@ -33,22 +33,6 @@ export interface FusionItemDefinition {
   glyph: string;
 }
 
-/** Legacy presentation state. Economy/fusion balance is sourced from src/domain definitions. */
-export interface SlimeProgress {
-  id: SlimeId;
-  level: number;
-  fusionRank: number;
-  assignment: SlimeAssignment;
-  equippedWeapon: string;
-}
-
-/** Temporary presentation fixture until App.tsx is migrated to the authoritative GameState. */
-export interface RosterState {
-  selectedId: SlimeId;
-  slimes: Record<SlimeId, SlimeProgress>;
-  inventory: Record<FusionItemId, number>;
-}
-
 export const SLIMES: Record<SlimeId, SlimeDefinition> = {
   sword: {
     id: 'sword',
@@ -71,105 +55,49 @@ export const SLIMES: Record<SlimeId, SlimeDefinition> = {
 };
 
 export const FUSION_ITEMS: Record<FusionItemId, FusionItemDefinition> = {
-  [ids.token.swordCore]: {
-    id: ids.token.swordCore,
-    name: '剣士スライムの核',
-    shortName: '剣士の核',
-    category: 'slime',
-    glyph: '●',
-  },
-  [ids.token.bowCore]: {
-    id: ids.token.bowCore,
-    name: '弓士スライムの核',
-    shortName: '弓士の核',
-    category: 'slime',
-    glyph: '●',
-  },
-  [ids.token.greatswordBlank]: {
-    id: ids.token.greatswordBlank,
-    name: '大剣の原型',
-    shortName: '大剣の原型',
-    category: 'weapon',
-    glyph: '⚔',
-  },
-  [ids.token.reinforcedBow]: {
-    id: ids.token.reinforcedBow,
-    name: '強化弓の原型',
-    shortName: '強化弓',
-    category: 'weapon',
-    glyph: '➶',
-  },
-  [ids.token.hardeningGel]: {
-    id: ids.token.hardeningGel,
-    name: '硬化ジェル',
-    shortName: '硬化ジェル',
-    category: 'material',
-    glyph: '◆',
-  },
-  [ids.token.temperedSteel]: {
-    id: ids.token.temperedSteel,
-    name: '鍛鉄片',
-    shortName: '鍛鉄片',
-    category: 'material',
-    glyph: '⬟',
-  },
+  [ids.token.swordCore]: { id: ids.token.swordCore, name: '剣士スライムの核', shortName: '剣士の核', category: 'slime', glyph: '●' },
+  [ids.token.bowCore]: { id: ids.token.bowCore, name: '弓士スライムの核', shortName: '弓士の核', category: 'slime', glyph: '●' },
+  [ids.token.greatswordBlank]: { id: ids.token.greatswordBlank, name: '大剣の原型', shortName: '大剣の原型', category: 'weapon', glyph: '⚔' },
+  [ids.token.reinforcedBow]: { id: ids.token.reinforcedBow, name: '強化弓の原型', shortName: '強化弓', category: 'weapon', glyph: '➶' },
+  [ids.token.hardeningGel]: { id: ids.token.hardeningGel, name: '硬化ジェル', shortName: '硬化ジェル', category: 'material', glyph: '◆' },
+  [ids.token.temperedSteel]: { id: ids.token.temperedSteel, name: '鍛鉄片', shortName: '鍛鉄片', category: 'material', glyph: '⬟' },
 };
 
-const GREATSWORD_FORM: SlimePresentation = {
-  ...SLIMES.sword,
-  name: 'Greatsword Slime',
-  role: '前衛・範囲重撃',
-  // Greatsword is a Fusion form on the Sword branch, not the Tier-2 Fighter promotion.
-  tier: 1,
-  asset: 'assets/greatsword-slime.glb',
-  accent: '#ffd76f',
-  form: 'greatsword',
+const PROMOTED_NAMES: Readonly<Record<string, string>> = {
+  fighter: 'Fighter Slime',
+  ranger: 'Ranger Slime',
 };
 
 export function getSlimePresentation(slime: SlimeProgress): SlimePresentation {
-  if (slime.id === 'sword' && slime.fusionRank >= 2) return GREATSWORD_FORM;
-  return { ...SLIMES[slime.id], form: slime.id };
+  const base = SLIMES[slime.typeId];
+  const promotedName = slime.promotionPathId === null ? null : PROMOTED_NAMES[slime.promotionPathId] ?? null;
+  if (slime.typeId === 'sword' && slime.fusionRank >= 2) {
+    return {
+      ...base,
+      name: promotedName ?? 'Greatsword Slime',
+      role: '前衛・範囲重撃',
+      tier: slime.jobTier,
+      asset: 'assets/greatsword-slime.glb',
+      accent: '#ffd76f',
+      form: slime.fusionFormId,
+    };
+  }
+  return {
+    ...base,
+    name: promotedName ?? base.name,
+    tier: slime.jobTier,
+    form: slime.fusionFormId,
+  };
 }
 
 export function getSlimePresentationForRank(id: SlimeId, fusionRank: number): SlimePresentation {
   return getSlimePresentation({
-    id,
+    typeId: id,
     level: 1,
+    jobTier: 1,
+    promotionPathId: null,
     fusionRank,
+    fusionFormId: id === 'sword' && fusionRank >= 2 ? 'greatsword' : 'base',
     assignment: 'reserve',
-    equippedWeapon: '',
   });
-}
-
-/**
- * Current battle/fusion UI fixture. Values here are presentation test setup, not product balance.
- */
-export function createInitialRoster(): RosterState {
-  return {
-    selectedId: 'sword',
-    slimes: {
-      sword: {
-        id: 'sword',
-        level: 12,
-        fusionRank: 1,
-        assignment: 'battle',
-        equippedWeapon: 'Rusty Sword',
-      },
-      bow: {
-        id: 'bow',
-        level: 9,
-        fusionRank: 1,
-        assignment: 'battle',
-        equippedWeapon: 'Hunter Bow',
-      },
-    },
-    inventory: {
-      [ids.token.swordCore]: 1,
-      [ids.token.bowCore]: 0,
-      [ids.token.greatswordBlank]: 1,
-      [ids.token.reinforcedBow]: 0,
-      [ids.token.hardeningGel]: 2,
-      [ids.token.temperedSteel]: 0,
-    },
-  };
 }

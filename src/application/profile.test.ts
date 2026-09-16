@@ -60,3 +60,20 @@ describe('profile persistence boundary', () => {
     expect(secondResume.state.tokens).toEqual(tokensAfterFirstResume);
   });
 });
+
+it('migrates schema-v0 profiles by adding the authoritative equipment state', async () => {
+  const repository = new MemoryProfileRepository();
+  const current = createInitialSlimeMercenariesState(1_000, 7);
+  const { equipment: _equipment, ...legacyGameData } = current.gameData;
+  const legacy = {
+    ...current,
+    schemaVersion: 0,
+    gameData: legacyGameData,
+  } as unknown as SlimeMercenariesState;
+  await repository.save({ profileId: 'default', savedAtMs: 1_000, state: legacy });
+
+  const loaded = await loadOrCreateSlimeProfile({ repository, nowMs: 1_000 });
+  expect(loaded.state.schemaVersion).toBe(1);
+  expect(loaded.state.gameData.equipment.inventory).toEqual({});
+  expect(loaded.state.gameData.equipment.loadouts.sword.definitionId).toBe('loadout.slime.sword');
+});

@@ -29,12 +29,16 @@ export type GachaPityRule = Readonly<{
     poolEntryIds: readonly string[];
 }>;
 export type GachaDuplicatePolicy = 'resolve-with-hook' | 'grant-again' | 'ignore';
+export type GachaCost = Readonly<{
+    currencyId: string;
+    amountPerDraw: GameNumberSource;
+}> | Readonly<{
+    tokenId: string;
+    countPerDraw: number;
+}>;
 export type GachaDefinition<TReward> = Readonly<{
     id: string;
-    cost: Readonly<{
-        currencyId: string;
-        amountPerDraw: GameNumberSource;
-    }>;
+    cost: GachaCost;
     allowedDrawCounts: readonly number[];
     pool: readonly GachaPoolEntry<TReward>[];
     rngStreamName: string;
@@ -83,7 +87,7 @@ export type GachaDrawPayload = Readonly<{
     selectionRule: GachaSelectionRule | null;
 }>;
 /**
- * Currency spend -> named RNG draw -> pity/guarantee selection -> duplicate resolution -> grant -> state更新を
+ * Currency/Token spend -> named RNG draw -> pity/guarantee selection -> duplicate resolution -> grant -> state更新を
  * immutableな1 commandとして実行する。途中でrejectした場合は元stateを返す。
  *
  * Batch guaranteeは通常抽選後の結果を見て不足時だけbatch末尾を再抽選するため、
@@ -95,6 +99,6 @@ export declare function drawGacha<TGameData, TReward>(args: Readonly<{
     drawCount: number;
     hooks: GachaHooks<GameState<TGameData>, TReward>;
     resolveCurrencyDefinition?: CurrencyDefinitionResolver;
-}>): CommandResult<GameState<TGameData>, 'invalid-draw-count' | 'insufficient-currency' | 'missing-rng-stream'>;
+}>): CommandResult<GameState<TGameData>, 'invalid-draw-count' | 'insufficient-currency' | 'insufficient-token' | 'missing-rng-stream'>;
 /** Weightの合計に対して [0,1) の乱数をdeterministically対応付ける。 */
 export declare function pickWeightedEntry<TReward>(pool: readonly GachaPoolEntry<TReward>[], randomValue: number): GachaPoolEntry<TReward>;

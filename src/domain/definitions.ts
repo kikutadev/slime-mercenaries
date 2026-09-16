@@ -1,4 +1,4 @@
-import type { CurrencyDefinition, CurveDefinition, Reward, TimedActivityDefinition } from 'idle-game-kit';
+import type { CurrencyDefinition, CurveDefinition, GachaDefinition, ItemDefinition, LoadoutDefinition, Reward, TimedActivityDefinition } from 'idle-game-kit';
 import { balance } from './balance';
 
 /** Stable IDs are the save/balance boundary. Display names can change without migrating saves. */
@@ -20,6 +20,15 @@ export const ids = {
     temperedSteel: 'token.fusion.tempered-steel',
     forgeKey: 'token.forge-key',
     promotionMaterial: 'token.promotion.common',
+    swordWeaponMaterial: 'token.equipment-material.sword',
+    bowWeaponMaterial: 'token.equipment-material.bow',
+  },
+  gacha: {
+    forge: 'gacha.equipment-forge',
+  },
+  loadout: {
+    sword: 'loadout.slime.sword',
+    bow: 'loadout.slime.bow',
   },
   activity: {
     roadEscort: 'activity.dispatch.road-escort',
@@ -119,6 +128,8 @@ export const initialEconomyBalance = {
     [ids.token.temperedSteel]: 0,
     [ids.token.forgeKey]: 0,
     [ids.token.promotionMaterial]: 0,
+    [ids.token.swordWeaponMaterial]: 0,
+    [ids.token.bowWeaponMaterial]: 0,
   } as Readonly<Record<string, number>>,
 } as const;
 
@@ -261,6 +272,117 @@ export const typeLevelDefinitions = {
 } as const;
 
 
+export type WeaponFamily = JobSlimeId;
+export type WeaponRarity = 'common' | 'rare' | 'mythic';
+export type WeaponId = keyof typeof weaponDefinitions;
+
+export type WeaponDefinition = Readonly<{
+  id: string;
+  displayName: string;
+  family: WeaponFamily;
+  rarity: WeaponRarity;
+  dpsMultiplier: number;
+  item: ItemDefinition;
+}>;
+
+export const weaponDefinitions = {
+  bronzeSaber: {
+    id: 'weapon.sword.bronze-saber', displayName: 'Bronze Saber', family: 'sword', rarity: 'common',
+    dpsMultiplier: balance.equipment.weapons.bronzeSaber.dpsMultiplier,
+    item: { id: 'weapon.sword.bronze-saber', displayName: 'Bronze Saber', tags: ['weapon', 'family:sword'] },
+  },
+  cloverBlade: {
+    id: 'weapon.sword.clover-blade', displayName: 'Clover Blade', family: 'sword', rarity: 'rare',
+    dpsMultiplier: balance.equipment.weapons.cloverBlade.dpsMultiplier,
+    item: { id: 'weapon.sword.clover-blade', displayName: 'Clover Blade', tags: ['weapon', 'family:sword'] },
+  },
+  starcleaver: {
+    id: 'weapon.sword.starcleaver', displayName: 'Starcleaver', family: 'sword', rarity: 'mythic',
+    dpsMultiplier: balance.equipment.weapons.starcleaver.dpsMultiplier,
+    item: { id: 'weapon.sword.starcleaver', displayName: 'Starcleaver', tags: ['weapon', 'family:sword'] },
+  },
+  hunterBow: {
+    id: 'weapon.bow.hunter-bow', displayName: 'Hunter Bow', family: 'bow', rarity: 'common',
+    dpsMultiplier: balance.equipment.weapons.hunterBow.dpsMultiplier,
+    item: { id: 'weapon.bow.hunter-bow', displayName: 'Hunter Bow', tags: ['weapon', 'family:bow'] },
+  },
+  windstring: {
+    id: 'weapon.bow.windstring', displayName: 'Windstring', family: 'bow', rarity: 'rare',
+    dpsMultiplier: balance.equipment.weapons.windstring.dpsMultiplier,
+    item: { id: 'weapon.bow.windstring', displayName: 'Windstring', tags: ['weapon', 'family:bow'] },
+  },
+  cometString: {
+    id: 'weapon.bow.comet-string', displayName: 'Comet String', family: 'bow', rarity: 'mythic',
+    dpsMultiplier: balance.equipment.weapons.cometString.dpsMultiplier,
+    item: { id: 'weapon.bow.comet-string', displayName: 'Comet String', tags: ['weapon', 'family:bow'] },
+  },
+} as const satisfies Readonly<Record<string, WeaponDefinition>>;
+
+export const weaponDefinitionsByDefinitionId: Readonly<Record<string, WeaponDefinition>> = Object.fromEntries(
+  Object.values(weaponDefinitions).map((definition) => [definition.id, definition]),
+);
+
+export const itemDefinitionsById: Readonly<Record<string, ItemDefinition>> = Object.fromEntries(
+  Object.values(weaponDefinitions).map((definition) => [definition.item.id, definition.item]),
+);
+
+export const slimeWeaponLoadoutDefinitions: Readonly<Record<JobSlimeId, LoadoutDefinition>> = {
+  sword: { id: ids.loadout.sword, slots: [{ id: 'weapon', acceptsTags: ['family:sword'] }] },
+  bow: { id: ids.loadout.bow, slots: [{ id: 'weapon', acceptsTags: ['family:bow'] }] },
+};
+
+export type ForgeReward = Readonly<{ weaponDefinitionId: string }>;
+export const equipmentForgeDefinition: GachaDefinition<ForgeReward> = {
+  id: ids.gacha.forge,
+  cost: { tokenId: ids.token.forgeKey, countPerDraw: balance.equipment.forgeKeyCostPerDraw },
+  allowedDrawCounts: [1, 10],
+  rngStreamName: ids.rng.forge,
+  duplicatePolicy: 'resolve-with-hook',
+  pity: {
+    id: 'forge.mythic-pity',
+    threshold: balance.equipment.mythicPityDraws,
+    poolEntryIds: ['forge.starcleaver', 'forge.comet-string'],
+  },
+  pool: [
+    { id: 'forge.bronze-saber', weight: balance.equipment.weapons.bronzeSaber.weight, reward: { weaponDefinitionId: weaponDefinitions.bronzeSaber.id }, rarity: 'common' },
+    { id: 'forge.clover-blade', weight: balance.equipment.weapons.cloverBlade.weight, reward: { weaponDefinitionId: weaponDefinitions.cloverBlade.id }, rarity: 'rare' },
+    { id: 'forge.starcleaver', weight: balance.equipment.weapons.starcleaver.weight, reward: { weaponDefinitionId: weaponDefinitions.starcleaver.id }, rarity: 'mythic' },
+    { id: 'forge.hunter-bow', weight: balance.equipment.weapons.hunterBow.weight, reward: { weaponDefinitionId: weaponDefinitions.hunterBow.id }, rarity: 'common' },
+    { id: 'forge.windstring', weight: balance.equipment.weapons.windstring.weight, reward: { weaponDefinitionId: weaponDefinitions.windstring.id }, rarity: 'rare' },
+    { id: 'forge.comet-string', weight: balance.equipment.weapons.cometString.weight, reward: { weaponDefinitionId: weaponDefinitions.cometString.id }, rarity: 'mythic' },
+  ],
+};
+
+export type PromotionDefinition = Readonly<{
+  id: string;
+  slimeId: JobSlimeId;
+  fromTier: number;
+  toTier: number;
+  resultPathId: string;
+  resultDisplayName: string;
+  minLevel: number;
+  goldCost: number;
+  recipe: readonly TokenRequirement[];
+}>;
+
+export const promotionDefinitions: Readonly<Record<JobSlimeId, readonly PromotionDefinition[]>> = {
+  sword: [{
+    id: 'promotion.sword.fighter', slimeId: 'sword', fromTier: 1, toTier: 2,
+    resultPathId: 'fighter', resultDisplayName: 'Fighter Slime',
+    minLevel: balance.promotion.swordFighter.minLevel,
+    goldCost: balance.promotion.swordFighter.goldCost,
+    recipe: [{ tokenId: ids.token.promotionMaterial, count: balance.promotion.swordFighter.promotionMaterial }],
+  }],
+  bow: [{
+    id: 'promotion.bow.ranger', slimeId: 'bow', fromTier: 1, toTier: 2,
+    resultPathId: 'ranger', resultDisplayName: 'Ranger Slime',
+    minLevel: balance.promotion.bowRanger.minLevel,
+    goldCost: balance.promotion.bowRanger.goldCost,
+    recipe: [{ tokenId: ids.token.promotionMaterial, count: balance.promotion.bowRanger.promotionMaterial }],
+  }],
+};
+
+
 export type StageWaveDefinition = Readonly<{
   work: number;
   rewards: readonly Reward[];
@@ -295,6 +417,8 @@ function stageClearRewards(clearReward: Readonly<Record<string, number>>): reado
     trainingBow: ids.token.trainingBow,
     greatswordBlank: ids.token.greatswordBlank,
     hardeningGel: ids.token.hardeningGel,
+    forgeKey: ids.token.forgeKey,
+    promotionMaterial: ids.token.promotionMaterial,
   };
   for (const [key, count] of Object.entries(clearReward)) {
     const tokenId = tokenByKey[key];

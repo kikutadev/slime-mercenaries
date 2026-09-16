@@ -4,12 +4,14 @@ import * as THREE from 'three';
 import { BattleRuntime, type BattleSnapshot } from '../game/BattleRuntime';
 
 interface BattleCanvasProps {
+  encounterKey: string;
+  showBow: boolean;
   swordFusionRank: number;
   swordAsset: string;
   onSnapshot: (snapshot: BattleSnapshot) => void;
 }
 
-function BattleRuntimeScene({ swordFusionRank, swordAsset, onSnapshot }: BattleCanvasProps) {
+function BattleRuntimeScene({ swordFusionRank, swordAsset, showBow, onSnapshot }: BattleCanvasProps) {
   const { scene, camera, gl } = useThree();
   const runtimeRef = useRef<BattleRuntime | null>(null);
   const rankRef = useRef(swordFusionRank);
@@ -32,6 +34,7 @@ function BattleRuntimeScene({ swordFusionRank, swordAsset, onSnapshot }: BattleC
       camera,
       baseUrl: import.meta.env.BASE_URL,
       swordAsset,
+      showBow,
       onSnapshot: (snapshot) => snapshotRef.current(snapshot),
       getSwordFusionRank: () => rankRef.current,
     });
@@ -42,7 +45,7 @@ function BattleRuntimeScene({ swordFusionRank, swordAsset, onSnapshot }: BattleC
       runtime.dispose();
       runtimeRef.current = null;
     };
-  }, [camera, gl, scene, swordAsset]);
+  }, [camera, gl, scene, swordAsset, showBow]);
 
   useFrame(({ clock }) => {
     runtimeRef.current?.tick(clock.elapsedTime);
@@ -54,7 +57,7 @@ function BattleRuntimeScene({ swordFusionRank, swordAsset, onSnapshot }: BattleC
 export function BattleCanvas(props: BattleCanvasProps) {
   return (
     <Canvas
-      key={props.swordAsset}
+      key={`${props.encounterKey}:${props.swordAsset}:${props.showBow ? 'bow' : 'solo'}`}
       className="battle-canvas"
       camera={{ fov: 31, near: 0.1, far: 50, position: [2.8, 5.35, 8.9] }}
       dpr={[1, 2]}

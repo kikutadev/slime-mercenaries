@@ -9,17 +9,19 @@ import {
   spendToken,
   type CommandResult,
   type DomainEvent,
-  type GameNumber,
+  GameNumber,
 } from 'idle-game-kit';
 import {
   fusionStepDefinitions,
   ids,
   jobCreationDefinitions,
   plainSlimeBalance,
+  promotionDefinitions,
   resolveCurrencyDefinition,
   typeLevelDefinitions,
   type FusionStepDefinition,
   type JobSlimeId,
+  type PromotionDefinition,
   type TokenRequirement,
 } from './definitions';
 import type { SlimeMercenariesState, SlimeProgress } from './state';
@@ -462,5 +464,109 @@ export function levelUpSlime(
     levelAfter: preview.targetLevel,
     count: preview.count,
     totalCost: spend.appliedAmount.serialize(),
+  })]);
+}
+
+
+export type SlimePromotionPreview = Readonly<{
+  slimeId: JobSlimeId;
+  step: PromotionDefinition | null;
+  levelMet: boolean;
+  goldCost: GameNumber;
+  canAffordGold: boolean;
+  requirements: readonly TokenRequirementPreview[];
+  canPromote: boolean;
+}>;
+
+/** Promotion is a separate axis from Fusion and therefore never changes fusionRank/form. */
+export function previewSlimePromotion(
+  state: SlimeMercenariesState,
+  slimeId: JobSlimeId,
+): SlimePromotionPreview {
+  const slime = state.gameData.roster.slimes[slimeId];
+  if (slime === undefined) {
+    return {
+      slimeId,
+      step: null,
+      levelMet: false,
+      goldCost: GameNumber.zero(),
+      canAffordGold: false,
+      requirements: [],
+      canPromote: false,
+    };
+  }
+  const step = promotionDefinitions[slimeId].find((candidate) => candidate.fromTier === slime.jobTier) ?? null;
+  if (step === null) {
+    return {
+      slimeId,
+      step: null,
+      levelMet: true,
+      goldCost: GameNumber.zero(),
+      canAffordGold: true,
+      requirements: [],
+      canPromote: false,
+    };
+  }
+  const requirements = step.recipe.map((requirement) => previewRequirement(state, requirement));
+  const goldCost = GameNumber.from(step.goldCost);
+  const levelMet = slime.level >= step.minLevel;
+  const canAffordGold = readCurrency(state.currencies, ids.currency.gold).compare(goldCost) >= 0;
+  return {
+    slimeId,
+    step,
+    levelMet,
+    goldCost,
+    canAffordGold,
+    requirements,
+    canPromote: levelMet && canAffordGold && requirements.every((requirement) => requirement.missing === 0),
+  };
+}
+
+export function promoteSlime(
+  state: SlimeMercenariesState,
+  slimeId: JobSlimeId,
+): CommandResult<SlimeMercenariesState, 'not-owned' | 'max-tier' | 'level-too-low' | 'insufficient-materials' | 'insufficient-gold'> {
+  const slime = state.gameData.roster.slimes[slimeId];
+  if (slime === undefined) return reject(state, 'not-owned');
+  const preview = previewSlimePromotion(state, slimeId);
+  if (preview.step === null) return reject(state, 'max-tier');
+  if (!preview.levelMet) return reject(state, 'level-too-low');
+  if (preview.requirements.some((requirement) => requirement.missing > 0)) return reject(state, 'insufficient-materials');
+  if (!preview.canAffordGold) return reject(state, 'insufficient-gold');
+
+  const spend = applyCurrencyTransaction(state.currencies, {
+    currencyId: ids.currency.gold,
+    amount: preview.goldCost,
+    kind: 'spend',
+    source: preview.step.id,
+  }, resolveCurrencyDefinition(ids.currency.gold));
+  if (!spend.accepted) return reject(state, 'insufficient-gold');
+
+  const tokens = spendRequirements(state.tokens, preview.step.recipe);
+  const updated: SlimeProgress = {
+    ...slime,
+    jobTier: preview.step.toTier,
+    promotionPathId: preview.step.resultPathId,
+  };
+  let nextState: SlimeMercenariesState = {
+    ...state,
+    currencies: spend.balances,
+    tokens,
+    gameData: {
+      ...state.gameData,
+      roster: {
+        ...state.gameData.roster,
+        slimes: { ...state.gameData.roster.slimes, [slimeId]: updated },
+      },
+    },
+  };
+  nextState = recordCurrencySpend(nextState, ids.currency.gold, spend.appliedAmount);
+  return accept(nextState, [semanticEvent(nextState, 'slimePromoted', preview.step.id, {
+    slimeId,
+    promotionId: preview.step.id,
+    jobTier: preview.step.toTier,
+    promotionPathId: preview.step.resultPathId,
+    fusionRank: updated.fusionRank,
+    fusionFormId: updated.fusionFormId,
   })]);
 }

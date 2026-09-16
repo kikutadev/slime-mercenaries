@@ -2,6 +2,7 @@ import type { ProfileRepository, StoredProfile } from 'idle-game-kit';
 import { advanceSlimeWorldFromWallClock } from '../domain/world';
 import {
   SLIME_MERCENARIES_SCHEMA_VERSION,
+  createInitialEquipmentState,
   createInitialSlimeMercenariesState,
   type SlimeMercenariesState,
 } from '../domain/state';
@@ -35,8 +36,9 @@ export async function loadOrCreateSlimeProfile(args: Readonly<{
     return { state, created: true, appliedOfflineSec: 0, offlineEvents: [] };
   }
 
-  validateStoredState(stored.state);
-  const resumed = advanceSlimeWorldFromWallClock(stored.state, nowMs);
+  const migrated = migrateStoredState(stored.state);
+  validateStoredState(migrated);
+  const resumed = advanceSlimeWorldFromWallClock(migrated, nowMs);
   if (resumed.appliedOfflineSec > 0) {
     await saveSlimeProfile(args.repository, profileId, resumed.state, nowMs);
   }
@@ -65,4 +67,21 @@ function validateStoredState(state: SlimeMercenariesState): void {
   if (state.schemaVersion !== SLIME_MERCENARIES_SCHEMA_VERSION) {
     throw new Error(`Unsupported Slime Mercenaries schemaVersion: ${state.schemaVersion}`);
   }
+}
+
+
+function migrateStoredState(state: SlimeMercenariesState): SlimeMercenariesState {
+  if (state.schemaVersion === SLIME_MERCENARIES_SCHEMA_VERSION) return state;
+  if (state.schemaVersion !== 0) throw new Error(`Unsupported Slime Mercenaries schemaVersion: ${state.schemaVersion}`);
+  const legacy = state as unknown as Omit<SlimeMercenariesState, 'gameData'> & {
+    gameData: Omit<SlimeMercenariesState['gameData'], 'equipment'>;
+  };
+  return {
+    ...legacy,
+    schemaVersion: SLIME_MERCENARIES_SCHEMA_VERSION,
+    gameData: {
+      ...legacy.gameData,
+      equipment: createInitialEquipmentState(),
+    },
+  };
 }

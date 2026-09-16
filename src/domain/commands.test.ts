@@ -16,11 +16,13 @@ import {
   previewPlainSlimeCraft,
   previewSlimeFusion,
   previewSlimeLevelUp,
+  promoteSlime,
 } from './commands';
 import {
   fusionStepDefinitions,
   ids,
   jobCreationDefinitions,
+  promotionDefinitions,
   resolveCurrencyDefinition,
 } from './definitions';
 import { createInitialSlimeMercenariesState, type SlimeMercenariesState } from './state';
@@ -230,5 +232,71 @@ describe('type growth', () => {
     for (const requirement of firstStep.recipe) {
       expect(readToken(fused.state.tokens, requirement.tokenId)).toBe(0);
     }
+  });
+});
+
+describe('promotion', () => {
+  it('promotes job tier without changing Fusion rank/form', () => {
+    const initial = createInitialSlimeMercenariesState(1_000, 1);
+    const crafted = craftPlainSlime(initial);
+    if (!crafted.accepted) throw new Error('setup craft failed');
+    const discovered = createJobSlime(crafted.state, 'sword');
+    if (!discovered.accepted) throw new Error('setup job failed');
+    const sword = discovered.state.gameData.roster.slimes.sword!;
+    let prepared: SlimeMercenariesState = {
+      ...discovered.state,
+      tokens: grantToken(discovered.state.tokens, ids.token.promotionMaterial, promotionDefinitions.sword[0]!.recipe[0]!.count),
+      gameData: {
+        ...discovered.state.gameData,
+        roster: {
+          ...discovered.state.gameData.roster,
+          slimes: {
+            ...discovered.state.gameData.roster.slimes,
+            sword: { ...sword, level: promotionDefinitions.sword[0]!.minLevel, fusionRank: 2, fusionFormId: 'greatsword' },
+          },
+        },
+      },
+    };
+    prepared = applyRewards(prepared, [{
+      type: 'currency', currencyId: ids.currency.gold, amount: 1_000, source: 'test',
+    }], { resolveCurrencyDefinition }) as SlimeMercenariesState;
+
+    const promoted = promoteSlime(prepared, 'sword');
+    expect(promoted.accepted).toBe(true);
+    if (!promoted.accepted) return;
+    expect(promoted.state.gameData.roster.slimes.sword).toMatchObject({
+      jobTier: 2,
+      promotionPathId: 'fighter',
+      fusionRank: 2,
+      fusionFormId: 'greatsword',
+    });
+  });
+
+  it('rejects Promotion atomically when materials are missing', () => {
+    const initial = createInitialSlimeMercenariesState(1_000, 1);
+    const crafted = craftPlainSlime(initial);
+    if (!crafted.accepted) throw new Error('setup craft failed');
+    const discovered = createJobSlime(crafted.state, 'sword');
+    if (!discovered.accepted) throw new Error('setup job failed');
+    const sword = discovered.state.gameData.roster.slimes.sword!;
+    let prepared: SlimeMercenariesState = {
+      ...discovered.state,
+      gameData: {
+        ...discovered.state.gameData,
+        roster: {
+          ...discovered.state.gameData.roster,
+          slimes: { ...discovered.state.gameData.roster.slimes, sword: { ...sword, level: promotionDefinitions.sword[0]!.minLevel } },
+        },
+      },
+    };
+    prepared = applyRewards(prepared, [{
+      type: 'currency', currencyId: ids.currency.gold, amount: 1_000, source: 'test',
+    }], { resolveCurrencyDefinition }) as SlimeMercenariesState;
+    const goldBefore = readCurrency(prepared.currencies, ids.currency.gold).toString();
+
+    const rejected = promoteSlime(prepared, 'sword');
+    expect(rejected.accepted).toBe(false);
+    expect(rejected.state).toBe(prepared);
+    expect(readCurrency(rejected.state.currencies, ids.currency.gold).toString()).toBe(goldBefore);
   });
 });

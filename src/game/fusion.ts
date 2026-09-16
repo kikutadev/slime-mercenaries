@@ -1,5 +1,6 @@
 import { fusionStepDefinitions, type FusionStepDefinition } from '../domain/definitions';
-import { FUSION_ITEMS, type FusionItemId, type RosterState, type SlimeId, type SlimeProgress } from './slimes';
+import type { SlimeProgress } from '../domain/state';
+import { FUSION_ITEMS, type FusionItemId, type SlimeId } from './slimes';
 
 export interface FusionRequirement {
   itemId: FusionItemId;
@@ -21,20 +22,20 @@ type FusionPresentation = Readonly<{
   resultName?: string;
 }>;
 
-/** Presentation copy stays local; all balance-relevant requirements come from domain definitions. */
+/** Presentation copy only. Requirements/ranks come from authoritative Domain definitions. */
 const PRESENTATION: Readonly<Record<string, FusionPresentation>> = {
   'fusion.sword.01-greatsword': {
     title: '大剣士へ合成',
-    description: '大剣を軸に身体ごと一回転し、周囲の敵を薙ぎ払う形態になる',
+    description: '大剣を横へ寝かせ、キレのある半回転の横薙ぎで周囲をまとめて斬る形態になる',
     resultName: 'Greatsword Slime',
   },
   'fusion.sword.02-heavy-impact': {
     title: '重撃強化',
-    description: '回転薙ぎの範囲とimpactがさらに強くなる',
+    description: '横薙ぎの範囲とimpactがさらに強くなる',
   },
   'fusion.sword.03-whirlwind': {
     title: '旋風大斬',
-    description: '回転斬りの余波が広がり、さらに広い範囲を巻き込む',
+    description: '横薙ぎの余波が広がり、さらに広い範囲を巻き込む',
   },
   'fusion.bow.01-rapid-shot': {
     title: '連射型へ合成',
@@ -56,57 +57,7 @@ const STEPS: Record<SlimeId, FusionStep[]> = {
 };
 
 export function getNextFusionStep(slime: SlimeProgress): FusionStep | null {
-  return STEPS[slime.id].find((step) => step.rank === slime.fusionRank) ?? null;
-}
-
-export function getFusionRequirementCount(state: RosterState, requirement: FusionRequirement): number {
-  return state.inventory[requirement.itemId] ?? 0;
-}
-
-export function getMissingFusionRequirements(state: RosterState, id: SlimeId): FusionRequirement[] {
-  const slime = state.slimes[id];
-  const next = getNextFusionStep(slime);
-  if (!next) return [];
-  return next.recipe.filter((requirement) => getFusionRequirementCount(state, requirement) < requirement.amount);
-}
-
-export function canFuse(state: RosterState, id: SlimeId): boolean {
-  const slime = state.slimes[id];
-  const next = getNextFusionStep(slime);
-  return Boolean(
-    next
-      && slime.level >= next.minLevel
-      && getMissingFusionRequirements(state, id).length === 0,
-  );
-}
-
-/**
- * Legacy UI-only transition. Product balance comes from src/domain; this function remains only
- * until App.tsx is migrated to the authoritative GameState command.
- */
-export function fuseSlime(state: RosterState, id: SlimeId): RosterState {
-  const current = state.slimes[id];
-  const next = getNextFusionStep(current);
-  if (!next || !canFuse(state, id)) return state;
-
-  const inventory = { ...state.inventory };
-  for (const requirement of next.recipe) {
-    inventory[requirement.itemId] = Math.max(0, inventory[requirement.itemId] - requirement.amount);
-  }
-
-  const nextRank = current.fusionRank + 1;
-  return {
-    ...state,
-    inventory,
-    slimes: {
-      ...state.slimes,
-      [id]: {
-        ...current,
-        fusionRank: nextRank,
-        equippedWeapon: id === 'sword' && nextRank >= 2 ? 'Mercenary Greatsword' : current.equippedWeapon,
-      },
-    },
-  };
+  return STEPS[slime.typeId].find((step) => step.rank === slime.fusionRank) ?? null;
 }
 
 export function isGreatswordRank(rank: number): boolean {

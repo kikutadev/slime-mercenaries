@@ -11,29 +11,24 @@ The integration rule is:
 
 > **Kit owns reusable economy/time/persistence primitives. Slime Mercenaries owns combat, job creation, fusion recipes, promotion rules, and battle-facing behavior.**
 
-The authoritative product Domain and balance simulator now execute the same Slime Mercenaries commands and Kit primitives. The React/Three runtime remains a combat/presentation vertical slice and is not yet fully bound to that authoritative state; presentation migration is a separate step.
+The authoritative product Domain, browser profile, React/Three presentation, offline advancement, and balance simulator now share the same persisted `SlimeMercenariesState` and product commands. Three.js remains presentation-only: it animates the current formation/encounter but does not own durable progression, loot, Fusion, Promotion, Equipment, or Stage rewards.
 
 ## 1.1 Current implementation status
 
-Implemented on 2026-09-16:
+Completed on 2026-09-16:
 
-- vendored `idle-game-kit` public package from source commit `f20e2bfa85229b04f1c03e269aa677edc2125f98`
-- canonical `GameState<SlimeMercenariesData>` envelope with Gold, Tokens and named RNG streams
-- definition-driven `CraftPlainSlime`, `BuyPlainSlime`, `CreateJobSlime`
-- definition-driven `FuseSlime` with `fusionRank/fusionForm` separate from promotion tier
-- Type Level command backed by Kit `LevelDefinition` / `previewLevelUp`
-- product balance knobs isolated in `src/domain/balance.ts`
-- current Fusion presentation fixture reads recipe/min-level data from the authoritative domain definitions
+- vendored `idle-game-kit` public package from source commit `721cff76241a776a2fcfff47b6503e5b9f543810`
+- canonical `GameState<SlimeMercenariesData>` with schema migration, Gold, Tokens, named RNG, Equipment Inventory/Loadout, Dispatch, Formation, and progression state
+- definition-driven Plain craft/shop/job creation, Type Level, Fusion, and Tier Promotion
+- Forge Key-funded Kit Gacha, persistent Equipment instances, duplicate refinement, family Loadouts, and overflow material
+- analytical Wave/Stage/Boss/reward progression with deterministic loot RNG
+- Kit Timed Activity-backed deterministic Dispatch
+- IndexedDB/ProfileRepository persistence and same-core online/offline world advancement
+- same-core simulator command surface for craft/buy/job/level/fuse/promote/forge/equip/dispatch/progress
+- balance targets and all routine tuning values centralized in `src/domain/balance.ts`
+- React/Three presentation bound to the persisted authoritative state; the old local roster/fusion inventory fixture has been removed
 
-Still pending:
-
-- migrate `App.tsx` from the temporary roster fixture to the authoritative GameState
-- persistence / offline resume
-- Inventory + Forge/Gacha
-- Dispatch / Timed Activity
-- pure stage/reward model and same-core balance simulator
-
-The React/Three battle runtime therefore remains a presentation/combat prototype; economy truth now starts in `src/domain`.
+The current content implementation deliberately covers the Sword/Bow vertical slice. Expanding to the full job tree, 30-form content target, and eight areas is content production, not a remaining Kit-integration dependency.
 
 ## 2. Package/dependency boundary
 
@@ -64,23 +59,18 @@ Do not deep-import Kit internals. When Kit changes, rebuild from a clean source 
 
 Connected and verified:
 
-- vendored public Kit package from recorded clean source commit
+- vendored public Kit package from recorded clean source commit `721cff76241a776a2fcfff47b6503e5b9f543810`
 - Gold Currency and countable Token resources
-- Plain craft/shop/job creation, Type Level, Fusion
+- Plain craft/shop/job creation, Type Level, Fusion, and Promotion
 - deterministic Wave/Stage/Boss analytical progression and loot RNG
 - same-core online/offline advancement
-- ProfileRepository boundary with browser IndexedDB adapter
-- balance simulator with authored P90 target bands
+- ProfileRepository boundary with browser IndexedDB adapter and schema-v0 -> v1 migration
+- Equipment Inventory/Loadout, Forge Gacha, refinement, and family restrictions
 - reserve Dispatch using Kit Timed Activity
+- balance simulator with authored P90 target bands and the same product command adapter
+- React/Three presentation consuming the authoritative saved state instead of a local progression fixture
 
-The first-loop baseline currently targets and verifies first Fusion at 1–3 minutes and Clover Road boss at 3–5 minutes. Exact observations are simulator outputs, not hard-coded production logic.
-
-Not yet connected:
-
-- React/Three local roster fixture -> authoritative product state/store
-- concrete Equipment Inventory/Loadout and Forge
-- Promotion/Tier branches
-- rendered BattleRuntime damage/HP -> authored analytical combat definitions
+The first-loop target remains first Fusion at 1–3 minutes and Clover Road boss at 3–5 minutes. Exact observations are simulator outputs, not hard-coded production logic.
 
 ## 3. Capability mapping
 
@@ -98,7 +88,7 @@ Not yet connected:
 | equipment ownership | `InventoryState` / `ItemInstanceState` | direct foundation | Kit ownership invariant + product item data |
 | per-slime weapon slot | `LoadoutDefinition` / `LoadoutState` | adapter | Kit equip invariant + product family rules |
 | equipment rarity/refinement/effects | item `data` + product commands | product-specific | Slime Mercenaries |
-| Forge draw | named RNG now; Kit Gacha cost contract under review | pending adapter | Forge Key remains a Token; do not coerce it into Currency merely to fit Gacha |
+| Forge draw | `GachaDefinition` + named RNG with Token cost | direct/adapted | Kit draw integrity + product weapon pool/refinement hooks |
 | Dispatch timer | `TimedActivityDefinition/State` | adapter | Kit time semantics + product assignment |
 | Dispatch eligible slime / power requirement | Game Plugin / product command | product-specific | Slime Mercenaries |
 | offline elapsed time | Application offline-time contract | direct | Kit |
@@ -280,7 +270,9 @@ Recommended split:
 - product selectors: effective ATK/projectile/behavior modifiers
 - product commands: duplicate refinement, cap overflow, named weapon effects
 
-Forge should use Kit deterministic RNG and inventory invariants. The current Kit `GachaDefinition` cost is Currency-only, while the product specification intentionally models Forge Key as a Token. Do not convert Forge Key into Currency just to reuse that API. Before implementing Forge, choose one of two clean paths: (a) a small backward-compatible Kit Gacha cost extension that accepts Token cost, justified by a second consumer, or (b) a product atomic `spendToken -> named RNG -> weighted selection -> inventory/refinement` command. Adventurer Guild already has a token/material-paid random forge, so a narrowly scoped Kit cost extension is now a credible extraction candidate, but it should be implemented and regression-tested in Kit rather than hidden inside this product.
+Current vertical-slice implementation stores one unique weapon instance per definition, increments `refinementRank` on duplicates, converts capped duplicates to family material, auto-equips the first compatible weapon into an empty family Loadout, and applies the effective weapon/refinement multiplier to analytical combat.
+
+Forge uses Kit deterministic Gacha with a Token-funded cost. Kit `GachaDefinition.cost` was extended backward-compatibly to accept either Currency or Token cost, with Kit-level regression tests and the existing Currency consumers preserved. Slime Mercenaries keeps Forge Key as a Token, supplies the weapon pool/pity data, and resolves acquisition/duplicate hooks into Kit Inventory/Loadout plus product refinement semantics. The vendored package records the exact Kit source commit that contains this contract.
 
 Job Gear should **not** be stored as combat Equipment instances initially. It is a countable profession catalyst and fits Token storage better. If future Job Gear becomes individually rolled/equippable, reconsider then rather than over-modeling now.
 
@@ -406,24 +398,28 @@ This is where Plain-shop price, material drop rates, Fusion recipe quantities, a
 
 ### Potential Kit extraction only after proven twice
 
+Token-funded Gacha cost is no longer pending: Slime Mercenaries plus the existing material-paid forge use case provided sufficient evidence for a narrow reusable cost contract, so Kit now supports Currency or Token Gacha cost without adding product-specific Forge semantics.
+
 Do not add a generic recipe/crafting engine yet. Slime Mercenaries currently needs atomic multi-resource recipes for Plain crafting, Fusion, and Promotion, but one product is insufficient evidence that a generic crafting subsystem belongs in Kit.
 
 If a second independent Kit product requires the same typed pattern—validated multi-input recipe, deterministic spend, typed output, preview, atomic commit—then extract a small generic `RecipeDefinition/previewRecipe/applyRecipeCosts` primitive. Until then, keep recipe definitions and commands product-owned while reusing Currency/Token helpers underneath.
 
 Similarly, do not add a generic battle engine, job-tree engine, or fusion engine to Kit.
 
-## 13. Recommended integration order
+## 13. Integration completion
 
-1. [done] introduce vendored Kit public package dependency without presentation changes
-2. [done] define canonical `SlimeMercenariesGameData`, Gold, Tokens, RNG streams, save/schema version
-3. [done] implement pure `CraftPlainSlime`, `BuyPlainSlime`, and `CreateJobSlime` commands
-4. [done] move Fusion recipe/rank rules to authoritative product definitions/domain command
-5. [done] connect Type Level to Kit LevelDefinition
-6. [done] connect IndexedDB/ProfileRepository boundary and same-core offline resume
-7. [done] extract analytical Wave/Stage/Boss/reward progression and connect same-core simulator/balance targets
-8. [done] connect Dispatch through Kit Timed Activity
-9. [next] connect Inventory/Loadout and settle Forge Key Token vs Kit Gacha cost boundary
-10. [next] bind React/Three presentation to authoritative state and authored combat definitions
-11. [later] add Promotion and remaining launch content
+The planned integration sequence is complete for the current Sword/Bow vertical slice:
 
-Do not begin by making the Three.js runtime import every Kit subsystem. Establish authoritative domain state and commands first, then make presentation subscribe to/project that state.
+1. [done] vendored Kit public package dependency
+2. [done] canonical `SlimeMercenariesGameData`, Currency, Tokens, RNG, schema/save boundary
+3. [done] pure Plain craft/purchase/job commands
+4. [done] authoritative Fusion recipe/rank/form commands
+5. [done] Type Level on Kit `LevelDefinition`
+6. [done] IndexedDB/ProfileRepository + schema migration + same-core offline resume
+7. [done] analytical Wave/Stage/Boss/reward model + balance targets/simulator
+8. [done] Dispatch through Kit Timed Activity
+9. [done] Inventory/Loadout + Token-funded Kit Gacha Forge + refinement
+10. [done] React/Three presentation bound to persisted authoritative state; visual runtime no longer owns durable progression/rewards
+11. [done] Tier Promotion as a separate axis from Fusion, plus current vertical-slice Equipment/Promotion content
+
+Future work is deliberately outside this integration plan: additional job families/forms/areas, richer equipment behavior/VFX, Cloud Save enablement when desired, and further UI/presentation refinement. New content must continue to use the same Domain/Kit boundaries rather than adding a second progression state in React or Three.js.

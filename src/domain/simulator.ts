@@ -20,11 +20,14 @@ import {
   previewPlainSlimePurchase,
   previewSlimeFusion,
   previewSlimeLevelUp,
+  promoteSlime,
 } from './commands';
 import { assignSlimeToFormation, nextCombatBoundarySec } from './combat';
+import { startDispatch } from './dispatch';
+import { equipWeapon, forgeEquipment } from './equipment';
 import { advanceSlimeWorldTo } from './world';
 import { balance } from './balance';
-import { ids, type JobSlimeId } from './definitions';
+import { ids, type DispatchContractId, type JobSlimeId } from './definitions';
 import { createInitialSlimeMercenariesState, type SlimeMercenariesState } from './state';
 
 export type SlimeSimulatorCommand =
@@ -33,7 +36,11 @@ export type SlimeSimulatorCommand =
   | Readonly<{ type: 'create-job'; jobId: JobSlimeId }>
   | Readonly<{ type: 'assign'; jobId: JobSlimeId; slotIndex: number }>
   | Readonly<{ type: 'level'; jobId: JobSlimeId; count: number }>
-  | Readonly<{ type: 'fuse'; jobId: JobSlimeId }>;
+  | Readonly<{ type: 'fuse'; jobId: JobSlimeId }>
+  | Readonly<{ type: 'promote'; jobId: JobSlimeId }>
+  | Readonly<{ type: 'forge'; drawCount: 1 | 10 }>
+  | Readonly<{ type: 'equip'; jobId: JobSlimeId; weaponDefinitionId: string }>
+  | Readonly<{ type: 'start-dispatch'; contractId: DispatchContractId; jobId: JobSlimeId }>;
 
 export const slimeSimulatorAdapter: SimulatorAdapter<SlimeMercenariesState, SlimeSimulatorCommand> = {
   getSimTimeSec: (state) => state.simTimeSec,
@@ -46,6 +53,10 @@ export const slimeSimulatorAdapter: SimulatorAdapter<SlimeMercenariesState, Slim
       case 'assign': return assignSlimeToFormation(state, command.jobId, command.slotIndex);
       case 'level': return levelUpSlime(state, command.jobId, command.count);
       case 'fuse': return fuseSlime(state, command.jobId);
+      case 'promote': return promoteSlime(state, command.jobId);
+      case 'forge': return forgeEquipment(state, command.drawCount);
+      case 'equip': return equipWeapon(state, command.jobId, command.weaponDefinitionId);
+      case 'start-dispatch': return startDispatch(state, command.contractId, command.jobId);
     }
   },
 };

@@ -64,8 +64,8 @@ Dispatch
 - persisted reward resolution
 
 Equipment
-- owned equipment / refinement state
-- equipment equipped per slime type
+- Kit Inventory-backed owned equipment instances / product refinement state
+- one family-restricted Kit Loadout weapon slot per slime type
 - equipment codex discovery
 
 Economy

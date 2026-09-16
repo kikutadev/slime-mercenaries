@@ -53,7 +53,7 @@ export const balance = {
           bossWork: 750,
           bossRequiredPower: 12.5,
           bossGold: 180,
-          clearReward: {},
+          clearReward: { forgeKey: 2, promotionMaterial: 3 },
         },
       ],
     },
@@ -75,6 +75,26 @@ export const balance = {
     firstFusion: { minSec: 60, maxSec: 180 },
     cloverRoadBoss: { minSec: 180, maxSec: 300 },
     maxNoActionWindowSec: 35,
+  },
+  equipment: {
+    forgeKeyCostPerDraw: 1,
+    refinementCap: 5,
+    refinementDpsPerRank: 0.05,
+    mythicPityDraws: 20,
+    weapons: {
+      bronzeSaber: { weight: 55, dpsMultiplier: 1.08 },
+      cloverBlade: { weight: 18, dpsMultiplier: 1.18 },
+      starcleaver: { weight: 2, dpsMultiplier: 1.42 },
+      hunterBow: { weight: 55, dpsMultiplier: 1.08 },
+      windstring: { weight: 18, dpsMultiplier: 1.18 },
+      cometString: { weight: 2, dpsMultiplier: 1.42 },
+    },
+  },
+  promotion: {
+    dpsMultiplierByTier: [1, 1.35, 1.7],
+    powerMultiplierByTier: [1, 1.4, 1.8],
+    swordFighter: { minLevel: 20, goldCost: 320, promotionMaterial: 3 },
+    bowRanger: { minLevel: 20, goldCost: 320, promotionMaterial: 3 },
   },
   fusion: {
     sword: {

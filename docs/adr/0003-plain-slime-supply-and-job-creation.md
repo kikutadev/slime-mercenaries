@@ -72,7 +72,7 @@ A named milestone such as Greatsword is a Fusion form on the Sword branch. Fight
 - Plain Slime stock becomes a new economy resource that needs price/drop-rate tuning.
 - Job Gear must be clearly separated from combat Equipment in data and presentation.
 - Gold now competes between Type Level and Plain purchase, so simulation is required to prevent one sink from dominating.
-- Plain crafting/shop/job creation now exist as authoritative pure Domain commands backed by Kit Currency/Token primitives; the remaining migration is binding the React presentation away from its local roster fixture.
+- Plain crafting/shop/job creation are authoritative pure Domain commands backed by Kit Currency/Token primitives, and the React presentation now reads the persisted authoritative state rather than a duplicate roster fixture.
 
 ## Rejected alternatives
 

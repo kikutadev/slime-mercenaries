@@ -103,6 +103,7 @@ export interface BattleRuntimeOptions {
   camera: THREE.PerspectiveCamera;
   baseUrl: string;
   swordAsset: string;
+  showBow: boolean;
   onSnapshot: (snapshot: BattleSnapshot) => void;
   getSwordFusionRank: () => number;
 }
@@ -116,7 +117,7 @@ const ENEMY_SPAWNS = [
   new THREE.Vector3(0.12, 0, -1.55),
   new THREE.Vector3(0.44, 0, -1.3),
 ];
-const TARGET_HOME = ENEMY_SPAWNS[1];
+const TARGET_HOME = ENEMY_SPAWNS[1]!;
 const ENEMY_MAX_HP = 4;
 const SWORD_MAX_HP = 6;
 const BOW_MAX_HP = 4;
@@ -151,6 +152,7 @@ export class BattleRuntime {
   private readonly loader = new GLTFLoader();
   private readonly baseUrl: string;
   private readonly swordAsset: string;
+  private readonly showBow: boolean;
   private readonly onSnapshot: (snapshot: BattleSnapshot) => void;
   private readonly getSwordFusionRank: () => number;
   private readonly tempQuaternion = new THREE.Quaternion();
@@ -198,6 +200,7 @@ export class BattleRuntime {
     this.camera = options.camera;
     this.baseUrl = options.baseUrl;
     this.swordAsset = options.swordAsset;
+    this.showBow = options.showBow;
     this.onSnapshot = options.onSnapshot;
     this.getSwordFusionRank = options.getSwordFusionRank;
   }
@@ -216,17 +219,20 @@ export class BattleRuntime {
     this.createEnemies();
     this.createSlashArc();
 
-    const [sword, bow] = await Promise.all([
+    const loaded = await Promise.all([
       this.loadUnit(`${this.baseUrl}${this.swordAsset}`, 'Sword', SWORD_HOME, 'WeaponAnchor'),
       this.loadUnit(`${this.baseUrl}assets/archer-slime.glb`, 'Bow', BOW_HOME, 'BowAnchor'),
     ]);
+    const sword = loaded[0]!;
+    const bow = loaded[1]!;
 
     if (this.disposed) return;
     this.sword = sword;
     this.bow = bow;
     this.allies.push(sword, bow);
+    if (!this.showBow) this.disableBow(bow);
     this.facePoint(sword, TARGET_HOME);
-    this.facePoint(bow, TARGET_HOME);
+    if (this.showBow) this.facePoint(bow, TARGET_HOME);
     this.startBattle(this.rawNow + 0.15);
     this.emitSnapshot(true);
   }
@@ -1203,7 +1209,7 @@ export class BattleRuntime {
 
   private updateArrows(now: number): void {
     for (let i = this.arrows.length - 1; i >= 0; i -= 1) {
-      const arrow = this.arrows[i];
+      const arrow = this.arrows[i]!;
       const u = clamp01((now - arrow.startedAt) / arrow.duration);
       const targetPosition = arrow.target.root.position.clone().add(new THREE.Vector3(0, 0.26, 0));
       arrow.end.lerp(targetPosition, 0.22);
@@ -1224,7 +1230,7 @@ export class BattleRuntime {
 
   private updateImpacts(now: number): void {
     for (let i = this.impacts.length - 1; i >= 0; i -= 1) {
-      const impact = this.impacts[i];
+      const impact = this.impacts[i]!;
       const u = clamp01((now - impact.startedAt) / impact.duration);
       impact.group.scale.setScalar(1 + u * 1.35);
       impact.materials.forEach((material) => { material.opacity = (1 - u) * 0.92; });
@@ -1376,13 +1382,24 @@ export class BattleRuntime {
     if (!this.sword || !this.bow) return;
     this.clearProjectiles();
     this.resetAlly(this.sword);
-    this.resetAlly(this.bow);
+    if (this.showBow) this.resetAlly(this.bow);
+    else this.disableBow(this.bow);
     this.enemies.forEach((enemy, index) => this.resetEnemy(enemy, now + index * 0.02));
     this.sword.root.position.copy(SWORD_HOME);
-    this.bow.root.position.copy(BOW_HOME);
+    if (this.showBow) this.bow.root.position.copy(BOW_HOME);
     this.facePoint(this.sword, TARGET_HOME);
-    this.facePoint(this.bow, TARGET_HOME);
+    if (this.showBow) this.facePoint(this.bow, TARGET_HOME);
     this.startBattle(now + 0.1);
+  }
+
+
+  private disableBow(unit: AllyUnit): void {
+    unit.hp = 0;
+    unit.alive = false;
+    unit.state = 'dead';
+    unit.root.visible = false;
+    unit.shadow.visible = false;
+    unit.healthBar.visible = false;
   }
 
   private resetAlly(unit: AllyUnit): void {

@@ -11,6 +11,7 @@ import {
   type OfflineTimePolicy,
 } from 'idle-game-kit';
 import { balance } from './balance';
+import { equippedWeaponCombatMultiplier } from './equipment';
 import {
   cloverRoadStageDefinitions,
   ids,
@@ -46,7 +47,7 @@ export function assignSlimeToFormation(
 
   const slots = [...state.gameData.roster.formationSlots];
   const previousSlot = slots.findIndex((candidate) => candidate === slimeId);
-  const displacedId = slots[slotIndex];
+  const displacedId = slots[slotIndex] ?? null;
   if (previousSlot === slotIndex) return accept(state, []);
   if (previousSlot >= 0) slots[previousSlot] = null;
   slots[slotIndex] = slimeId;
@@ -76,7 +77,7 @@ export function removeSlimeFromFormation(
   if (!Number.isSafeInteger(slotIndex) || slotIndex < 0 || slotIndex >= state.gameData.roster.formationSlots.length) {
     return reject(state, 'invalid-slot');
   }
-  const slimeId = state.gameData.roster.formationSlots[slotIndex];
+  const slimeId = state.gameData.roster.formationSlots[slotIndex] ?? null;
   if (slimeId === null) return reject(state, 'already-empty');
   const slots = [...state.gameData.roster.formationSlots];
   slots[slotIndex] = null;
@@ -97,7 +98,7 @@ export function removeSlimeFromFormation(
 /** Effective analytical DPS used by offline progression and the balance simulator. */
 export function partyCombatDps(state: SlimeMercenariesState): GameNumber {
   return activeSlimes(state).reduce(
-    (total, slime) => total.add(slimeDps(slime)),
+    (total, slime) => total.add(slimeDps(state, slime)),
     GameNumber.zero(),
   );
 }
@@ -105,7 +106,7 @@ export function partyCombatDps(state: SlimeMercenariesState): GameNumber {
 /** Coarse survivability/power gate used only for blocking bosses in the first headless model. */
 export function partyCombatPower(state: SlimeMercenariesState): GameNumber {
   return activeSlimes(state).reduce(
-    (total, slime) => total.add(slimePower(slime)),
+    (total, slime) => total.add(slimePower(state, slime)),
     GameNumber.zero(),
   );
 }
@@ -113,7 +114,7 @@ export function partyCombatPower(state: SlimeMercenariesState): GameNumber {
 /** Power of one owned canonical slime independent from its current assignment. */
 export function slimeCombatPower(state: SlimeMercenariesState, slimeId: JobSlimeId): GameNumber {
   const slime = state.gameData.roster.slimes[slimeId];
-  return slime === undefined ? GameNumber.zero() : slimePower(slime);
+  return slime === undefined ? GameNumber.zero() : slimePower(state, slime);
 }
 
 export function currentStageDefinition(state: SlimeMercenariesState): StageDefinition | null {
@@ -372,20 +373,32 @@ function activeSlimes(state: SlimeMercenariesState): readonly SlimeProgress[] {
   });
 }
 
-function slimeDps(slime: SlimeProgress): GameNumber {
+function slimeDps(state: SlimeMercenariesState, slime: SlimeProgress): GameNumber {
   const base = balance.combat.baseDpsByJob[slime.typeId];
   const levelMultiplier = curveValueAtForSlime(slime);
   const fusionMultiplier = balance.combat.fusionDpsMultiplierByRank[Math.max(0, slime.fusionRank - 1)]
     ?? balance.combat.fusionDpsMultiplierByRank.at(-1)!;
-  return GameNumber.from(base).multiply(levelMultiplier).multiply(fusionMultiplier);
+  const promotionMultiplier = balance.promotion.dpsMultiplierByTier[Math.max(0, slime.jobTier - 1)]
+    ?? balance.promotion.dpsMultiplierByTier.at(-1)!;
+  return GameNumber.from(base)
+    .multiply(levelMultiplier)
+    .multiply(fusionMultiplier)
+    .multiply(promotionMultiplier)
+    .multiply(equippedWeaponCombatMultiplier(state, slime.typeId));
 }
 
-function slimePower(slime: SlimeProgress): GameNumber {
+function slimePower(state: SlimeMercenariesState, slime: SlimeProgress): GameNumber {
   const base = balance.combat.basePowerByJob[slime.typeId];
   const levelMultiplier = curveValueAtForSlime(slime);
   const fusionMultiplier = balance.combat.fusionPowerMultiplierByRank[Math.max(0, slime.fusionRank - 1)]
     ?? balance.combat.fusionPowerMultiplierByRank.at(-1)!;
-  return GameNumber.from(base).multiply(levelMultiplier).multiply(fusionMultiplier);
+  const promotionMultiplier = balance.promotion.powerMultiplierByTier[Math.max(0, slime.jobTier - 1)]
+    ?? balance.promotion.powerMultiplierByTier.at(-1)!;
+  return GameNumber.from(base)
+    .multiply(levelMultiplier)
+    .multiply(fusionMultiplier)
+    .multiply(promotionMultiplier)
+    .multiply(equippedWeaponCombatMultiplier(state, slime.typeId));
 }
 
 function curveValueAtForSlime(slime: SlimeProgress): GameNumber {

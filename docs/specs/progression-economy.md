@@ -163,6 +163,10 @@ Random equipment acquisition has two sources:
 
 Forge draws equipment, not mandatory core-job access.
 
+The current runtime uses Forge Key as a Token-funded Kit Gacha cost. Draw RNG/pity state is persisted by Kit; newly drawn weapons become persistent Kit Inventory instances, one family-compatible weapon can be equipped through a Kit Loadout, duplicate draws increase product-owned refinement rank, and capped duplicates overflow to family material.
+
+The Sword/Bow vertical slice currently includes Common/Rare/Mythic representatives (`Bronze Saber`, `Clover Blade`, `Starcleaver`, `Hunter Bow`, `Windstring`, `Comet String`). Epic/Legendary content and additional families remain content expansion; the ownership/draw/refinement contract is already fixed.
+
 Initial rarity targets may use conventional weighted rates and pity, but exact probabilities remain tuning data. Pity counters must persist and cannot be rerolled by reload.
 
 ### Equipment duplicates
