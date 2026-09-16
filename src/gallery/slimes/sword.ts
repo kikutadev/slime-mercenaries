@@ -11,7 +11,8 @@ const definition: SlimeGalleryDefinition = {
   accent: '#f28b69',
   inspectionFacingYawDegrees: 90,
   equipmentAnchor: 'WeaponAnchor',
-  availableMotions: ['idle', 'move', 'attack', 'hit', 'defeat', 'celebrate'],
+  weaponTipName: 'Sword_Tip',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
   implementationStatus: 'implemented',
   notes: 'Forward squash into a crisp single slash. The blade should read clearly in the gameplay 3/4 camera.',
 };

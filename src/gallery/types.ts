@@ -1,4 +1,4 @@
-export type GalleryMotionId = 'idle' | 'move' | 'attack' | 'skill' | 'hit' | 'defeat' | 'celebrate';
+export type GalleryMotionId = 'idle' | 'move' | 'attack' | 'defeat';
 
 export type GalleryCameraId = 'inspection' | 'gameplay' | 'front';
 
@@ -14,6 +14,7 @@ export interface SlimeGalleryDefinition {
   asset: string;
   accent: string;
   equipmentAnchor: 'WeaponAnchor' | 'BowAnchor';
+  weaponTipName: string | null;
   /** Curated world yaw used only by the default inspection view. */
   inspectionFacingYawDegrees?: number;
   availableMotions: readonly GalleryMotionId[];

@@ -7,10 +7,7 @@ const MOTION_LABELS: Record<GalleryMotionId, string> = {
   idle: 'Idle',
   move: 'Move',
   attack: 'Attack',
-  skill: 'Skill',
-  hit: 'Hit',
   defeat: 'Defeat',
-  celebrate: 'Celebrate',
 };
 
 const SPEEDS = [0.5, 1, 2] as const;
@@ -58,7 +55,7 @@ export default function GalleryApp() {
         <div>
           <a className="gallery-kicker" href={import.meta.env.BASE_URL}>SLIME MERCENARIES</a>
           <h1>Model & Motion Gallery</h1>
-          <p>モデル、攻撃方向、ゼリー変形、被弾・敗北表現を本編投入前に確認するためのproduction gallery。</p>
+          <p>本番と同じモデル・モーション・攻撃VFXを、そのまま確認するproduction gallery。</p>
         </div>
         <div className="gallery-header__meta">
           <span>{slimeGalleryCatalog.length} MODELS</span>

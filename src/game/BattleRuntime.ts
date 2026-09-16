@@ -1,6 +1,27 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { isGreatswordRank } from './fusion';
+import {
+  SLIME_MOTION_TIMING,
+  SLIME_MOTION_THRESHOLDS,
+  applyDeformationPose,
+  applyEquipmentPose,
+  clamp01,
+  easeOutCubic,
+  getAllyDefeatMotion,
+  getArrowArcHeight,
+  getBowAttackMotion,
+  getGreatswordAttackMotion,
+  getGreatswordSpinVfxPose,
+  getHopTravelMotion,
+  getIdleMotion,
+  getSwordAttackMotion,
+  getSwordSlashVfxPose,
+  createGreatswordSpinArc,
+  createSlimeArrowMesh,
+  createSwordSlashArc,
+  type MorphMesh,
+} from './slime-motion';
 import type { BattleBehaviorId } from './slimes';
 
 export interface BattleSnapshotAlly {
@@ -20,11 +41,6 @@ export interface BattleSnapshot {
 }
 
 type UnitState = 'idle' | 'defeat' | 'dead';
-
-type MorphMesh = THREE.Mesh & {
-  morphTargetDictionary?: Record<string, number>;
-  morphTargetInfluences?: number[];
-};
 
 type BasicMaterial = THREE.MeshBasicMaterial;
 
@@ -161,20 +177,6 @@ const RESULT_HOLD_SECONDS = 1.85;
 const CAMERA_BASE_POSITION = new THREE.Vector3(2.8, 5.35, 8.9);
 const CAMERA_LOOK_AT = new THREE.Vector3(0, 0.38, -1.05);
 
-function clamp01(value: number): number {
-  return THREE.MathUtils.clamp(value, 0, 1);
-}
-
-function easeOutCubic(value: number): number {
-  const t = clamp01(value);
-  return 1 - ((1 - t) ** 3);
-}
-
-function easeInOutCubic(value: number): number {
-  const t = clamp01(value);
-  return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
-}
-
 function createMaterial(color: string, roughness = 0.8): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, roughness, metalness: 0 });
 }
@@ -186,13 +188,9 @@ export class BattleRuntime {
   private readonly baseUrl: string;
   private readonly allyConfigs: readonly BattleRuntimeAllyConfig[];
   private readonly onSnapshot: (snapshot: BattleSnapshot) => void;
-  private readonly tempQuaternion = new THREE.Quaternion();
-  private readonly tempQuaternion2 = new THREE.Quaternion();
   private readonly tempVector = new THREE.Vector3();
   private readonly tempVector2 = new THREE.Vector3();
   private readonly tempVector3 = new THREE.Vector3();
-  private readonly localXAxis = new THREE.Vector3(1, 0, 0);
-  private readonly localZAxis = new THREE.Vector3(0, 0, 1);
 
   private readonly allies: AllyUnit[] = [];
   private readonly enemies: EnemyUnit[] = [];
@@ -468,53 +466,17 @@ export class BattleRuntime {
   }
 
   private createSlashArc(): void {
-    const material = new THREE.MeshBasicMaterial({
-      color: '#ffd85e',
-      transparent: true,
-      opacity: 0,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-      depthTest: false,
-      blending: THREE.AdditiveBlending,
-    });
-    const arc = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.024, 8, 36, Math.PI * 0.62), material);
-    arc.visible = false;
-    arc.renderOrder = 5;
+    const arc = createSwordSlashArc();
     this.scene.add(arc);
     this.slashArc = arc;
 
-    const spinMaterial = new THREE.MeshBasicMaterial({
-      color: '#fff1a8',
-      transparent: true,
-      opacity: 0,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-      depthTest: false,
-      blending: THREE.AdditiveBlending,
-    });
-    const spinArc = new THREE.Mesh(new THREE.TorusGeometry(0.70, 0.020, 8, 64), spinMaterial);
-    spinArc.visible = false;
-    spinArc.rotation.x = Math.PI / 2;
-    spinArc.renderOrder = 5;
+    const spinArc = createGreatswordSpinArc();
     this.scene.add(spinArc);
     this.spinArc = spinArc;
   }
 
   private createArrowMesh(): THREE.Group {
-    const group = new THREE.Group();
-    const wood = new THREE.MeshStandardMaterial({ color: '#8a5a2d', roughness: 0.85 });
-    const steel = new THREE.MeshStandardMaterial({ color: '#d1dce3', roughness: 0.28, metalness: 0.65 });
-    const feather = new THREE.MeshStandardMaterial({ color: '#72bf68', roughness: 0.68 });
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.38, 6), wood);
-    group.add(shaft);
-    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.034, 0.09, 6), steel);
-    tip.position.y = 0.235;
-    group.add(tip);
-    const fletching = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.065, 0.014), feather);
-    fletching.position.y = -0.195;
-    fletching.rotation.y = Math.PI / 4;
-    group.add(fletching);
-    return group;
+    return createSlimeArrowMesh();
   }
 
   private createImpact(position: THREE.Vector3, color = '#fff1a5', size = 0.11, duration = 0.28): void {
@@ -640,14 +602,7 @@ export class BattleRuntime {
   }
 
   private applyUnitDeformation(unit: AllyUnit, squash = 0, stretch = 0, lean = 0, wobble = 0, jump = 0): void {
-    this.clearMorphs(unit);
-    this.setMorph(unit, 'Squash', squash);
-    this.setMorph(unit, 'Stretch', stretch);
-    this.setMorph(unit, lean < 0 ? 'LeanLeft' : 'LeanRight', Math.abs(lean));
-    this.setMorph(unit, wobble < 0 ? 'WobbleLeft' : 'WobbleRight', Math.abs(wobble));
-    if (unit.faceRoot) {
-      unit.faceRoot.scale.set(1 + squash * 0.045, 1 - squash * 0.04 + stretch * 0.028, 1);
-    }
+    applyDeformationPose(unit.body, unit.faceRoot, { squash, stretch, lean, wobble, jump });
     const airborne = clamp01(jump / 0.16);
     const airScale = THREE.MathUtils.lerp(1, 0.66, airborne);
     unit.shadow.position.x = unit.root.position.x;
@@ -657,43 +612,31 @@ export class BattleRuntime {
   }
 
   private setEquipmentSwing(unit: AllyUnit, angle: number, lift = 0, sweep = 0): void {
-    const swordLike = unit.behaviorId === 'sword-melee';
-    const primaryAxis = swordLike ? this.localXAxis : this.localZAxis;
-    this.tempQuaternion.setFromAxisAngle(primaryAxis, angle);
-    unit.equipmentAnchor.quaternion.copy(unit.equipmentBaseQuaternion).multiply(this.tempQuaternion);
-    if (swordLike && Math.abs(sweep) > 0.0001) {
-      this.tempQuaternion2.setFromAxisAngle(this.localZAxis, sweep);
-      unit.equipmentAnchor.quaternion.multiply(this.tempQuaternion2);
-    }
-    unit.equipmentAnchor.position.y = unit.equipmentBasePosition.y + lift;
+    applyEquipmentPose(
+      unit.equipmentAnchor,
+      unit.equipmentBaseQuaternion,
+      unit.equipmentBasePosition,
+      unit.behaviorId === 'sword-melee' ? 'sword' : 'bow',
+      { angle, lift, sweep },
+    );
   }
 
   private updateIdle(unit: AllyUnit, now: number, phaseOffset = 0): void {
     if (!unit.alive) return;
     unit.body.scale.copy(unit.bodyBaseScale);
     if (unit.faceRoot) unit.faceRoot.position.copy(unit.faceBasePosition);
-    const wave = Math.sin(now * 2.2 + phaseOffset);
-    const breathe = 0.5 + 0.5 * wave;
-    const lean = Math.sin(now * 1.25 + phaseOffset) * 0.05;
-    const wobble = Math.sin(now * 2.05 + phaseOffset * 1.7) * 0.055;
-    this.applyUnitDeformation(unit, 0.04 * breathe, 0.02 * (1 - breathe), lean, wobble, 0);
-    this.setEquipmentSwing(unit, lean * 0.18);
+    const pose = getIdleMotion(now, phaseOffset);
+    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
   }
 
   private updateHopTravel(unit: AllyUnit, now: number, startTime: number, start: THREE.Vector3, end: THREE.Vector3, duration: number): boolean {
     const u = clamp01((now - startTime) / duration);
-    const eased = easeInOutCubic(u);
-    unit.root.position.lerpVectors(start, end, eased);
-    const cycle = (u * 3) % 1;
-    const jump = 4 * 0.115 * cycle * (1 - cycle);
-    unit.root.position.y = THREE.MathUtils.lerp(start.y, end.y, eased) + jump;
-    const landing = cycle < 0.12 ? 1 - cycle / 0.12 : 0;
-    const stretch = Math.max(0, Math.sin(cycle * Math.PI)) * 0.22;
-    const squash = landing * 0.58 + (cycle > 0.7 ? ((cycle - 0.7) / 0.3) * 0.3 : 0);
-    const lean = Math.sin(u * Math.PI) * 0.08;
-    const wobble = Math.sin(cycle * Math.PI * 2) * (0.1 + landing * 0.2);
-    this.applyUnitDeformation(unit, squash, stretch, lean, wobble, jump);
-    this.setEquipmentSwing(unit, lean * 0.22, jump * 0.03);
+    const pose = getHopTravelMotion(u);
+    unit.root.position.lerpVectors(start, end, pose.eased);
+    unit.root.position.y = THREE.MathUtils.lerp(start.y, end.y, pose.eased) + pose.deformation.jump;
+    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     this.facePoint(unit, end);
     return u >= 1;
   }
@@ -861,13 +804,17 @@ export class BattleRuntime {
 
   private updateAllyDefeat(unit: AllyUnit, now: number): void {
     if (unit.state !== 'defeat') return;
-    const u = clamp01((now - unit.defeatStartedAt) / 0.72);
-    const squash = Math.sin(Math.min(1, u * 1.4) * Math.PI * 0.5);
+    const u = clamp01((now - unit.defeatStartedAt) / SLIME_MOTION_TIMING.allyDefeat);
     const side = unit.slotIndex % 2 === 0 ? -1 : 1;
+    const pose = getAllyDefeatMotion(u, side);
     unit.root.position.y = THREE.MathUtils.lerp(unit.root.position.y, 0.005, 0.18);
-    unit.root.rotation.z = side * 0.12 * squash;
-    unit.body.scale.set(unit.bodyBaseScale.x * (1 + 0.4 * squash), unit.bodyBaseScale.y * (1 - 0.72 * squash), unit.bodyBaseScale.z * (1 + 0.22 * squash));
-    this.setEquipmentSwing(unit, side * u * 0.72, -u * 0.025, u * 0.16);
+    unit.root.rotation.z = pose.rootRotationZ;
+    unit.body.scale.set(
+      unit.bodyBaseScale.x * pose.bodyScaleX,
+      unit.bodyBaseScale.y * pose.bodyScaleY,
+      unit.bodyBaseScale.z * pose.bodyScaleZ,
+    );
+    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
   }
 
   private updateEnemyDefeat(enemy: EnemyUnit, now: number): void {
@@ -994,49 +941,11 @@ export class BattleRuntime {
       return;
     }
 
-    const duration = 0.88;
+    const duration = SLIME_MOTION_TIMING.swordAttack;
     const u = clamp01((now - sword.attackStartedAt) / duration);
     const target = sword.attackTarget;
-
-    let squash = 0;
-    let stretch = 0;
-    let lean = 0;
-    let weaponAngle = 0;
-    let weaponSweep = 0;
-    let weaponLift = 0;
-    let bodyOffset = 0;
-    let releaseProgress = -1;
-
-    if (u < 0.32) {
-      const p = easeInOutCubic(u / 0.32);
-      squash = p * 0.32;
-      lean = -p * 0.20;
-      weaponAngle = THREE.MathUtils.lerp(0, -0.72, p);
-      weaponSweep = THREE.MathUtils.lerp(0, -0.22, p);
-      weaponLift = p * 0.018;
-      bodyOffset = -p * 0.045;
-    } else if (u < 0.62) {
-      const p = (u - 0.32) / 0.30;
-      const release = easeOutCubic(p);
-      releaseProgress = p;
-      squash = Math.max(0, 0.10 * (1 - p));
-      stretch = Math.sin(p * Math.PI) * 0.24;
-      lean = THREE.MathUtils.lerp(-0.20, 0.34, release);
-      weaponAngle = THREE.MathUtils.lerp(-0.72, 1.34, release);
-      weaponSweep = THREE.MathUtils.lerp(-0.22, 0.18, release);
-      weaponLift = Math.sin(p * Math.PI) * 0.026;
-      bodyOffset = THREE.MathUtils.lerp(-0.045, 0.32, release);
-    } else {
-      const p = (u - 0.62) / 0.38;
-      const recovery = easeInOutCubic(p);
-      const spring = Math.sin(p * Math.PI * 2) * Math.exp(-4.2 * p);
-      weaponAngle = THREE.MathUtils.lerp(1.34, 0, recovery);
-      weaponSweep = THREE.MathUtils.lerp(0.18, 0, recovery);
-      bodyOffset = THREE.MathUtils.lerp(0.32, 0, recovery);
-      squash = Math.max(0, -spring) * 0.20;
-      stretch = Math.max(0, spring) * 0.15;
-      lean = spring * 0.09;
-    }
+    const pose = getSwordAttackMotion(u);
+    let bodyOffset = pose.bodyOffset;
 
     this.tempVector.copy(target.root.position).sub(sword.combatAnchor).setY(0);
     const targetDistanceFromAnchor = this.tempVector.length();
@@ -1047,25 +956,24 @@ export class BattleRuntime {
     }
     sword.root.position.copy(sword.combatAnchor).addScaledVector(this.tempVector, bodyOffset);
     this.facePoint(sword, target.root.position);
-    this.applyUnitDeformation(sword, squash, stretch, lean, 0, 0);
-    this.setEquipmentSwing(sword, weaponAngle, weaponLift, weaponSweep);
+    this.applyUnitDeformation(sword, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    this.setEquipmentSwing(sword, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     sword.root.updateMatrixWorld(true);
 
-    if (releaseProgress >= 0 && sword.weaponTip) {
+    if (pose.releaseProgress >= 0 && sword.weaponTip) {
       sword.weaponTip.getWorldPosition(this.tempVector3);
-      const arcU = clamp01((releaseProgress - 0.08) / 0.82);
-      const arcPulse = Math.sin(arcU * Math.PI);
+      const slashVfx = getSwordSlashVfxPose(pose.releaseProgress);
       if (this.slashArc) {
-        this.slashArc.visible = arcPulse > 0.01;
+        this.slashArc.visible = slashVfx.visible;
         this.slashArc.position.copy(this.tempVector3);
         this.slashArc.position.y += 0.012;
         this.slashArc.quaternion.copy(this.camera.quaternion);
-        this.slashArc.rotation.z = -0.95 + arcU * 1.15;
-        this.slashArc.scale.set(0.90 + arcU * 0.52, 0.68 + arcU * 0.16, 1);
-        this.slashArc.material.opacity = arcPulse * 0.88;
+        this.slashArc.rotation.z = slashVfx.rotationZ;
+        this.slashArc.scale.set(slashVfx.scaleX, slashVfx.scaleY, 1);
+        this.slashArc.material.opacity = slashVfx.opacity;
       }
 
-      if (releaseProgress >= 0.50 && sword.hitsApplied === 0 && target.alive) {
+      if (pose.releaseProgress >= SLIME_MOTION_THRESHOLDS.swordHitReleaseProgress && sword.hitsApplied === 0 && target.alive) {
         sword.hitsApplied = 1;
         this.applyDamage(target, 2, 'melee', sword.root.position);
       }
@@ -1077,62 +985,30 @@ export class BattleRuntime {
   }
 
   private updateGreatswordAttack(now: number, sword: AllyUnit, target: EnemyUnit, fusionRank: number): void {
-    const duration = 0.60;
+    const duration = SLIME_MOTION_TIMING.greatswordAttack;
     const u = clamp01((now - sword.attackStartedAt) / duration);
-    const anticipation = clamp01(u / 0.16);
-    const slashU = clamp01((u - 0.14) / 0.22);
-    const slashEase = 1 - ((1 - slashU) ** 4);
-    const settle = clamp01((u - 0.52) / 0.48);
-    const settleEase = easeOutCubic(settle);
+    const pose = getGreatswordAttackMotion(u);
 
     sword.root.position.copy(sword.combatAnchor);
     this.facePoint(sword, target.root.position);
-    const facing = sword.root.rotation.y;
-    const windupOffset = -0.30 * anticipation;
-    const sweepEndOffset = -0.30 + Math.PI * 0.78;
-    const sweepOffset = slashU < 1
-      ? THREE.MathUtils.lerp(windupOffset, sweepEndOffset, slashEase)
-      : THREE.MathUtils.lerp(sweepEndOffset, 0, settleEase);
-    sword.root.rotation.y = facing + sweepOffset;
-
-    const squash = u < 0.18 ? 0.28 * anticipation : 0.05 * (1 - settleEase);
-    const stretch = slashU > 0 && slashU < 1 ? 0.30 * Math.sin(slashU * Math.PI) : 0;
-    const wobble = slashU > 0 && slashU < 1 ? Math.sin(slashU * Math.PI * 2) * 0.07 : 0;
-    this.applyUnitDeformation(sword, squash, stretch, -0.08 * anticipation, wobble, 0);
-
-    const horizontalTilt = slashU > 0
-      ? THREE.MathUtils.lerp(-1.52, -1.68, Math.sin(slashU * Math.PI))
-      : THREE.MathUtils.lerp(0, -1.52, anticipation);
-    const recoverTilt = settle > 0 ? THREE.MathUtils.lerp(horizontalTilt, 0, settleEase) : horizontalTilt;
-    const sweep = slashU > 0
-      ? THREE.MathUtils.lerp(-0.78, -1.02, Math.sin(slashU * Math.PI))
-      : THREE.MathUtils.lerp(0, -0.78, anticipation);
-    this.setEquipmentSwing(
-      sword,
-      recoverTilt,
-      0.012 * Math.sin(slashU * Math.PI),
-      settle > 0 ? THREE.MathUtils.lerp(sweep, 0, settleEase) : sweep,
-    );
+    sword.root.rotation.y += pose.rootYawOffset;
+    this.applyUnitDeformation(sword, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    this.setEquipmentSwing(sword, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
 
     if (this.spinArc) {
-      const pulse = slashU > 0 && slashU < 1 ? Math.sin(slashU * Math.PI) : 0;
-      this.spinArc.visible = pulse > 0.01;
+      const spinVfx = getGreatswordSpinVfxPose(pose, fusionRank);
+      this.spinArc.visible = spinVfx.visible;
       this.tempVector.copy(target.root.position).sub(sword.root.position).setY(0);
       if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
       this.spinArc.position.copy(sword.root.position).addScaledVector(this.tempVector, 0.28);
       this.spinArc.position.y = 0.30;
       this.spinArc.quaternion.copy(this.camera.quaternion);
-      this.spinArc.rotation.z = THREE.MathUtils.lerp(-0.72, 0.28, slashEase);
-      const radiusScale = fusionRank >= 4 ? 1.58 : fusionRank >= 3 ? 1.48 : 1.38;
-      this.spinArc.scale.set(
-        radiusScale * (1.22 + pulse * 0.14),
-        radiusScale * (0.38 + pulse * 0.05),
-        1,
-      );
-      this.spinArc.material.opacity = pulse * 0.74;
+      this.spinArc.rotation.z = spinVfx.rotationZ;
+      this.spinArc.scale.set(spinVfx.scaleX, spinVfx.scaleY, 1);
+      this.spinArc.material.opacity = spinVfx.opacity;
     }
 
-    if (slashU >= 0.50 && sword.hitsApplied === 0) {
+    if (pose.slashU >= SLIME_MOTION_THRESHOLDS.greatswordHitSlashU && sword.hitsApplied === 0) {
       sword.hitsApplied = 1;
       const radius = fusionRank >= 4 ? 1.34 : fusionRank >= 3 ? 1.24 : 1.14;
       const damage = fusionRank >= 3 ? 3 : 2;
@@ -1202,13 +1078,12 @@ export class BattleRuntime {
       return;
     }
 
-    const u = clamp01((now - bow.attackStartedAt) / 0.62);
+    const u = clamp01((now - bow.attackStartedAt) / SLIME_MOTION_TIMING.bowAttack);
     this.facePoint(bow, bow.attackTarget.root.position);
-    const tension = Math.sin(Math.min(1, u / 0.55) * Math.PI * 0.5);
-    const release = clamp01((u - 0.55) / 0.18);
-    this.applyUnitDeformation(bow, 0.08 * tension, 0.12 * release, -0.06 * tension + 0.08 * release, 0, 0);
-    this.setEquipmentSwing(bow, -0.36 * tension + 0.5 * release, 0.012 * tension);
-    if (!bow.shotApplied && u >= 0.56) {
+    const pose = getBowAttackMotion(u);
+    this.applyUnitDeformation(bow, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    this.setEquipmentSwing(bow, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    if (!bow.shotApplied && u >= SLIME_MOTION_THRESHOLDS.bowReleaseU) {
       bow.shotApplied = true;
       this.fireArrow(bow, bow.attackTarget);
     }
@@ -1227,7 +1102,7 @@ export class BattleRuntime {
     const end = target.root.position.clone().add(new THREE.Vector3(0, 0.28, 0));
     root.position.copy(start);
     this.scene.add(root);
-    this.arrows.push({ root, start, end, target, startedAt: this.simulationNow, duration: 0.38, hitApplied: false });
+    this.arrows.push({ root, start, end, target, startedAt: this.simulationNow, duration: SLIME_MOTION_TIMING.arrowFlight, hitApplied: false });
   }
 
   private updateArrows(now: number): void {
@@ -1237,10 +1112,10 @@ export class BattleRuntime {
       const targetPosition = arrow.target.root.position.clone().add(new THREE.Vector3(0, 0.26, 0));
       arrow.end.lerp(targetPosition, 0.22);
       arrow.root.position.lerpVectors(arrow.start, arrow.end, u);
-      arrow.root.position.y += Math.sin(u * Math.PI) * 0.08;
+      arrow.root.position.y += getArrowArcHeight(u);
       this.tempVector.copy(arrow.end).sub(arrow.start).normalize();
       arrow.root.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), this.tempVector);
-      if (!arrow.hitApplied && u >= 0.94) {
+      if (!arrow.hitApplied && u >= SLIME_MOTION_THRESHOLDS.arrowHitU) {
         arrow.hitApplied = true;
         if (arrow.target.alive) this.applyDamage(arrow.target, 1, 'projectile', arrow.start);
       }

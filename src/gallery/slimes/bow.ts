@@ -11,7 +11,8 @@ const definition: SlimeGalleryDefinition = {
   accent: '#7bcf83',
   inspectionFacingYawDegrees: -20,
   equipmentAnchor: 'BowAnchor',
-  availableMotions: ['idle', 'move', 'attack', 'hit', 'defeat', 'celebrate'],
+  weaponTipName: null,
+  availableMotions: ['idle', 'attack', 'defeat'],
   implementationStatus: 'implemented',
   notes: 'The body stretches backward under tension, then snaps forward on release. Arrow origin must remain visually attached to the bow.',
 };
