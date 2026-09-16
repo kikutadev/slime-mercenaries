@@ -42,10 +42,13 @@ Roster
 - discoveredSlimeTypeIds
 - slimeProgressByType
     - level
-    - fusionRank / fusionProgress
+    - fusionRank
     - promotion state
     - equipped weapon
-- duplicateStockByType or equivalent unresolved-copy state
+- fusionInventory
+    - type-specific Slime Core items
+    - weapon ingredients
+    - material ingredients
 - mutationProgress
 
 Formation

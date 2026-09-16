@@ -94,7 +94,7 @@ Fusion strengthens one canonical slime branch. A milestone may replace the weapo
 
 Suggested progression vocabulary:
 
-- first Sword milestone: two Sword Slimes merge into a same-body-size Greatsword Slime with a much broader blade
+- first Sword milestone: two Sword Slimes merge into a same-body-size Greatsword Slime with a much broader blade and a full-body spinning area sweep
 - low rank: base weapon and restrained hit effect
 - mid rank: weapon accent, slightly richer trail/impact, extra attack beat where unlocked
 - high rank: signature attack behavior and recognizable VFX motif

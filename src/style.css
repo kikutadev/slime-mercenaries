@@ -850,3 +850,89 @@ button,
     transition-duration: 0.001ms !important;
   }
 }
+
+.fusion-recipe {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.fusion-recipe__item {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  grid-template-areas:
+    "glyph name"
+    "glyph count";
+  align-items: center;
+  column-gap: 6px;
+  padding: 8px 7px;
+  border: 1px solid rgba(73, 105, 79, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.fusion-recipe__item.is-ready {
+  border-color: rgba(81, 154, 92, 0.22);
+  background: rgba(235, 249, 230, 0.88);
+}
+
+.fusion-recipe__item.is-missing {
+  border-color: rgba(195, 111, 69, 0.24);
+  background: rgba(255, 239, 229, 0.76);
+}
+
+.fusion-recipe__glyph {
+  grid-area: glyph;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.fusion-recipe__glyph--slime {
+  background: rgba(92, 184, 218, 0.14);
+  color: #318eaf;
+}
+
+.fusion-recipe__glyph--weapon {
+  background: rgba(238, 178, 77, 0.16);
+  color: #a66a18;
+}
+
+.fusion-recipe__glyph--material {
+  background: rgba(116, 168, 103, 0.14);
+  color: #4c8a52;
+}
+
+.fusion-recipe__name {
+  grid-area: name;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(23, 51, 72, 0.72);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.fusion-recipe__item strong {
+  grid-area: count;
+  margin-top: 1px;
+  color: #244d36;
+  font-size: 10px;
+}
+
+.fusion-recipe__item.is-missing strong {
+  color: #b15d38;
+}
+
+@media (max-width: 380px) {
+  .fusion-recipe {
+    grid-template-columns: 1fr;
+  }
+}

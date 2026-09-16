@@ -117,40 +117,48 @@ Each slot always corresponds to one visible battle body.
 
 ## 8. Fusion UI
 
-Fusion is a first-class surface inside Slimes.
+Fusion is a first-class surface inside Slimes and uses explicit recipes rather than a single duplicate-progress bar.
 
 Recommended selected-slime layout:
 
 ```text
 Sword Slime
-Fusion Rank 2
-●●○○  2 / 3 copies
+Fusion Rank 1 -> 2
+
+Fusion Recipe
+Sword Core        1 / 1
+Greatsword Blank  1 / 1
+Hardening Gel     2 / 2
 
 Next milestone
-2-hit slash -> 3-hit slash
-Body size: unchanged
+Greatsword Slime
+1-spin area sweep
 
 [Fuse]
 ```
 
-The actual rank visualization need not literally use stars or dots; the contract is that the player can answer:
+The contract is that the player can answer:
 
-- how close am I?
-- what do I spend?
-- what gets better?
+- what items do I need?
+- which item came from reacquiring this slime?
+- which weapon/material is missing?
+- what attack behavior gets better?
 
-Do not imply power by scaling the character preview larger after fusion.
+Type-specific Slime Core items, weapon ingredients, and ordinary materials must be visually distinguishable in the recipe row. Do not create an inventory-management minigame merely to support fusion.
+
+Do not imply power by scaling the slime body larger after fusion.
 
 ### Fusion result
 
 First Sword fusion milestone:
 
-- show two Sword Slime 3D models side by side
+- show two Sword Slime 3D models side by side as the fusion fantasy
 - pull both models toward the center
 - fire a bright central flash at contact
 - replace both with Greatsword Slime
 - keep slime-body dimensions unchanged; communicate the upgrade through the greatsword silhouette and attack
-- immediately preview the upgraded heavy/two-hit slash
+- immediately preview a full-body one-rotation greatsword sweep
+- in battle, the sweep damages every living enemy inside its area rather than only the selected target
 
 Later ordinary fusion steps may use a shorter jelly compression + weapon/VFX pulse. Fusion presentation should remain shorter than a NEW job reveal.
 

@@ -16,12 +16,14 @@ Do not create currencies merely to add systems. Every resource must have an obvi
 | Input | Source | Primary sink | Purpose |
 |---|---|---|---|
 | Gold | kills, stage, dispatch, offline | type level, promotion fees | frequent growth |
-| Same-type slime copy | chest/recruitment/progression reward | fusion | strengthen owned slime type |
+| Type-specific Slime Core | same-type reacquisition | fusion recipe | preserve duplicate value without extra bodies |
 | Forge Key | boss, objectives, chest, dispatch | equipment forge draw | deliberate equipment pull |
+| Fusion weapon ingredient | chest/boss/forge/progression | fusion recipe | visible form/attack milestone |
+| Fusion material | battle/chest/dispatch | fusion recipe | shared upgrade ingredient |
 | Promotion Material | area/boss/dispatch | Tier promotion | deterministic evolution |
 | Mutation Fragments | mutation encounters | guaranteed mutation unlock | RNG backstop |
 
-A slime duplicate is a growth input, not a permanent population unit.
+A slime duplicate is immediately represented as a type-specific fusion item (for example `Sword Slime Core`), not a permanent population unit.
 
 `Slime Gel -> visible body count` is removed from current design. If a Gel resource is reintroduced later, it must serve a new explicit purpose rather than resurrecting population growth implicitly.
 
@@ -64,14 +66,14 @@ A chest auto-opens after a short delay when ignored. Tapping it is faster, never
 
 The first acquisition of a type creates/discovers that roster entry.
 
-A later acquisition of the same type becomes fusion input for that type.
+A later acquisition of the same type converts into a type-specific Slime Core / branch fusion item. The player does not receive another assignable copy.
 
 The product must avoid two failure modes:
 
 1. duplicate = useless trash
 2. duplicate = another body that clutters the battle screen
 
-Fusion solves duplicate value without turning collection into population management.
+Recipe fusion solves duplicate value without turning collection into population management. A recipe can combine the type-specific Slime Core with a weapon ingredient and ordinary material.
 
 Core normal-job discovery remains deterministic enough that unlucky acquisition cannot block the basic game.
 
@@ -79,16 +81,19 @@ Exact slime acquisition pools/rates are balance/content data and are not fixed b
 
 ## 6. Fusion economy
 
-Fusion requirements may scale by fusion rank, but the system should remain readable.
+Fusion is recipe-based. The canonical ingredient families are:
 
-A fusion action should show:
+- one type-specific Slime Core or branch item from same-type reacquisition
+- zero or one weapon ingredient when the milestone changes the weapon/form silhouette
+- a small quantity of ordinary fusion material
 
-- current rank/progress
-- copies required
-- resulting combat improvement
-- any visible behavior milestone
+Recipes may scale by fusion rank, but routine fusion should normally stay within 2–3 ingredient families rather than becoming currency soup.
 
-Do not require a long list of unrelated currencies for routine fusion.
+The first Sword recipe is:
+
+`Sword Slime Core x1 + Greatsword Blank x1 + Hardening Gel x2` at Lv.10.
+
+A fusion action should show every recipe item, owned/required counts, level requirement, resulting form, and resulting combat behavior. Missing ingredients are explicit; there is no hidden success chance.
 
 Fusion does not alter slime body size.
 

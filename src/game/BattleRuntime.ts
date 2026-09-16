@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { getSwordAttackHits } from './fusion';
+import { isGreatswordRank } from './fusion';
 
 export interface BattleSnapshot {
   phase: 'loading' | 'approach' | 'combat' | 'result';
@@ -168,6 +168,7 @@ export class BattleRuntime {
   private readonly arrows: ArrowRuntime[] = [];
   private readonly impacts: ImpactRuntime[] = [];
   private slashArc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null = null;
+  private spinArc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null = null;
   private disposed = false;
   private initialized = false;
   private rawNow = 0;
@@ -467,6 +468,22 @@ export class BattleRuntime {
     arc.renderOrder = 5;
     this.scene.add(arc);
     this.slashArc = arc;
+
+    const spinMaterial = new THREE.MeshBasicMaterial({
+      color: '#fff1a8',
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      depthTest: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const spinArc = new THREE.Mesh(new THREE.TorusGeometry(0.70, 0.020, 8, 64), spinMaterial);
+    spinArc.visible = false;
+    spinArc.rotation.x = Math.PI / 2;
+    spinArc.renderOrder = 5;
+    this.scene.add(spinArc);
+    this.spinArc = spinArc;
   }
 
   private createArrowMesh(): THREE.Group {
@@ -888,15 +905,23 @@ export class BattleRuntime {
   private updateSword(now: number): void {
     const sword = this.sword;
     if (!sword || !sword.alive) return;
+    const fusionRank = this.getSwordFusionRank();
+    const greatsword = isGreatswordRank(fusionRank);
 
     if (this.swordAttackStartedAt !== -Infinity && !this.swordAttackTarget?.alive) {
-      this.swordAttackStartedAt = -Infinity;
-      this.swordAttackTarget = null;
-      this.swordHitsApplied = 0;
-      this.swordAttackHitCount = 1;
-      sword.root.position.copy(SWORD_ATTACK_POS);
-      this.setEquipmentSwing(sword, 0);
-      this.resetSlash();
+      const replacement = greatsword ? this.findNearest(sword, this.getLivingEnemies()) : null;
+      if (replacement) {
+        this.swordAttackTarget = replacement;
+      } else {
+        this.swordAttackStartedAt = -Infinity;
+        this.swordAttackTarget = null;
+        this.swordHitsApplied = 0;
+        this.swordAttackHitCount = 1;
+        sword.root.position.copy(SWORD_ATTACK_POS);
+        this.setEquipmentSwing(sword, 0);
+        this.resetSlash();
+        this.resetSpinArc();
+      }
     }
 
     if (this.swordAttackStartedAt === -Infinity && now >= this.nextSwordAttackAt) {
@@ -905,8 +930,8 @@ export class BattleRuntime {
         this.swordAttackStartedAt = now;
         this.swordAttackTarget = target;
         this.swordHitsApplied = 0;
-        this.swordAttackHitCount = getSwordAttackHits(this.getSwordFusionRank());
-        this.nextSwordAttackAt = now + (this.swordAttackHitCount === 1 ? 1.08 : 1.55);
+        this.swordAttackHitCount = 1;
+        this.nextSwordAttackAt = now + (greatsword ? 1.55 : 1.08);
       }
     }
 
@@ -915,17 +940,17 @@ export class BattleRuntime {
       this.updateIdle(sword, now, 0.2);
       const target = this.findNearest(sword, this.getLivingEnemies());
       if (target) this.facePoint(sword, target.root.position);
+      this.resetSpinArc();
       return;
     }
 
-    const hitCount = this.swordAttackHitCount;
-    // Rank 1 keeps the pre-React 0.88s sword swing. Fusion extends the same
-    // anchored motion into a two-hit sequence instead of replacing its feel.
-    const duration = hitCount === 1 ? 0.88 : 1.32;
+    if (greatsword) {
+      this.updateGreatswordAttack(now, sword, this.swordAttackTarget, fusionRank);
+      return;
+    }
+
+    const duration = 0.88;
     const u = clamp01((now - this.swordAttackStartedAt) / duration);
-    const phase = Math.min(hitCount - 0.001, u * hitCount);
-    const local = phase % 1;
-    const hitIndex = Math.floor(phase);
     const target = this.swordAttackTarget;
 
     let squash = 0;
@@ -937,16 +962,16 @@ export class BattleRuntime {
     let bodyOffset = 0;
     let releaseProgress = -1;
 
-    if (local < 0.32) {
-      const p = easeInOutCubic(local / 0.32);
+    if (u < 0.32) {
+      const p = easeInOutCubic(u / 0.32);
       squash = p * 0.32;
       lean = -p * 0.20;
       weaponAngle = THREE.MathUtils.lerp(0, -0.72, p);
       weaponSweep = THREE.MathUtils.lerp(0, -0.22, p);
       weaponLift = p * 0.018;
       bodyOffset = -p * 0.045;
-    } else if (local < 0.62) {
-      const p = (local - 0.32) / 0.30;
+    } else if (u < 0.62) {
+      const p = (u - 0.32) / 0.30;
       const release = easeOutCubic(p);
       releaseProgress = p;
       squash = Math.max(0, 0.10 * (1 - p));
@@ -957,7 +982,7 @@ export class BattleRuntime {
       weaponLift = Math.sin(p * Math.PI) * 0.026;
       bodyOffset = THREE.MathUtils.lerp(-0.045, 0.32, release);
     } else {
-      const p = (local - 0.62) / 0.38;
+      const p = (u - 0.62) / 0.38;
       const recovery = easeInOutCubic(p);
       const spring = Math.sin(p * Math.PI * 2) * Math.exp(-4.2 * p);
       weaponAngle = THREE.MathUtils.lerp(1.34, 0, recovery);
@@ -992,11 +1017,11 @@ export class BattleRuntime {
         this.slashArc.quaternion.copy(this.camera.quaternion);
         this.slashArc.rotation.z = -0.95 + arcU * 1.15;
         this.slashArc.scale.set(0.90 + arcU * 0.52, 0.68 + arcU * 0.16, 1);
-        this.slashArc.material.opacity = arcPulse * (hitIndex === hitCount - 1 ? 0.95 : 0.78);
+        this.slashArc.material.opacity = arcPulse * 0.88;
       }
 
-      if (releaseProgress >= 0.50 && this.swordHitsApplied <= hitIndex && target.alive) {
-        this.swordHitsApplied += 1;
+      if (releaseProgress >= 0.50 && this.swordHitsApplied === 0 && target.alive) {
+        this.swordHitsApplied = 1;
         this.applyDamage(target, 2, 'sword', sword.root.position);
       }
     } else {
@@ -1004,15 +1029,76 @@ export class BattleRuntime {
     }
 
     if (u >= 1 || !target.alive) {
-      this.swordAttackStartedAt = -Infinity;
-      this.swordAttackTarget = null;
-      this.swordHitsApplied = 0;
-      this.swordAttackHitCount = 1;
-      sword.root.position.copy(SWORD_ATTACK_POS);
-      this.setEquipmentSwing(sword, 0);
-      this.resetSlash();
-      if (hitCount > 1) this.nextSwordAttackAt = Math.max(this.nextSwordAttackAt, now + 0.24);
+      this.finishSwordAttack(now, sword, target);
     }
+  }
+
+  private updateGreatswordAttack(now: number, sword: AllyUnit, target: EnemyUnit, fusionRank: number): void {
+    const duration = 1.18;
+    const u = clamp01((now - this.swordAttackStartedAt) / duration);
+    const anticipation = clamp01(u / 0.22);
+    const spinU = clamp01((u - 0.18) / 0.62);
+    const recovery = clamp01((u - 0.80) / 0.20);
+    const spinEase = easeInOutCubic(spinU);
+
+    sword.root.position.copy(SWORD_ATTACK_POS);
+    this.facePoint(sword, target.root.position);
+    const facing = sword.root.rotation.y;
+    sword.root.rotation.y = facing + spinEase * Math.PI * 2;
+
+    const squash = u < 0.22
+      ? 0.34 * anticipation
+      : Math.max(0, 0.12 * (1 - recovery));
+    const stretch = spinU > 0 && spinU < 1 ? 0.24 * Math.sin(spinU * Math.PI) : 0;
+    const wobble = spinU > 0 && spinU < 1 ? Math.sin(spinU * Math.PI * 4) * 0.08 : 0;
+    this.applyUnitDeformation(sword, squash, stretch, -0.10 * anticipation, wobble, 0);
+    this.setEquipmentSwing(
+      sword,
+      THREE.MathUtils.lerp(-0.35, 0.10, spinEase),
+      0.018 * Math.sin(spinU * Math.PI),
+      0.30 * Math.sin(spinU * Math.PI),
+    );
+
+    if (this.spinArc) {
+      const pulse = spinU > 0 && spinU < 1 ? Math.sin(spinU * Math.PI) : 0;
+      this.spinArc.visible = pulse > 0.01;
+      this.spinArc.position.set(sword.root.position.x, 0.12, sword.root.position.z);
+      const radiusScale = fusionRank >= 4 ? 1.62 : fusionRank >= 3 ? 1.50 : 1.38;
+      this.spinArc.scale.setScalar(radiusScale * (0.88 + pulse * 0.18));
+      this.spinArc.material.opacity = pulse * 0.70;
+    }
+
+    if (spinU >= 0.46 && this.swordHitsApplied === 0) {
+      this.swordHitsApplied = 1;
+      const radius = fusionRank >= 4 ? 1.28 : fusionRank >= 3 ? 1.18 : 1.08;
+      const damage = fusionRank >= 3 ? 3 : 2;
+      const targets = this.getLivingEnemies().filter((enemy) => {
+        const dx = enemy.root.position.x - sword.root.position.x;
+        const dz = enemy.root.position.z - sword.root.position.z;
+        return (dx * dx + dz * dz) <= radius * radius;
+      });
+      for (const enemy of targets) {
+        this.applyDamage(enemy, damage, 'sword', sword.root.position);
+      }
+      this.createImpact(sword.root.position.clone().add(new THREE.Vector3(0, 0.14, 0)), '#fff0a0', 0.16);
+    }
+
+    if (u >= 1) {
+      this.finishSwordAttack(now, sword, target);
+    }
+  }
+
+  private finishSwordAttack(now: number, sword: AllyUnit, target: EnemyUnit): void {
+    this.swordAttackStartedAt = -Infinity;
+    this.swordAttackTarget = null;
+    this.swordHitsApplied = 0;
+    this.swordAttackHitCount = 1;
+    sword.root.position.copy(SWORD_ATTACK_POS);
+    this.facePoint(sword, target.root.position);
+    this.setEquipmentSwing(sword, 0);
+    this.resetSlash();
+    this.resetSpinArc();
+    this.nextSwordAttackAt = Math.max(this.nextSwordAttackAt, now + 0.24);
   }
 
   private showSlash(contact: THREE.Vector3, target: THREE.Vector3, strong: boolean): void {
@@ -1029,6 +1115,12 @@ export class BattleRuntime {
     if (!this.slashArc) return;
     this.slashArc.visible = false;
     this.slashArc.material.opacity = 0;
+  }
+
+  private resetSpinArc(): void {
+    if (!this.spinArc) return;
+    this.spinArc.visible = false;
+    this.spinArc.material.opacity = 0;
   }
 
   private updateBow(now: number): void {
@@ -1307,6 +1399,7 @@ export class BattleRuntime {
     this.arrows.splice(0).forEach((arrow) => this.scene.remove(arrow.root));
     this.impacts.splice(0).forEach((impact) => this.scene.remove(impact.group));
     this.resetSlash();
+    this.resetSpinArc();
   }
 
   private startCameraShake(duration: number, amplitude: number): void {

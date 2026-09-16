@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { BattleCanvas } from './components/BattleCanvas';
 import { SlimePreview } from './components/SlimePreview';
-import { canFuse, fuseSlime, getNextFusionStep } from './game/fusion';
-import { createInitialRoster, getSlimePresentation, SLIMES, type SlimeId } from './game/slimes';
+import { canFuse, fuseSlime, getFusionRequirementCount, getMissingFusionRequirements, getNextFusionStep } from './game/fusion';
+import { createInitialRoster, FUSION_ITEMS, getSlimePresentation, SLIMES, type SlimeId } from './game/slimes';
 import type { BattleSnapshot } from './game/BattleRuntime';
 
 type Screen = 'battle' | 'slimes';
@@ -36,7 +36,8 @@ export default function App() {
   const selected = roster.slimes[roster.selectedId];
   const definition = getSlimePresentation(selected);
   const nextFusion = useMemo(() => getNextFusionStep(selected), [selected]);
-  const fusionReady = canFuse(selected);
+  const fusionReady = canFuse(roster, selected.id);
+  const missingFusionRequirements = getMissingFusionRequirements(roster, selected.id);
 
   const selectSlime = (id: SlimeId) => {
     if (fusionRun) return;
@@ -132,7 +133,7 @@ export default function App() {
             {(['sword', 'bow'] as SlimeId[]).map((id) => {
               const slime = roster.slimes[id];
               const isSelected = roster.selectedId === id;
-              const ready = canFuse(slime);
+              const ready = canFuse(roster, id);
               const presentation = getSlimePresentation(slime);
               return (
                 <button
@@ -192,14 +193,22 @@ export default function App() {
               <>
                 <div className="fusion-material">
                   <div className="fusion-material__label">
-                    <span>同種スライム</span>
-                    <strong>{selected.fusionProgress} / {nextFusion.requiredCopies}</strong>
+                    <span>合成レシピ</span>
+                    <strong>{missingFusionRequirements.length === 0 ? 'READY' : `${missingFusionRequirements.length}種不足`}</strong>
                   </div>
-                  <div className="fusion-track">
-                    <div
-                      className="fusion-track__fill"
-                      style={{ transform: `scaleX(${Math.min(1, selected.fusionProgress / nextFusion.requiredCopies)})` }}
-                    />
+                  <div className="fusion-recipe">
+                    {nextFusion.recipe.map((requirement) => {
+                      const item = FUSION_ITEMS[requirement.itemId];
+                      const owned = getFusionRequirementCount(roster, requirement);
+                      const enough = owned >= requirement.amount;
+                      return (
+                        <div className={`fusion-recipe__item ${enough ? 'is-ready' : 'is-missing'}`} key={requirement.itemId}>
+                          <span className={`fusion-recipe__glyph fusion-recipe__glyph--${item.category}`}>{item.glyph}</span>
+                          <span className="fusion-recipe__name">{item.shortName}</span>
+                          <strong>{owned} / {requirement.amount}</strong>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -217,7 +226,7 @@ export default function App() {
                 )}
 
                 <button className="fusion-button" type="button" disabled={!fusionReady || Boolean(fusionRun)} onClick={handleFuse}>
-                  {fusionRun ? '合成中…' : selected.level < nextFusion.minLevel ? `Lv.${nextFusion.minLevel}で解放` : fusionReady ? '合成する' : `あと ${Math.max(0, nextFusion.requiredCopies - selected.fusionProgress)} 体`}
+                  {fusionRun ? '合成中…' : selected.level < nextFusion.minLevel ? `Lv.${nextFusion.minLevel}で解放` : fusionReady ? '合成する' : '素材が足りません'}
                 </button>
               </>
             ) : (
@@ -237,7 +246,7 @@ export default function App() {
           <button className={screen === 'slimes' ? 'is-active' : ''} type="button" onClick={() => setScreen('slimes')}>
             <span className="nav-icon">●</span>
             Slimes
-            {canFuse(roster.slimes.sword) && <span className="nav-notice" />}
+            {canFuse(roster, 'sword') && <span className="nav-notice" />}
           </button>
         </nav>
       </section>

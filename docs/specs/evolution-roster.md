@@ -21,13 +21,14 @@ Frequent Gold-spend growth. Primarily increases combat stats and gives the playe
 
 ### Fusion
 
-Reacquiring the same type provides fusion progress for that type.
+Reacquiring the same type converts into a type-specific fusion item such as `Sword Slime Core`; it does not create another persistent body.
 
-Fusion is the main answer to “what happens when I get this slime again?”
+Fusion is the main answer to “what happens when I get this slime again?” and is recipe-based.
 
-- duplicates are useful
+- same-type reacquisition becomes a Slime Core / equivalent branch item
+- fusion recipes may combine Slime Core + weapon ingredient + ordinary material
 - duplicates are not extra battlefield bodies
-- exact duplicate requirements and rank cap are balance data
+- exact recipe quantities and rank cap are balance data
 - fusion may unlock visible combat behavior or a linear upgraded form at milestones
 - the first Sword fusion milestone at Lv.10 turns Sword Slime into Greatsword Slime while preserving the same canonical roster record
 
@@ -183,13 +184,13 @@ When a slime type is acquired:
 
 ### Reacquisition
 
-- add fusion input for that exact type or its canonical branch record
-- show a compact “fusion ready/progress” result
+- convert the duplicate into a type-specific Slime Core / fusion item immediately
+- show a compact item/progress result
 - do not create a second persistent character card by default
 
-When fusion requirements are met, the player can merge and advance fusion progression. Fusion steps may also require a level threshold.
+Fusion is recipe-based. A recipe may consume the type-specific Slime Core together with a weapon ingredient and ordinary material, and may also require a level threshold. This is the canonical fusion acquisition model.
 
-The first Sword milestone requires Lv.10 plus one reacquired Sword Slime. Two Sword Slime models merge into Greatsword Slime, which keeps the same slime-body scale, equips a visibly broader greatsword, and uses a two-hit heavy slash.
+The first Sword milestone requires Lv.10 plus `Sword Slime Core x1 + Greatsword Blank x1 + Hardening Gel x2`. The fusion presentation still shows two Sword Slime models merging for readability and fantasy, but the durable inventory cost is the recipe items. The result is Greatsword Slime: same slime-body scale, visibly broader greatsword, and a one-rotation area sweep that damages nearby enemies.
 
 Fusion preserves already-earned level and the canonical roster record. A milestone may replace the equipped weapon/form presentation as part of the upgrade; it is not a reset and does not create another persistent body.
 
@@ -201,12 +202,12 @@ Possible milestone rewards:
 
 - stat bump
 - weapon accent improvement
-- attack gains one additional hit
+- attack changes motion class, such as single-target slash -> spinning area sweep
 - projectile gains pierce/split
 - impact trail becomes stronger
 - passive/signature behavior unlocks
 
-The first fusion tutorial uses two same-size Sword Slime models side by side, pulls them into the center, flashes at contact, then reveals same-body-size Greatsword Slime and immediately previews its heavier attack.
+The first fusion tutorial uses two same-size Sword Slime models side by side, pulls them into the center, flashes at contact, then reveals same-body-size Greatsword Slime and immediately previews its one-rotation area sweep.
 
 ## 10. Assignment states
 

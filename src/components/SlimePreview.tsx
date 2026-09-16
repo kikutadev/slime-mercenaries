@@ -2,7 +2,7 @@ import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { getSwordAttackHits } from '../game/fusion';
+import { isGreatswordRank } from '../game/fusion';
 import { getSlimePresentationForRank, type SlimeId } from '../game/slimes';
 
 type MorphMesh = THREE.Mesh & {
@@ -75,27 +75,44 @@ function animateJelly(parts: ModelParts, time: number, phase = 0) {
   setMorph(parts.body, lean < 0 ? 'WobbleLeft' : 'WobbleRight', Math.abs(lean) * 0.7);
 }
 
-function animateResultAttack(parts: ModelParts, slimeId: SlimeId, fusionRank: number, u: number) {
+function animateResultAttack(parts: ModelParts, slimeId: SlimeId, fusionRank: number, u: number): number {
   resetParts(parts);
-  if (slimeId !== 'sword' || !parts.equipment) return;
-  const hits = getSwordAttackHits(fusionRank);
-  const phase = Math.min(hits - 0.001, u * hits);
-  const local = phase % 1;
-  const anticipation = THREE.MathUtils.clamp(local / 0.30, 0, 1);
-  const release = THREE.MathUtils.clamp((local - 0.30) / 0.38, 0, 1);
-  const recover = THREE.MathUtils.clamp((local - 0.68) / 0.32, 0, 1);
-  const swing = local < 0.30
+  if (slimeId !== 'sword' || !parts.equipment) return 0;
+
+  if (isGreatswordRank(fusionRank)) {
+    const anticipation = THREE.MathUtils.clamp(u / 0.22, 0, 1);
+    const spinU = THREE.MathUtils.clamp((u - 0.18) / 0.62, 0, 1);
+    const spinEase = spinU < 0.5
+      ? 4 * spinU * spinU * spinU
+      : 1 - ((-2 * spinU + 2) ** 3) / 2;
+    const recovery = THREE.MathUtils.clamp((u - 0.80) / 0.20, 0, 1);
+    const squash = u < 0.22 ? 0.34 * anticipation : 0.10 * (1 - recovery);
+    const stretch = spinU > 0 && spinU < 1 ? 0.25 * Math.sin(spinU * Math.PI) : 0;
+    const wobble = spinU > 0 && spinU < 1 ? Math.sin(spinU * Math.PI * 4) * 0.08 : 0;
+    setMorph(parts.body, 'Squash', squash);
+    setMorph(parts.body, 'Stretch', stretch);
+    setMorph(parts.body, wobble < 0 ? 'WobbleLeft' : 'WobbleRight', Math.abs(wobble));
+    tempQuaternion.setFromAxisAngle(swordAxis, THREE.MathUtils.lerp(-0.35, 0.10, spinEase));
+    parts.equipment.quaternion.copy(parts.equipmentBaseQuaternion).multiply(tempQuaternion);
+    return spinEase * Math.PI * 2;
+  }
+
+  const anticipation = THREE.MathUtils.clamp(u / 0.30, 0, 1);
+  const release = THREE.MathUtils.clamp((u - 0.30) / 0.38, 0, 1);
+  const recover = THREE.MathUtils.clamp((u - 0.68) / 0.32, 0, 1);
+  const swing = u < 0.30
     ? THREE.MathUtils.lerp(0, -0.82, anticipation)
-    : local < 0.68
+    : u < 0.68
       ? THREE.MathUtils.lerp(-0.82, 1.15, release)
       : THREE.MathUtils.lerp(1.15, 0, recover);
-  const squash = local < 0.30 ? 0.22 * anticipation : 0.06 * (1 - recover);
-  const stretch = local >= 0.30 && local < 0.68 ? 0.30 * Math.sin(release * Math.PI) : 0;
+  const squash = u < 0.30 ? 0.22 * anticipation : 0.06 * (1 - recover);
+  const stretch = u >= 0.30 && u < 0.68 ? 0.30 * Math.sin(release * Math.PI) : 0;
   setMorph(parts.body, 'Squash', squash);
   setMorph(parts.body, 'Stretch', stretch);
-  setMorph(parts.body, 'LeanRight', 0.13 * Math.sin(local * Math.PI));
+  setMorph(parts.body, 'LeanRight', 0.13 * Math.sin(u * Math.PI));
   tempQuaternion.setFromAxisAngle(swordAxis, swing);
   parts.equipment.quaternion.copy(parts.equipmentBaseQuaternion).multiply(tempQuaternion);
+  return 0;
 }
 
 function FusionScene(props: FusionSceneProps) {
@@ -210,8 +227,8 @@ function FusionScene(props: FusionSceneProps) {
 
       if (elapsed >= 1.02) {
         const attackU = THREE.MathUtils.clamp((elapsed - 1.02) / 0.46, 0, 1);
-        animateResultAttack(resultParts, props.slimeId, props.toRank, attackU);
-        result.rotation.y = -0.24 + Math.sin(attackU * Math.PI) * 0.04;
+        const attackRotation = animateResultAttack(resultParts, props.slimeId, props.toRank, attackU);
+        result.rotation.y = -0.24 + attackRotation + Math.sin(attackU * Math.PI) * 0.04;
       }
     }
 
