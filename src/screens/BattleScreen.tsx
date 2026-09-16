@@ -47,7 +47,6 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeI
       <header className="battle-topbar">
         <div>
           <p className="eyebrow">{hud.areaLabel} · ステージ {hud.stageLabel}</p>
-          <h1>スライム傭兵団</h1>
         </div>
         <div className="resource-pill"><span className="resource-pill__coin">G</span><strong>{hud.gold}</strong></div>
       </header>

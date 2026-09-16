@@ -47,7 +47,6 @@ export function AppShell() {
       <main className="page">
         <section className="game-shell game-shell--loading">
           <div className="loading-slime">●</div>
-          <strong>スライム傭兵団</strong>
           <span>セーブデータを読み込み中…</span>
         </section>
       </main>
@@ -74,7 +73,7 @@ export function AppShell() {
 
   return (
     <main className="page">
-      <section className="game-shell" aria-label="スライム傭兵団">
+      <section className="game-shell" aria-label="ゲーム画面">
         <div className="app-content">
           {screen === 'battle' && <BattleScreen onOpenSlime={openSlime} />}
           {screen === 'slimes' && <SlimesScreen selectedId={selectedSlimeId} onSelect={setSelectedSlimeId} onOpenBattle={() => setScreen('battle')} />}
