@@ -24,7 +24,7 @@ export function selectGlobalHud(state: SlimeMercenariesState) {
   return {
     gold: formatGameNumber(readCurrency(state.currencies, ids.currency.gold)),
     forgeKeys: readToken(state.tokens, ids.token.forgeKey),
-    areaLabel: 'Clover Road',
+    areaLabel: 'クローバー街道',
     stageLabel: `${state.gameData.progression.currentStage}`,
   } as const;
 }
@@ -35,14 +35,14 @@ export function selectEarlyGameCue(state: SlimeMercenariesState) {
   if (sword === undefined) {
     if (plainStock === 0) {
       return {
-        title: 'Plain Slimeを1匹作る',
-        body: '最初の素材は揃っています。Createから素体を生成します。',
+        title: 'プレーンスライムを1匹作る',
+        body: '最初の素材は揃っています。育成所から素体を生成します。',
         action: 'Create Slime',
       } as const;
     }
     return {
-      title: 'Plain Slimeに剣を渡す',
-      body: 'Training Swordを使うと、最初のSword Slimeが生まれます。',
+      title: 'プレーンスライムに剣を渡す',
+      body: '訓練用の剣を渡すと、最初の剣士スライムが生まれます。',
       action: 'Create Job',
     } as const;
   }
@@ -51,7 +51,7 @@ export function selectEarlyGameCue(state: SlimeMercenariesState) {
   const fusion = previewSlimeFusion(state, 'sword');
   if (fusion.canFuse) {
     return {
-      title: 'Greatsword SlimeへFusion',
+      title: '大剣士スライムへ合成',
       body: '必要素材とLv.10を満たしました。攻撃が横薙ぎの範囲攻撃へ変わります。',
       action: 'Fuse',
     } as const;
@@ -60,23 +60,23 @@ export function selectEarlyGameCue(state: SlimeMercenariesState) {
   const duplicate = previewJobCreation(state, 'sword');
   if (!duplicate.isNewDiscovery && duplicate.canCreate && readToken(state.tokens, ids.token.swordCore) === 0) {
     return {
-      title: 'Sword Slimeをもう一度作る',
-      body: '発見済み職の再生成は同型を増やさず、Sword Coreへ変換されます。',
+      title: '剣士スライムをもう一度作る',
+      body: '発見済み職をもう一度作ると、同型を増やさず剣士の核へ変換されます。',
       action: 'Create Core',
     } as const;
   }
 
   if (sword.level < 10) {
     return {
-      title: '戦闘でGoldを集め、Lv.10へ強化',
-      body: 'GoldとFusion素材は自動戦闘で集まります。Slimesでレベルを上げると、その強さが戦闘へ戻ります。',
+      title: '戦闘でゴールドを集め、Lv.10へ強化',
+      body: 'ゴールドと合成素材は自動戦闘で集まります。キャンプでレベルを上げると、その強さが戦闘へ反映されます。',
       action: 'Battle',
     } as const;
   }
 
   return {
-    title: 'Fusion素材を集める',
-    body: 'Clover Roadを進めて、大剣の原型と硬化ジェルを揃えます。',
+    title: '合成素材を集める',
+    body: 'クローバー街道を進めて、大剣の原型と硬化ジェルを揃えます。',
     action: 'Battle',
   } as const;
 }
@@ -279,8 +279,8 @@ function findMaxAffordableLevelCount(state: SlimeMercenariesState, slimeId: JobS
 
 function rewardLabelForContract(contractId: DispatchContractId): string {
   switch (contractId) {
-    case 'roadEscort': return 'Gold';
-    case 'forestExploration': return 'Forge Key';
+    case 'roadEscort': return 'ゴールド';
+    case 'forestExploration': return '鍛造キー';
     case 'materialGathering': return '進化素材';
   }
 }

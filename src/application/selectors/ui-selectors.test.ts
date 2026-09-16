@@ -39,7 +39,7 @@ describe('UI selectors', () => {
   });
   it('guides first-use progression from Plain creation into battle without storing tutorial state', () => {
     const initial = createInitialSlimeMercenariesState(0, 7);
-    expect(selectEarlyGameCue(initial)?.title).toContain('Plain Slime');
+    expect(selectEarlyGameCue(initial)?.title).toContain('プレーンスライム');
 
     const crafted = craftPlainSlime(initial);
     if (!crafted.accepted) throw new Error('setup craft failed');

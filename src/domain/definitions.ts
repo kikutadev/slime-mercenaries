@@ -88,7 +88,7 @@ export const plainSlimeBalance = {
 export const jobCreationDefinitions: Readonly<Record<JobSlimeId, JobCreationDefinition>> = {
   sword: {
     id: 'sword',
-    displayName: 'Sword Slime',
+    displayName: '剣士スライム',
     plainSlimeCount: 1,
     jobGearTokenId: ids.token.trainingSword,
     jobGearCount: 1,
@@ -98,7 +98,7 @@ export const jobCreationDefinitions: Readonly<Record<JobSlimeId, JobCreationDefi
   },
   bow: {
     id: 'bow',
-    displayName: 'Bow Slime',
+    displayName: '弓士スライム',
     plainSlimeCount: 1,
     jobGearTokenId: ids.token.trainingBow,
     jobGearCount: 1,
@@ -136,7 +136,7 @@ export const initialEconomyBalance = {
 export const currencyDefinitions: readonly CurrencyDefinition[] = [
   {
     id: ids.currency.gold,
-    displayName: 'Gold',
+    displayName: 'ゴールド',
     symbol: 'G',
     precision: 0,
     roundingMode: 'floor',
@@ -287,34 +287,34 @@ export type WeaponDefinition = Readonly<{
 
 export const weaponDefinitions = {
   bronzeSaber: {
-    id: 'weapon.sword.bronze-saber', displayName: 'Bronze Saber', family: 'sword', rarity: 'common',
+    id: 'weapon.sword.bronze-saber', displayName: 'ブロンズセイバー', family: 'sword', rarity: 'common',
     dpsMultiplier: balance.equipment.weapons.bronzeSaber.dpsMultiplier,
-    item: { id: 'weapon.sword.bronze-saber', displayName: 'Bronze Saber', tags: ['weapon', 'family:sword'] },
+    item: { id: 'weapon.sword.bronze-saber', displayName: 'ブロンズセイバー', tags: ['weapon', 'family:sword'] },
   },
   cloverBlade: {
-    id: 'weapon.sword.clover-blade', displayName: 'Clover Blade', family: 'sword', rarity: 'rare',
+    id: 'weapon.sword.clover-blade', displayName: 'クローバーブレイド', family: 'sword', rarity: 'rare',
     dpsMultiplier: balance.equipment.weapons.cloverBlade.dpsMultiplier,
-    item: { id: 'weapon.sword.clover-blade', displayName: 'Clover Blade', tags: ['weapon', 'family:sword'] },
+    item: { id: 'weapon.sword.clover-blade', displayName: 'クローバーブレイド', tags: ['weapon', 'family:sword'] },
   },
   starcleaver: {
-    id: 'weapon.sword.starcleaver', displayName: 'Starcleaver', family: 'sword', rarity: 'mythic',
+    id: 'weapon.sword.starcleaver', displayName: '星断ちの大剣', family: 'sword', rarity: 'mythic',
     dpsMultiplier: balance.equipment.weapons.starcleaver.dpsMultiplier,
-    item: { id: 'weapon.sword.starcleaver', displayName: 'Starcleaver', tags: ['weapon', 'family:sword'] },
+    item: { id: 'weapon.sword.starcleaver', displayName: '星断ちの大剣', tags: ['weapon', 'family:sword'] },
   },
   hunterBow: {
-    id: 'weapon.bow.hunter-bow', displayName: 'Hunter Bow', family: 'bow', rarity: 'common',
+    id: 'weapon.bow.hunter-bow', displayName: '狩人の弓', family: 'bow', rarity: 'common',
     dpsMultiplier: balance.equipment.weapons.hunterBow.dpsMultiplier,
-    item: { id: 'weapon.bow.hunter-bow', displayName: 'Hunter Bow', tags: ['weapon', 'family:bow'] },
+    item: { id: 'weapon.bow.hunter-bow', displayName: '狩人の弓', tags: ['weapon', 'family:bow'] },
   },
   windstring: {
-    id: 'weapon.bow.windstring', displayName: 'Windstring', family: 'bow', rarity: 'rare',
+    id: 'weapon.bow.windstring', displayName: '風弦の弓', family: 'bow', rarity: 'rare',
     dpsMultiplier: balance.equipment.weapons.windstring.dpsMultiplier,
-    item: { id: 'weapon.bow.windstring', displayName: 'Windstring', tags: ['weapon', 'family:bow'] },
+    item: { id: 'weapon.bow.windstring', displayName: '風弦の弓', tags: ['weapon', 'family:bow'] },
   },
   cometString: {
-    id: 'weapon.bow.comet-string', displayName: 'Comet String', family: 'bow', rarity: 'mythic',
+    id: 'weapon.bow.comet-string', displayName: '彗星弓', family: 'bow', rarity: 'mythic',
     dpsMultiplier: balance.equipment.weapons.cometString.dpsMultiplier,
-    item: { id: 'weapon.bow.comet-string', displayName: 'Comet String', tags: ['weapon', 'family:bow'] },
+    item: { id: 'weapon.bow.comet-string', displayName: '彗星弓', tags: ['weapon', 'family:bow'] },
   },
 } as const satisfies Readonly<Record<string, WeaponDefinition>>;
 
@@ -368,14 +368,14 @@ export type PromotionDefinition = Readonly<{
 export const promotionDefinitions: Readonly<Record<JobSlimeId, readonly PromotionDefinition[]>> = {
   sword: [{
     id: 'promotion.sword.fighter', slimeId: 'sword', fromTier: 1, toTier: 2,
-    resultPathId: 'fighter', resultDisplayName: 'Fighter Slime',
+    resultPathId: 'fighter', resultDisplayName: '戦士スライム',
     minLevel: balance.promotion.swordFighter.minLevel,
     goldCost: balance.promotion.swordFighter.goldCost,
     recipe: [{ tokenId: ids.token.promotionMaterial, count: balance.promotion.swordFighter.promotionMaterial }],
   }],
   bow: [{
     id: 'promotion.bow.ranger', slimeId: 'bow', fromTier: 1, toTier: 2,
-    resultPathId: 'ranger', resultDisplayName: 'Ranger Slime',
+    resultPathId: 'ranger', resultDisplayName: 'レンジャースライム',
     minLevel: balance.promotion.bowRanger.minLevel,
     goldCost: balance.promotion.bowRanger.goldCost,
     recipe: [{ tokenId: ids.token.promotionMaterial, count: balance.promotion.bowRanger.promotionMaterial }],
@@ -489,7 +489,7 @@ export type DispatchContractDefinition = Readonly<{
 export const dispatchContractDefinitions = {
   roadEscort: {
     id: ids.activity.roadEscort,
-    displayName: 'Road Escort',
+    displayName: '街道護衛',
     requiredPower: balance.dispatch.roadEscort.requiredPower,
     activity: {
       id: ids.activity.roadEscort,
@@ -508,7 +508,7 @@ export const dispatchContractDefinitions = {
   },
   forestExploration: {
     id: ids.activity.forestExploration,
-    displayName: 'Forest Exploration',
+    displayName: '森林探索',
     requiredPower: balance.dispatch.forestExploration.requiredPower,
     activity: {
       id: ids.activity.forestExploration,
@@ -522,7 +522,7 @@ export const dispatchContractDefinitions = {
   },
   materialGathering: {
     id: ids.activity.materialGathering,
-    displayName: 'Material Gathering',
+    displayName: '素材採集',
     requiredPower: balance.dispatch.materialGathering.requiredPower,
     activity: {
       id: ids.activity.materialGathering,

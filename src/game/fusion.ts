@@ -27,7 +27,7 @@ const PRESENTATION: Readonly<Record<string, FusionPresentation>> = {
   'fusion.sword.01-greatsword': {
     title: '大剣士へ合成',
     description: '大剣を横へ寝かせ、キレのある半回転の横薙ぎで周囲をまとめて斬る形態になる',
-    resultName: 'Greatsword Slime',
+    resultName: '大剣士スライム',
   },
   'fusion.sword.02-heavy-impact': {
     title: '重撃強化',

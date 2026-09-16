@@ -13,7 +13,7 @@ describe('presentation event policy', () => {
       event('slimeJobDiscovered', { jobId: 'sword' }),
     ]);
     expect(notices).toHaveLength(2);
-    expect(notices[1]?.title).toContain('Sword Slime');
+    expect(notices[1]?.title).toContain('剣士スライム');
     expect(notices[1]?.presentationPriority).toBeGreaterThan(notices[0]?.presentationPriority ?? 0);
   });
 
@@ -24,7 +24,7 @@ describe('presentation event policy', () => {
 
   it('turns dispatch completion into a non-blocking reward notice', () => {
     const [notice] = toPresentationNotices([event('dispatchCompleted', { contractId: 'roadEscort' })]);
-    expect(notice?.title).toBe('Dispatch Returned');
+    expect(notice?.title).toBe('派遣帰還');
     expect(notice?.tone).toBe('reward');
   });
   it('aggregates offline progress into one summary instead of claim-by-claim UI', () => {

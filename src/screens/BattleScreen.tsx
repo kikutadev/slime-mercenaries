@@ -28,13 +28,13 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeI
 
   const battleStatus = useMemo(() => {
     if (state.gameData.combat.contentBoundaryReached) return '現在のエリアを踏破しました';
-    if (state.gameData.combat.blockedBossStage !== null) return 'Bossで停止中 · Slimesで強化';
+    if (state.gameData.combat.blockedBossStage !== null) return 'ボスで進行停止 · キャンプで強化';
     if (activeCount === 0) return '傭兵を編成すると自動戦闘が始まります';
     return battle.label;
   }, [activeCount, battle.label, state.gameData.combat.blockedBossStage, state.gameData.combat.contentBoundaryReached]);
 
   return (
-    <section className="screen screen--battle screen--active" aria-label="Battle">
+    <section className="screen screen--battle screen--active" aria-label="戦闘">
       {hasBattleSlime ? (
         <BattleCanvas model={sceneModel} onSnapshot={setBattle} />
       ) : (
@@ -46,15 +46,15 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeI
 
       <header className="battle-topbar">
         <div>
-          <p className="eyebrow">{hud.areaLabel.toUpperCase()} · STAGE {hud.stageLabel}</p>
-          <h1>Slime Mercenaries</h1>
+          <p className="eyebrow">{hud.areaLabel} · ステージ {hud.stageLabel}</p>
+          <h1>スライム傭兵団</h1>
         </div>
         <div className="resource-pill"><span className="resource-pill__coin">G</span><strong>{hud.gold}</strong></div>
       </header>
 
       {hasBattleSlime && (
-        <div className="battle-enemy-compact" aria-label="enemy health">
-          <div><strong>Forest Mushrooms</strong><span>{battle.enemyAlive} left</span></div>
+        <div className="battle-enemy-compact" aria-label="敵の体力">
+          <div><strong>森のキノコ</strong><span>残り{battle.enemyAlive}体</span></div>
           <div className="enemy-hp-track"><div className="enemy-hp-fill" style={{ transform: `scaleX(${enemyRatio})` }} /></div>
         </div>
       )}
@@ -64,7 +64,7 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeI
         {battleStatus}
       </div>
 
-      <div className="battle-party-rail" aria-label="active formation">
+      <div className="battle-party-rail" aria-label="出撃編成">
         {formation.map((slot) => {
           if (slot.slimeId === null) return <span className="party-dot party-dot--empty" key={slot.slotIndex}>{slot.slotIndex + 1}</span>;
           const sceneAlly = sceneModel.allies.find((ally) => ally.slimeId === slot.slimeId);

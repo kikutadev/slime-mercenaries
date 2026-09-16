@@ -30,7 +30,7 @@ export function ForgeScreen() {
     if (phase !== 'idle' && phase !== 'reveal') return;
     const result = controller.forge(count);
     if (!result.accepted) {
-      setNotice(result.reason === 'insufficient-token' ? 'Forge Keyが足りません' : `鍛造できません: ${result.reason}`);
+      setNotice(result.reason === 'insufficient-token' ? '鍛造キーが足りません' : `鍛造できません: ${result.reason}`);
       return;
     }
     const nextResults = result.events.flatMap((event) => {
@@ -52,7 +52,7 @@ export function ForgeScreen() {
       const best = [...nextResults].sort((left, right) => rarityRank(right.rarity) - rarityRank(left.rarity))[0];
       if (best !== undefined) {
         const weapon = weaponDefinitionsByDefinitionId[best.weaponDefinitionId];
-        setNotice(best.duplicate ? `${weapon.displayName} · Refinement +1` : `${weapon.displayName} を獲得`);
+        setNotice(best.duplicate ? `${weapon.displayName}  · 精錬 +1` : `${weapon.displayName} を獲得`);
       }
     }, 760);
   };
@@ -66,10 +66,10 @@ export function ForgeScreen() {
   const bestWeapon = bestResult === null ? null : weaponDefinitionsByDefinitionId[bestResult.weaponDefinitionId];
 
   return (
-    <section className={`screen screen--forge-world screen--active forge-phase--${phase}`} aria-label="Forge">
+    <section className={`screen screen--forge-world screen--active forge-phase--${phase}`} aria-label="鍛造">
       <header className="forge-world__topbar">
-        <div><p className="eyebrow">ARCANE WORKSHOP</p><h1>Forge</h1></div>
-        <div className="forge-world__keys"><span>◆</span><strong>{view.keys}</strong><small>KEY</small></div>
+        <div><p className="eyebrow">魔導工房</p><h1>鍛造</h1></div>
+        <div className="forge-world__keys"><span>◆</span><strong>{view.keys}</strong><small>キー</small></div>
       </header>
 
       <div className="forge-room">
@@ -91,34 +91,34 @@ export function ForgeScreen() {
         {phase === 'reveal' && bestWeapon !== null && (
           <div className={`forge-weapon-reveal rarity-${bestWeapon.rarity}`}>
             <div className="forge-weapon-reveal__burst" />
-            <span>{bestWeapon.rarity.toUpperCase()}</span>
+            <span>{rarityLabel(bestWeapon.rarity)}</span>
             <div className="forge-weapon-reveal__silhouette">{bestWeapon.family === 'sword' ? '⚔' : '➶'}</div>
             <strong>{bestWeapon.displayName}</strong>
-            <small>{bestResult?.duplicate ? 'REFINEMENT +1' : 'NEW WEAPON'}</small>
+            <small>{bestResult?.duplicate ? '精錬 +1' : '新武器'}</small>
           </div>
         )}
 
         {phase === 'idle' && (
           <div className="forge-room__prompt">
-            <span>KEYを炉へ投入</span>
+            <span>鍛造キーを炉へ投入</span>
             <strong>武器を鋳造する</strong>
-            <small>重複はRefinementへ変換</small>
+            <small>重複武器は精錬値へ変換</small>
           </div>
         )}
       </div>
 
       <div className="forge-console">
         <div className="forge-pity">
-          <div><span>MYTHIC PITY</span><strong>{view.pityMissCount} / {view.pityThreshold}</strong></div>
+          <div><span>神話級保証</span><strong>{view.pityMissCount} / {view.pityThreshold}</strong></div>
           <div className="forge-pity__track"><i style={{ transform: `scaleX(${view.pityProgress})` }} /></div>
         </div>
 
         <div className="forge-console__actions">
           <button type="button" disabled={!view.canSingle || phase === 'charging' || phase === 'impact'} onClick={() => draw(1)}>
-            <span>QUICK FORGE</span><strong>◆ {view.singleCost}</strong><small>1 weapon</small>
+            <span>1回鍛造</span><strong>◆ {view.singleCost}</strong><small>武器1個</small>
           </button>
           <button className="is-ten" type="button" disabled={!view.canTen || phase === 'charging' || phase === 'impact'} onClick={() => draw(10)}>
-            <span>MASS FORGE</span><strong>◆ {view.tenCost}</strong><small>10 weapons</small>
+            <span>10回鍛造</span><strong>◆ {view.tenCost}</strong><small>武器10個</small>
           </button>
         </div>
 
@@ -129,7 +129,7 @@ export function ForgeScreen() {
               return (
                 <div className={`rarity-${weapon.rarity}`} key={`${result.weaponDefinitionId}-${index}`}>
                   <span>{weapon.family === 'sword' ? '⚔' : '➶'}</span>
-                  <small>{result.duplicate ? '+1' : 'NEW'}</small>
+                  <small>{result.duplicate ? '+1' : '新規'}</small>
                 </div>
               );
             })}
@@ -137,15 +137,15 @@ export function ForgeScreen() {
         )}
 
         <details className="forge-collection">
-          <summary><span>WEAPON RACK</span><strong>{ownedWeapons.length} / {Object.keys(weaponDefinitions).length}</strong></summary>
+          <summary><span>武器棚</span><strong>{ownedWeapons.length} / {Object.keys(weaponDefinitions).length}</strong></summary>
           {ownedWeapons.length === 0 ? (
-            <div className="forge-collection__empty">まだ武器はありません。Battle / DispatchでForge Keyを集めます。</div>
+            <div className="forge-collection__empty">まだ武器はありません。戦闘や派遣で鍛造キーを集めます。</div>
           ) : (
             <div className="forge-collection__list">
               {ownedWeapons.map((weapon) => (
                 <div key={weapon.id}>
-                  <span className={`weapon-rarity weapon-rarity--${weapon.rarity}`}>{weapon.rarity.toUpperCase()}</span>
-                  <span><strong>{weapon.displayName}</strong><small>{weapon.family === 'sword' ? 'Sword' : 'Bow'} · DPS ×{weapon.dpsMultiplier.toFixed(2)}</small></span>
+                  <span className={`weapon-rarity weapon-rarity--${weapon.rarity}`}>{rarityLabel(weapon.rarity)}</span>
+                  <span><strong>{weapon.displayName}</strong><small>{weapon.family === 'sword' ? '剣' : '弓'} · 攻撃倍率 ×{weapon.dpsMultiplier.toFixed(2)}</small></span>
                   <em>+{weapon.refinementRank}</em>
                 </div>
               ))}
@@ -164,5 +164,13 @@ function rarityRank(rarity: string): number {
     case 'mythic': return 3;
     case 'rare': return 2;
     default: return 1;
+  }
+}
+
+function rarityLabel(rarity: string): string {
+  switch (rarity) {
+    case 'mythic': return '神話';
+    case 'rare': return '希少';
+    default: return '一般';
   }
 }

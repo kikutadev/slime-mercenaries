@@ -43,7 +43,7 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
       <div className="fusion-workbench fusion-workbench--empty">
         <button className="world-close" type="button" onClick={onClose}>×</button>
         <div className="fusion-complete-panel">
-          <span>FUSION</span>
+          <span>合成</span>
           <strong>現在の合成段階は上限です</strong>
           <button type="button" onClick={onClose}>キャンプへ戻る</button>
         </div>
@@ -71,13 +71,13 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
   };
 
   return (
-    <div className={`fusion-workbench ${run !== null ? 'is-running' : ''} ${completed ? 'is-complete' : ''}`} aria-label="Fusion workbench">
-      <button className="world-close" type="button" onClick={onClose} aria-label="close fusion">×</button>
+    <div className={`fusion-workbench ${run !== null ? 'is-running' : ''} ${completed ? 'is-complete' : ''}`} aria-label="合成祭壇">
+      <button className="world-close" type="button" onClick={onClose} aria-label="合成画面を閉じる">×</button>
 
       <div className="fusion-workbench__header">
-        <span>FUSION ALTAR</span>
+        <span>合成祭壇</span>
         <strong>{run?.fromName ?? (completed ? completedName ?? detail.name : detail.name)}</strong>
-        <small>Fusion Rank {displayFromRank} → {displayFromRank + 1}</small>
+        <small>合成ランク {displayFromRank} → {displayFromRank + 1}</small>
       </div>
 
       <div className="fusion-workbench__stage">
@@ -102,7 +102,7 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
       {!completed ? (
         <div className="fusion-workbench__console">
           <div className="fusion-result-tease">
-            <span>NEXT FORM</span>
+            <span>次の形態</span>
             <strong>{next.resultName ?? resultPresentation.name}</strong>
             <small>{next.description}</small>
           </div>
@@ -139,16 +139,16 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
             disabled={!detail.fusion.canFuse || run !== null}
             onClick={beginFusion}
           >
-            <span>{detail.fusion.canFuse ? 'READY TO FUSE' : 'MATERIALS REQUIRED'}</span>
+            <span>{detail.fusion.canFuse ? '合成可能' : '素材不足'}</span>
             <strong>{run !== null ? '合成中…' : detail.fusion.canFuse ? '合成する' : '素材を集める'}</strong>
           </button>
         </div>
       ) : (
         <div className="fusion-complete-panel">
-          <span>FUSION COMPLETE</span>
+          <span>合成完了</span>
           <strong>{completedName ?? resultPresentation.name}</strong>
           <p>{completedDescription ?? next.description}</p>
-          <div className="fusion-unlock-badge">NEW ATTACK · {completedBehavior ?? '新しい戦闘挙動'}</div>
+          <div className="fusion-unlock-badge">新攻撃 · {completedBehavior ?? '新しい戦闘挙動'}</div>
           <div className="fusion-result-actions">
             <button type="button" onClick={onClose}>キャンプで見る</button>
             <button className="is-primary" type="button" onClick={onBattle}>戦闘で試す</button>

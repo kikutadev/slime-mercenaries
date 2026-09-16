@@ -269,7 +269,7 @@ export function SlimePreview(props: SlimePreviewProps) {
   const current = getSlimePresentationForRank(props.slimeId, props.fusionRank);
   const result = getSlimePresentationForRank(props.slimeId, props.toRank);
   return (
-    <div className={`slime-preview fusion-stage ${props.isFusing ? 'is-fusing' : ''} ${props.fusionReady ? 'is-ready' : ''}`} aria-label={`${current.name} fusion preview`}>
+    <div className={`slime-preview fusion-stage ${props.isFusing ? 'is-fusing' : ''} ${props.fusionReady ? 'is-ready' : ''}`} aria-label={`${current.name} 合成プレビュー`}>
       <Canvas
         camera={{ fov: 28, near: 0.1, far: 30, position: [0, 1.8, 6.3] }}
         dpr={[1, 2]}
@@ -294,9 +294,9 @@ export function SlimePreview(props: SlimePreviewProps) {
           <meshStandardMaterial color="#dff0cf" roughness={1} transparent opacity={0.72} />
         </mesh>
       </Canvas>
-      {props.fusionReady && !props.isFusing && <div className="fusion-stage__merge-mark" aria-hidden="true"><span>＋</span><small>FUSE</small></div>}
+      {props.fusionReady && !props.isFusing && <div className="fusion-stage__merge-mark" aria-hidden="true"><span>＋</span><small>合成</small></div>}
       {props.isFusing && <div className="fusion-stage__flash" key={props.sequenceKey} aria-hidden="true" />}
-      {props.isFusing && <div className="fusion-stage__result" key={`result-${props.sequenceKey}`}><span>EVOLVED</span><strong>{result.name}</strong></div>}
+      {props.isFusing && <div className="fusion-stage__result" key={`result-${props.sequenceKey}`}><span>進化</span><strong>{result.name}</strong></div>}
     </div>
   );
 }

@@ -46,7 +46,7 @@ export interface FusionItemDefinition {
 export const SLIMES: Record<SlimeId, SlimeDefinition> = {
   sword: {
     id: 'sword',
-    name: 'Sword Slime',
+    name: '剣士スライム',
     role: '前衛・近接',
     tier: 1,
     asset: 'assets/sword-slime.glb',
@@ -62,7 +62,7 @@ export const SLIMES: Record<SlimeId, SlimeDefinition> = {
   },
   bow: {
     id: 'bow',
-    name: 'Bow Slime',
+    name: '弓士スライム',
     role: '後衛・射撃',
     tier: 1,
     asset: 'assets/archer-slime.glb',
@@ -88,8 +88,8 @@ export const FUSION_ITEMS: Record<FusionItemId, FusionItemDefinition> = {
 };
 
 const PROMOTED_NAMES: Readonly<Record<string, string>> = {
-  fighter: 'Fighter Slime',
-  ranger: 'Ranger Slime',
+  fighter: '戦士スライム',
+  ranger: 'レンジャースライム',
 };
 
 export function getSlimePresentation(slime: SlimeProgress): SlimePresentation {
@@ -98,7 +98,7 @@ export function getSlimePresentation(slime: SlimeProgress): SlimePresentation {
   if (slime.typeId === 'sword' && slime.fusionRank >= 2) {
     return {
       ...base,
-      name: promotedName ?? 'Greatsword Slime',
+      name: promotedName ?? '大剣士スライム',
       role: '前衛・範囲重撃',
       tier: slime.jobTier,
       asset: 'assets/greatsword-slime.glb',

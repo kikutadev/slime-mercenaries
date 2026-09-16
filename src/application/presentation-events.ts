@@ -18,43 +18,43 @@ export function toPresentationNotices(events: readonly DomainEvent[]): readonly 
   return events.flatMap((event) => {
     switch (event.type) {
       case 'combatWaveCleared':
-        return [notice(event, 'Wave Clear', randomDropLabel(event) ?? '報酬を獲得', 'reward', 10, 'combat-reward')];
+        return [notice(event, 'ウェーブ突破', randomDropLabel(event) ?? '報酬を獲得', 'reward', 10, 'combat-reward')];
       case 'stageCleared':
-        return [notice(event, `Stage ${numberPayload(event, 'stageNumber') ?? ''} Clear`, '次の戦場へ進みます', 'milestone', 45, 'stage-progress')];
+        return [notice(event, `ステージ ${numberPayload(event, 'stageNumber') ?? ''} 突破`, '次の戦場へ進みます', 'milestone', 45, 'stage-progress')];
       case 'bossDefeated':
-        return [notice(event, 'Boss Defeated', '大きな報酬を獲得', 'milestone', 65, 'boss-state')];
+        return [notice(event, 'ボス撃破', '大きな報酬を獲得', 'milestone', 65, 'boss-state')];
       case 'bossBlocked':
         return [{
-          ...notice(event, 'Bossで進行停止', 'Slimesで強化して再挑戦できます', 'warning', 70, 'boss-state'),
+          ...notice(event, 'ボスで進行停止', 'キャンプで強化して再挑戦できます', 'warning', 70, 'boss-state'),
           presentationPreemption: 'discard-current' as const,
         }];
       case 'slimeJobDiscovered': {
         const jobId = stringPayload(event, 'jobId') as JobSlimeId | null;
-        const name = jobId === null ? 'New Slime' : jobCreationDefinitions[jobId]?.displayName ?? 'New Slime';
+        const name = jobId === null ? '新しいスライム' : jobCreationDefinitions[jobId]?.displayName ?? '新しいスライム';
         return [{
-          ...notice(event, `NEW · ${name}`, '新しい職業を発見しました', 'milestone', 90),
+          ...notice(event, `新発見 · ${name}`, '新しい職業を発見しました', 'milestone', 90),
           presentationPreemption: 'resume-current' as const,
         }];
       }
       case 'slimeFusionCoreCreated': {
         const jobId = stringPayload(event, 'jobId') as JobSlimeId | null;
-        const name = jobId === null ? 'Slime' : jobCreationDefinitions[jobId]?.displayName ?? 'Slime';
-        return [notice(event, `${name} Core`, '同じ職業を再生成し、Fusion素材へ変換', 'reward', 30, `fusion-core:${jobId ?? 'unknown'}`)];
+        const name = jobId === null ? 'スライム' : jobCreationDefinitions[jobId]?.displayName ?? 'スライム';
+        return [notice(event, `${name}の核`, '同じ職業を再生成し、合成素材へ変換', 'reward', 30, `fusion-core:${jobId ?? 'unknown'}`)];
       }
       case 'slimeFused':
         return [{
-          ...notice(event, 'Fusion Complete', '新しい戦闘挙動を解放しました', 'milestone', 85),
+          ...notice(event, '合成完了', '新しい戦闘挙動を解放しました', 'milestone', 85),
           presentationPreemption: 'resume-current' as const,
         }];
       case 'slimePromoted':
         return [{
-          ...notice(event, 'Promotion Complete', 'Tierが上昇しました', 'milestone', 85),
+          ...notice(event, '昇格完了', '職業ランクが上昇しました', 'milestone', 85),
           presentationPreemption: 'resume-current' as const,
         }];
       case 'dispatchCompleted':
-        return [notice(event, 'Dispatch Returned', '派遣報酬は自動で反映済みです', 'reward', 42, 'dispatch-return')];
+        return [notice(event, '派遣帰還', '派遣報酬は自動で反映済みです', 'reward', 42, 'dispatch-return')];
       case 'weaponEquipped':
-        return [notice(event, 'Weapon Equipped', '次の戦闘から装備を反映', 'system', 22, 'weapon-equipped')];
+        return [notice(event, '武器を装備', '次の戦闘から装備を反映', 'system', 22, 'weapon-equipped')];
       default:
         return [];
     }

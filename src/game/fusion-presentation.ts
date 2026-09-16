@@ -14,37 +14,37 @@ const PRESENTATION: Readonly<Record<string, FusionIngredientPresentation>> = {
   [ids.token.swordCore]: {
     kind: 'core',
     asset: 'assets/fusion/core-sword.svg',
-    sourceLabel: '同じSword職を再作成',
+    sourceLabel: '剣士スライムをもう一度作る',
     route: 'recruit',
   },
   [ids.token.bowCore]: {
     kind: 'core',
     asset: 'assets/fusion/core-bow.svg',
-    sourceLabel: '同じBow職を再作成',
+    sourceLabel: '弓士スライムをもう一度作る',
     route: 'recruit',
   },
   [ids.token.greatswordBlank]: {
     kind: 'weapon',
     asset: 'assets/fusion/greatsword-blank.svg',
-    sourceLabel: 'Clover Road Stage 2',
+    sourceLabel: 'クローバー街道 ステージ2',
     route: 'battle',
   },
   [ids.token.reinforcedBow]: {
     kind: 'weapon',
     asset: 'assets/fusion/reinforced-bow.svg',
-    sourceLabel: 'Clover Road Stage 4',
+    sourceLabel: 'クローバー街道 ステージ4',
     route: 'battle',
   },
   [ids.token.temperedSteel]: {
     kind: 'steel',
     asset: 'assets/fusion/tempered-steel.svg',
-    sourceLabel: 'Clover Road後半Stage',
+    sourceLabel: 'クローバー街道 後半ステージ',
     route: 'battle',
   },
   [ids.token.hardeningGel]: {
     kind: 'gel',
     asset: 'assets/fusion/hardening-gel.svg',
-    sourceLabel: 'Battle Drop',
+    sourceLabel: '戦闘ドロップ',
     route: 'battle',
   },
 };

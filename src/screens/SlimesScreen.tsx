@@ -61,7 +61,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
       if (open >= 0) controller.assignSlime(jobId, open);
       setNotice(`${getSlimePresentation(result.state.gameData.roster.slimes[jobId]!).name} が仲間になりました`);
     } else {
-      setNotice(`${getSlimePresentation(result.state.gameData.roster.slimes[jobId]!).name} Coreを獲得`);
+      setNotice(`${getSlimePresentation(result.state.gameData.roster.slimes[jobId]!).name} の核を獲得`);
     }
     setCreateOpen(false);
   };
@@ -78,13 +78,13 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   }
 
   return (
-    <section className="screen screen--camp screen--active" aria-label="Camp">
+    <section className="screen screen--camp screen--active" aria-label="キャンプ">
       <header className="camp-topbar">
-        <div><p className="eyebrow">MERCENARY CAMP</p><h1>Camp</h1></div>
+        <div><p className="eyebrow">傭兵団の拠点</p><h1>キャンプ</h1></div>
         <div className="camp-resources"><span>G</span><strong>{hud.gold}</strong></div>
       </header>
 
-      <div className="camp-roster" aria-label="owned slimes">
+      <div className="camp-roster" aria-label="仲間のスライム">
         {ownedIds.map((id) => {
           const slime = state.gameData.roster.slimes[id]!;
           const p = getSlimePresentation(slime);
@@ -129,21 +129,21 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                       onFusionComplete={() => undefined}
               />
               <div className="camp-slime-name">
-                <span>{detail.role}</span><strong>{detail.name}</strong><small>Lv.{detail.level} · Fusion {detail.fusionRank}</small>
+                <span>{detail.role}</span><strong>{detail.name}</strong><small>Lv.{detail.level} · 合成ランク {detail.fusionRank}</small>
               </div>
             </div>
 
             <button className={`camp-hotspot camp-hotspot--train ${mode === 'train' ? 'is-active' : ''}`} type="button" onClick={() => setMode(mode === 'train' ? 'none' : 'train')}>
-              <span>⚔</span><strong>Training</strong><small>育成</small>
+              <span>⚔</span><strong>訓練</strong><small>育成</small>
             </button>
             <button className={`camp-hotspot camp-hotspot--fusion ${detail.fusion?.canFuse ? 'is-ready' : ''}`} type="button" onClick={() => setMode('fusion')}>
-              <span>✦</span><strong>Fusion</strong><small>{detail.fusion?.canFuse ? 'READY!' : '合成台'}</small>
+              <span>✦</span><strong>合成</strong><small>{detail.fusion?.canFuse ? '合成可能' : '合成台'}</small>
             </button>
             <button className={`camp-hotspot camp-hotspot--weapon ${mode === 'weapon' ? 'is-active' : ''}`} type="button" onClick={() => setMode(mode === 'weapon' ? 'none' : 'weapon')}>
-              <span>⌁</span><strong>Arsenal</strong><small>{detail.weaponName}</small>
+              <span>⌁</span><strong>武器庫</strong><small>{detail.weaponName}</small>
             </button>
             <button className={`camp-hotspot camp-hotspot--formation ${mode === 'formation' ? 'is-active' : ''}`} type="button" onClick={() => setMode(mode === 'formation' ? 'none' : 'formation')}>
-              <span>⚑</span><strong>Formation</strong><small>{detail.assignment === 'battle' ? '出撃中' : '控え'}</small>
+              <span>⚑</span><strong>編成</strong><small>{detail.assignment === 'battle' ? '出撃中' : '控え'}</small>
             </button>
 
             {cue !== null && (
@@ -152,14 +152,14 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                 else if (cue.action === 'Fuse') setMode('fusion');
                 else setCreateOpen(true);
               }}>
-                <span>NEXT</span><strong>{cue.title}</strong><em>›</em>
+                <span>次へ</span><strong>{cue.title}</strong><em>›</em>
               </button>
             )}
           </div>
 
           {mode === 'train' && (
             <div className="camp-action-dock camp-action-dock--train">
-              <div><span>TRAINING</span><strong>Goldを力に変える</strong><small>強化するとすぐ戦闘能力へ反映されます</small></div>
+              <div><span>訓練</span><strong>ゴールドを力に変える</strong><small>強化するとすぐ戦闘能力へ反映されます</small></div>
               <div className="camp-level-buttons">
                 {[detail.levelActions.one, detail.levelActions.ten, detail.levelActions.max].map((action, index) => (
                   <button
@@ -168,7 +168,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                     disabled={action === null || !action.available}
                     onClick={() => action !== null && runAction(`Lv.${action.targetLevel}へ強化`, () => controller.levelUpSlime(selected, action.count))}
                   >
-                    <span>{index === 0 ? '+1' : index === 1 ? '+10' : 'MAX'}</span>
+                    <span>{index === 0 ? '+1' : index === 1 ? '+10' : '最大'}</span>
                     <strong>{action?.cost ?? '—'} G</strong>
                   </button>
                 ))}
@@ -178,7 +178,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
 
           {mode === 'weapon' && (
             <div className="camp-action-dock camp-action-dock--weapon">
-              <div><span>ARSENAL</span><strong>武器を付け替える</strong><small>武器はForgeで獲得できます</small></div>
+              <div><span>武器庫</span><strong>武器を付け替える</strong><small>武器は鍛造で獲得できます</small></div>
               <div className="camp-weapon-strip">
                 {compatibleWeapons.map((weapon) => {
                   const instance = Object.values(state.gameData.equipment.inventory).find((item) => item.definitionId === weapon.id);
@@ -189,8 +189,8 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                       const result = controller.equipWeapon(selected, weapon.id);
                       setNotice(result.accepted ? `${weapon.displayName}を装備` : rejectionLabel(result.reason));
                     }}>
-                      <span className={`weapon-rarity weapon-rarity--${weapon.rarity}`}>{weapon.rarity.toUpperCase()}</span>
-                      <strong>{weapon.displayName}</strong><small>{equipped ? 'EQUIPPED' : owned ? `DPS ×${weapon.dpsMultiplier.toFixed(2)}` : '未所持'}</small>
+                      <span className={`weapon-rarity weapon-rarity--${weapon.rarity}`}>{rarityLabel(weapon.rarity)}</span>
+                      <strong>{weapon.displayName}</strong><small>{equipped ? '装備中' : owned ? `攻撃倍率 ×${weapon.dpsMultiplier.toFixed(2)}` : '未所持'}</small>
                     </button>
                   );
                 })}
@@ -200,7 +200,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
 
           {mode === 'formation' && (
             <div className="camp-action-dock camp-action-dock--formation">
-              <div><span>FORMATION</span><strong>出撃する位置を決める</strong><small>タップした枠へ選択中のスライムを配置</small></div>
+              <div><span>編成</span><strong>出撃する位置を決める</strong><small>タップした枠へ選択中のスライムを配置</small></div>
               <div className="camp-formation-strip">
                 {formation.map((slot) => (
                   <button
@@ -226,7 +226,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
 
       {createOpen && (
         <BottomSheet
-          title="Slime Nursery"
+          title="スライム育成所"
           onClose={() => setCreateOpen(false)}
           backdropClassName="sheet-backdrop"
           sheetClassName="sheet-panel nursery-sheet"
@@ -234,22 +234,22 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
           closeButtonClassName="sheet-close"
         >
           <div className="nursery-world">
-            <div className="nursery-vat"><div className="nursery-vat__bubble">●</div><span>PLAIN STOCK</span><strong>{createPanel.plainStock}</strong></div>
+            <div className="nursery-vat"><div className="nursery-vat__bubble">●</div><span>プレーンスライム</span><strong>{createPanel.plainStock}</strong></div>
             <div className="nursery-actions">
-              <button type="button" disabled={!createPanel.craft.canCraft} onClick={() => runAction('Plain Slimeが生まれました', () => controller.craftPlainSlime(1))}>
+              <button type="button" disabled={!createPanel.craft.canCraft} onClick={() => runAction('プレーンスライムが生まれました', () => controller.craftPlainSlime(1))}>
                 <span>♨</span><strong>素材から生み出す</strong><small>{createPanel.craft.requirements.map((item) => `${resourceLabel(item.tokenId)} ${item.owned}/${item.required}`).join(' · ')}</small>
               </button>
-              <button type="button" disabled={!createPanel.purchase.canAfford} onClick={() => runAction('Plain Slimeを迎えました', () => controller.buyPlainSlime(1))}>
+              <button type="button" disabled={!createPanel.purchase.canAfford} onClick={() => runAction('プレーンスライムを迎えました', () => controller.buyPlainSlime(1))}>
                 <span>G</span><strong>ショップから迎える</strong><small>{createPanel.purchase.cost} G</small>
               </button>
             </div>
-            <div className="nursery-job-title"><span>JOB GEAR</span><strong>道具を渡して職業を生む</strong></div>
+            <div className="nursery-job-title"><span>職業装備</span><strong>道具を渡して職業を生む</strong></div>
             <div className="nursery-jobs">
               {createPanel.jobs.map((job) => (
                 <button key={job.id} type="button" disabled={!job.canCreate} onClick={() => handleCreateJob(job.id)}>
                   <img src={`${import.meta.env.BASE_URL}${job.icon}`} alt="" />
-                  <span><strong>{job.name}</strong><small>{job.isNew ? 'NEW JOB' : '再生成 → Fusion Core'}</small></span>
-                  <em>{job.canCreate ? 'CREATE' : '素材不足'}</em>
+                  <span><strong>{job.name}</strong><small>{job.isNew ? '新しい職業' : '再生成 → 合成の核'}</small></span>
+                  <em>{job.canCreate ? '作成' : '素材不足'}</em>
                 </button>
               ))}
             </div>
@@ -263,8 +263,8 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
 function rejectionLabel(reason: string | undefined): string {
   switch (reason) {
     case 'insufficient-materials': return '素材が足りません';
-    case 'insufficient-inputs': return 'Plain SlimeまたはJob Gearが足りません';
-    case 'insufficient-gold': return 'Goldが足りません';
+    case 'insufficient-inputs': return 'プレーンスライムまたは職業装備が足りません';
+    case 'insufficient-gold': return 'ゴールドが足りません';
     case 'dispatched': return '派遣中です';
     case 'weapon-not-owned': return 'その武器を所持していません';
     default: return reason === undefined ? '実行できませんでした' : `実行できません: ${reason}`;
@@ -272,7 +272,15 @@ function rejectionLabel(reason: string | undefined): string {
 }
 
 function resourceLabel(tokenId: string): string {
-  if (tokenId === ids.token.slimeGel) return 'Gel';
-  if (tokenId === ids.token.lifeWater) return 'Life Water';
+  if (tokenId === ids.token.slimeGel) return 'スライムジェル';
+  if (tokenId === ids.token.lifeWater) return '生命の水';
   return tokenId;
+}
+
+function rarityLabel(rarity: string): string {
+  switch (rarity) {
+    case 'mythic': return '神話';
+    case 'rare': return '希少';
+    default: return '一般';
+  }
 }

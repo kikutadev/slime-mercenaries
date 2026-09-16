@@ -47,7 +47,7 @@ export function AppShell() {
       <main className="page">
         <section className="game-shell game-shell--loading">
           <div className="loading-slime">●</div>
-          <strong>Slime Mercenaries</strong>
+          <strong>スライム傭兵団</strong>
           <span>セーブデータを読み込み中…</span>
         </section>
       </main>
@@ -74,7 +74,7 @@ export function AppShell() {
 
   return (
     <main className="page">
-      <section className="game-shell" aria-label="Slime Mercenaries">
+      <section className="game-shell" aria-label="スライム傭兵団">
         <div className="app-content">
           {screen === 'battle' && <BattleScreen onOpenSlime={openSlime} />}
           {screen === 'slimes' && <SlimesScreen selectedId={selectedSlimeId} onSelect={setSelectedSlimeId} onOpenBattle={() => setScreen('battle')} />}
@@ -93,18 +93,18 @@ export function AppShell() {
           >
             <div className="offline-summary">
               <div className="offline-summary__hero">
-                <span>OFFLINE PROGRESS</span>
+                <span>放置進行</span>
                 <strong>{offlineReturn.elapsedLabel}</strong>
                 <small>放置中も傭兵団は進み続けました。</small>
               </div>
               <div className="offline-summary__grid">
-                <div><span>到達</span><strong>Stage {offlineReturn.furthestStage}</strong></div>
-                <div><span>Stage Clear</span><strong>{offlineReturn.stageClearCount}</strong></div>
-                <div><span>Boss</span><strong>{offlineReturn.bossDefeatedCount}</strong></div>
+                <div><span>到達</span><strong>ステージ {offlineReturn.furthestStage}</strong></div>
+                <div><span>ステージ突破</span><strong>{offlineReturn.stageClearCount}</strong></div>
+                <div><span>ボス撃破</span><strong>{offlineReturn.bossDefeatedCount}</strong></div>
                 <div><span>派遣帰還</span><strong>{offlineReturn.dispatchCompletedCount}</strong></div>
               </div>
               {offlineReturn.materialDropCount > 0 && (
-                <div className="offline-summary__reward"><span>Battle Drops</span><strong>素材 +{offlineReturn.materialDropCount}</strong></div>
+                <div className="offline-summary__reward"><span>戦闘ドロップ</span><strong>素材 +{offlineReturn.materialDropCount}</strong></div>
               )}
               <button className="primary-button" type="button" onClick={() => { setOfflineDismissed(true); setScreen('battle'); }}>戦闘へ戻る</button>
             </div>
@@ -121,17 +121,17 @@ export function AppShell() {
             type="button"
             onClick={presentation.dismissCurrent}
           >
-            <span>{presentation.current.tone === 'milestone' ? 'MILESTONE' : presentation.current.tone === 'warning' ? 'ATTENTION' : 'UPDATE'}</span>
+            <span>{presentation.current.tone === 'milestone' ? '達成' : presentation.current.tone === 'warning' ? '注意' : '更新'}</span>
             <strong>{presentation.current.title}</strong>
             {presentation.current.body !== undefined && <small>{presentation.current.body}</small>}
           </button>
         )}
 
-        <nav className="bottom-nav bottom-nav--four" aria-label="primary navigation">
-          <NavButton id="battle" label="Battle" icon="⚔" active={screen === 'battle'} attention={false} onClick={setScreen} />
-          <NavButton id="slimes" label="Camp" icon="⌂" active={screen === 'slimes'} attention={attention.has('slimes')} onClick={setScreen} />
-          <NavButton id="dispatch" label="Dispatch" icon="↗" active={screen === 'dispatch'} attention={attention.has('dispatch')} onClick={setScreen} />
-          <NavButton id="forge" label="Forge" icon="◆" active={screen === 'forge'} attention={attention.has('forge')} onClick={setScreen} />
+        <nav className="bottom-nav bottom-nav--four" aria-label="メインメニュー">
+          <NavButton id="battle" label="戦闘" icon="⚔" active={screen === 'battle'} attention={false} onClick={setScreen} />
+          <NavButton id="slimes" label="キャンプ" icon="⌂" active={screen === 'slimes'} attention={attention.has('slimes')} onClick={setScreen} />
+          <NavButton id="dispatch" label="派遣" icon="↗" active={screen === 'dispatch'} attention={attention.has('dispatch')} onClick={setScreen} />
+          <NavButton id="forge" label="鍛造" icon="◆" active={screen === 'forge'} attention={attention.has('forge')} onClick={setScreen} />
         </nav>
       </section>
     </main>
@@ -157,7 +157,7 @@ function NavButton({
     <button className={active ? 'is-active' : ''} type="button" onClick={() => onClick(id)}>
       <span className="nav-icon">{icon}</span>
       <span>{label}</span>
-      {attention && <span className="nav-notice" aria-label="action available" />}
+      {attention && <span className="nav-notice" aria-label="実行できる項目があります" />}
     </button>
   );
 }
