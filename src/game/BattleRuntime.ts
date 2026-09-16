@@ -787,7 +787,8 @@ export class BattleRuntime {
     target.hitStartedAt = this.simulationNow;
     this.tempVector.copy(target.root.position);
     this.tempVector.y += target.side === 'enemy' ? 0.28 : 0.22;
-    this.createImpact(this.tempVector, target.side === 'enemy' ? '#fff0a0' : '#ffb4a8', target.side === 'enemy' ? 0.11 : 0.09);
+    const impactSize = target.side === 'enemy' ? (source === 'sword' ? 0.082 : 0.11) : 0.09;
+    this.createImpact(this.tempVector, target.side === 'enemy' ? '#fff0a0' : '#ffb4a8', impactSize);
     this.startCameraShake(0.12, target.side === 'enemy' ? 0.025 : 0.017);
     if (source !== 'arrow') this.startHitStop(source === 'enemy' ? 0.028 : 0.038);
 
@@ -931,7 +932,7 @@ export class BattleRuntime {
         this.swordAttackTarget = target;
         this.swordHitsApplied = 0;
         this.swordAttackHitCount = 1;
-        this.nextSwordAttackAt = now + (greatsword ? 1.55 : 1.08);
+        this.nextSwordAttackAt = now + 1.08;
       }
     }
 
@@ -1034,53 +1035,86 @@ export class BattleRuntime {
   }
 
   private updateGreatswordAttack(now: number, sword: AllyUnit, target: EnemyUnit, fusionRank: number): void {
-    const duration = 1.18;
+    // Greatsword is a fast, edge-led horizontal sweep rather than a slow full spin.
+    // The body only turns about half a rotation while the blade stays nearly parallel
+    // to the ground through the damaging portion of the attack.
+    const duration = 0.60;
     const u = clamp01((now - this.swordAttackStartedAt) / duration);
-    const anticipation = clamp01(u / 0.22);
-    const spinU = clamp01((u - 0.18) / 0.62);
-    const recovery = clamp01((u - 0.80) / 0.20);
-    const spinEase = easeInOutCubic(spinU);
+    const anticipation = clamp01(u / 0.16);
+    const slashU = clamp01((u - 0.14) / 0.22);
+    const slashEase = 1 - ((1 - slashU) ** 4);
+    const settle = clamp01((u - 0.52) / 0.48);
+    const settleEase = easeOutCubic(settle);
 
     sword.root.position.copy(SWORD_ATTACK_POS);
     this.facePoint(sword, target.root.position);
     const facing = sword.root.rotation.y;
-    sword.root.rotation.y = facing + spinEase * Math.PI * 2;
+    const windupOffset = -0.30 * anticipation;
+    const sweepEndOffset = -0.30 + Math.PI * 0.78;
+    const sweepOffset = slashU < 1
+      ? THREE.MathUtils.lerp(windupOffset, sweepEndOffset, slashEase)
+      : THREE.MathUtils.lerp(sweepEndOffset, 0, settleEase);
+    sword.root.rotation.y = facing + sweepOffset;
 
-    const squash = u < 0.22
-      ? 0.34 * anticipation
-      : Math.max(0, 0.12 * (1 - recovery));
-    const stretch = spinU > 0 && spinU < 1 ? 0.24 * Math.sin(spinU * Math.PI) : 0;
-    const wobble = spinU > 0 && spinU < 1 ? Math.sin(spinU * Math.PI * 4) * 0.08 : 0;
-    this.applyUnitDeformation(sword, squash, stretch, -0.10 * anticipation, wobble, 0);
+    const squash = u < 0.18
+      ? 0.28 * anticipation
+      : 0.05 * (1 - settleEase);
+    const stretch = slashU > 0 && slashU < 1 ? 0.30 * Math.sin(slashU * Math.PI) : 0;
+    const wobble = slashU > 0 && slashU < 1 ? Math.sin(slashU * Math.PI * 2) * 0.07 : 0;
+    this.applyUnitDeformation(sword, squash, stretch, -0.08 * anticipation, wobble, 0);
+
+    const horizontalTilt = slashU > 0
+      ? THREE.MathUtils.lerp(-1.52, -1.68, Math.sin(slashU * Math.PI))
+      : THREE.MathUtils.lerp(0, -1.52, anticipation);
+    const recoverTilt = settle > 0 ? THREE.MathUtils.lerp(horizontalTilt, 0, settleEase) : horizontalTilt;
+    const sweep = slashU > 0
+      ? THREE.MathUtils.lerp(-0.78, -1.02, Math.sin(slashU * Math.PI))
+      : THREE.MathUtils.lerp(0, -0.78, anticipation);
     this.setEquipmentSwing(
       sword,
-      THREE.MathUtils.lerp(-0.35, 0.10, spinEase),
-      0.018 * Math.sin(spinU * Math.PI),
-      0.30 * Math.sin(spinU * Math.PI),
+      recoverTilt,
+      0.012 * Math.sin(slashU * Math.PI),
+      settle > 0 ? THREE.MathUtils.lerp(sweep, 0, settleEase) : sweep,
     );
 
     if (this.spinArc) {
-      const pulse = spinU > 0 && spinU < 1 ? Math.sin(spinU * Math.PI) : 0;
+      const pulse = slashU > 0 && slashU < 1 ? Math.sin(slashU * Math.PI) : 0;
       this.spinArc.visible = pulse > 0.01;
-      this.spinArc.position.set(sword.root.position.x, 0.12, sword.root.position.z);
-      const radiusScale = fusionRank >= 4 ? 1.62 : fusionRank >= 3 ? 1.50 : 1.38;
-      this.spinArc.scale.setScalar(radiusScale * (0.88 + pulse * 0.18));
-      this.spinArc.material.opacity = pulse * 0.70;
+      this.tempVector.copy(target.root.position).sub(sword.root.position).setY(0);
+      if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
+      this.spinArc.position.copy(sword.root.position).addScaledVector(this.tempVector, 0.28);
+      this.spinArc.position.y = 0.30;
+      this.spinArc.quaternion.copy(this.camera.quaternion);
+      this.spinArc.rotation.z = THREE.MathUtils.lerp(-0.72, 0.28, slashEase);
+      const radiusScale = fusionRank >= 4 ? 1.58 : fusionRank >= 3 ? 1.48 : 1.38;
+      this.spinArc.scale.set(
+        radiusScale * (1.22 + pulse * 0.14),
+        radiusScale * (0.38 + pulse * 0.05),
+        1,
+      );
+      this.spinArc.material.opacity = pulse * 0.74;
     }
 
-    if (spinU >= 0.46 && this.swordHitsApplied === 0) {
+    if (slashU >= 0.50 && this.swordHitsApplied === 0) {
       this.swordHitsApplied = 1;
-      const radius = fusionRank >= 4 ? 1.28 : fusionRank >= 3 ? 1.18 : 1.08;
+      const radius = fusionRank >= 4 ? 1.34 : fusionRank >= 3 ? 1.24 : 1.14;
       const damage = fusionRank >= 3 ? 3 : 2;
+      this.tempVector.copy(target.root.position).sub(sword.root.position).setY(0);
+      if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
+      const cosHalfArc = Math.cos(THREE.MathUtils.degToRad(108));
       const targets = this.getLivingEnemies().filter((enemy) => {
-        const dx = enemy.root.position.x - sword.root.position.x;
-        const dz = enemy.root.position.z - sword.root.position.z;
-        return (dx * dx + dz * dz) <= radius * radius;
+        this.tempVector2.copy(enemy.root.position).sub(sword.root.position).setY(0);
+        const distanceSq = this.tempVector2.lengthSq();
+        if (distanceSq > radius * radius) return false;
+        if (distanceSq <= 0.0001) return true;
+        this.tempVector2.normalize();
+        return this.tempVector.dot(this.tempVector2) >= cosHalfArc;
       });
       for (const enemy of targets) {
         this.applyDamage(enemy, damage, 'sword', sword.root.position);
       }
-      this.createImpact(sword.root.position.clone().add(new THREE.Vector3(0, 0.14, 0)), '#fff0a0', 0.16);
+      this.createImpact(sword.root.position.clone().add(new THREE.Vector3(0, 0.14, 0)), '#fff0a0', 0.10);
+      this.startCameraShake(0.11, 0.036);
     }
 
     if (u >= 1) {

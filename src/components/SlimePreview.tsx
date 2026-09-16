@@ -35,6 +35,8 @@ const LEFT_X = -0.82;
 const RIGHT_X = 0.82;
 const tempQuaternion = new THREE.Quaternion();
 const swordAxis = new THREE.Vector3(1, 0, 0);
+const swordSweepAxis = new THREE.Vector3(0, 0, 1);
+const tempSweepQuaternion = new THREE.Quaternion();
 const bowAxis = new THREE.Vector3(0, 0, 1);
 
 function setMorph(body: MorphMesh | null, name: string, value: number) {
@@ -80,21 +82,35 @@ function animateResultAttack(parts: ModelParts, slimeId: SlimeId, fusionRank: nu
   if (slimeId !== 'sword' || !parts.equipment) return 0;
 
   if (isGreatswordRank(fusionRank)) {
-    const anticipation = THREE.MathUtils.clamp(u / 0.22, 0, 1);
-    const spinU = THREE.MathUtils.clamp((u - 0.18) / 0.62, 0, 1);
-    const spinEase = spinU < 0.5
-      ? 4 * spinU * spinU * spinU
-      : 1 - ((-2 * spinU + 2) ** 3) / 2;
-    const recovery = THREE.MathUtils.clamp((u - 0.80) / 0.20, 0, 1);
-    const squash = u < 0.22 ? 0.34 * anticipation : 0.10 * (1 - recovery);
-    const stretch = spinU > 0 && spinU < 1 ? 0.25 * Math.sin(spinU * Math.PI) : 0;
-    const wobble = spinU > 0 && spinU < 1 ? Math.sin(spinU * Math.PI * 4) * 0.08 : 0;
+    const anticipation = THREE.MathUtils.clamp(u / 0.16, 0, 1);
+    const slashU = THREE.MathUtils.clamp((u - 0.14) / 0.22, 0, 1);
+    const slashEase = 1 - ((1 - slashU) ** 4);
+    const settle = THREE.MathUtils.clamp((u - 0.52) / 0.48, 0, 1);
+    const settleEase = 1 - ((1 - settle) ** 3);
+    const squash = u < 0.18 ? 0.28 * anticipation : 0.05 * (1 - settleEase);
+    const stretch = slashU > 0 && slashU < 1 ? 0.30 * Math.sin(slashU * Math.PI) : 0;
+    const wobble = slashU > 0 && slashU < 1 ? Math.sin(slashU * Math.PI * 2) * 0.07 : 0;
     setMorph(parts.body, 'Squash', squash);
     setMorph(parts.body, 'Stretch', stretch);
     setMorph(parts.body, wobble < 0 ? 'WobbleLeft' : 'WobbleRight', Math.abs(wobble));
-    tempQuaternion.setFromAxisAngle(swordAxis, THREE.MathUtils.lerp(-0.35, 0.10, spinEase));
-    parts.equipment.quaternion.copy(parts.equipmentBaseQuaternion).multiply(tempQuaternion);
-    return spinEase * Math.PI * 2;
+
+    const horizontalTilt = slashU > 0
+      ? THREE.MathUtils.lerp(-1.52, -1.68, Math.sin(slashU * Math.PI))
+      : THREE.MathUtils.lerp(0, -1.52, anticipation);
+    const recoverTilt = settle > 0 ? THREE.MathUtils.lerp(horizontalTilt, 0, settleEase) : horizontalTilt;
+    const bladeSweep = slashU > 0
+      ? THREE.MathUtils.lerp(-0.78, -1.02, Math.sin(slashU * Math.PI))
+      : THREE.MathUtils.lerp(0, -0.78, anticipation);
+    const recoverSweep = settle > 0 ? THREE.MathUtils.lerp(bladeSweep, 0, settleEase) : bladeSweep;
+    tempQuaternion.setFromAxisAngle(swordAxis, recoverTilt);
+    tempSweepQuaternion.setFromAxisAngle(swordSweepAxis, recoverSweep);
+    parts.equipment.quaternion.copy(parts.equipmentBaseQuaternion).multiply(tempQuaternion).multiply(tempSweepQuaternion);
+
+    const windupOffset = -0.30 * anticipation;
+    const sweepEndOffset = -0.30 + Math.PI * 0.78;
+    return slashU < 1
+      ? THREE.MathUtils.lerp(windupOffset, sweepEndOffset, slashEase)
+      : THREE.MathUtils.lerp(sweepEndOffset, 0, settleEase);
   }
 
   const anticipation = THREE.MathUtils.clamp(u / 0.30, 0, 1);
