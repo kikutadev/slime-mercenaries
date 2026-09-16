@@ -7,10 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "generate:model": "npm run generate:sword && npm run generate:archer",
+    "generate:model": "npm run generate:sword && npm run generate:greatsword && npm run generate:archer",
     "generate:sword": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant sword --output public/assets/sword-slime.glb",
     "generate:archer": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant archer --output public/assets/archer-slime.glb",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "generate:greatsword": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant greatsword --output public/assets/greatsword-slime.glb"
   },
   "dependencies": {
     "@react-three/fiber": "^9.7.0",

@@ -90,10 +90,11 @@ Tier/form differences must remain readable at gameplay scale without relying on 
 
 ## 7. Fusion visual language
 
-Fusion is an upgrade of an existing form, not a new body species.
+Fusion strengthens one canonical slime branch. A milestone may replace the weapon/form presentation, but it does not create a larger slime body or a separate population body.
 
 Suggested progression vocabulary:
 
+- first Sword milestone: two Sword Slimes merge into a same-body-size Greatsword Slime with a much broader blade
 - low rank: base weapon and restrained hit effect
 - mid rank: weapon accent, slightly richer trail/impact, extra attack beat where unlocked
 - high rank: signature attack behavior and recognizable VFX motif

@@ -28,13 +28,14 @@ Fusion is the main answer to “what happens when I get this slime again?”
 - duplicates are useful
 - duplicates are not extra battlefield bodies
 - exact duplicate requirements and rank cap are balance data
-- fusion may unlock visible combat behavior at milestones
+- fusion may unlock visible combat behavior or a linear upgraded form at milestones
+- the first Sword fusion milestone at Lv.10 turns Sword Slime into Greatsword Slime while preserving the same canonical roster record
 
 ### Promotion / evolution
 
 Changes the job form itself and therefore the attack identity.
 
-Promotion is not the same as fusion. Fusion makes the owned form stronger; promotion moves the branch to a new form/specialization according to progression requirements.
+Promotion is not the same as fusion. Fusion strengthens the owned canonical branch and may cross a linear milestone form such as Sword Slime -> Greatsword Slime. Promotion moves that branch into a later specialization choice according to progression requirements.
 
 ## 3. Body-size invariant
 
@@ -48,7 +49,7 @@ Across low/high fusion ranks of the same form:
 
 Strength can be expressed through weapon finish, small accessories, attack pattern, VFX, projectile behavior, timing, or skill unlocks.
 
-A promoted form may have a distinct silhouette because it is a different design, but “stronger = simply bigger slime” is not the progression language. Bosses/enemies are not bound by this player-character rule.
+A fusion-milestone or promoted form may have a distinct weapon/accessory silhouette while keeping the slime body dimensions stable. “Stronger = simply bigger slime” is not the progression language. Bosses/enemies are not bound by this player-character rule.
 
 ## 4. Evolution tree overview
 
@@ -186,9 +187,11 @@ When a slime type is acquired:
 - show a compact “fusion ready/progress” result
 - do not create a second persistent character card by default
 
-When fusion requirements are met, the player can merge and advance fusion progression.
+When fusion requirements are met, the player can merge and advance fusion progression. Fusion steps may also require a level threshold.
 
-Fusion must preserve already-earned level/equipment state unless a later explicit design says otherwise. Fusion is an additive strengthening action, not a reset.
+The first Sword milestone requires Lv.10 plus one reacquired Sword Slime. Two Sword Slime models merge into Greatsword Slime, which keeps the same slime-body scale, equips a visibly broader greatsword, and uses a two-hit heavy slash.
+
+Fusion preserves already-earned level and the canonical roster record. A milestone may replace the equipped weapon/form presentation as part of the upgrade; it is not a reset and does not create another persistent body.
 
 ## 9. Fusion milestone presentation
 
@@ -203,7 +206,7 @@ Possible milestone rewards:
 - impact trail becomes stronger
 - passive/signature behavior unlocks
 
-The first fusion tutorial should visually compare the same-size slime before and after the attack improvement.
+The first fusion tutorial uses two same-size Sword Slime models side by side, pulls them into the center, flashes at contact, then reveals same-body-size Greatsword Slime and immediately previews its heavier attack.
 
 ## 10. Assignment states
 

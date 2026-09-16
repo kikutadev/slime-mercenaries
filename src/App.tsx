@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { BattleCanvas } from './components/BattleCanvas';
 import { SlimePreview } from './components/SlimePreview';
 import { canFuse, fuseSlime, getNextFusionStep } from './game/fusion';
-import { createInitialRoster, SLIMES, type SlimeId } from './game/slimes';
+import { createInitialRoster, getSlimePresentation, SLIMES, type SlimeId } from './game/slimes';
 import type { BattleSnapshot } from './game/BattleRuntime';
 
 type Screen = 'battle' | 'slimes';
@@ -29,35 +29,52 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('battle');
   const [roster, setRoster] = useState(createInitialRoster);
   const [battle, setBattle] = useState<BattleSnapshot>(INITIAL_BATTLE);
-  const [fusionBurstKey, setFusionBurstKey] = useState(0);
+  const [fusionSequenceKey, setFusionSequenceKey] = useState(0);
   const [fusionNotice, setFusionNotice] = useState<string | null>(null);
+  const [fusionRun, setFusionRun] = useState<{ id: SlimeId; fromRank: number; toRank: number; title: string } | null>(null);
 
   const selected = roster.slimes[roster.selectedId];
-  const definition = SLIMES[selected.id];
+  const definition = getSlimePresentation(selected);
   const nextFusion = useMemo(() => getNextFusionStep(selected), [selected]);
   const fusionReady = canFuse(selected);
 
   const selectSlime = (id: SlimeId) => {
+    if (fusionRun) return;
     setRoster((current) => ({ ...current, selectedId: id }));
     setFusionNotice(null);
   };
 
   const handleFuse = () => {
-    if (!nextFusion || !fusionReady) return;
-    const unlocked = nextFusion.title;
-    setRoster((current) => fuseSlime(current, selected.id));
-    setFusionBurstKey((value) => value + 1);
-    setFusionNotice(unlocked);
+    if (!nextFusion || !fusionReady || fusionRun) return;
+    setFusionNotice(null);
+    setFusionSequenceKey((value) => value + 1);
+    setFusionRun({
+      id: selected.id,
+      fromRank: selected.fusionRank,
+      toRank: selected.fusionRank + 1,
+      title: nextFusion.title,
+    });
+  };
+
+  const commitFusion = () => {
+    if (!fusionRun) return;
+    setRoster((current) => fuseSlime(current, fusionRun.id));
+    setFusionNotice(fusionRun.title);
+  };
+
+  const finishFusion = () => {
+    setFusionRun(null);
   };
 
   const enemyRatio = battle.enemyMaxHp > 0 ? battle.enemyHp / battle.enemyMaxHp : 0;
   const sword = roster.slimes.sword;
+  const swordDefinition = getSlimePresentation(sword);
 
   return (
     <main className="page">
       <section className="game-shell" aria-label="Slime Mercenaries">
         <div className={`screen screen--battle ${screen !== 'battle' ? 'is-hidden' : ''}`} aria-hidden={screen !== 'battle'} inert={screen !== 'battle'}>
-          <BattleCanvas swordFusionRank={sword.fusionRank} onSnapshot={setBattle} />
+          <BattleCanvas swordFusionRank={sword.fusionRank} swordAsset={swordDefinition.asset} onSnapshot={setBattle} />
 
           <header className="hud hud--top">
             <div>
@@ -86,7 +103,7 @@ export default function App() {
             <button className={`unit-card ${battle.swordHp <= 0 ? 'is-defeated' : ''}`} type="button" onClick={() => { selectSlime('sword'); setScreen('slimes'); }}>
               <div className="unit-icon unit-icon--sword"><img src={`${import.meta.env.BASE_URL}${SLIMES.sword.icon}`} alt="" aria-hidden="true" /></div>
               <div>
-                <strong>Sword Slime</strong>
+                <strong>{swordDefinition.name}</strong>
                 <span>Fusion {sword.fusionRank}</span>
                 <small className="unit-hp">HP {battle.swordHp} / {battle.swordMaxHp}</small>
               </div>
@@ -116,6 +133,7 @@ export default function App() {
               const slime = roster.slimes[id];
               const isSelected = roster.selectedId === id;
               const ready = canFuse(slime);
+              const presentation = getSlimePresentation(slime);
               return (
                 <button
                   className={`formation-slot ${isSelected ? 'is-selected' : ''}`}
@@ -125,7 +143,7 @@ export default function App() {
                   aria-pressed={isSelected}
                 >
                   <span className="formation-slot__icon"><img src={`${import.meta.env.BASE_URL}${SLIMES[id].icon}`} alt="" /></span>
-                  <span className="formation-slot__name">{SLIMES[id].name.replace(' Slime', '')}</span>
+                  <span className="formation-slot__name">{presentation.name.replace(' Slime', '')}</span>
                   {ready && <span className="ready-dot" aria-label="合成可能" />}
                 </button>
               );
@@ -142,7 +160,17 @@ export default function App() {
               <AssignmentLabel value={selected.assignment} />
             </div>
 
-            <SlimePreview slimeId={selected.id} fusionRank={selected.fusionRank} burstKey={fusionBurstKey} />
+            <SlimePreview
+              slimeId={selected.id}
+              fusionRank={selected.fusionRank}
+              fusionReady={fusionReady}
+              isFusing={Boolean(fusionRun && fusionRun.id === selected.id)}
+              sequenceKey={fusionSequenceKey}
+              fromRank={fusionRun?.fromRank ?? selected.fusionRank}
+              toRank={fusionRun?.toRank ?? selected.fusionRank + 1}
+              onFusionCommit={commitFusion}
+              onFusionComplete={finishFusion}
+            />
 
             <div className="slime-stats">
               <span>Lv.{selected.level}</span>
@@ -176,20 +204,20 @@ export default function App() {
                 </div>
 
                 <div className="next-upgrade">
-                  <span>次の強化</span>
-                  <strong>{nextFusion.title}</strong>
+                  <span>次の強化 · Lv.{nextFusion.minLevel}以上</span>
+                  <strong>{nextFusion.resultName ?? nextFusion.title}</strong>
                   <p>{nextFusion.description}</p>
                 </div>
 
                 {fusionNotice && (
-                  <div className="fusion-unlocked" key={fusionBurstKey}>
+                  <div className="fusion-unlocked" key={fusionSequenceKey}>
                     <span>UNLOCKED</span>
                     <strong>{fusionNotice}</strong>
                   </div>
                 )}
 
-                <button className="fusion-button" type="button" disabled={!fusionReady} onClick={handleFuse}>
-                  {fusionReady ? '合成する' : `あと ${Math.max(0, nextFusion.requiredCopies - selected.fusionProgress)} 体`}
+                <button className="fusion-button" type="button" disabled={!fusionReady || Boolean(fusionRun)} onClick={handleFuse}>
+                  {fusionRun ? '合成中…' : selected.level < nextFusion.minLevel ? `Lv.${nextFusion.minLevel}で解放` : fusionReady ? '合成する' : `あと ${Math.max(0, nextFusion.requiredCopies - selected.fusionProgress)} 体`}
                 </button>
               </>
             ) : (

@@ -22,7 +22,7 @@ def parse_args() -> argparse.Namespace:
     """Read arguments passed after Blender's `--` separator."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True, help="Destination .glb path")
-    parser.add_argument("--variant", choices=("sword", "archer"), default="sword")
+    parser.add_argument("--variant", choices=("sword", "greatsword", "archer"), default="sword")
     argv: list[str] = []
     if "--" in sys.argv:
         argv = sys.argv[sys.argv.index("--") + 1 :]
@@ -324,6 +324,49 @@ def create_sword(
     return anchor
 
 
+def create_greatsword(
+    root: bpy.types.Object,
+    blade_material: bpy.types.Material,
+    guard_material: bpy.types.Material,
+    grip_material: bpy.types.Material,
+    accent_material: bpy.types.Material,
+) -> bpy.types.Object:
+    """Create the upgraded sword-class silhouette without changing slime body size."""
+    anchor = bpy.data.objects.new("WeaponAnchor", None)
+    bpy.context.scene.collection.objects.link(anchor)
+    anchor.parent = root
+    anchor.location = (-1.12, 0.50, 0.42)
+    anchor.rotation_euler[0] = math.radians(-10.0)
+    anchor.rotation_euler[1] = math.radians(-24.0)
+    anchor.rotation_euler[2] = math.radians(18.0)
+
+    # Keep the jelly body identical to Sword Slime. The promotion is carried by
+    # the weapon silhouette: much broader blade, longer grip and a bright fuller.
+    create_box("Sword_Blade", (0.40, 0.13, 1.52), (0.0, 0.0, 0.97), blade_material, anchor, bevel=0.034)
+    create_box("Greatsword_Fuller", (0.085, 0.142, 1.34), (0.0, -0.004, 0.99), accent_material, anchor, bevel=0.015)
+    create_box("Sword_Guard", (0.82, 0.15, 0.14), (0.0, 0.0, 0.12), guard_material, anchor, bevel=0.030)
+    create_box("Sword_Grip", (0.155, 0.125, 0.48), (0.0, 0.0, -0.18), grip_material, anchor, bevel=0.022)
+
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=1.0)
+    pommel = bpy.context.active_object
+    assert pommel is not None
+    pommel.name = "Sword_Pommel"
+    pommel.parent = anchor
+    pommel.location = (0.0, 0.0, -0.48)
+    pommel.scale = (0.12, 0.12, 0.12)
+    pommel.data.materials.append(guard_material)
+
+    bpy.ops.mesh.primitive_cone_add(vertices=4, radius1=0.24, radius2=0.0, depth=0.34)
+    tip = bpy.context.active_object
+    assert tip is not None
+    tip.name = "Sword_Tip"
+    tip.parent = anchor
+    tip.location = (0.0, 0.0, 1.90)
+    tip.rotation_euler[2] = math.radians(45.0)
+    tip.data.materials.append(blade_material)
+    return anchor
+
+
 def create_bow(
     root: bpy.types.Object,
     wood_material: bpy.types.Material,
@@ -372,7 +415,7 @@ def main() -> None:
     clear_scene()
 
     root = create_root()
-    body_color = (0.045, 0.48, 0.96, 1.0) if args.variant == "sword" else (0.06, 0.55, 0.88, 1.0)
+    body_color = (0.045, 0.48, 0.96, 1.0) if args.variant in ("sword", "greatsword") else (0.06, 0.55, 0.88, 1.0)
     body_material = make_material("SlimeBlue", body_color, roughness=0.16)
     eye_material = make_material("SlimeEyeBlack", (0.003, 0.005, 0.008, 1.0), roughness=1.0)
     eye_bsdf = eye_material.node_tree.nodes.get("Principled BSDF")
@@ -390,6 +433,12 @@ def main() -> None:
         guard_material = make_material("SwordGold", (0.92, 0.55, 0.12, 1.0), roughness=0.32, metallic=0.28)
         grip_material = make_material("SwordGrip", (0.24, 0.10, 0.08, 1.0), roughness=0.72)
         create_sword(root, blade_material, guard_material, grip_material)
+    elif args.variant == "greatsword":
+        blade_material = make_material("GreatswordSteel", (0.48, 0.62, 0.76, 1.0), roughness=0.20, metallic=0.82)
+        guard_material = make_material("GreatswordGold", (0.98, 0.66, 0.16, 1.0), roughness=0.26, metallic=0.42)
+        grip_material = make_material("GreatswordGrip", (0.19, 0.07, 0.06, 1.0), roughness=0.76)
+        accent_material = make_material("GreatswordFuller", (0.88, 0.96, 1.0, 1.0), roughness=0.16, metallic=0.66)
+        create_greatsword(root, blade_material, guard_material, grip_material, accent_material)
     else:
         wood_material = make_material("BowWood", (0.37, 0.18, 0.07, 1.0), roughness=0.78)
         string_material = make_material("BowString", (0.08, 0.08, 0.08, 1.0), roughness=0.95)

@@ -143,14 +143,16 @@ Do not imply power by scaling the character preview larger after fusion.
 
 ### Fusion result
 
-Normal fusion:
+First Sword fusion milestone:
 
-- short jelly compression
-- weapon/VFX accent pulse
-- rank/progress update
-- if behavior milestone unlocked, immediately preview the changed attack
+- show two Sword Slime 3D models side by side
+- pull both models toward the center
+- fire a bright central flash at contact
+- replace both with Greatsword Slime
+- keep slime-body dimensions unchanged; communicate the upgrade through the greatsword silhouette and attack
+- immediately preview the upgraded heavy/two-hit slash
 
-This should be shorter than a NEW job reveal.
+Later ordinary fusion steps may use a shorter jelly compression + weapon/VFX pulse. Fusion presentation should remain shorter than a NEW job reveal.
 
 ## 9. Evolution UI
 
@@ -271,8 +273,8 @@ First sequence:
 4. player gives Sword to Plain Slime
 5. it becomes Sword Slime and immediately attacks differently
 6. second Sword Slime acquisition occurs soon after
-7. player performs first fusion
-8. same-size Sword Slime demonstrates a stronger attack
+7. at Lv.10, player fuses the reacquired Sword Slime into the owned Sword branch
+8. Greatsword Slime appears with the same slime-body size, a large sword silhouette, and a two-hit attack
 9. Bow is discovered
 10. later, an unused type receives the first simple dispatch tutorial
 

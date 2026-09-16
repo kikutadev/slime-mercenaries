@@ -102,6 +102,7 @@ export interface BattleRuntimeOptions {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   baseUrl: string;
+  swordAsset: string;
   onSnapshot: (snapshot: BattleSnapshot) => void;
   getSwordFusionRank: () => number;
 }
@@ -149,6 +150,7 @@ export class BattleRuntime {
   private readonly camera: THREE.PerspectiveCamera;
   private readonly loader = new GLTFLoader();
   private readonly baseUrl: string;
+  private readonly swordAsset: string;
   private readonly onSnapshot: (snapshot: BattleSnapshot) => void;
   private readonly getSwordFusionRank: () => number;
   private readonly tempQuaternion = new THREE.Quaternion();
@@ -194,6 +196,7 @@ export class BattleRuntime {
     this.scene = options.scene;
     this.camera = options.camera;
     this.baseUrl = options.baseUrl;
+    this.swordAsset = options.swordAsset;
     this.onSnapshot = options.onSnapshot;
     this.getSwordFusionRank = options.getSwordFusionRank;
   }
@@ -213,7 +216,7 @@ export class BattleRuntime {
     this.createSlashArc();
 
     const [sword, bow] = await Promise.all([
-      this.loadUnit(`${this.baseUrl}assets/sword-slime.glb`, 'Sword', SWORD_HOME, 'WeaponAnchor'),
+      this.loadUnit(`${this.baseUrl}${this.swordAsset}`, 'Sword', SWORD_HOME, 'WeaponAnchor'),
       this.loadUnit(`${this.baseUrl}assets/archer-slime.glb`, 'Bow', BOW_HOME, 'BowAnchor'),
     ]);
 

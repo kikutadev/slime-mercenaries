@@ -11,6 +11,10 @@ export interface SlimeDefinition {
   accent: string;
 }
 
+export interface SlimePresentation extends SlimeDefinition {
+  form: string;
+}
+
 export interface SlimeProgress {
   id: SlimeId;
   level: number;
@@ -45,6 +49,32 @@ export const SLIMES: Record<SlimeId, SlimeDefinition> = {
     accent: '#8bdc78',
   },
 };
+
+const GREATSWORD_FORM: SlimePresentation = {
+  ...SLIMES.sword,
+  name: 'Greatsword Slime',
+  role: '前衛・重剣',
+  tier: 2,
+  asset: 'assets/greatsword-slime.glb',
+  accent: '#ffd76f',
+  form: 'greatsword',
+};
+
+export function getSlimePresentation(slime: SlimeProgress): SlimePresentation {
+  if (slime.id === 'sword' && slime.fusionRank >= 2) return GREATSWORD_FORM;
+  return { ...SLIMES[slime.id], form: slime.id };
+}
+
+export function getSlimePresentationForRank(id: SlimeId, fusionRank: number): SlimePresentation {
+  return getSlimePresentation({
+    id,
+    level: 1,
+    fusionRank,
+    fusionProgress: 0,
+    assignment: 'reserve',
+    equippedWeapon: '',
+  });
+}
 
 export function createInitialRoster(): RosterState {
   return {
