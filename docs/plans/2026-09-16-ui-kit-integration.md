@@ -1,7 +1,9 @@
 # Slime Mercenaries — UI / Kit Integration Plan
 
-Status: Planned
+Status: Implemented (core UI / Kit integration complete; battle/content expansion ongoing)
 Date: 2026-09-16
+
+Implementation update (2026-09-17): authoritative controller/store, four-tab UI, Slimes progression, Dispatch, Forge, offline return, presentation queue, and BattleSceneModel are connected. BattleRuntime now consumes a formation-driven ally list with per-ally behavior/HP/slot metadata instead of requiring hidden Sword/Bow units; current authored battle behaviors remain Sword melee and Bow ranged.
 
 ## 1. Purpose
 

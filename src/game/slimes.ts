@@ -2,6 +2,7 @@ import { ids, type JobSlimeId } from '../domain/definitions';
 import type { SlimeProgress } from '../domain/state';
 
 export type SlimeId = JobSlimeId;
+export type BattleBehaviorId = 'sword-melee' | 'bow-ranged';
 export type FusionItemCategory = 'slime' | 'weapon' | 'material';
 export type FusionItemId =
   | typeof ids.token.swordCore
@@ -11,6 +12,14 @@ export type FusionItemId =
   | typeof ids.token.hardeningGel
   | typeof ids.token.temperedSteel;
 
+export interface SlimeBattlePresentation {
+  behaviorId: BattleBehaviorId;
+  equipmentAnchorName: string;
+  weaponTipName: string | null;
+  maxHp: number;
+  formationRole: 'front' | 'back';
+}
+
 export interface SlimeDefinition {
   id: SlimeId;
   name: string;
@@ -19,6 +28,7 @@ export interface SlimeDefinition {
   asset: string;
   icon: string;
   accent: string;
+  battle: SlimeBattlePresentation;
 }
 
 export interface SlimePresentation extends SlimeDefinition {
@@ -42,6 +52,13 @@ export const SLIMES: Record<SlimeId, SlimeDefinition> = {
     asset: 'assets/sword-slime.glb',
     icon: 'assets/sword-slime-icon.svg',
     accent: '#ffcf69',
+    battle: {
+      behaviorId: 'sword-melee',
+      equipmentAnchorName: 'WeaponAnchor',
+      weaponTipName: 'Sword_Tip',
+      maxHp: 6,
+      formationRole: 'front',
+    },
   },
   bow: {
     id: 'bow',
@@ -51,6 +68,13 @@ export const SLIMES: Record<SlimeId, SlimeDefinition> = {
     asset: 'assets/archer-slime.glb',
     icon: 'assets/bow-slime-icon.svg',
     accent: '#8bdc78',
+    battle: {
+      behaviorId: 'bow-ranged',
+      equipmentAnchorName: 'BowAnchor',
+      weaponTipName: null,
+      maxHp: 4,
+      formationRole: 'back',
+    },
   },
 };
 

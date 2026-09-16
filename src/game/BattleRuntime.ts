@@ -1,6 +1,13 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { isGreatswordRank } from './fusion';
+import type { BattleBehaviorId } from './slimes';
+
+export interface BattleSnapshotAlly {
+  hp: number;
+  maxHp: number;
+  alive: boolean;
+}
 
 export interface BattleSnapshot {
   phase: 'loading' | 'approach' | 'combat' | 'result';
@@ -9,13 +16,9 @@ export interface BattleSnapshot {
   enemyAlive: number;
   enemyHp: number;
   enemyMaxHp: number;
-  swordHp: number;
-  swordMaxHp: number;
-  bowHp: number;
-  bowMaxHp: number;
+  allies: Readonly<Record<string, BattleSnapshotAlly>>;
 }
 
-type AllyKind = 'Sword' | 'Bow';
 type UnitState = 'idle' | 'defeat' | 'dead';
 
 type MorphMesh = THREE.Mesh & {
@@ -34,8 +37,11 @@ type HealthBarGroup = THREE.Group & {
 
 interface AllyUnit {
   id: string;
+  slimeId: string;
+  slotIndex: number;
   side: 'ally';
-  kind: AllyKind;
+  behaviorId: BattleBehaviorId;
+  fusionRank: number;
   root: THREE.Group;
   body: MorphMesh;
   faceRoot: THREE.Object3D | null;
@@ -48,12 +54,18 @@ interface AllyUnit {
   shadow: THREE.Mesh<THREE.CircleGeometry, BasicMaterial>;
   healthBar: HealthBarGroup;
   home: THREE.Vector3;
+  combatAnchor: THREE.Vector3;
   maxHp: number;
   hp: number;
   alive: boolean;
   state: UnitState;
   defeatStartedAt: number;
   hitStartedAt: number;
+  nextAttackAt: number;
+  attackStartedAt: number;
+  attackTarget: EnemyUnit | null;
+  hitsApplied: number;
+  shotApplied: boolean;
   normalEyes: THREE.Object3D[];
   xEyes: THREE.Object3D[];
 }
@@ -98,22 +110,43 @@ interface ImpactRuntime {
   duration: number;
 }
 
+export interface BattleRuntimeAllyConfig {
+  slimeId: string;
+  slotIndex: number;
+  asset: string;
+  behaviorId: BattleBehaviorId;
+  fusionRank: number;
+  equipmentAnchorName: string;
+  weaponTipName: string | null;
+  maxHp: number;
+  formationRole: 'front' | 'back';
+}
+
 export interface BattleRuntimeOptions {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   baseUrl: string;
-  swordAsset: string;
-  bowAsset: string;
-  showSword: boolean;
-  showBow: boolean;
+  allies: readonly BattleRuntimeAllyConfig[];
   onSnapshot: (snapshot: BattleSnapshot) => void;
-  getSwordFusionRank: () => number;
 }
 
 const SCALE = 0.19;
-const SWORD_HOME = new THREE.Vector3(-0.24, 0.02, 1.2);
-const BOW_HOME = new THREE.Vector3(0.3, 0.02, 1.38);
-const SWORD_ATTACK_POS = new THREE.Vector3(-0.02, 0.02, -0.8);
+const ALLY_HOME_POSITIONS = [
+  new THREE.Vector3(-0.62, 0.02, 1.18),
+  new THREE.Vector3(0, 0.02, 1.34),
+  new THREE.Vector3(0.62, 0.02, 1.18),
+  new THREE.Vector3(-0.66, 0.02, 1.78),
+  new THREE.Vector3(0, 0.02, 1.92),
+  new THREE.Vector3(0.66, 0.02, 1.78),
+] as const;
+const MELEE_COMBAT_POSITIONS = [
+  new THREE.Vector3(-0.52, 0.02, -0.72),
+  new THREE.Vector3(0, 0.02, -0.82),
+  new THREE.Vector3(0.52, 0.02, -0.72),
+  new THREE.Vector3(-0.72, 0.02, -0.34),
+  new THREE.Vector3(0, 0.02, -0.42),
+  new THREE.Vector3(0.72, 0.02, -0.34),
+] as const;
 const ENEMY_SPAWNS = [
   new THREE.Vector3(-0.3, 0, -1.38),
   new THREE.Vector3(0.12, 0, -1.55),
@@ -121,8 +154,6 @@ const ENEMY_SPAWNS = [
 ];
 const TARGET_HOME = ENEMY_SPAWNS[1]!;
 const ENEMY_MAX_HP = 4;
-const SWORD_MAX_HP = 6;
-const BOW_MAX_HP = 4;
 const ENEMY_ATTACK_RANGE = 0.72;
 const ENEMY_MOVE_SPEED = 0.74;
 const MELEE_BODY_GAP = 0.58;
@@ -153,12 +184,8 @@ export class BattleRuntime {
   private readonly camera: THREE.PerspectiveCamera;
   private readonly loader = new GLTFLoader();
   private readonly baseUrl: string;
-  private readonly swordAsset: string;
-  private readonly bowAsset: string;
-  private readonly showSword: boolean;
-  private readonly showBow: boolean;
+  private readonly allyConfigs: readonly BattleRuntimeAllyConfig[];
   private readonly onSnapshot: (snapshot: BattleSnapshot) => void;
-  private readonly getSwordFusionRank: () => number;
   private readonly tempQuaternion = new THREE.Quaternion();
   private readonly tempQuaternion2 = new THREE.Quaternion();
   private readonly tempVector = new THREE.Vector3();
@@ -167,8 +194,6 @@ export class BattleRuntime {
   private readonly localXAxis = new THREE.Vector3(1, 0, 0);
   private readonly localZAxis = new THREE.Vector3(0, 0, 1);
 
-  private sword: AllyUnit | null = null;
-  private bow: AllyUnit | null = null;
   private readonly allies: AllyUnit[] = [];
   private readonly enemies: EnemyUnit[] = [];
   private readonly arrows: ArrowRuntime[] = [];
@@ -185,15 +210,6 @@ export class BattleRuntime {
   private phase: BattleSnapshot['phase'] = 'loading';
   private phaseStartedAt = 0;
   private result: BattleSnapshot['result'] = null;
-  private nextSwordAttackAt = 0;
-  private swordAttackStartedAt = -Infinity;
-  private swordAttackTarget: EnemyUnit | null = null;
-  private swordHitsApplied = 0;
-  private swordAttackHitCount = 1;
-  private nextBowAttackAt = 0;
-  private bowAttackStartedAt = -Infinity;
-  private bowAttackTarget: EnemyUnit | null = null;
-  private bowShotApplied = false;
   private cameraShakeStartedAt = -Infinity;
   private cameraShakeEndsAt = -Infinity;
   private cameraShakeAmplitude = 0;
@@ -203,12 +219,8 @@ export class BattleRuntime {
     this.scene = options.scene;
     this.camera = options.camera;
     this.baseUrl = options.baseUrl;
-    this.swordAsset = options.swordAsset;
-    this.bowAsset = options.bowAsset;
-    this.showSword = options.showSword;
-    this.showBow = options.showBow;
+    this.allyConfigs = options.allies;
     this.onSnapshot = options.onSnapshot;
-    this.getSwordFusionRank = options.getSwordFusionRank;
   }
 
   async initialize(): Promise<void> {
@@ -225,21 +237,11 @@ export class BattleRuntime {
     this.createEnemies();
     this.createSlashArc();
 
-    const loaded = await Promise.all([
-      this.loadUnit(`${this.baseUrl}${this.swordAsset}`, 'Sword', SWORD_HOME, 'WeaponAnchor'),
-      this.loadUnit(`${this.baseUrl}${this.bowAsset}`, 'Bow', BOW_HOME, 'BowAnchor'),
-    ]);
-    const sword = loaded[0]!;
-    const bow = loaded[1]!;
+    const loaded = await Promise.all(this.allyConfigs.map((config) => this.loadUnit(config)));
 
     if (this.disposed) return;
-    this.sword = sword;
-    this.bow = bow;
-    this.allies.push(sword, bow);
-    if (!this.showSword) this.disableAlly(sword);
-    if (!this.showBow) this.disableAlly(bow);
-    this.facePoint(sword, TARGET_HOME);
-    if (this.showBow) this.facePoint(bow, TARGET_HOME);
+    this.allies.push(...loaded);
+    this.allies.forEach((ally) => this.facePoint(ally, TARGET_HOME));
     this.startBattle(this.rawNow + 0.15);
     this.emitSnapshot(true);
   }
@@ -247,7 +249,7 @@ export class BattleRuntime {
   tick(rawNow: number): void {
     if (!this.initialized || this.disposed) return;
     this.rawNow = rawNow;
-    if (!this.sword || !this.bow) return;
+    if (this.allies.length === 0) return;
     const hitStopActive = rawNow < this.hitStopEndsAt;
     const simulationNow = this.getSimulationTime(rawNow);
     this.simulationNow = simulationNow;
@@ -257,8 +259,7 @@ export class BattleRuntime {
       else if (this.phase === 'combat') this.updateCombat(simulationNow);
       else if (this.phase === 'result') this.updateResult(simulationNow);
 
-      this.updateAllyDefeat(this.sword, simulationNow);
-      this.updateAllyDefeat(this.bow, simulationNow);
+      this.allies.forEach((ally) => this.updateAllyDefeat(ally, simulationNow));
       this.updateArrows(simulationNow);
       this.updateImpacts(simulationNow);
       this.evaluateBattleOutcome(simulationNow);
@@ -545,10 +546,14 @@ export class BattleRuntime {
     this.impacts.push({ group, materials, startedAt: this.simulationNow, duration });
   }
 
-  private async loadUnit(url: string, kind: AllyKind, home: THREE.Vector3, equipmentName: string): Promise<AllyUnit> {
-    const gltf = await this.loader.loadAsync(url);
+  private async loadUnit(config: BattleRuntimeAllyConfig): Promise<AllyUnit> {
+    const home = this.allyHome(config.slotIndex);
+    const combatAnchor = config.formationRole === 'front'
+      ? this.meleeCombatAnchor(config.slotIndex)
+      : home.clone();
+    const gltf = await this.loader.loadAsync(`${this.baseUrl}${config.asset}`);
     const root = gltf.scene as THREE.Group;
-    root.name = `${kind}SlimeRuntime`;
+    root.name = `SlimeRuntime:${config.slimeId}:${config.slotIndex}`;
     root.scale.setScalar(SCALE);
     root.position.copy(home);
     root.traverse((object) => {
@@ -560,17 +565,22 @@ export class BattleRuntime {
 
     const body = root.getObjectByName('Body') as MorphMesh | null;
     const faceRoot = root.getObjectByName('FaceRoot') ?? null;
-    const equipmentAnchor = root.getObjectByName(equipmentName) ?? null;
-    const weaponTip = kind === 'Sword' ? (root.getObjectByName('Sword_Tip') ?? null) : null;
-    if (!body?.morphTargetDictionary || !equipmentAnchor) throw new Error(`${kind} slime model is missing runtime anchors.`);
+    const equipmentAnchor = root.getObjectByName(config.equipmentAnchorName) ?? null;
+    const weaponTip = config.weaponTipName === null ? null : root.getObjectByName(config.weaponTipName) ?? null;
+    if (!body?.morphTargetDictionary || !equipmentAnchor) {
+      throw new Error(`${config.slimeId} model is missing runtime anchors (${config.equipmentAnchorName}).`);
+    }
 
     const shadow = this.makeShadow(0.24);
     shadow.position.set(home.x, 0.011, home.z);
     const healthBar = this.createWorldHealthBar();
     const unit: AllyUnit = {
-      id: kind === 'Sword' ? 'ally-sword-1' : 'ally-bow-1',
+      id: `ally-${config.slimeId}-${config.slotIndex}`,
+      slimeId: config.slimeId,
+      slotIndex: config.slotIndex,
       side: 'ally',
-      kind,
+      behaviorId: config.behaviorId,
+      fusionRank: config.fusionRank,
       root,
       body,
       faceRoot,
@@ -582,13 +592,19 @@ export class BattleRuntime {
       faceBasePosition: faceRoot?.position.clone() ?? new THREE.Vector3(),
       shadow,
       healthBar,
-      home: home.clone(),
-      maxHp: kind === 'Sword' ? SWORD_MAX_HP : BOW_MAX_HP,
-      hp: kind === 'Sword' ? SWORD_MAX_HP : BOW_MAX_HP,
+      home,
+      combatAnchor,
+      maxHp: config.maxHp,
+      hp: config.maxHp,
       alive: true,
       state: 'idle',
       defeatStartedAt: -Infinity,
       hitStartedAt: -Infinity,
+      nextAttackAt: 0,
+      attackStartedAt: -Infinity,
+      attackTarget: null,
+      hitsApplied: 0,
+      shotApplied: false,
       normalEyes: [],
       xEyes: [],
     };
@@ -597,6 +613,14 @@ export class BattleRuntime {
     unit.xEyes = eyes.xEyes;
     this.scene.add(root);
     return unit;
+  }
+
+  private allyHome(slotIndex: number): THREE.Vector3 {
+    return (ALLY_HOME_POSITIONS[slotIndex] ?? ALLY_HOME_POSITIONS[ALLY_HOME_POSITIONS.length - 1]!).clone();
+  }
+
+  private meleeCombatAnchor(slotIndex: number): THREE.Vector3 {
+    return (MELEE_COMBAT_POSITIONS[slotIndex] ?? MELEE_COMBAT_POSITIONS[MELEE_COMBAT_POSITIONS.length - 1]!).clone();
   }
 
   private setMorph(unit: AllyUnit, name: string, value: number): void {
@@ -633,10 +657,11 @@ export class BattleRuntime {
   }
 
   private setEquipmentSwing(unit: AllyUnit, angle: number, lift = 0, sweep = 0): void {
-    const primaryAxis = unit.kind === 'Sword' ? this.localXAxis : this.localZAxis;
+    const swordLike = unit.behaviorId === 'sword-melee';
+    const primaryAxis = swordLike ? this.localXAxis : this.localZAxis;
     this.tempQuaternion.setFromAxisAngle(primaryAxis, angle);
     unit.equipmentAnchor.quaternion.copy(unit.equipmentBaseQuaternion).multiply(this.tempQuaternion);
-    if (unit.kind === 'Sword' && Math.abs(sweep) > 0.0001) {
+    if (swordLike && Math.abs(sweep) > 0.0001) {
       this.tempQuaternion2.setFromAxisAngle(this.localZAxis, sweep);
       unit.equipmentAnchor.quaternion.multiply(this.tempQuaternion2);
     }
@@ -681,12 +706,12 @@ export class BattleRuntime {
     return this.allies.filter((ally) => ally.alive);
   }
 
-  private getSafeSwordForwardOffset(direction: THREE.Vector3, desiredOffset: number): number {
+  private getSafeMeleeForwardOffset(anchor: THREE.Vector3, direction: THREE.Vector3, desiredOffset: number): number {
     if (desiredOffset <= 0) return desiredOffset;
     let safeOffset = desiredOffset;
     for (const enemy of this.getLivingEnemies()) {
-      const dx = SWORD_ATTACK_POS.x - enemy.root.position.x;
-      const dz = SWORD_ATTACK_POS.z - enemy.root.position.z;
+      const dx = anchor.x - enemy.root.position.x;
+      const dz = anchor.z - enemy.root.position.z;
       const projection = dx * direction.x + dz * direction.z;
       const c = dx * dx + dz * dz - MELEE_BODY_GAP * MELEE_BODY_GAP;
       const discriminant = projection * projection - c;
@@ -701,11 +726,9 @@ export class BattleRuntime {
   }
 
   private getEnemyTargetPosition(target: AllyUnit): THREE.Vector3 {
-    // During combat, navigation must target the sword slime's stable battle
-    // anchor rather than the temporary root movement used by its slash.
-    // Otherwise enemies chase the attack animation itself and collapse into the
-    // slime's body.
-    if (target.kind === 'Sword' && this.phase === 'combat') return SWORD_ATTACK_POS;
+    // Melee attack animations temporarily move the visual root. Enemies navigate toward the
+    // stable combat anchor so repeated attacks cannot drag both sides into the same point.
+    if (target.behaviorId === 'sword-melee' && this.phase === 'combat') return target.combatAnchor;
     return target.root.position;
   }
 
@@ -792,7 +815,7 @@ export class BattleRuntime {
   private applyDamage(
     target: AllyUnit | EnemyUnit,
     amount: number,
-    source: 'sword' | 'arrow' | 'enemy',
+    source: 'melee' | 'projectile' | 'enemy',
     sourcePosition: THREE.Vector3,
   ): void {
     if (!target.alive) return;
@@ -800,19 +823,16 @@ export class BattleRuntime {
     target.hitStartedAt = this.simulationNow;
     this.tempVector.copy(target.root.position);
     this.tempVector.y += target.side === 'enemy' ? 0.28 : 0.22;
-    const impactSize = target.side === 'enemy' ? (source === 'sword' ? 0.082 : 0.11) : 0.09;
+    const impactSize = target.side === 'enemy' ? (source === 'melee' ? 0.082 : 0.11) : 0.09;
     this.createImpact(this.tempVector, target.side === 'enemy' ? '#fff0a0' : '#ffb4a8', impactSize);
     this.startCameraShake(0.12, target.side === 'enemy' ? 0.025 : 0.017);
-    if (source !== 'arrow') this.startHitStop(source === 'enemy' ? 0.028 : 0.038);
+    if (source !== 'projectile') this.startHitStop(source === 'enemy' ? 0.028 : 0.038);
 
-    // Keep ally combat anchors stable. The pre-React runtime only knocked enemies
-    // back on hit; applying this displacement to allies causes the sword slime to
-    // drift away from its combat anchor after repeated enemy attacks.
     if (target.side === 'enemy') {
       this.tempVector2.copy(target.root.position).sub(sourcePosition).setY(0);
       if (this.tempVector2.lengthSq() > 0.0001) {
         this.tempVector2.normalize();
-        target.root.position.addScaledVector(this.tempVector2, source === 'arrow' ? 0.026 : 0.066);
+        target.root.position.addScaledVector(this.tempVector2, source === 'projectile' ? 0.026 : 0.066);
       }
     }
     if (target.hp <= 0) {
@@ -843,10 +863,11 @@ export class BattleRuntime {
     if (unit.state !== 'defeat') return;
     const u = clamp01((now - unit.defeatStartedAt) / 0.72);
     const squash = Math.sin(Math.min(1, u * 1.4) * Math.PI * 0.5);
+    const side = unit.slotIndex % 2 === 0 ? -1 : 1;
     unit.root.position.y = THREE.MathUtils.lerp(unit.root.position.y, 0.005, 0.18);
-    unit.root.rotation.z = (unit.kind === 'Sword' ? -1 : 1) * 0.12 * squash;
+    unit.root.rotation.z = side * 0.12 * squash;
     unit.body.scale.set(unit.bodyBaseScale.x * (1 + 0.4 * squash), unit.bodyBaseScale.y * (1 - 0.72 * squash), unit.bodyBaseScale.z * (1 + 0.22 * squash));
-    this.setEquipmentSwing(unit, (unit.kind === 'Sword' ? 1 : -1) * u * 0.72, -u * 0.025, u * 0.16);
+    this.setEquipmentSwing(unit, side * u * 0.72, -u * 0.025, u * 0.16);
   }
 
   private updateEnemyDefeat(enemy: EnemyUnit, now: number): void {
@@ -873,13 +894,15 @@ export class BattleRuntime {
     this.phase = 'approach';
     this.phaseStartedAt = now;
     this.result = null;
-    this.nextSwordAttackAt = now + 1.7;
-    this.nextBowAttackAt = now + 0.65;
-    const firstEnemy = this.findNearest(this.sword ?? this.bow!, this.getLivingEnemies());
-    if (firstEnemy) {
-      if (this.sword && this.showSword) this.facePoint(this.sword, firstEnemy.root.position);
-      if (this.bow && this.showBow) this.facePoint(this.bow, firstEnemy.root.position);
-    }
+    this.allies.forEach((ally) => {
+      ally.attackStartedAt = -Infinity;
+      ally.attackTarget = null;
+      ally.hitsApplied = 0;
+      ally.shotApplied = false;
+      ally.nextAttackAt = now + (ally.behaviorId === 'bow-ranged' ? 0.65 : 1.7) + ally.slotIndex * 0.05;
+      const firstEnemy = this.findNearest(ally, this.getLivingEnemies());
+      if (firstEnemy) this.facePoint(ally, firstEnemy.root.position);
+    });
     this.enemies.forEach((enemy, index) => {
       enemy.nextAttackAt = now + 0.82 + index * 0.2;
       enemy.lastUpdateAt = now;
@@ -888,16 +911,26 @@ export class BattleRuntime {
   }
 
   private updateApproach(now: number): void {
-    if (!this.sword || !this.bow) return;
     const duration = 1.55;
-    this.updateHopTravel(this.sword, now, this.phaseStartedAt, SWORD_HOME, SWORD_ATTACK_POS, duration);
-    this.updateBow(now);
+    this.allies.forEach((ally) => {
+      if (!ally.alive) return;
+      if (ally.behaviorId === 'sword-melee') {
+        this.updateHopTravel(ally, now, this.phaseStartedAt, ally.home, ally.combatAnchor, duration);
+      } else {
+        ally.root.position.copy(ally.home);
+        this.updateIdle(ally, now, 1.1 + ally.slotIndex * 0.31);
+        const target = this.findNearest(ally, this.getLivingEnemies());
+        if (target) this.facePoint(ally, target.root.position);
+      }
+    });
     this.enemies.forEach((enemy) => this.updateEnemyApproachIdle(enemy, now));
     if (now - this.phaseStartedAt >= duration) {
-      this.sword.root.position.copy(SWORD_ATTACK_POS);
+      this.allies.forEach((ally) => {
+        ally.root.position.copy(ally.behaviorId === 'sword-melee' ? ally.combatAnchor : ally.home);
+        ally.nextAttackAt = now + (ally.behaviorId === 'sword-melee' ? 0.12 : 0.2 + ally.slotIndex * 0.06);
+      });
       this.phase = 'combat';
       this.phaseStartedAt = now;
-      this.nextSwordAttackAt = now + 0.12;
       this.enemies.forEach((enemy, index) => {
         enemy.attackStartedAt = -Infinity;
         enemy.attackTarget = null;
@@ -910,48 +943,46 @@ export class BattleRuntime {
   }
 
   private updateCombat(now: number): void {
-    if (!this.sword || !this.bow) return;
-    this.updateSword(now);
-    this.updateBow(now);
+    this.allies.forEach((ally) => {
+      if (ally.behaviorId === 'sword-melee') this.updateSword(now, ally);
+      else if (ally.behaviorId === 'bow-ranged') this.updateBow(now, ally);
+    });
     this.enemies.forEach((enemy) => this.updateEnemyUnit(enemy, now));
   }
 
-  private updateSword(now: number): void {
-    const sword = this.sword;
-    if (!sword || !sword.alive) return;
-    const fusionRank = this.getSwordFusionRank();
+  private updateSword(now: number, sword: AllyUnit): void {
+    if (!sword.alive) return;
+    const fusionRank = sword.fusionRank;
     const greatsword = isGreatswordRank(fusionRank);
 
-    if (this.swordAttackStartedAt !== -Infinity && !this.swordAttackTarget?.alive) {
+    if (sword.attackStartedAt !== -Infinity && !sword.attackTarget?.alive) {
       const replacement = greatsword ? this.findNearest(sword, this.getLivingEnemies()) : null;
       if (replacement) {
-        this.swordAttackTarget = replacement;
+        sword.attackTarget = replacement;
       } else {
-        this.swordAttackStartedAt = -Infinity;
-        this.swordAttackTarget = null;
-        this.swordHitsApplied = 0;
-        this.swordAttackHitCount = 1;
-        sword.root.position.copy(SWORD_ATTACK_POS);
+        sword.attackStartedAt = -Infinity;
+        sword.attackTarget = null;
+        sword.hitsApplied = 0;
+        sword.root.position.copy(sword.combatAnchor);
         this.setEquipmentSwing(sword, 0);
         this.resetSlash();
         this.resetSpinArc();
       }
     }
 
-    if (this.swordAttackStartedAt === -Infinity && now >= this.nextSwordAttackAt) {
+    if (sword.attackStartedAt === -Infinity && now >= sword.nextAttackAt) {
       const target = this.findNearest(sword, this.getLivingEnemies());
       if (target) {
-        this.swordAttackStartedAt = now;
-        this.swordAttackTarget = target;
-        this.swordHitsApplied = 0;
-        this.swordAttackHitCount = 1;
-        this.nextSwordAttackAt = now + 1.08;
+        sword.attackStartedAt = now;
+        sword.attackTarget = target;
+        sword.hitsApplied = 0;
+        sword.nextAttackAt = now + 1.08;
       }
     }
 
-    if (this.swordAttackStartedAt === -Infinity || !this.swordAttackTarget) {
-      sword.root.position.copy(SWORD_ATTACK_POS);
-      this.updateIdle(sword, now, 0.2);
+    if (sword.attackStartedAt === -Infinity || !sword.attackTarget) {
+      sword.root.position.copy(sword.combatAnchor);
+      this.updateIdle(sword, now, 0.2 + sword.slotIndex * 0.23);
       const target = this.findNearest(sword, this.getLivingEnemies());
       if (target) this.facePoint(sword, target.root.position);
       this.resetSpinArc();
@@ -959,13 +990,13 @@ export class BattleRuntime {
     }
 
     if (greatsword) {
-      this.updateGreatswordAttack(now, sword, this.swordAttackTarget, fusionRank);
+      this.updateGreatswordAttack(now, sword, sword.attackTarget, fusionRank);
       return;
     }
 
     const duration = 0.88;
-    const u = clamp01((now - this.swordAttackStartedAt) / duration);
-    const target = this.swordAttackTarget;
+    const u = clamp01((now - sword.attackStartedAt) / duration);
+    const target = sword.attackTarget;
 
     let squash = 0;
     let stretch = 0;
@@ -1007,14 +1038,14 @@ export class BattleRuntime {
       lean = spring * 0.09;
     }
 
-    this.tempVector.copy(target.root.position).sub(SWORD_ATTACK_POS).setY(0);
+    this.tempVector.copy(target.root.position).sub(sword.combatAnchor).setY(0);
     const targetDistanceFromAnchor = this.tempVector.length();
     if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
     if (bodyOffset > 0) {
       bodyOffset = Math.min(bodyOffset, Math.max(0, targetDistanceFromAnchor - MELEE_BODY_GAP));
-      bodyOffset = this.getSafeSwordForwardOffset(this.tempVector, bodyOffset);
+      bodyOffset = this.getSafeMeleeForwardOffset(sword.combatAnchor, this.tempVector, bodyOffset);
     }
-    sword.root.position.copy(SWORD_ATTACK_POS).addScaledVector(this.tempVector, bodyOffset);
+    sword.root.position.copy(sword.combatAnchor).addScaledVector(this.tempVector, bodyOffset);
     this.facePoint(sword, target.root.position);
     this.applyUnitDeformation(sword, squash, stretch, lean, 0, 0);
     this.setEquipmentSwing(sword, weaponAngle, weaponLift, weaponSweep);
@@ -1034,32 +1065,27 @@ export class BattleRuntime {
         this.slashArc.material.opacity = arcPulse * 0.88;
       }
 
-      if (releaseProgress >= 0.50 && this.swordHitsApplied === 0 && target.alive) {
-        this.swordHitsApplied = 1;
-        this.applyDamage(target, 2, 'sword', sword.root.position);
+      if (releaseProgress >= 0.50 && sword.hitsApplied === 0 && target.alive) {
+        sword.hitsApplied = 1;
+        this.applyDamage(target, 2, 'melee', sword.root.position);
       }
     } else {
       this.resetSlash();
     }
 
-    if (u >= 1 || !target.alive) {
-      this.finishSwordAttack(now, sword, target);
-    }
+    if (u >= 1 || !target.alive) this.finishSwordAttack(now, sword, target);
   }
 
   private updateGreatswordAttack(now: number, sword: AllyUnit, target: EnemyUnit, fusionRank: number): void {
-    // Greatsword is a fast, edge-led horizontal sweep rather than a slow full spin.
-    // The body only turns about half a rotation while the blade stays nearly parallel
-    // to the ground through the damaging portion of the attack.
     const duration = 0.60;
-    const u = clamp01((now - this.swordAttackStartedAt) / duration);
+    const u = clamp01((now - sword.attackStartedAt) / duration);
     const anticipation = clamp01(u / 0.16);
     const slashU = clamp01((u - 0.14) / 0.22);
     const slashEase = 1 - ((1 - slashU) ** 4);
     const settle = clamp01((u - 0.52) / 0.48);
     const settleEase = easeOutCubic(settle);
 
-    sword.root.position.copy(SWORD_ATTACK_POS);
+    sword.root.position.copy(sword.combatAnchor);
     this.facePoint(sword, target.root.position);
     const facing = sword.root.rotation.y;
     const windupOffset = -0.30 * anticipation;
@@ -1069,9 +1095,7 @@ export class BattleRuntime {
       : THREE.MathUtils.lerp(sweepEndOffset, 0, settleEase);
     sword.root.rotation.y = facing + sweepOffset;
 
-    const squash = u < 0.18
-      ? 0.28 * anticipation
-      : 0.05 * (1 - settleEase);
+    const squash = u < 0.18 ? 0.28 * anticipation : 0.05 * (1 - settleEase);
     const stretch = slashU > 0 && slashU < 1 ? 0.30 * Math.sin(slashU * Math.PI) : 0;
     const wobble = slashU > 0 && slashU < 1 ? Math.sin(slashU * Math.PI * 2) * 0.07 : 0;
     this.applyUnitDeformation(sword, squash, stretch, -0.08 * anticipation, wobble, 0);
@@ -1108,8 +1132,8 @@ export class BattleRuntime {
       this.spinArc.material.opacity = pulse * 0.74;
     }
 
-    if (slashU >= 0.50 && this.swordHitsApplied === 0) {
-      this.swordHitsApplied = 1;
+    if (slashU >= 0.50 && sword.hitsApplied === 0) {
+      sword.hitsApplied = 1;
       const radius = fusionRank >= 4 ? 1.34 : fusionRank >= 3 ? 1.24 : 1.14;
       const damage = fusionRank >= 3 ? 3 : 2;
       this.tempVector.copy(target.root.position).sub(sword.root.position).setY(0);
@@ -1123,39 +1147,24 @@ export class BattleRuntime {
         this.tempVector2.normalize();
         return this.tempVector.dot(this.tempVector2) >= cosHalfArc;
       });
-      for (const enemy of targets) {
-        this.applyDamage(enemy, damage, 'sword', sword.root.position);
-      }
+      for (const enemy of targets) this.applyDamage(enemy, damage, 'melee', sword.root.position);
       this.createImpact(sword.root.position.clone().add(new THREE.Vector3(0, 0.14, 0)), '#fff0a0', 0.10);
       this.startCameraShake(0.11, 0.036);
     }
 
-    if (u >= 1) {
-      this.finishSwordAttack(now, sword, target);
-    }
+    if (u >= 1) this.finishSwordAttack(now, sword, target);
   }
 
   private finishSwordAttack(now: number, sword: AllyUnit, target: EnemyUnit): void {
-    this.swordAttackStartedAt = -Infinity;
-    this.swordAttackTarget = null;
-    this.swordHitsApplied = 0;
-    this.swordAttackHitCount = 1;
-    sword.root.position.copy(SWORD_ATTACK_POS);
+    sword.attackStartedAt = -Infinity;
+    sword.attackTarget = null;
+    sword.hitsApplied = 0;
+    sword.root.position.copy(sword.combatAnchor);
     this.facePoint(sword, target.root.position);
     this.setEquipmentSwing(sword, 0);
     this.resetSlash();
     this.resetSpinArc();
-    this.nextSwordAttackAt = Math.max(this.nextSwordAttackAt, now + 0.24);
-  }
-
-  private showSlash(contact: THREE.Vector3, target: THREE.Vector3, strong: boolean): void {
-    if (!this.slashArc) return;
-    this.slashArc.visible = true;
-    this.slashArc.position.copy(contact).lerp(target, 0.35);
-    this.slashArc.position.y += 0.08;
-    this.slashArc.quaternion.copy(this.camera.quaternion);
-    this.slashArc.scale.setScalar(strong ? 1.45 : 1.05);
-    this.slashArc.material.opacity = strong ? 0.95 : 0.78;
+    sword.nextAttackAt = Math.max(sword.nextAttackAt, now + 0.24);
   }
 
   private resetSlash(): void {
@@ -1170,36 +1179,43 @@ export class BattleRuntime {
     this.spinArc.material.opacity = 0;
   }
 
-  private updateBow(now: number): void {
-    const bow = this.bow;
-    if (!bow || !bow.alive) return;
-    if (this.bowAttackStartedAt === -Infinity && now >= this.nextBowAttackAt) {
+  private updateBow(now: number, bow: AllyUnit): void {
+    if (!bow.alive) return;
+    if (bow.attackStartedAt !== -Infinity && !bow.attackTarget?.alive) {
+      bow.attackStartedAt = -Infinity;
+      bow.attackTarget = null;
+      bow.shotApplied = false;
+    }
+    if (bow.attackStartedAt === -Infinity && now >= bow.nextAttackAt) {
       const target = this.findNearest(bow, this.getLivingEnemies());
       if (target) {
-        this.bowAttackStartedAt = now;
-        this.bowAttackTarget = target;
-        this.bowShotApplied = false;
+        bow.attackStartedAt = now;
+        bow.attackTarget = target;
+        bow.shotApplied = false;
       }
     }
-    if (this.bowAttackStartedAt === -Infinity || !this.bowAttackTarget?.alive) {
-      this.updateIdle(bow, now, 1.1);
+    if (bow.attackStartedAt === -Infinity || !bow.attackTarget) {
+      bow.root.position.copy(bow.home);
+      this.updateIdle(bow, now, 1.1 + bow.slotIndex * 0.31);
+      const target = this.findNearest(bow, this.getLivingEnemies());
+      if (target) this.facePoint(bow, target.root.position);
       return;
     }
 
-    const u = clamp01((now - this.bowAttackStartedAt) / 0.62);
-    this.facePoint(bow, this.bowAttackTarget.root.position);
+    const u = clamp01((now - bow.attackStartedAt) / 0.62);
+    this.facePoint(bow, bow.attackTarget.root.position);
     const tension = Math.sin(Math.min(1, u / 0.55) * Math.PI * 0.5);
     const release = clamp01((u - 0.55) / 0.18);
     this.applyUnitDeformation(bow, 0.08 * tension, 0.12 * release, -0.06 * tension + 0.08 * release, 0, 0);
     this.setEquipmentSwing(bow, -0.36 * tension + 0.5 * release, 0.012 * tension);
-    if (!this.bowShotApplied && u >= 0.56) {
-      this.bowShotApplied = true;
-      this.fireArrow(bow, this.bowAttackTarget);
+    if (!bow.shotApplied && u >= 0.56) {
+      bow.shotApplied = true;
+      this.fireArrow(bow, bow.attackTarget);
     }
     if (u >= 1) {
-      this.bowAttackStartedAt = -Infinity;
-      this.bowAttackTarget = null;
-      this.nextBowAttackAt = now + 1.0;
+      bow.attackStartedAt = -Infinity;
+      bow.attackTarget = null;
+      bow.nextAttackAt = now + 1.0;
       this.setEquipmentSwing(bow, 0);
     }
   }
@@ -1226,7 +1242,7 @@ export class BattleRuntime {
       arrow.root.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), this.tempVector);
       if (!arrow.hitApplied && u >= 0.94) {
         arrow.hitApplied = true;
-        if (arrow.target.alive) this.applyDamage(arrow.target, 1, 'arrow', arrow.start);
+        if (arrow.target.alive) this.applyDamage(arrow.target, 1, 'projectile', arrow.start);
       }
       if (u >= 1) {
         this.scene.remove(arrow.root);
@@ -1259,7 +1275,8 @@ export class BattleRuntime {
       enemy.baseScale * (1 - idlePulse * 0.7),
       enemy.baseScale,
     );
-    this.facePoint(enemy, this.showSword ? SWORD_ATTACK_POS : BOW_HOME);
+    const target = this.findNearest(enemy, this.getLivingAllies());
+    if (target) this.facePoint(enemy, this.getEnemyTargetPosition(target));
     enemy.shadow.position.set(enemy.home.x, 0.011, enemy.home.z);
     enemy.shadow.scale.set(1.35, 0.68, 1);
     enemy.shadow.material.opacity = 0.22;
@@ -1288,12 +1305,12 @@ export class BattleRuntime {
     if (distance > ENEMY_ATTACK_RANGE) {
       this.tempVector.normalize();
       let step = Math.min(distance - ENEMY_ATTACK_RANGE, ENEMY_MOVE_SPEED * dt);
-      if (target.kind === 'Sword' && this.phase === 'combat') {
-        const actualSwordDistance = Math.hypot(
+      if (target.behaviorId === 'sword-melee' && this.phase === 'combat') {
+        const actualDistance = Math.hypot(
           target.root.position.x - enemy.root.position.x,
           target.root.position.z - enemy.root.position.z,
         );
-        step = Math.min(step, Math.max(0, actualSwordDistance - MELEE_BODY_GAP));
+        step = Math.min(step, Math.max(0, actualDistance - MELEE_BODY_GAP));
       }
       enemy.root.position.addScaledVector(this.tempVector, step);
       const hop = Math.abs(Math.sin(now * 8 + enemy.index * 1.2)) * 0.045;
@@ -1368,8 +1385,12 @@ export class BattleRuntime {
     this.phase = 'result';
     this.phaseStartedAt = now;
     this.result = result;
-    this.swordAttackStartedAt = -Infinity;
-    this.bowAttackStartedAt = -Infinity;
+    this.allies.forEach((ally) => {
+      ally.attackStartedAt = -Infinity;
+      ally.attackTarget = null;
+      ally.hitsApplied = 0;
+      ally.shotApplied = false;
+    });
     this.enemies.forEach((enemy) => {
       enemy.attackStartedAt = -Infinity;
       enemy.attackTarget = null;
@@ -1378,36 +1399,21 @@ export class BattleRuntime {
   }
 
   private updateResult(now: number): void {
-    if (!this.sword || !this.bow) return;
-    if (this.sword.alive) this.updateIdle(this.sword, now);
-    if (this.bow.alive) this.updateIdle(this.bow, now, 1.1);
+    this.allies.forEach((ally) => {
+      if (ally.alive) this.updateIdle(ally, now, ally.slotIndex * 0.31);
+    });
     this.enemies.forEach((enemy) => this.updateEnemyDefeat(enemy, now));
     if (now - this.phaseStartedAt >= RESULT_HOLD_SECONDS) this.resetWave(now);
   }
 
   private resetWave(now: number): void {
-    if (!this.sword || !this.bow) return;
     this.clearProjectiles();
-    if (this.showSword) this.resetAlly(this.sword);
-    else this.disableAlly(this.sword);
-    if (this.showBow) this.resetAlly(this.bow);
-    else this.disableAlly(this.bow);
+    this.allies.forEach((ally) => {
+      this.resetAlly(ally);
+      this.facePoint(ally, TARGET_HOME);
+    });
     this.enemies.forEach((enemy, index) => this.resetEnemy(enemy, now + index * 0.02));
-    if (this.showSword) this.sword.root.position.copy(SWORD_HOME);
-    if (this.showBow) this.bow.root.position.copy(BOW_HOME);
-    if (this.showSword) this.facePoint(this.sword, TARGET_HOME);
-    if (this.showBow) this.facePoint(this.bow, TARGET_HOME);
     this.startBattle(now + 0.1);
-  }
-
-
-  private disableAlly(unit: AllyUnit): void {
-    unit.hp = 0;
-    unit.alive = false;
-    unit.state = 'dead';
-    unit.root.visible = false;
-    unit.shadow.visible = false;
-    unit.healthBar.visible = false;
   }
 
   private resetAlly(unit: AllyUnit): void {
@@ -1416,6 +1422,11 @@ export class BattleRuntime {
     unit.state = 'idle';
     unit.defeatStartedAt = -Infinity;
     unit.hitStartedAt = -Infinity;
+    unit.nextAttackAt = 0;
+    unit.attackStartedAt = -Infinity;
+    unit.attackTarget = null;
+    unit.hitsApplied = 0;
+    unit.shotApplied = false;
     unit.root.visible = true;
     unit.root.position.copy(unit.home);
     unit.root.rotation.set(0, 0, 0);
@@ -1492,6 +1503,11 @@ export class BattleRuntime {
         : this.phase === 'combat'
           ? '交戦中'
           : this.result === 'victory' ? '勝利' : '敗北';
+    const allies = Object.fromEntries(this.allies.map((ally) => [ally.slimeId, {
+      hp: ally.hp,
+      maxHp: ally.maxHp,
+      alive: ally.alive,
+    }]));
     const snapshot: BattleSnapshot = {
       phase: this.phase,
       label,
@@ -1499,10 +1515,7 @@ export class BattleRuntime {
       enemyAlive,
       enemyHp,
       enemyMaxHp,
-      swordHp: this.sword?.hp ?? SWORD_MAX_HP,
-      swordMaxHp: SWORD_MAX_HP,
-      bowHp: this.bow?.hp ?? BOW_MAX_HP,
-      bowMaxHp: BOW_MAX_HP,
+      allies,
     };
     const key = JSON.stringify(snapshot);
     if (force || key !== this.lastSnapshotKey) {

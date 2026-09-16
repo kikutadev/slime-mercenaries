@@ -24,18 +24,22 @@ function BattleRuntimeScene({ model, onSnapshot }: BattleCanvasProps) {
     gl.shadowMap.enabled = true;
     gl.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    const sword = model.allies.find((ally) => ally.slimeId === 'sword') ?? null;
-    const bow = model.allies.find((ally) => ally.slimeId === 'bow') ?? null;
     const runtime = new BattleRuntime({
       scene,
       camera,
       baseUrl: import.meta.env.BASE_URL,
-      swordAsset: sword?.asset ?? 'assets/sword-slime.glb',
-      bowAsset: bow?.asset ?? 'assets/archer-slime.glb',
-      showSword: sword !== null,
-      showBow: bow !== null,
+      allies: model.allies.map((ally) => ({
+        slimeId: ally.slimeId,
+        slotIndex: ally.slotIndex,
+        asset: ally.asset,
+        behaviorId: ally.behaviorId,
+        fusionRank: ally.fusionRank,
+        equipmentAnchorName: ally.equipmentAnchorName,
+        weaponTipName: ally.weaponTipName,
+        maxHp: ally.maxHp,
+        formationRole: ally.formationRole,
+      })),
       onSnapshot: (snapshot) => snapshotRef.current(snapshot),
-      getSwordFusionRank: () => sword?.fusionRank ?? 1,
     });
     runtimeRef.current = runtime;
     void runtime.initialize();

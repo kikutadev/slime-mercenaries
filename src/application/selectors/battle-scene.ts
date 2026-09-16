@@ -1,5 +1,5 @@
 import { equippedWeaponDefinition, type JobSlimeId, type SlimeMercenariesState } from '../../domain';
-import { getSlimePresentation } from '../../game/slimes';
+import { getSlimePresentation, type BattleBehaviorId } from '../../game/slimes';
 
 /**
  * Stable projection consumed by the visual battle runtime.
@@ -16,6 +16,11 @@ export type BattleSceneAlly = Readonly<{
   promotionPathId: string | null;
   weaponDefinitionId: string | null;
   weaponName: string | null;
+  behaviorId: BattleBehaviorId;
+  equipmentAnchorName: string;
+  weaponTipName: string | null;
+  maxHp: number;
+  formationRole: 'front' | 'back';
 }>;
 
 export type BattleSceneModel = Readonly<{
@@ -49,6 +54,11 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
       promotionPathId: slime.promotionPathId,
       weaponDefinitionId: weapon?.id ?? null,
       weaponName: weapon?.displayName ?? null,
+      behaviorId: presentation.battle.behaviorId,
+      equipmentAnchorName: presentation.battle.equipmentAnchorName,
+      weaponTipName: presentation.battle.weaponTipName,
+      maxHp: presentation.battle.maxHp,
+      formationRole: presentation.battle.formationRole,
     } satisfies BattleSceneAlly];
   });
 
@@ -64,6 +74,7 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
       ally.fusionFormId,
       ally.promotionPathId ?? '-',
       ally.weaponDefinitionId ?? '-',
+      ally.behaviorId,
     ].join(':'))
     .join('|');
 

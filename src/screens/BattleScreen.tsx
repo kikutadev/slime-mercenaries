@@ -13,10 +13,7 @@ const INITIAL_BATTLE: BattleSnapshot = {
   enemyAlive: 3,
   enemyHp: 12,
   enemyMaxHp: 12,
-  swordHp: 6,
-  swordMaxHp: 6,
-  bowHp: 4,
-  bowMaxHp: 4,
+  allies: {},
 };
 
 export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeId) => void }) {
@@ -25,7 +22,7 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeI
   const hud = selectGlobalHud(state);
   const formation = selectFormation(state);
   const sceneModel = selectBattleSceneModel(state);
-  const hasSupportedBattleSlime = sceneModel.allies.some((ally) => ally.slimeId === 'sword' || ally.slimeId === 'bow');
+  const hasBattleSlime = sceneModel.allies.length > 0;
   const enemyRatio = battle.enemyMaxHp > 0 ? battle.enemyHp / battle.enemyMaxHp : 0;
   const activeCount = sceneModel.allies.length;
 
@@ -38,7 +35,7 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeI
 
   return (
     <section className="screen screen--battle screen--active" aria-label="Battle">
-      {hasSupportedBattleSlime ? (
+      {hasBattleSlime ? (
         <BattleCanvas model={sceneModel} onSnapshot={setBattle} />
       ) : (
         <div className="battle-empty-visual" aria-hidden="true">
@@ -55,7 +52,7 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeI
         <div className="resource-pill"><span className="resource-pill__coin">G</span><strong>{hud.gold}</strong></div>
       </header>
 
-      {hasSupportedBattleSlime && (
+      {hasBattleSlime && (
         <div className="battle-enemy-compact" aria-label="enemy health">
           <div><strong>Forest Mushrooms</strong><span>{battle.enemyAlive} left</span></div>
           <div className="enemy-hp-track"><div className="enemy-hp-fill" style={{ transform: `scaleX(${enemyRatio})` }} /></div>
@@ -70,11 +67,12 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeI
       <div className="battle-party-rail" aria-label="active formation">
         {formation.map((slot) => {
           if (slot.slimeId === null) return <span className="party-dot party-dot--empty" key={slot.slotIndex}>{slot.slotIndex + 1}</span>;
-          const slime = state.gameData.roster.slimes[slot.slimeId];
-          if (slime === undefined) return null;
-          const hpRatio = slot.slimeId === 'sword'
-            ? battle.swordHp / Math.max(1, battle.swordMaxHp)
-            : battle.bowHp / Math.max(1, battle.bowMaxHp);
+          const sceneAlly = sceneModel.allies.find((ally) => ally.slimeId === slot.slimeId);
+          if (sceneAlly === undefined) return null;
+          const runtimeAlly = battle.allies[slot.slimeId];
+          const hpRatio = runtimeAlly === undefined
+            ? 1
+            : runtimeAlly.hp / Math.max(1, runtimeAlly.maxHp);
           return (
             <button className="party-dot" type="button" key={slot.slotIndex} onClick={() => onOpenSlime(slot.slimeId!)}>
               <img src={`${import.meta.env.BASE_URL}${slot.icon}`} alt={slot.name ?? ''} />
