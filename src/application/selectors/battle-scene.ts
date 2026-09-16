@@ -1,0 +1,71 @@
+import { equippedWeaponDefinition, type JobSlimeId, type SlimeMercenariesState } from '../../domain';
+import { getSlimePresentation } from '../../game/slimes';
+
+/**
+ * Stable projection consumed by the visual battle runtime.
+ * Durable combat/progression remains in Domain; Three.js receives only presentation data.
+ */
+export type BattleSceneAlly = Readonly<{
+  slotIndex: number;
+  slimeId: JobSlimeId;
+  asset: string;
+  icon: string;
+  name: string;
+  fusionRank: number;
+  fusionFormId: string;
+  promotionPathId: string | null;
+  weaponDefinitionId: string | null;
+  weaponName: string | null;
+}>;
+
+export type BattleSceneModel = Readonly<{
+  encounterKey: string;
+  visualKey: string;
+  stageNumber: number;
+  waveIndex: number;
+  allies: readonly BattleSceneAlly[];
+}>;
+
+/**
+ * Project authoritative roster/loadout state into a small immutable scene model.
+ * The visual key changes only for battle-visible configuration, avoiding Three scene recreation
+ * for unrelated Gold/Token/dispatch updates.
+ */
+export function selectBattleSceneModel(state: SlimeMercenariesState): BattleSceneModel {
+  const allies = state.gameData.roster.formationSlots.flatMap((slimeId, slotIndex) => {
+    if (slimeId === null) return [];
+    const slime = state.gameData.roster.slimes[slimeId];
+    if (slime === undefined) return [];
+    const presentation = getSlimePresentation(slime);
+    const weapon = equippedWeaponDefinition(state, slimeId);
+    return [{
+      slotIndex,
+      slimeId,
+      asset: presentation.asset,
+      icon: presentation.icon,
+      name: presentation.name,
+      fusionRank: slime.fusionRank,
+      fusionFormId: slime.fusionFormId,
+      promotionPathId: slime.promotionPathId,
+      weaponDefinitionId: weapon?.id ?? null,
+      weaponName: weapon?.displayName ?? null,
+    } satisfies BattleSceneAlly];
+  });
+
+  const stageNumber = state.gameData.progression.currentStage;
+  const waveIndex = state.gameData.combat.currentWaveIndex;
+  const encounterKey = `${state.gameData.progression.currentAreaId}:${stageNumber}:${waveIndex}`;
+  const visualKey = allies
+    .map((ally) => [
+      ally.slotIndex,
+      ally.slimeId,
+      ally.asset,
+      ally.fusionRank,
+      ally.fusionFormId,
+      ally.promotionPathId ?? '-',
+      ally.weaponDefinitionId ?? '-',
+    ].join(':'))
+    .join('|');
+
+  return { encounterKey, visualKey, stageNumber, waveIndex, allies };
+}

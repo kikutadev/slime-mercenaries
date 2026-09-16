@@ -1,23 +1,18 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import type { BattleSceneModel } from '../application/selectors/battle-scene';
 import { BattleRuntime, type BattleSnapshot } from '../game/BattleRuntime';
 
 interface BattleCanvasProps {
-  encounterKey: string;
-  showBow: boolean;
-  swordFusionRank: number;
-  swordAsset: string;
+  model: BattleSceneModel;
   onSnapshot: (snapshot: BattleSnapshot) => void;
 }
 
-function BattleRuntimeScene({ swordFusionRank, swordAsset, showBow, onSnapshot }: BattleCanvasProps) {
+function BattleRuntimeScene({ model, onSnapshot }: BattleCanvasProps) {
   const { scene, camera, gl } = useThree();
   const runtimeRef = useRef<BattleRuntime | null>(null);
-  const rankRef = useRef(swordFusionRank);
   const snapshotRef = useRef(onSnapshot);
-
-  rankRef.current = swordFusionRank;
   snapshotRef.current = onSnapshot;
 
   useEffect(() => {
@@ -29,14 +24,18 @@ function BattleRuntimeScene({ swordFusionRank, swordAsset, showBow, onSnapshot }
     gl.shadowMap.enabled = true;
     gl.shadowMap.type = THREE.PCFSoftShadowMap;
 
+    const sword = model.allies.find((ally) => ally.slimeId === 'sword') ?? null;
+    const bow = model.allies.find((ally) => ally.slimeId === 'bow') ?? null;
     const runtime = new BattleRuntime({
       scene,
       camera,
       baseUrl: import.meta.env.BASE_URL,
-      swordAsset,
-      showBow,
+      swordAsset: sword?.asset ?? 'assets/sword-slime.glb',
+      bowAsset: bow?.asset ?? 'assets/archer-slime.glb',
+      showSword: sword !== null,
+      showBow: bow !== null,
       onSnapshot: (snapshot) => snapshotRef.current(snapshot),
-      getSwordFusionRank: () => rankRef.current,
+      getSwordFusionRank: () => sword?.fusionRank ?? 1,
     });
     runtimeRef.current = runtime;
     void runtime.initialize();
@@ -45,7 +44,7 @@ function BattleRuntimeScene({ swordFusionRank, swordAsset, showBow, onSnapshot }
       runtime.dispose();
       runtimeRef.current = null;
     };
-  }, [camera, gl, scene, swordAsset, showBow]);
+  }, [camera, gl, scene, model.visualKey]);
 
   useFrame(({ clock }) => {
     runtimeRef.current?.tick(clock.elapsedTime);
@@ -57,7 +56,7 @@ function BattleRuntimeScene({ swordFusionRank, swordAsset, showBow, onSnapshot }
 export function BattleCanvas(props: BattleCanvasProps) {
   return (
     <Canvas
-      key={`${props.encounterKey}:${props.swordAsset}:${props.showBow ? 'bow' : 'solo'}`}
+      key={`${props.model.encounterKey}:${props.model.visualKey}`}
       className="battle-canvas"
       camera={{ fov: 31, near: 0.1, far: 50, position: [2.8, 5.35, 8.9] }}
       dpr={[1, 2]}
