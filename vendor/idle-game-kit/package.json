@@ -1,0 +1,65 @@
+{
+  "name": "idle-game-kit",
+  "version": "0.2.0",
+  "description": "Reusable TypeScript idle-game core, browser adapters, React primitives and same-core simulator.",
+  "private": true,
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kikutadev/idle-game-kit.git"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./types/src/index.d.ts",
+      "import": "./index.js",
+      "default": "./index.js"
+    },
+    "./web": {
+      "types": "./types/src/platform/web/index.d.ts",
+      "import": "./web.js",
+      "default": "./web.js"
+    },
+    "./cloudflare": {
+      "types": "./types/src/platform/cloudflare/index.d.ts",
+      "import": "./cloudflare.js",
+      "default": "./cloudflare.js"
+    },
+    "./cloudflare-auth": {
+      "types": "./types/src/platform/cloudflare-auth/index.d.ts",
+      "import": "./cloudflare-auth.js",
+      "default": "./cloudflare-auth.js"
+    },
+    "./simulator": {
+      "types": "./types/simulator/index.d.ts",
+      "import": "./simulator.js",
+      "default": "./simulator.js"
+    },
+    "./react": {
+      "types": "./types/src/react/index.d.ts",
+      "import": "./react.js",
+      "default": "./react.js"
+    }
+  },
+  "files": [
+    "*.js",
+    "types",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "react": ">=18",
+    "better-auth": "^1.7.4"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "better-auth": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

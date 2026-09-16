@@ -7,7 +7,7 @@ Date: 2026-09-16
 
 The roster is a collection of **slime types/forms**, not a warehouse of persistent individual bodies.
 
-For each discovered type, the player owns one canonical progression record. Reacquiring the same type supplies fusion input to that record rather than permanently increasing a population count.
+For each discovered combat type, the player owns one canonical progression record. Plain Slime stock is the renewable untrained body source used to create normal jobs; it is not a set of individually managed character records. Recreating a job that is already discovered supplies fusion input to its canonical record rather than permanently increasing a population count.
 
 The active battlefield therefore shows at most one body of a given type.
 
@@ -21,22 +21,24 @@ Frequent Gold-spend growth. Primarily increases combat stats and gives the playe
 
 ### Fusion
 
-Reacquiring the same type converts into a type-specific fusion item such as `Sword Slime Core`; it does not create another persistent body.
+Creating an already-discovered job again converts the repeated creation into a type-specific fusion item such as `Sword Slime Core`; it does not create another persistent body.
 
 Fusion is the main answer to “what happens when I get this slime again?” and is recipe-based.
 
-- same-type reacquisition becomes a Slime Core / equivalent branch item
+- repeated creation of the same job becomes a Slime Core / equivalent branch item
 - fusion recipes may combine Slime Core + weapon ingredient + ordinary material
 - duplicates are not extra battlefield bodies
 - exact recipe quantities and rank cap are balance data
 - fusion may unlock visible combat behavior or a linear upgraded form at milestones
-- the first Sword fusion milestone at Lv.10 turns Sword Slime into Greatsword Slime while preserving the same canonical roster record
+- the first Sword fusion milestone at Lv.10 unlocks the `Greatsword` fusion form while preserving the same canonical Sword roster record and the same promotion tier
 
 ### Promotion / evolution
 
 Changes the job form itself and therefore the attack identity.
 
-Promotion is not the same as fusion. Fusion strengthens the owned canonical branch and may cross a linear milestone form such as Sword Slime -> Greatsword Slime. Promotion moves that branch into a later specialization choice according to progression requirements.
+Promotion is not the same as fusion. Fusion strengthens the owned canonical branch and may change its fusion presentation/form, such as Sword Slime -> Greatsword fusion form, without consuming a promotion tier. Promotion changes the actual job tier and later specialization according to progression requirements.
+
+Canonical state therefore keeps these axes separate: `jobTier/promotionPath` and `fusionRank/fusionForm`. Greatsword is not the Tier-2 job that competes with Fighter; Fighter remains the Tier-2 promotion of the Sword branch.
 
 ## 3. Body-size invariant
 
@@ -52,7 +54,47 @@ Strength can be expressed through weapon finish, small accessories, attack patte
 
 A fusion-milestone or promoted form may have a distinct weapon/accessory silhouette while keeping the slime body dimensions stable. “Stronger = simply bigger slime” is not the progression language. Bosses/enemies are not bound by this player-character rule.
 
-## 4. Evolution tree overview
+
+## 4. Plain Slime supply and normal-job creation
+
+Plain Slime is the renewable body source for the normal job tree. The player does not wait for a completed Sword/Bow/etc. character to drop directly.
+
+### Plain Slime stock
+
+- Plain Slime stock is created from a small recipe of slime-generation materials.
+- Plain Slime can also be purchased for Gold from the normal shop. The shop is the deterministic backstop so material RNG cannot halt job creation.
+- Plain stock is a countable resource: stock entries do not own level, equipment, individual stats, names, or assignment.
+- The canonical `Plain Slime` combat type may still exist as a discovered roster type; the stock consumed for job creation is a separate resource concept.
+
+Initial conceptual recipe:
+
+```text
+Slime Gel + Life Water / equivalent common catalyst
+-> Plain Slime stock +1
+```
+
+Exact names, quantities, crafting time, and Gold price are balance/content data. Routine Plain creation should remain simple and use no more than a small number of ingredient categories.
+
+### Job creation
+
+Normal Tier-1 jobs use:
+
+```text
+Plain Slime stock x1
++ Job Gear x1
+-> job creation
+```
+
+`Job Gear` is a profession catalyst, distinct from the persistent combat Equipment inventory. A Sword Job Gear creates the Sword job; a Bow Job Gear creates the Bow job, etc. The first tutorial families are guaranteed and later normal families gain deterministic access as areas unlock.
+
+Resolution is state-dependent:
+
+- job not yet discovered -> unlock/create the canonical roster record and show NEW presentation
+- job already discovered -> do not create another persistent body; resolve into the type-specific Slime Core / fusion input
+
+The temporary second slime may still be shown during the fusion presentation even though no second persistent character exists in save state.
+
+## 5. Evolution tree overview
 
 The longer-term launch-content target retains the following 30 discoverable forms:
 
@@ -95,7 +137,7 @@ Count: 1 root + 6 Tier 1 + 6 Tier 2 + 12 Tier 3 + 5 mutation = **30 forms**.
 
 This is a content horizon. The first production slice should prove the loop with a much smaller subset.
 
-## 5. Standard forms
+## 6. Standard forms
 
 | # | Type | Tier | Battlefield identity | Signature behavior | Visual read |
 |---:|---|---:|---|---|---|
@@ -125,7 +167,7 @@ This is a content horizon. The first production slice should prove the loop with
 | 24 | Cannoneer Slime | 3 | explosive AoE | arcing shell | cannon behind body |
 | 25 | Engineer Slime | 3 | utility DPS | temporary turret | goggles + wrench + mini turret |
 
-## 6. Rare mutation forms
+## 7. Rare mutation forms
 
 Rare mutations are horizontally special rather than universal upgrades.
 
@@ -139,15 +181,16 @@ Rare mutations are horizontally special rather than universal upgrades.
 
 No Codex completion should require indefinite luck.
 
-## 7. Promotion rules
+## 8. Promotion rules
 
 ### Plain -> Tier 1
 
-The defining fantasy is **give equipment, discover a job**.
+The defining fantasy is **create a Plain Slime, give it Job Gear, discover a job**.
 
 Requirements:
 
-- relevant Job Gear family unlocked
+- Plain Slime stock x1
+- relevant Job Gear x1
 - small Gold / progression requirement if needed
 
 The first Sword and Bow family access is tutorial-guaranteed. Other normal families become deterministically accessible as areas unlock.
@@ -172,29 +215,29 @@ Requirements may include:
 
 Exact thresholds are balance data.
 
-## 8. Fusion behavior
+## 9. Fusion behavior
 
-When a slime type is acquired:
+When a normal job is created from Plain Slime + Job Gear:
 
-### First acquisition
+### First creation
 
 - discover/unlock the type if not already owned
 - create its canonical roster progression state
 - show NEW presentation when appropriate
 
-### Reacquisition
+### Repeated creation
 
-- convert the duplicate into a type-specific Slime Core / fusion item immediately
+- convert the repeated job creation into a type-specific Slime Core / fusion item immediately
 - show a compact item/progress result
 - do not create a second persistent character card by default
 
 Fusion is recipe-based. A recipe may consume the type-specific Slime Core together with a weapon ingredient and ordinary material, and may also require a level threshold. This is the canonical fusion acquisition model.
 
-The first Sword milestone requires Lv.10 plus `Sword Slime Core x1 + Greatsword Blank x1 + Hardening Gel x2`. The fusion presentation still shows two Sword Slime models merging for readability and fantasy, but the durable inventory cost is the recipe items. The result is Greatsword Slime: same slime-body scale, visibly broader greatsword, and a one-rotation area sweep that damages nearby enemies.
+The first Sword milestone requires Lv.10 plus `Sword Slime Core x1 + Greatsword Blank x1 + Hardening Gel x2`. The fusion presentation still shows two Sword Slime models merging for readability and fantasy, but the durable inventory cost is the recipe items. The result unlocks the Greatsword fusion form on the Sword branch: same promotion tier, same slime-body scale, visibly broader greatsword, and a fast half-turn horizontal sweep that damages nearby enemies.
 
 Fusion preserves already-earned level and the canonical roster record. A milestone may replace the equipped weapon/form presentation as part of the upgrade; it is not a reset and does not create another persistent body.
 
-## 9. Fusion milestone presentation
+## 10. Fusion milestone presentation
 
 A fusion milestone should be satisfying without pretending the character became a physically larger creature.
 
@@ -207,9 +250,9 @@ Possible milestone rewards:
 - impact trail becomes stronger
 - passive/signature behavior unlocks
 
-The first fusion tutorial uses two same-size Sword Slime models side by side, pulls them into the center, flashes at contact, then reveals same-body-size Greatsword Slime and immediately previews its one-rotation area sweep.
+The first fusion tutorial uses two same-size Sword Slime models side by side, pulls them into the center, flashes at contact, then reveals same-body-size Greatsword Slime and immediately previews its fast half-turn horizontal sweep.
 
-## 10. Assignment states
+## 11. Assignment states
 
 An owned type can be:
 
@@ -221,7 +264,7 @@ The same type cannot occupy multiple battle slots and cannot battle while dispat
 
 A duplicate waiting to be fused is not an independently assignable body.
 
-## 11. Role interactions
+## 12. Role interactions
 
 The six branches create understandable differences without hard rock-paper-scissors requirements.
 
@@ -234,7 +277,7 @@ The six branches create understandable differences without hard rock-paper-sciss
 
 Behavior should be visible first and numerically optimized second.
 
-## 12. Discovery presentation
+## 13. Discovery presentation
 
 Codex can show the full long-term tree while hiding exact recipes until relevant.
 
@@ -251,7 +294,7 @@ Target duration: roughly 1.5–2.5 seconds for normal forms; mutation reveal may
 
 Fusion uses a shorter presentation than a new-form discovery.
 
-## 13. Balance guardrails
+## 14. Balance guardrails
 
 - Fusion strengthens favorites without forcing duplicate bodies onto the field.
 - Type level remains a frequent deterministic growth path so duplicate drought does not stop all progress.

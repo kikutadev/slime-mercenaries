@@ -39,10 +39,12 @@ Progression
 - unlockedSystems
 
 Roster
+- plainSlimeStock
 - discoveredSlimeTypeIds
 - slimeProgressByType
     - level
     - fusionRank
+    - fusionForm / fusion milestone state
     - promotion state
     - equipped weapon
 - fusionInventory
@@ -68,6 +70,8 @@ Equipment
 
 Economy
 - gold
+- slime-generation materials
+- jobGear stock / unlock state
 - forgeKeys
 - promotion materials
 - mutationFragmentsByFamily
@@ -88,18 +92,20 @@ A slime type is not a collection of persistent individual bodies.
 Each discovered type owns one canonical progression state:
 
 - `type level`: frequent Gold-based growth
-- `fusion rank / progress`: same-type reacquisition-based growth
+- `fusion rank / form`: repeated creation of an already-discovered job produces type-specific fusion input; fusion strengthens that canonical type without changing its promotion tier
 - `promotion`: branch-specific evolution Tier
 - `equipped weapon`: one family-compatible weapon state
 - `assignment`: battle / dispatch / reserve
 
-A second copy of a discovered type is primarily fusion input. It does not permanently increase a population counter and does not add another same-type body to the battlefield.
+Plain Slime is a renewable untrained body source. Plain stock is obtained by material crafting or deterministic Gold purchase and is consumed when creating normal job slimes. Plain stock is not a set of individually leveled characters.
+
+Normal jobs are created from `Plain Slime + Job Gear`. The first creation unlocks the canonical roster type. Repeating the same job creation resolves immediately into that type's fusion input rather than creating a persistent second character. It does not permanently increase a population counter and does not add another same-type body to the battlefield.
 
 ## 5. Main formation
 
 Normal combat uses up to six unique slime types.
 
-Each occupied slot deploys exactly one visible slime body. Duplicate slime types cannot occupy several slots simultaneously; repeated acquisition strengthens the existing type through fusion instead.
+Each occupied slot deploys exactly one visible slime body. Duplicate slime types cannot occupy several slots simultaneously; repeated job creation strengthens the existing type through fusion instead.
 
 Formation is a small-party composition decision, not a squad-size management system.
 
@@ -109,10 +115,11 @@ Initial product may unlock fewer than six slots during onboarding, but six is th
 
 Fusion is a core growth path.
 
-- reacquiring an already-discovered slime type grants fusion input for that type
-- fusion raises that type's persistent fusion progression
+- repeating creation of an already-discovered job grants a type-specific Slime Core / equivalent fusion input
+- fusion recipes may combine that type-specific input with weapon components and ordinary materials
+- fusion raises that type's persistent fusion rank / fusion-form progression without changing promotion tier by itself
 - fusion must produce meaningful combat growth
-- exact rank count, duplicate requirements, and coefficients are balance data
+- exact rank count, recipe requirements, and coefficients are balance data
 - reload must not duplicate or reroll a resolved fusion/acquisition result
 
 ### Body-size invariant
@@ -129,6 +136,10 @@ Strength progression should instead surface through:
 - unlocked signature behavior
 
 A stronger slime should look more capable, not simply larger.
+
+### Fusion form is not promotion tier
+
+A named fusion milestone such as `Greatsword Slime` is a fusion presentation/form on the owned Sword branch, not a Tier-2 promotion and not an additional Codex type. `jobTier`, `promotionPath`, and `fusionRank/fusionForm` are separate state axes. This prevents the Sword -> Fighter promotion line from colliding with the Sword -> Greatsword fusion milestone.
 
 ## 7. Evolution structure
 
@@ -178,7 +189,9 @@ Enemies can produce battle drops and treasure chests. Chests are a primary excit
 
 Contents can include:
 
-- slime acquisition / duplicate acquisition where appropriate
+- slime-generation materials
+- Job Gear / Job Gear components
+- type-specific fusion ingredients where appropriate
 - equipment
 - Gold
 - Forge Keys
@@ -187,7 +200,7 @@ Contents can include:
 
 A dropped chest appears physically on the battlefield. The player may tap it to open immediately; if ignored it auto-opens so idle progression never stalls.
 
-First-time normal job access remains deterministic even if repeated slime acquisition later contains variable rewards.
+Normal-job access is deterministic: Plain Slime always has a material-generation path plus a Gold-shop backstop, and core Job Gear families have deterministic progression access. Random loot may accelerate those paths but does not gate the normal job tree.
 
 ## 11. Equipment contract
 
@@ -199,7 +212,7 @@ Equipment remains a major random-draw collection system.
 - highest rarity contains multiple desirable items rather than one universal best item
 - high-rarity equipment changes readable battle presentation, not only hidden stat multipliers
 
-Slime fusion and equipment refinement are separate growth axes: slime duplicates strengthen the type; weapon duplicates strengthen the weapon.
+Slime fusion and equipment refinement are separate growth axes: repeated job creation produces type-specific fusion input that strengthens the type; weapon duplicates strengthen the weapon.
 
 ## 12. Dispatch contract
 
@@ -264,7 +277,8 @@ Offline normal-stage progress stops at an uncleared major boss intended as a pro
 
 Important progression actions must be idempotent where practical, especially:
 
-- slime acquisition / duplicate resolution
+- Plain Slime crafting / shop purchase
+- job creation / repeated-job fusion-input resolution
 - fusion
 - chest opening
 - equipment draw and pity advancement
@@ -304,5 +318,5 @@ A representative mobile play session must confirm:
 - fusion growth is noticeable without increasing body scale
 - new job acquisition visibly changes silhouette and attack behavior
 - high-rarity equipment visibly changes effects
-- repeated slime acquisition creates a satisfying fusion opportunity rather than unwanted battlefield clutter
+- repeated job creation creates a satisfying fusion opportunity rather than unwanted battlefield clutter
 - reserve slimes can produce useful dispatch value without becoming spreadsheet micromanagement

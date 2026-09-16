@@ -140,7 +140,7 @@ Greatsword Slime
 The contract is that the player can answer:
 
 - what items do I need?
-- which item came from reacquiring this slime?
+- which fusion item came from recreating this job?
 - which weapon/material is missing?
 - what attack behavior gets better?
 
@@ -157,7 +157,7 @@ First Sword fusion milestone:
 - fire a bright central flash at contact
 - replace both with Greatsword Slime
 - keep slime-body dimensions unchanged; communicate the upgrade through the greatsword silhouette and attack
-- immediately preview a full-body one-rotation greatsword sweep
+- immediately preview a fast half-turn horizontal greatsword sweep
 - in battle, the sweep damages every living enemy inside its area rather than only the selected target
 
 Later ordinary fusion steps may use a shorter jelly compression + weapon/VFX pulse. Fusion presentation should remain shorter than a NEW job reveal.
@@ -251,7 +251,7 @@ Codex lives under Slimes and has at least:
 
 Slime Codex prioritizes the evolution tree over a flat grid.
 
-Fusion rank is player progression, not separate Codex entries. Reacquiring the same slime does not create duplicate collection cards.
+Fusion rank is player progression, not separate Codex entries. Recreating an already-discovered job does not create duplicate collection cards.
 
 ## 14. Offline return
 
@@ -280,9 +280,9 @@ First sequence:
 3. Rusty Sword appears
 4. player gives Sword to Plain Slime
 5. it becomes Sword Slime and immediately attacks differently
-6. second Sword Slime acquisition occurs soon after
-7. at Lv.10, player fuses the reacquired Sword Slime into the owned Sword branch
-8. Greatsword Slime appears with the same slime-body size, a large sword silhouette, and a two-hit attack
+6. player creates another Plain Slime and uses Sword Job Gear again; it resolves into Sword Slime Core
+7. at Lv.10, player uses the Sword Slime Core plus the authored recipe to fuse the owned Sword branch
+8. Greatsword fusion form appears with the same slime-body size, a large sword silhouette, and a fast half-turn horizontal sweep
 9. Bow is discovered
 10. later, an unused type receives the first simple dispatch tutorial
 

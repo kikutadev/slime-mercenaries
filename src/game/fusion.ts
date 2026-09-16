@@ -1,4 +1,5 @@
-import type { FusionItemId, RosterState, SlimeId, SlimeProgress } from './slimes';
+import { fusionStepDefinitions, type FusionStepDefinition } from '../domain/definitions';
+import { FUSION_ITEMS, type FusionItemId, type RosterState, type SlimeId, type SlimeProgress } from './slimes';
 
 export interface FusionRequirement {
   itemId: FusionItemId;
@@ -14,86 +15,48 @@ export interface FusionStep {
   recipe: FusionRequirement[];
 }
 
-const SWORD_STEPS: FusionStep[] = [
-  {
-    rank: 1,
-    minLevel: 10,
+type FusionPresentation = Readonly<{
+  title: string;
+  description: string;
+  resultName?: string;
+}>;
+
+/** Presentation copy stays local; all balance-relevant requirements come from domain definitions. */
+const PRESENTATION: Readonly<Record<string, FusionPresentation>> = {
+  'fusion.sword.01-greatsword': {
     title: '大剣士へ合成',
-    description: '大剣を軸に身体ごと一回転し、周囲の敵を薙ぎ払う上位形態になる',
+    description: '大剣を軸に身体ごと一回転し、周囲の敵を薙ぎ払う形態になる',
     resultName: 'Greatsword Slime',
-    recipe: [
-      { itemId: 'sword-core', amount: 1 },
-      { itemId: 'greatsword-blank', amount: 1 },
-      { itemId: 'hardening-gel', amount: 2 },
-    ],
   },
-  {
-    rank: 2,
-    minLevel: 18,
+  'fusion.sword.02-heavy-impact': {
     title: '重撃強化',
     description: '回転薙ぎの範囲とimpactがさらに強くなる',
-    recipe: [
-      { itemId: 'sword-core', amount: 2 },
-      { itemId: 'tempered-steel', amount: 2 },
-      { itemId: 'hardening-gel', amount: 3 },
-    ],
   },
-  {
-    rank: 3,
-    minLevel: 28,
+  'fusion.sword.03-whirlwind': {
     title: '旋風大斬',
     description: '回転斬りの余波が広がり、さらに広い範囲を巻き込む',
-    recipe: [
-      { itemId: 'sword-core', amount: 3 },
-      { itemId: 'tempered-steel', amount: 4 },
-      { itemId: 'hardening-gel', amount: 5 },
-    ],
   },
-];
-
-const BOW_STEPS: FusionStep[] = [
-  {
-    rank: 1,
-    minLevel: 10,
+  'fusion.bow.01-rapid-shot': {
     title: '連射型へ合成',
     description: '弓士の核と強化弓を組み合わせ、短い間隔で追撃する形態になる',
-    recipe: [
-      { itemId: 'bow-core', amount: 1 },
-      { itemId: 'reinforced-bow', amount: 1 },
-      { itemId: 'hardening-gel', amount: 1 },
-    ],
   },
-  {
-    rank: 2,
-    minLevel: 18,
+  'fusion.bow.02-piercing-shot': {
     title: '鋭い矢',
     description: '着弾impactと貫通性能を強化する',
-    recipe: [
-      { itemId: 'bow-core', amount: 2 },
-      { itemId: 'tempered-steel', amount: 1 },
-      { itemId: 'hardening-gel', amount: 2 },
-    ],
   },
-  {
-    rank: 3,
-    minLevel: 28,
+  'fusion.bow.03-triple-shot': {
     title: '三連射',
     description: '一度の攻撃で複数の矢を放つ',
-    recipe: [
-      { itemId: 'bow-core', amount: 3 },
-      { itemId: 'tempered-steel', amount: 2 },
-      { itemId: 'hardening-gel', amount: 4 },
-    ],
   },
-];
+};
 
 const STEPS: Record<SlimeId, FusionStep[]> = {
-  sword: SWORD_STEPS,
-  bow: BOW_STEPS,
+  sword: fusionStepDefinitions.sword.map(toPresentationStep),
+  bow: fusionStepDefinitions.bow.map(toPresentationStep),
 };
 
 export function getNextFusionStep(slime: SlimeProgress): FusionStep | null {
-  return STEPS[slime.id][slime.fusionRank - 1] ?? null;
+  return STEPS[slime.id].find((step) => step.rank === slime.fusionRank) ?? null;
 }
 
 export function getFusionRequirementCount(state: RosterState, requirement: FusionRequirement): number {
@@ -117,6 +80,10 @@ export function canFuse(state: RosterState, id: SlimeId): boolean {
   );
 }
 
+/**
+ * Legacy UI-only transition. Product balance comes from src/domain; this function remains only
+ * until App.tsx is migrated to the authoritative GameState command.
+ */
 export function fuseSlime(state: RosterState, id: SlimeId): RosterState {
   const current = state.slimes[id];
   const next = getNextFusionStep(current);
@@ -144,4 +111,25 @@ export function fuseSlime(state: RosterState, id: SlimeId): RosterState {
 
 export function isGreatswordRank(rank: number): boolean {
   return rank >= 2;
+}
+
+function toPresentationStep(definition: FusionStepDefinition): FusionStep {
+  const presentation = PRESENTATION[definition.id];
+  if (presentation === undefined) throw new Error(`Missing Fusion presentation metadata: ${definition.id}`);
+  return {
+    rank: definition.fromRank,
+    minLevel: definition.minLevel,
+    title: presentation.title,
+    description: presentation.description,
+    ...(presentation.resultName === undefined ? {} : { resultName: presentation.resultName }),
+    recipe: definition.recipe.map((requirement) => ({
+      itemId: requireFusionItemId(requirement.tokenId),
+      amount: requirement.count,
+    })),
+  };
+}
+
+function requireFusionItemId(tokenId: string): FusionItemId {
+  if (tokenId in FUSION_ITEMS) return tokenId as FusionItemId;
+  throw new Error(`Fusion recipe token is not exposed by the current presentation inventory: ${tokenId}`);
 }

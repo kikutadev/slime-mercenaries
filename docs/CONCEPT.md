@@ -15,8 +15,8 @@ Date: 2026-09-16
 
 プレイヤーに継続して抱かせたい欲求は次の4つ。
 
-1. **次はどんな職業・スライムを発見できるのか見たい**
-2. **同じスライムをもう一度手に入れて、次の合成段階へ進めたい**
+1. **素材から新しいPlain Slimeを生み、次はどんな職業へ変えられるのか見たい**
+2. **発見済み職をもう一度作り、次の合成段階へ進めたい**
 3. **強化した結果、戦い方がもっと気持ちよく変わるところを見たい**
 4. **主力以外にも仕事を任せ、傭兵団全体が働いている状態を作りたい**
 
@@ -27,11 +27,15 @@ Date: 2026-09-16
 ```text
 自動戦闘
   ↓
-敵撃破 / 宝箱 / slime acquisition
+敵撃破 / 宝箱 / 派遣
   ↓
-装備・同種スライム・進化素材を獲得
+Gold・スライム生成素材・Job Gear・装備・合成素材を獲得
   ↓
-職業発見 / 同種合成 / 装備更新
+Plain Slimeを生成またはショップ購入
+  ↓
+Plain + Job Gearで職業発見 / 発見済み職ならFusion Input化
+  ↓
+同種合成 / Promotion / 装備更新
   ↓
 攻撃方法・テンポ・VFXが変化
   ↓
@@ -52,36 +56,51 @@ Date: 2026-09-16
 
 ### 4.2 Fusion strengthens a type; it does not create an army
 
-同じ種類を再取得した価値は、戦場へ同型を何匹も追加することではなく、**その種類を合成して強くすること**に置く。
+同じ職業スライムを再生成した価値は、戦場へ同型を何匹も追加することではなく、**その種類を合成して強くすること**に置く。通常職スライムは原則として宝箱から完成体を直接引くのではなく、Plain Slimeを素体にJob Gearを与えて作る。
 
-- 同種の再取得はfusion progressになる
+- Plain Slimeは素材から生成するか、Goldでショップ購入できる
+- Plain Slimeの在庫は個体育成を持たない素体stockとして扱う
+- 未発見職を作るとcanonical roster entryが解放される
+- 発見済み職をもう一度作るとtype-specific Slime Core / fusion inputになる
 - メイン戦闘では一つの種類につき原則1匹を表示する
 - 合成ランクが上がってもbody sizeは変えない
 - 強さは武器、装飾、attack pattern、projectile、trail、impact、skillなどで見せる
 
 「何匹いるか」ではなく「この一匹がどこまで育ったか」を気持ちよさの中心にする。
 
-### 4.3 Small party, readable characters
+### 4.3 Plain Slime is the renewable body source
+
+通常職の供給起点はPlain Slimeへ統一する。
+
+- 戦闘・派遣から得る素材でPlain Slimeを生成できる
+- Goldを使うショップ購入は、素材RNGによる進行停止を防ぐdeterministic backstopである
+- Plain Slime stock自体にはlevel、equipment、個体値、assignmentを持たせない
+- Plain Slimeを戦闘種として所有するcanonical roster stateと、職業化に消費するPlain Slime stockは別概念とする
+- 通常Jobは `Plain Slime + Job Gear` から発見する
+
+これにより「スライムを作り、仕事を与え、育てる」という一貫した傭兵団形成fantasyを保つ。
+
+### 4.4 Small party, readable characters
 
 メイン戦闘は最大6枠、各枠1匹とする。
 
 プレイヤーは少数の種類を選ぶだけでよく、一匹ごとの表情、HP、攻撃、被弾、敗北がスマートフォン上で読める。30匹を常時表示する軍勢表現はcore goalにしない。
 
-### 4.4 Reserve slimes still have a job
+### 4.5 Reserve slimes still have a job
 
 発見・育成した別種類がメイン編成から外れても無価値にしない。
 
 メイン編成外のスライムは、護衛、探索、採集などの派遣へ出せる。派遣は「余った同種の頭数を消費する」仕組みではなく、**控えの種類に別の仕事を与える仕組み**である。
 
-### 4.5 Loot changes behavior, not only numbers
+### 4.6 Loot changes behavior, not only numbers
 
 装備は攻撃力+5%だけで終わらせない。
 
 高rarityほど、弾数、射程、貫通、範囲、追加hit、projectile形状、skill演出など、見て分かる差を持たせる。
 
-### 4.6 Surprise without progression dead-ends
+### 4.7 Surprise without progression dead-ends
 
-同種の再取得、高rarity equipment、mutationは驚きを作る。一方、通常職の発見や通常進行を極端な低確率だけに拘束しない。core branchにはdeterministicな到達手段を持つ。
+発見済み職の再生成、高rarity equipment、mutationは驚きを作る。一方、通常職の発見や通常進行を極端な低確率だけに拘束しない。core branchにはdeterministicな到達手段を持つ。
 
 ## 5. Combat fantasy
 
@@ -152,16 +171,18 @@ Fusion rankの上昇で行わない変化:
 
 ### 0:00–1:00
 
-- Plain Slime 1匹で開始
+- 最初の生成素材からPlain Slime 1匹を確定生成する
 - 敵は小型キノコ
-- 最初の木箱からRusty Swordを確定
-- Swordを渡すとSword Slimeへ変化
+- 最初の木箱からSword Job Gearを確定
+- Job Gearを渡すとSword Slimeへ変化
+- ショップでもPlain SlimeをGold購入できることを早期に見せる
 
 ### 1:00–3:00
 
-- Sword Slimeをもう一度入手し、最初のfusionを体験
-- 体の大きさは変わらず、斬撃の強さ・演出が一段上がる
-- Bowを確定入手しBow Slimeを発見
+- 2体目のPlain Slimeを生成または購入し、Sword Job GearでSword Slimeを再生成する
+- 再生成したSword SlimeはSword Slime Coreへ変換され、最初のfusion素材になる
+- 体の大きさは変わらず、攻撃モーション・範囲・演出が一段上がる
+- Bow Job Gearを確定入手し、別のPlain SlimeからBow Slimeを発見
 
 ### 3:00–5:00
 
@@ -215,4 +236,4 @@ Fusion rankの上昇で行わない変化:
 
 初見プレイヤーが10分以内に、説明文なしでも概ね次の一文を理解できること。
 
-> 「敵を倒して武器やスライムを手に入れ、武器で職業を増やし、同じスライムは合成して一匹を強くする。主力は少人数で戦い、使っていない仲間は派遣へ出せるゲーム。」
+> 「敵を倒して素材や装備を集め、Plain Slimeを作って仕事道具を渡すと新しい職業が生まれる。同じ職業をもう一度作れば合成で一匹を強くでき、主力以外は派遣へ出せるゲーム。」

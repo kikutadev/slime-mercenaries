@@ -11,10 +11,12 @@
     "generate:sword": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant sword --output public/assets/sword-slime.glb",
     "generate:archer": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant archer --output public/assets/archer-slime.glb",
     "typecheck": "tsc --noEmit",
-    "generate:greatsword": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant greatsword --output public/assets/greatsword-slime.glb"
+    "generate:greatsword": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant greatsword --output public/assets/greatsword-slime.glb",
+    "test": "vitest run"
   },
   "dependencies": {
     "@react-three/fiber": "^9.7.0",
+    "idle-game-kit": "file:./vendor/idle-game-kit",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "three": "^0.180.0"
@@ -25,6 +27,7 @@
     "@types/three": "^0.180.0",
     "@vitejs/plugin-react": "^5.0.4",
     "typescript": "^5.9.2",
-    "vite": "^7.1.5"
+    "vite": "^7.1.5",
+    "vitest": "^3.2.7"
   }
 }

@@ -7,7 +7,7 @@ Date: 2026-09-16
 
 The economy exists to keep one question alive:
 
-> **次の宝箱・同種入手・進化・装備更新で、このスライムの戦い方がどう変わるか。**
+> **次の宝箱・Plain生成・職業作成・合成・装備更新で、このスライムの戦い方がどう変わるか。**
 
 Do not create currencies merely to add systems. Every resource must have an obvious sink and payoff.
 
@@ -15,17 +15,20 @@ Do not create currencies merely to add systems. Every resource must have an obvi
 
 | Input | Source | Primary sink | Purpose |
 |---|---|---|---|
-| Gold | kills, stage, dispatch, offline | type level, promotion fees | frequent growth |
-| Type-specific Slime Core | same-type reacquisition | fusion recipe | preserve duplicate value without extra bodies |
+| Gold | kills, stage, dispatch, offline | type level, Plain Slime shop purchase, promotion fees | frequent growth + deterministic body supply |
+| Slime-generation material | battle, chest, dispatch | Plain Slime crafting | renewable body supply |
+| Plain Slime stock | crafting, Gold shop | normal-job creation | untrained body source; no individual progression |
+| Job Gear | tutorial, area progression, chest/component crafting | normal-job creation | choose/discover a Tier-1 profession |
+| Type-specific Slime Core | repeated creation of an already-discovered job | fusion recipe | preserve duplicate value without extra bodies |
 | Forge Key | boss, objectives, chest, dispatch | equipment forge draw | deliberate equipment pull |
 | Fusion weapon ingredient | chest/boss/forge/progression | fusion recipe | visible form/attack milestone |
 | Fusion material | battle/chest/dispatch | fusion recipe | shared upgrade ingredient |
 | Promotion Material | area/boss/dispatch | Tier promotion | deterministic evolution |
 | Mutation Fragments | mutation encounters | guaranteed mutation unlock | RNG backstop |
 
-A slime duplicate is immediately represented as a type-specific fusion item (for example `Sword Slime Core`), not a permanent population unit.
+A repeated job creation is immediately represented as a type-specific fusion item (for example `Sword Slime Core`), not a permanent population unit.
 
-`Slime Gel -> visible body count` is removed from current design. If a Gel resource is reintroduced later, it must serve a new explicit purpose rather than resurrecting population growth implicitly.
+Slime-generation material such as Gel is valid specifically as an input for **Plain Slime stock crafting**. It does not directly increase battlefield body count. Plain stock is consumed when creating jobs and carries no individual progression state.
 
 Premium currency is intentionally outside the initial product specification.
 
@@ -58,32 +61,53 @@ Initial target cadence while actively progressing:
 - bosses guarantee at least Gold-equivalent reward
 - Rainbow chests are rare excitement events and also appear at selected deterministic milestones
 
-Chest contents may include slime acquisition, equipment, Gold, keys, promotion materials, or mutation progress.
+Chest contents may include slime-generation materials, Job Gear/components, fusion ingredients, equipment, Gold, keys, promotion materials, or mutation progress. Completed normal-job slimes are not the default chest reward.
 
 A chest auto-opens after a short delay when ignored. Tapping it is faster, never mandatory.
 
-## 5. Slime acquisition and duplicate value
+## 5. Plain Slime supply, shop, and job creation
 
-The first acquisition of a type creates/discovers that roster entry.
+Normal-job acquisition begins from Plain Slime stock. Completed Sword/Bow/etc. slimes are not the ordinary random-drop unit.
 
-A later acquisition of the same type converts into a type-specific Slime Core / branch fusion item. The player does not receive another assignable copy.
+### Material crafting
 
-The product must avoid two failure modes:
+A small common recipe creates one Plain Slime stock. Initial product should use only a small number of ingredient categories, for example:
 
-1. duplicate = useless trash
-2. duplicate = another body that clutters the battle screen
+```text
+Slime Gel + Life Water / equivalent catalyst
+-> Plain Slime stock x1
+```
 
-Recipe fusion solves duplicate value without turning collection into population management. A recipe can combine the type-specific Slime Core with a weapon ingredient and ordinary material.
+Exact names and quantities are balance data. Crafting is deterministic once ingredients are owned; there is no failure roll.
 
-Core normal-job discovery remains deterministic enough that unlucky acquisition cannot block the basic game.
+### Gold shop backstop
 
-Exact slime acquisition pools/rates are balance/content data and are not fixed by this document yet.
+Plain Slime stock can also be purchased directly for Gold. This is not intended as a premium shortcut. It is the deterministic backstop that prevents unlucky material drops from blocking job creation.
+
+The shop price should compete meaningfully with Type Level spending without becoming so expensive that normal-job creation stalls. Repeated purchase price may be flat or use a mild authored curve; exact values require simulation.
+
+### Job creation
+
+Normal Tier-1 job creation uses:
+
+```text
+Plain Slime stock x1 + Job Gear x1 -> resolve job creation
+```
+
+Job Gear is a profession catalyst and is separate from persistent combat Equipment. The first Sword/Bow Job Gear is tutorial-guaranteed; later normal Job Gear families unlock deterministically with area progression. Random drops may accelerate acquisition but cannot be the only route.
+
+Resolution:
+
+- undiscovered job -> create the canonical roster record and mark it NEW
+- already-discovered job -> convert the repeated creation into that job's type-specific Slime Core / fusion input
+
+No repeated job creation produces another assignable same-type body. This keeps duplicate value while preserving the one-type/one-body battlefield rule.
 
 ## 6. Fusion economy
 
 Fusion is recipe-based. The canonical ingredient families are:
 
-- one type-specific Slime Core or branch item from same-type reacquisition
+- one type-specific Slime Core or branch item from repeated job creation
 - zero or one weapon ingredient when the milestone changes the weapon/form silhouette
 - a small quantity of ordinary fusion material
 
@@ -145,7 +169,7 @@ Initial rarity targets may use conventional weighted rates and pity, but exact p
 
 A duplicate weapon feeds that exact weapon's refinement track first. Once capped, overflow may convert to family material.
 
-Slime duplicate fusion and weapon duplicate refinement are intentionally separate systems.
+Repeated-job fusion and weapon duplicate refinement are intentionally separate systems.
 
 ## 10. Mythic collection
 
@@ -172,7 +196,7 @@ Dispatch gives reserve slime types productive work outside the main battlefield.
 
 - only owned, non-battle slime types can be dispatched
 - one type cannot be assigned to battle and dispatch simultaneously
-- same-type duplicate stock is not a dispatchable extra body
+- Plain stock and type-specific fusion inputs are resources, not dispatchable bodies
 
 ### Initial contract families
 
@@ -203,7 +227,7 @@ Enemy power rises smoothly until a boss checkpoint.
 If a boss is too strong:
 
 - return to the best cleared farming stage
-- Gold/chests/slime acquisition continue
+- Gold/chests/slime-generation materials/Job Gear components continue
 - UI surfaces a few concrete improvement opportunities such as level/fusion/equipment
 - offline progress stops at the blocking boss rather than faking a clear
 
@@ -217,7 +241,7 @@ Return summary prioritizes changes over accounting detail:
 OFFLINE 3h 42m
 + Gold
 + chests / equipment
-+ slime copies
++ Plain-generation materials / Job Gear / fusion ingredients
 
 Fusion ready: Sword Slime
 Dispatch complete: Forest Exploration
@@ -243,7 +267,8 @@ If adopted, it should preserve major collection/fusion achievements unless a str
 Simulation and play testing should eventually confirm:
 
 - first 10 minutes include at least one new job and one fusion
-- duplicate slime acquisition always has clear value
+- repeated job creation always has clear fusion value
+- Plain Slime can always be obtained through either deterministic crafting or the Gold-shop backstop
 - fusion does not create extra battlefield bodies
 - normal branch completion is not RNG-gated
 - equipment duplicates remain useful

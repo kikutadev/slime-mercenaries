@@ -1,0 +1,9 @@
+# idle-game-kit vendored package provenance
+
+- Source repository: `https://github.com/kikutadev/idle-game-kit.git`
+- Source commit: `f20e2bfa85229b04f1c03e269aa677edc2125f98`
+- Package version: `0.2.0`
+- Build command: `pnpm build:kit`
+- Reason for vendoring: `idle-game-kit` is not yet published as an immutable registry package. Slime Mercenaries must remain independently buildable and must not depend on an adjacent dirty worktree.
+
+Product code must import only public package entry points such as `idle-game-kit`, `idle-game-kit/web`, `idle-game-kit/react`, and `idle-game-kit/simulator`.

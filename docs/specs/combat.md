@@ -43,7 +43,7 @@ This is a starting/behavior preference, not a rigid tile board.
 - mobile types may cross the contact zone temporarily
 - after a wave, survivors converge into a short march formation
 
-Do not spawn additional same-type bodies because fusion rank increased. Duplicate acquisition affects fusion progression, not battlefield population.
+Do not spawn additional same-type bodies because fusion rank increased. Repeated job creation feeds fusion progression, not battlefield population.
 
 ## 4. HP and defeat
 
