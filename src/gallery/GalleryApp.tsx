@@ -30,7 +30,7 @@ export default function GalleryApp() {
   const [motion, setMotion] = useState<GalleryMotionId>('idle');
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
   const [loop, setLoop] = useState(true);
-  const [cameraMode, setCameraMode] = useState<GalleryCameraId>('gameplay');
+  const [cameraMode, setCameraMode] = useState<GalleryCameraId>('inspection');
   const [showDummy, setShowDummy] = useState(true);
   const [replayKey, setReplayKey] = useState(0);
 
@@ -143,7 +143,8 @@ export default function GalleryApp() {
               <div className="gallery-control-group">
                 <span className="gallery-control-label">CAMERA</span>
                 <div className="gallery-chip-row">
-                  <button className={cameraMode === 'gameplay' ? 'is-active' : ''} type="button" onClick={() => setCameraMode('gameplay')}>3/4 Game</button>
+                  <button className={cameraMode === 'inspection' ? 'is-active' : ''} type="button" onClick={() => setCameraMode('inspection')}>3/4 Inspect</button>
+                  <button className={cameraMode === 'gameplay' ? 'is-active' : ''} type="button" onClick={() => setCameraMode('gameplay')}>Battle</button>
                   <button className={cameraMode === 'front' ? 'is-active' : ''} type="button" onClick={() => setCameraMode('front')}>Front</button>
                 </div>
               </div>

@@ -292,7 +292,7 @@ def create_sword(
     anchor.parent = root
     # Face points toward -Y in Blender. Put the blade on the right-front flank so
     # it is visible while the slime faces an enemy up-field.
-    anchor.location = (-1.08, 0.50, 0.43)
+    anchor.location = (-1.08, -0.50, 0.43)
     anchor.rotation_euler[0] = math.radians(-12.0)
     anchor.rotation_euler[1] = math.radians(-22.0)
     anchor.rotation_euler[2] = math.radians(18.0)
@@ -335,7 +335,7 @@ def create_greatsword(
     anchor = bpy.data.objects.new("WeaponAnchor", None)
     bpy.context.scene.collection.objects.link(anchor)
     anchor.parent = root
-    anchor.location = (-1.12, 0.50, 0.42)
+    anchor.location = (-1.12, -0.50, 0.42)
     anchor.rotation_euler[0] = math.radians(-10.0)
     anchor.rotation_euler[1] = math.radians(-24.0)
     anchor.rotation_euler[2] = math.radians(18.0)
@@ -376,7 +376,7 @@ def create_bow(
     anchor = bpy.data.objects.new("BowAnchor", None)
     bpy.context.scene.collection.objects.link(anchor)
     anchor.parent = root
-    anchor.location = (1.04, 0.50, 0.45)
+    anchor.location = (1.04, -0.50, 0.45)
     anchor.rotation_euler[0] = math.radians(4.0)
     anchor.rotation_euler[1] = math.radians(-12.0)
     anchor.rotation_euler[2] = math.radians(-10.0)

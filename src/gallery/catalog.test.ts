@@ -16,6 +16,8 @@ describe('slime gallery catalog', () => {
     for (const entry of slimeGalleryCatalog) {
       expect(entry.implementationStatus).toBe('implemented');
       expect(entry.asset).toMatch(/^assets\/.+\.glb$/);
+      expect(Number.isFinite(entry.inspectionFacingYawDegrees), `${entry.id} needs a curated inspection yaw`).toBe(true);
+      expect(Math.abs(entry.inspectionFacingYawDegrees ?? 999)).toBeLessThanOrEqual(180);
       for (const motion of REQUIRED_MOTIONS) {
         expect(entry.availableMotions, `${entry.id} is missing ${motion}`).toContain(motion);
       }

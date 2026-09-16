@@ -9,6 +9,7 @@ const definition: SlimeGalleryDefinition = {
   modelKind: 'greatsword',
   asset: 'assets/greatsword-slime.glb',
   accent: '#ffd36c',
+  inspectionFacingYawDegrees: 90,
   equipmentAnchor: 'WeaponAnchor',
   availableMotions: ['idle', 'move', 'attack', 'skill', 'hit', 'defeat', 'celebrate'],
   signatureLabel: 'Half-turn Cleave',

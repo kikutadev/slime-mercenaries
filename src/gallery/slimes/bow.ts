@@ -9,6 +9,7 @@ const definition: SlimeGalleryDefinition = {
   modelKind: 'bow',
   asset: 'assets/archer-slime.glb',
   accent: '#7bcf83',
+  inspectionFacingYawDegrees: -20,
   equipmentAnchor: 'BowAnchor',
   availableMotions: ['idle', 'move', 'attack', 'hit', 'defeat', 'celebrate'],
   implementationStatus: 'implemented',

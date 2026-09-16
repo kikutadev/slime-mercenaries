@@ -9,6 +9,7 @@ const definition: SlimeGalleryDefinition = {
   modelKind: 'sword',
   asset: 'assets/sword-slime.glb',
   accent: '#f28b69',
+  inspectionFacingYawDegrees: 90,
   equipmentAnchor: 'WeaponAnchor',
   availableMotions: ['idle', 'move', 'attack', 'hit', 'defeat', 'celebrate'],
   implementationStatus: 'implemented',
