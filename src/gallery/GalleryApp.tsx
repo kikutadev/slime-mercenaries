@@ -55,7 +55,7 @@ export default function GalleryApp() {
         <div>
           <a className="gallery-kicker" href={import.meta.env.BASE_URL}>SLIME MERCENARIES</a>
           <h1>Model & Motion Gallery</h1>
-          <p>本番と同じモデル・モーション・攻撃VFXを、そのまま確認するproduction gallery。</p>
+          <p>本番と同じモデルと、実装済みのproductionモーション・VFXをそのまま確認するgallery。</p>
         </div>
         <div className="gallery-header__meta">
           <span>{slimeGalleryCatalog.length} MODELS</span>
@@ -82,7 +82,7 @@ export default function GalleryApp() {
                   <strong>{item.name}</strong>
                   <small>{item.classification}</small>
                 </span>
-                <i>{item.implementationStatus === 'implemented' ? 'LIVE' : 'PLAN'}</i>
+                <i>{item.implementationStatus === 'implemented' ? 'LIVE' : item.implementationStatus === 'model' ? 'MODEL' : 'PLAN'}</i>
               </button>
             ))}
           </div>
@@ -150,7 +150,9 @@ export default function GalleryApp() {
                 <span className="gallery-control-label">PLAYBACK</span>
                 <div className="gallery-chip-row">
                   <button className={loop ? 'is-active' : ''} type="button" onClick={() => setLoop((value) => !value)}>Loop</button>
-                  <button className={showDummy ? 'is-active' : ''} type="button" onClick={() => setShowDummy((value) => !value)}>Dummy</button>
+                  {selected.availableMotions.includes('attack') && (
+                    <button className={showDummy ? 'is-active' : ''} type="button" onClick={() => setShowDummy((value) => !value)}>Dummy</button>
+                  )}
                   <button type="button" onClick={() => setReplayKey((value) => value + 1)}>Replay</button>
                 </div>
               </div>

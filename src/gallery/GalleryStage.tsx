@@ -86,7 +86,7 @@ function buildDefeatEyes(model: THREE.Object3D): { normalEyes: THREE.Object3D[];
 function collectParts(model: THREE.Object3D, definition: SlimeGalleryDefinition): ModelParts {
   const body = model.getObjectByName('Body') as MorphMesh | null;
   const faceRoot = model.getObjectByName('FaceRoot') ?? null;
-  const equipment = model.getObjectByName(definition.equipmentAnchor) ?? null;
+  const equipment = definition.equipmentAnchor ? model.getObjectByName(definition.equipmentAnchor) ?? null : null;
   const weaponTip = definition.weaponTipName ? model.getObjectByName(definition.weaponTipName) ?? null : null;
   const { normalEyes, xEyes } = buildDefeatEyes(model);
   return {
@@ -172,7 +172,7 @@ function CameraRig({ mode, motion, definition }: { mode: GalleryCameraId; motion
       camera.lookAt(midpoint);
     } else {
       camera.position.copy(GALLERY_HOME)
-        .addScaledVector(inspectRight, 1.52 * compact)
+        .addScaledVector(inspectRight, (definition.inspectionSideDistance ?? 1.52) * compact)
         .addScaledVector(inspectForward, 0.50 * compact)
         .add(new THREE.Vector3(0, 0.72 * compact, 0));
       camera.lookAt(lookAt);
@@ -393,7 +393,7 @@ export function GalleryStage(props: StageProps) {
           <meshStandardMaterial color="#d8e8cd" roughness={1} />
         </mesh>
       </Canvas>
-      <div className="gallery-stage__badge">PRODUCTION MOTION</div>
+      <div className="gallery-stage__badge">{props.definition.implementationStatus === 'implemented' ? 'PRODUCTION MOTION' : 'MODEL REVIEW'}</div>
     </div>
   );
 }

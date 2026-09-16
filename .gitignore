@@ -8,3 +8,7 @@ node_modules/
 
 # Local visual QA
 .qa-*.png
+# Python
+__pycache__/
+*.py[cod]
+

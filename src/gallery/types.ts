@@ -2,7 +2,7 @@ export type GalleryMotionId = 'idle' | 'move' | 'attack' | 'defeat';
 
 export type GalleryCameraId = 'inspection' | 'gameplay' | 'front';
 
-export type GalleryModelKind = 'sword' | 'greatsword' | 'bow';
+export type GalleryModelKind = 'plain' | 'sword' | 'greatsword' | 'bow' | 'shield' | 'wand' | 'dagger' | 'gun';
 
 export interface SlimeGalleryDefinition {
   id: string;
@@ -13,13 +13,16 @@ export interface SlimeGalleryDefinition {
   modelKind: GalleryModelKind;
   asset: string;
   accent: string;
-  equipmentAnchor: 'WeaponAnchor' | 'BowAnchor';
+  /** Equipment anchor used only once a production motion profile owns it. */
+  equipmentAnchor: string | null;
   weaponTipName: string | null;
   /** Curated world yaw used only by the default inspection view. */
   inspectionFacingYawDegrees?: number;
+  /** Per-model horizontal camera offset for the default inspection view. */
+  inspectionSideDistance?: number;
   availableMotions: readonly GalleryMotionId[];
   signatureLabel?: string;
-  implementationStatus: 'implemented' | 'planned';
+  implementationStatus: 'implemented' | 'model' | 'planned';
   notes: string;
 }
 

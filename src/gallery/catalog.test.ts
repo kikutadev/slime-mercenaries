@@ -2,9 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { slimeGalleryCatalog } from './catalog';
 
 const EXPECTED_MOTIONS: Readonly<Record<string, readonly string[]>> = {
+  plain: ['idle'],
   sword: ['idle', 'move', 'attack', 'defeat'],
   greatsword: ['idle', 'move', 'attack', 'defeat'],
   bow: ['idle', 'attack', 'defeat'],
+  shield: ['idle'],
+  wand: ['idle'],
+  dagger: ['idle'],
+  gun: ['idle'],
 };
 
 describe('slime gallery catalog', () => {
@@ -15,13 +20,14 @@ describe('slime gallery catalog', () => {
     expect(new Set(orders).size).toBe(orders.length);
   });
 
-  it('exposes only production-backed motions for every published model', () => {
+  it('exposes only explicitly accepted motions for every published model', () => {
     for (const entry of slimeGalleryCatalog) {
-      expect(entry.implementationStatus).toBe('implemented');
+      expect(['implemented', 'model']).toContain(entry.implementationStatus);
       expect(entry.asset).toMatch(/^assets\/.+\.glb$/);
       expect(Number.isFinite(entry.inspectionFacingYawDegrees), `${entry.id} needs a curated inspection yaw`).toBe(true);
       expect(Math.abs(entry.inspectionFacingYawDegrees ?? 999)).toBeLessThanOrEqual(180);
       expect(entry.availableMotions).toEqual(EXPECTED_MOTIONS[entry.id]);
+      if (entry.implementationStatus === 'model') expect(entry.availableMotions).not.toContain('attack');
       expect(entry.weaponTipName === null || entry.weaponTipName.length > 0).toBe(true);
     }
   });

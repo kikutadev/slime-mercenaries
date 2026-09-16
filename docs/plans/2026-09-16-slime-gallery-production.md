@@ -1,187 +1,312 @@
-# Slime Model & Motion Gallery — Production Plan
+# Slime Model & Motion Gallery — Modular Production Plan
 
-Status: Planned
-Date: 2026-09-16
+Status: In Progress
+Date: 2026-09-17
 
 ## 1. Goal
 
-30 discoverable slime forms plus non-Codex fusion presentation forms such as Greatsword Slime are produced one by one, reviewed in an isolated model/motion gallery, and only accepted builds are published under the existing public `slime-mercenaries` repository.
+Produce the 30 discoverable slime forms plus non-Codex fusion presentation forms such as Greatsword Slime without sculpting 31 unrelated characters.
 
-The public repository receives build output only. Source Blender Python, gallery source, design documents, and development QA remain in the private development repository.
+The production model is:
+
+```text
+1 shared Base Slime
++ reusable socketed part library
++ per-form composition definitions
++ shared production motion profiles
+= exported per-form GLBs
+```
+
+The public repository receives build output only. Blender Python source, composition definitions, gallery source, design documents, and QA remain in the development repository.
 
 Target public layout:
 
 ```text
 /slime-mercenaries/
-  index.html              game build
+  index.html
+  assets/*.glb
   gallery/
-    index.html            model / motion gallery build
-    assets/...            accepted gallery assets only
+    index.html
 ```
+
+The gallery is a production acceptance surface. It must use the same GLBs, motion functions, timing, equipment axes, projectile timing, and combat VFX definitions as the game. Gallery-only approximations of production motion are prohibited.
 
 ## 2. Source of truth
 
-Per-slime content briefs live in:
+Per-form design briefs remain in:
 
 ```text
 docs/content/slimes/
 ```
 
-Each file owns the content-specific design for one form:
+Each brief owns content intent: silhouette, equipment, materials, combat behavior, motion character, VFX language, and acceptance notes.
 
-- silhouette and equipment
-- material / accent intent
-- idle and locomotion
-- basic attack timing and hit shape
-- skill/signature motion
-- hit reaction
-- defeat reaction
-- celebrate / march behavior
-- VFX language
-- gallery acceptance checklist
+The actual model topology and reusable geometry are owned by the modular Blender source described below. A form brief does not imply a unique body mesh.
 
-These briefs are subordinate to the product-level contracts in `docs/specs/art-direction.md`, `docs/specs/combat.md`, and `docs/specs/evolution-roster.md`.
+Product-level contracts remain authoritative:
 
-## 3. Why no worktrees are required
+- `docs/specs/art-direction.md`
+- `docs/specs/combat.md`
+- `docs/specs/evolution-roster.md`
 
-Parallel work is safe only when file ownership is disjoint.
+## 3. Production architecture
 
-Do not have multiple workers edit one monolithic Blender generator or one hand-maintained gallery registry.
+### 3.1 Base Slime is shared
 
-Before bulk production, refactor toward:
+Ordinary jobs do not get independently authored body meshes.
+
+The shared base owns:
+
+```text
+SlimeRoot
+├─ Body
+│  └─ reusable morph targets
+│     ├─ Squash
+│     ├─ Stretch
+│     ├─ LeanLeft / LeanRight
+│     ├─ WobbleLeft / WobbleRight
+│     └─ HitLeft / HitRight
+├─ FaceRoot
+│  ├─ Eye_L
+│  ├─ Eye_R
+│  └─ Mouth
+├─ HeadSocket
+├─ FrontLeftSocket
+├─ FrontRightSocket
+├─ BackSocket
+├─ WeaponSocket
+├─ OffhandSocket
+└─ Effect sockets
+   ├─ ProjectileOrigin
+   ├─ WeaponTip where applicable
+   └─ SpellOrigin where applicable
+```
+
+The ordinary-job body silhouette should remain roughly 80–90% common. Job identity comes primarily from equipment, accessories, material accents, VFX, and motion.
+
+### 3.2 Reusable part library
+
+Parts are authored once and reused across forms.
+
+Target structure:
 
 ```text
 tools/blender/slimes/
-  common.py
-  plain.py
-  sword.py
-  greatsword.py
-  fighter.py
-  ...
-
-src/gallery/slimes/
-  plain.ts
-  sword.ts
-  greatsword.ts
-  fighter.ts
-  ...
+├─ build.py
+├─ base/
+│  ├─ body.py
+│  ├─ character.py
+│  ├─ context.py
+│  ├─ materials.py
+│  └─ primitives.py
+├─ parts/
+│  ├─ melee.py
+│  ├─ ranged.py
+│  ├─ defense.py
+│  ├─ magic.py
+│  ├─ rogue.py
+│  ├─ gun.py
+│  └─ mutation.py
+└─ definitions/
+   ├─ plain.py
+   ├─ sword.py
+   ├─ greatsword.py
+   ├─ shield.py
+   ├─ bow.py
+   ├─ wand.py
+   ├─ dagger.py
+   ├─ gun.py
+   └─ ... one composition definition per form
 ```
 
-The gallery must auto-discover per-slime definitions (for example via Vite glob imports) rather than requiring every worker to edit a shared `registry.ts`.
+A definition describes composition and build parameters; it must not duplicate the base body generator.
 
-Each worker owns only its assigned branch files and generated assets. Workers do not commit. The coordinator performs integration, builds, QA, and commits after all parallel jobs complete.
+Example intent:
 
-## 4. Shared foundation — serial, first
+```python
+DEFINITION = SlimeDefinition(
+    slug="sword",
+    body_preset="standard",
+    body_color=(...),
+    motion_profile="sword",
+)
 
-This phase must complete before parallel asset implementation.
 
-1. Add gallery route/application under a separate build entry.
-2. Add a reusable gallery stage using the same Three.js visual/runtime conventions as the game.
-3. Support controls:
-   - Idle
-   - Move
-   - Basic Attack
-   - Skill
-   - Hit
-   - Defeat
-   - Celebrate
-   - Evolution/Fusion preview when applicable
-   - 0.5x / 1x / 2x playback
-   - loop on/off
-   - gameplay camera / front-ish inspection / free orbit
-4. Add target dummy support for melee hit, projectile, AoE, knockback, hit-stop, and defeat readability.
-5. Extract Blender reusable base helpers from the monolithic generator without changing accepted Sword/Bow appearance.
-6. Establish per-slime manifest/definition format.
-7. Make gallery discovery automatic so adding one slime does not require editing shared source.
-8. Add a build command that emits gallery output separately from the main game build.
-9. Add a publish script that copies only built output into the public repository's `/gallery/` path.
+def build_parts(ctx):
+    create_basic_sword(ctx, socket="WeaponSocket")
+```
 
-## 5. Parallel design-document creation
+Definitions are loaded by filename/module name so workers do not edit one central registry for every new form.
 
-Design files are independent and can be authored simultaneously without worktrees.
+### 3.3 Build-time assembly, not runtime kit-bashing
 
-Suggested ownership:
+Parts are shared in source, but each accepted form is exported to a standalone GLB.
 
-- Worker A — Plain + Sword branch + Greatsword fusion form
-- Worker B — Shield branch
-- Worker C — Bow branch
-- Worker D — Wand branch
-- Worker E — Dagger branch
-- Worker F — Gun branch
-- Worker G — Rare mutations
+```text
+Base + parts + definition -> sword-slime.glb
+Base + parts + definition -> shield-slime.glb
+Base + parts + definition -> mage-slime.glb
+```
 
-No worker edits shared current-spec documents during this phase. Any cross-cutting findings are returned to the coordinator, who updates shared specs once.
+The game runtime stays simple and loads one accepted GLB per form. We do not require dynamic mesh assembly in the browser.
 
-## 6. Parallel model/motion implementation
+### 3.4 Body variation is parameterized, not duplicated
 
-After the shared foundation is stable, use the same branch ownership.
+Allowed definition-level variation includes restrained values such as:
 
-### Worker A — baseline / Sword
+- base material/color
+- roughness / coat / translucency-compatible material settings
+- body X/Y/Z scale within art-direction limits
+- eye spacing / eye scale / eye height
+- minor face offset
+- optional mutation-specific attachments
 
-- Plain Slime
-- Sword Slime
-- Greatsword fusion form
-- Fighter Slime
-- Blademaster Slime
-- Berserker Slime
+Ordinary level and fusion progression must not permanently enlarge the body.
 
-### Worker B — Shield
+Rare mutations may deviate more strongly, but should still reuse the base jelly whenever practical.
 
-- Shield Slime
-- Guardian Slime
-- Paladin Slime
-- Fortress Slime
+## 4. Current foundation status
 
-### Worker C — Bow
+Already complete:
 
-- Bow Slime
-- Ranger Slime
-- Sniper Slime
-- Storm Archer Slime
+1. Separate `/gallery/` build entry and GitHub Pages publication.
+2. Gallery auto-discovers per-form TypeScript definitions.
+3. Sword / Greatsword / Bow use the same production GLBs in game and gallery.
+4. Production and gallery motion logic is shared through `src/game/slime-motion.ts`.
+5. Sword / Greatsword / Bow model facing and front-side equipment anchors were corrected.
+6. Production and gallery builds are deployed together from the same revision.
 
-### Worker D — Wand
+Completed in the current modular-production batch:
 
-- Wand Slime
-- Mage Slime
-- Archmage Slime
-- Frost Mage Slime
+1. `tools/blender/generate_slime.py` is now a compatibility wrapper over `tools/blender/slimes/`.
+2. Shared Base Slime topology, morph targets, face, stable sockets, materials, primitives, and GLB export live under `base/`.
+3. Sword / Greatsword / Bow were ported to modular parts without changing their imported world transforms / mesh vertices.
+4. Plain exports the canonical no-equipment Base Slime.
+5. Shield / Wand / Dagger / Gun Tier-1 part families were produced in parallel through separate ordinary ChatGPT sessions with disjoint file ownership.
+6. Their exported production assets were round-trip checked after GLB import; the parallel builder reproduces the same node hierarchy, world transforms, mesh vertices, and morph-name contract.
+7. Plain / Shield / Wand / Dagger / Gun are exposed in the gallery as `MODEL REVIEW`; no fake attacks are exposed before production runtime integration.
 
-### Worker E — Dagger
+Next shared-production work:
 
-- Dagger Slime
-- Rogue Slime
-- Ninja Slime
-- Assassin Slime
+1. Integrate production combat behavior for Plain / Shield / Wand / Dagger / Gun one family at a time.
+2. Promote a model from `MODEL` to `LIVE` only after game and gallery share the exact runtime motion implementation.
+3. Resolve the cross-cutting socket/deformation question before authoring stronger head-accessory motions: large Body morphs currently do not move attachment sockets.
+4. Start Tier-2 part production in parallel only after each branch's Tier-1 socket/orientation contract is accepted.
 
-### Worker F — Gun
+## 5. Parallel work model
 
-- Gun Slime
-- Gunner Slime
-- Cannoneer Slime
-- Engineer Slime
+No worktree is required for normal asset production once the shared interfaces are frozen, because each lane owns disjoint files.
 
-### Worker G — Mutations
+Workers do not edit shared base interfaces after parallel production begins. Cross-cutting changes are returned to the coordinator and applied once.
 
-- King Slime
-- Golden Slime
-- Dragon Slime
-- Prism Slime
-- Mimic Slime
+### Lane A — Base / assembler / Plain
 
-Each worker may generate GLBs concurrently because output filenames are unique. Workers must not run the final gallery build or deploy step while another worker is mutating source.
+Owns:
 
-## 7. Publication order
+- `base/*`
+- `build.py`
+- Plain definition
+- socket contract
+- export contract
+- backward compatibility for accepted node names
 
-Implementation may be parallel, but acceptance and public exposure are ordered. A later slime can be finished early and remain unpublished until its release gate is reached.
+This lane is the only lane allowed to change shared body topology or socket semantics.
 
-### Wave 0 — prove the pipeline
+### Lane B — Melee parts
+
+Owns:
+
+- Sword
+- Greatsword
+- Fighter / Blademaster / Berserker weapon/accessory modules
+- Dagger-family blade primitives where shared geometry is appropriate
+
+Does not duplicate the body generator.
+
+### Lane C — Defense parts
+
+Owns:
+
+- Shield
+- Guardian
+- Paladin
+- Fortress
+- shields / helmets / defensive accents
+
+### Lane D — Bow / physical ranged parts
+
+Owns:
+
+- Bow
+- Ranger
+- Sniper
+- Storm Archer
+- bows / quivers / ranged physical accessories
+
+### Lane E — Magic parts
+
+Owns:
+
+- Wand
+- Mage
+- Archmage
+- Frost Mage
+- wands / caps / magical ornaments / spell sockets
+
+### Lane F — Gun / engineering parts
+
+Owns:
+
+- Gun
+- Gunner
+- Cannoneer
+- Engineer
+- firearm / cannon / engineering accessories
+
+### Lane G — Mutation parts
+
+Owns:
+
+- King
+- Golden
+- Dragon
+- Prism
+- Mimic
+- crown / cape / horns / wings / chest shell / mutation material overrides
+
+Dagger / Rogue / Ninja / Assassin may be kept as a dedicated sub-lane when implementation begins if melee-file ownership would otherwise collide; the coordinator assigns separate files before starting that batch.
+
+## 6. First parallel implementation batch
+
+The first batch proves the modular system with reusable Tier-1 vocabulary.
+
+Serial bootstrap:
+
+1. Freeze Base Slime topology and node names.
+2. Add socket contract.
+3. Add modular builder and auto-loaded form definitions.
+4. Port accepted Sword / Greatsword / Bow into modules without visual regression.
+
+Then run in parallel:
+
+- Plain — no permanent equipment; proves canonical base export.
+- Shield — body-sized round shield; proves offhand/defense silhouette.
+- Wand — crooked wand + tiny cap; proves weapon + head accessory + spell origin.
+- Dagger — hood + readable dagger; proves small asymmetric melee equipment.
+- Gun — oversized flintlock; proves long barrel orientation and projectile origin.
+
+Sword / Greatsword / Bow are regression references during this batch, not newly designed bodies.
+
+## 7. Model publication waves
+
+Implementation can happen in parallel. Public acceptance remains ordered so a later form may finish early but stay unpublished.
+
+### Wave 0 — base pipeline
 
 1. Plain Slime
 2. Sword Slime
 3. Greatsword fusion form
 4. Bow Slime
-
-This wave validates base jelly motion, melee, AoE sweep, ranged projectile, defeat, and the gallery itself.
 
 ### Wave 1 — Tier 1 vocabulary
 
@@ -189,8 +314,6 @@ This wave validates base jelly motion, melee, AoE sweep, ranged projectile, defe
 6. Wand Slime
 7. Dagger Slime
 8. Gun Slime
-
-After this wave, all six primary combat motion languages exist.
 
 ### Wave 2 — Tier 2
 
@@ -227,78 +350,90 @@ After this wave, all six primary combat motion languages exist.
 30. Prism Slime
 31. Mimic Slime
 
-The public gallery can show `Coming soon` cards for future entries, but only accepted GLBs and runtime motions may be interactively playable.
+## 8. Motion implementation rule
 
-## 8. Per-slime acceptance gate
+Model production and combat behavior are separate concerns, but the gallery never invents a substitute production motion.
 
-A slime is publishable only when all applicable checks pass at real speed and at gameplay scale.
+For each form:
 
-1. Silhouette remains identifiable at portrait gameplay size.
-2. It still reads as a slime without its equipment.
-3. Idle has soft jelly life and does not look frozen.
-4. Move uses squash/stretch rather than humanoid walking.
-5. Attack source and target are visually obvious.
-6. Weapon orientation is physically believable during the damaging frame.
-7. Attack anticipation is readable without making combat sluggish.
-8. Release/impact has sufficient speed and hit-stop where appropriate.
-9. Skill geometry matches gameplay behavior: single target / line / cone / radius / projectile / summon.
-10. Hit reaction is directional and returns cleanly to the combat anchor.
-11. Defeat visibly ends in `flatten + × eyes` and remains readable long enough.
-12. Equipment does not clip badly through the body during key frames.
-13. Camera-facing and asymmetrical equipment are correct in the actual 3/4 game view.
-14. No permanent body-scale growth is introduced for fusion rank.
-15. Gallery playback at 0.5x, 1x, and 2x remains stable.
-16. No new runtime console errors.
-17. Main-game build remains green.
+1. Build modular GLB.
+2. Add/extend production behavior and shared motion implementation in game code.
+3. Gallery exposes that same production motion implementation.
+4. QA in Inspection / Battle / Front views.
+5. Publish only after game + gallery acceptance.
 
-## 9. QA evidence
+If a form does not yet have production combat behavior, the gallery may show the model in Idle only and mark the remaining motion status as planned; it must not simulate a fake attack for presentation purposes.
 
-For each accepted slime, preserve lightweight evidence outside the public repo:
+## 9. Per-form model acceptance gate
+
+Before production combat work begins:
+
+1. Body is sourced from the canonical Base Slime unless the mutation exception is documented.
+2. No copied/private body generator exists in the definition.
+3. Equipment uses the socket contract and is on the physical front/side intended by gameplay.
+4. Face remains visible in the Battle camera.
+5. Silhouette is identifiable at portrait gameplay scale.
+6. Equipment does not look humanoid or require invisible hands/limbs.
+7. Projectile / WeaponTip / SpellOrigin sockets originate from believable geometry.
+8. No unacceptable clipping in Idle and basic squash/stretch poses.
+9. Ordinary forms keep baseline body scale invariant.
+10. GLB node names required by runtime are preserved.
+
+## 10. Production acceptance gate
+
+A form is publishable only when all applicable checks pass at real speed and gameplay scale:
+
+1. Same accepted GLB is loaded by game and gallery.
+2. Same shared motion functions drive game and gallery.
+3. Idle remains soft and alive.
+4. Move remains slime-like rather than humanoid walking.
+5. Attack source, target, and hit geometry are obvious.
+6. Weapon orientation is physically believable at the damaging frame.
+7. Anticipation is readable without slowing combat excessively.
+8. Release/impact is crisp and uses production hit-stop/VFX.
+9. Skill geometry matches actual gameplay behavior.
+10. Defeat ends in readable flatten + × eyes.
+11. Battle / Inspection / Front cameras expose no serious orientation defects.
+12. Mobile framing includes body plus oversized equipment.
+13. No runtime console errors.
+14. Typecheck, tests, and production build pass.
+
+## 11. QA evidence
+
+Preserve lightweight internal evidence only:
 
 ```text
 .acceptance/slimes/<slug>/
-  gameplay-idle.png
-  gameplay-attack.png
-  gameplay-defeat.png
-  skill.png             # if applicable
-  notes.md              # only unresolved visual caveats
+  inspection-idle.png
+  battle-idle.png
+  battle-attack.png
+  defeat.png
+  notes.md            # only when unresolved caveats exist
 ```
 
-Short captured video may be used when timing cannot be judged from still images, but do not create large permanent QA archives unnecessarily.
+Do not place QA captures in the public build.
 
-## 10. Integration / commit discipline
+## 12. Integration discipline
 
-Because the repository currently contains unrelated uncommitted work:
+The repository contains unrelated parallel work. Therefore:
 
-- do not reset or clean existing changes
+- do not reset or clean unrelated changes
 - do not mass-format unrelated files
-- worker jobs do not commit
-- coordinator reviews `git diff` by owned paths
-- coordinator runs model generation, gallery build, main build, and representative headless visual checks
-- coordinator commits only files belonging to this initiative when the surrounding repository state permits a safe scoped commit
+- parallel lanes own disjoint files
+- generated GLBs have unique filenames
+- final build/deploy is coordinator-only
+- coordinator stages only initiative-owned paths
+- clean build is performed from a committed revision before publishing
 
-## 11. Gallery data shown per slime
-
-Each card/detail page should expose useful production information, not only the model:
-
-- form name
-- branch / tier / mutation / fusion-form classification
-- combat role
-- signature behavior
-- model status: planned / prototype / accepted
-- motion status per clip
-- current asset filename
-- buttons for each motion
-
-This makes the gallery both a player-facing art showcase and a development acceptance surface.
-
-## 12. Completion definition
+## 13. Completion definition
 
 The initiative is complete when:
 
-- every 30-form Codex entry has an individual design brief
-- Greatsword and any later non-Codex fusion forms have separate design briefs
-- gallery source can accept a new slime without shared-registry edits
-- all accepted forms are viewable at `/slime-mercenaries/gallery/`
-- only build output is present in the public repository
-- all 30 discoverable forms plus approved fusion forms satisfy their per-slime acceptance gate
+- one canonical Base Slime source owns ordinary-body topology and morphs
+- reusable socketed part modules cover all produced forms
+- all 30 Codex forms and approved fusion forms are composition definitions, not duplicated full-body generators
+- game and gallery load the same accepted GLBs
+- game and gallery use the same production motion/VFX functions
+- all accepted forms are viewable under `/slime-mercenaries/gallery/`
+- only built output is deployed publicly
+- all forms satisfy model and production acceptance gates

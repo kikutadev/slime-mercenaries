@@ -12,7 +12,13 @@
     "generate:archer": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant archer --output public/assets/archer-slime.glb",
     "typecheck": "tsc --noEmit",
     "generate:greatsword": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant greatsword --output public/assets/greatsword-slime.glb",
-    "test": "vitest run"
+    "test": "vitest run",
+    "generate:plain": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant plain --output public/assets/plain-slime.glb",
+    "generate:shield": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant shield --output public/assets/shield-slime.glb",
+    "generate:wand": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant wand --output public/assets/wand-slime.glb",
+    "generate:dagger": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant dagger --output public/assets/dagger-slime.glb",
+    "generate:gun": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant gun --output public/assets/gun-slime.glb",
+    "generate:tier1": "tools/blender/generate_tier1_parallel.sh"
   },
   "dependencies": {
     "@react-three/fiber": "^9.7.0",
