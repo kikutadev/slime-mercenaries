@@ -129,7 +129,7 @@ export function AppShell() {
 
         <nav className="bottom-nav bottom-nav--four" aria-label="primary navigation">
           <NavButton id="battle" label="Battle" icon="⚔" active={screen === 'battle'} attention={false} onClick={setScreen} />
-          <NavButton id="slimes" label="Slimes" icon="●" active={screen === 'slimes'} attention={attention.has('slimes')} onClick={setScreen} />
+          <NavButton id="slimes" label="Camp" icon="⌂" active={screen === 'slimes'} attention={attention.has('slimes')} onClick={setScreen} />
           <NavButton id="dispatch" label="Dispatch" icon="↗" active={screen === 'dispatch'} attention={attention.has('dispatch')} onClick={setScreen} />
           <NavButton id="forge" label="Forge" icon="◆" active={screen === 'forge'} attention={attention.has('forge')} onClick={setScreen} />
         </nav>

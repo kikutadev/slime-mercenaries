@@ -1,122 +1,157 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useGameController, useGameState } from '../app/GameProvider';
 import { selectDispatchScreen, selectGlobalHud } from '../application/selectors/ui-selectors';
 import { getSlimePresentation } from '../game/slimes';
 import type { DispatchContractId, JobSlimeId } from '../domain';
+
+const ROUTE_META: Readonly<Record<DispatchContractId, Readonly<{ x: number; y: number; icon: string; subtitle: string }>>> = {
+  roadEscort: { x: 26, y: 34, icon: '⚑', subtitle: '街道の護衛' },
+  forestExploration: { x: 72, y: 28, icon: '♧', subtitle: '森の探索' },
+  materialGathering: { x: 59, y: 69, icon: '◆', subtitle: '素材採集' },
+};
 
 export function DispatchScreen() {
   const state = useGameState();
   const controller = useGameController();
   const view = selectDispatchScreen(state);
   const hud = selectGlobalHud(state);
-  const [selection, setSelection] = useState<Partial<Record<DispatchContractId, JobSlimeId>>>({});
+  const [selectedContract, setSelectedContract] = useState<DispatchContractId>('roadEscort');
+  const [selectedSlime, setSelectedSlime] = useState<JobSlimeId | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  useEffect(() => {
-    setSelection((current) => {
-      let changed = false;
-      const next = { ...current };
-      for (const contract of view.contracts) {
-        if (contract.status === 'running') continue;
-        const selected = next[contract.id];
-        const stillEligible = selected !== undefined && contract.eligibleSlimes.some((slime) => slime.id === selected);
-        if (!stillEligible) {
-          const fallback = contract.eligibleSlimes[0]?.id;
-          if (fallback === undefined) {
-            if (selected !== undefined) {
-              delete next[contract.id];
-              changed = true;
-            }
-          } else if (selected !== fallback) {
-            next[contract.id] = fallback;
-            changed = true;
-          }
-        }
-      }
-      return changed ? next : current;
-    });
-  }, [view.contracts]);
+  const contract = view.contracts.find((item) => item.id === selectedContract) ?? view.contracts[0]!;
 
-  const activeCount = view.contracts.filter((contract) => contract.status === 'running').length;
+  useEffect(() => {
+    if (contract.status === 'running') {
+      setSelectedSlime(null);
+      return;
+    }
+    setSelectedSlime((current) => {
+      if (current !== null && contract.eligibleSlimes.some((slime) => slime.id === current)) return current;
+      return contract.eligibleSlimes[0]?.id ?? null;
+    });
+  }, [contract.id, contract.status, contract.eligibleSlimes]);
+
+  const activeCount = view.contracts.filter((item) => item.status === 'running').length;
+  const selectedPower = contract.eligibleSlimes.find((slime) => slime.id === selectedSlime)?.power ?? 0;
+  const canSend = selectedSlime !== null && selectedPower >= contract.requiredPower && contract.status !== 'running';
+
+  const runningPresentations = useMemo(() => Object.fromEntries(
+    view.contracts.flatMap((item) => {
+      if (item.slimeId === null) return [];
+      const slime = state.gameData.roster.slimes[item.slimeId];
+      if (slime === undefined) return [];
+      return [[item.id, getSlimePresentation(slime)] as const];
+    }),
+  ), [state.gameData.roster.slimes, view.contracts]);
 
   return (
-    <section className="screen screen--menu screen--active" aria-label="Dispatch">
-      <header className="menu-header">
-        <div><p className="eyebrow">RESERVE WORK</p><h1>Dispatch</h1></div>
-        <div className="menu-header__resources"><span>G {hud.gold}</span><span>{activeCount} active</span></div>
+    <section className="screen screen--dispatch-world screen--active" aria-label="Dispatch">
+      <header className="dispatch-world__topbar">
+        <div><p className="eyebrow">EXPEDITION MAP</p><h1>Dispatch</h1></div>
+        <div className="dispatch-world__stats"><span>G {hud.gold}</span><strong>{activeCount} / 3</strong></div>
       </header>
 
-      <div className="dispatch-intro">
-        <div className="dispatch-intro__icon">↗</div>
-        <div><strong>控えにも仕事を。</strong><p>主力から外したスライムを護衛・探索・採集へ送り、放置中も傭兵団を働かせます。</p></div>
-      </div>
+      <div className="dispatch-map">
+        <div className="dispatch-map__sky" />
+        <div className="dispatch-map__land dispatch-map__land--left" />
+        <div className="dispatch-map__land dispatch-map__land--right" />
+        <div className="dispatch-map__river" />
+        <div className="dispatch-map__road dispatch-map__road--a" />
+        <div className="dispatch-map__road dispatch-map__road--b" />
+        <div className="dispatch-map__road dispatch-map__road--c" />
+        <div className="dispatch-map__home"><span>⌂</span><small>CAMP</small></div>
 
-      <div className="dispatch-list">
-        {view.contracts.map((contract) => {
-          const selected = selection[contract.id];
-          const runningSlime = contract.slimeId === null ? null : state.gameData.roster.slimes[contract.slimeId];
-          const runningPresentation = runningSlime == null ? null : getSlimePresentation(runningSlime);
-          const progress = contract.status !== 'running' || contract.durationSec <= 0
+        {view.contracts.map((item) => {
+          const meta = ROUTE_META[item.id];
+          const progress = item.status !== 'running' || item.durationSec <= 0
             ? 0
-            : Math.max(0, Math.min(1, 1 - contract.remainingSec / contract.durationSec));
-
+            : Math.max(0, Math.min(1, 1 - item.remainingSec / item.durationSec));
+          const running = runningPresentations[item.id];
           return (
-            <article className={`dispatch-card ${contract.status === 'running' ? 'is-running' : ''}`} key={contract.id}>
-              <div className="dispatch-card__head">
-                <div><span>{contract.rewardLabel}</span><h2>{contract.name}</h2></div>
-                <strong>{contract.status === 'running' ? formatDuration(contract.remainingSec) : formatDuration(contract.durationSec)}</strong>
-              </div>
-
-              {contract.status === 'running' ? (
-                <>
-                  <div className="dispatch-running-slime">
-                    {runningPresentation !== null && <img src={`${import.meta.env.BASE_URL}${runningPresentation.icon}`} alt="" />}
-                    <span><strong>{runningPresentation?.name ?? 'Slime'}</strong><small>派遣中 · 自動帰還</small></span>
-                  </div>
-                  <div className="dispatch-progress"><i style={{ transform: `scaleX(${progress})` }} /></div>
-                  <p className="dispatch-note">帰還時に報酬は自動で反映されます。受取操作は不要です。</p>
-                </>
-              ) : (
-                <>
-                  <div className="contract-meta"><span>推奨戦力 {contract.requiredPower}</span><span>報酬: {contract.rewardLabel}</span></div>
-                  {contract.eligibleSlimes.length > 0 ? (
-                    <div className="dispatch-slime-picker">
-                      {contract.eligibleSlimes.map((slime) => (
-                        <button
-                          type="button"
-                          className={selected === slime.id ? 'is-selected' : ''}
-                          key={slime.id}
-                          onClick={() => setSelection((current) => ({ ...current, [contract.id]: slime.id }))}
-                        >
-                          <img src={`${import.meta.env.BASE_URL}${slime.icon}`} alt="" />
-                          <span><strong>{slime.name}</strong><small>Power {Math.floor(slime.power)}</small></span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="inline-note">条件を満たす控えスライムがいません。戦闘編成から外すか、育成してください。</div>
-                  )}
-                  <button
-                    className="primary-button"
-                    type="button"
-                    disabled={selected === undefined}
-                    onClick={() => {
-                      if (selected === undefined) return;
-                      const result = controller.startDispatch(contract.id, selected);
-                      setNotice(result.accepted ? `${contract.name}へ出発しました` : rejectionLabel(result.reason));
-                    }}
-                  >
-                    Send
-                  </button>
-                </>
+            <button
+              key={item.id}
+              type="button"
+              className={`dispatch-map-node ${selectedContract === item.id ? 'is-selected' : ''} ${item.status === 'running' ? 'is-running' : ''}`}
+              style={{ left: `${meta.x}%`, top: `${meta.y}%` }}
+              onClick={() => setSelectedContract(item.id)}
+            >
+              <span className="dispatch-map-node__marker">{meta.icon}</span>
+              <span className="dispatch-map-node__copy"><strong>{item.name}</strong><small>{item.status === 'running' ? formatDuration(item.remainingSec) : item.rewardLabel}</small></span>
+              {item.status === 'running' && running !== undefined && (
+                <span className="dispatch-map-node__traveler" style={{ '--route-progress': progress } as CSSProperties}>
+                  <img src={`${import.meta.env.BASE_URL}${running.icon}`} alt="" />
+                </span>
               )}
-            </article>
+            </button>
           );
         })}
       </div>
 
+      <div className={`dispatch-console ${contract.status === 'running' ? 'is-running' : ''}`}>
+        <div className="dispatch-console__head">
+          <div><span>{ROUTE_META[contract.id].subtitle}</span><strong>{contract.name}</strong></div>
+          <div className="dispatch-console__reward"><span>REWARD</span><strong>{contract.rewardLabel}</strong></div>
+        </div>
+
+        {contract.status === 'running' ? (
+          <RunningDispatch contract={contract} state={state} />
+        ) : (
+          <>
+            <div className="dispatch-console__mission">
+              <span><small>TIME</small><strong>{formatDuration(contract.durationSec)}</strong></span>
+              <span><small>POWER</small><strong>{contract.requiredPower}</strong></span>
+              <span><small>STATUS</small><strong>{contract.eligibleSlimes.length > 0 ? 'READY' : 'NO CREW'}</strong></span>
+            </div>
+
+            {contract.eligibleSlimes.length > 0 ? (
+              <div className="dispatch-crew-strip">
+                {contract.eligibleSlimes.map((slime) => (
+                  <button key={slime.id} type="button" className={selectedSlime === slime.id ? 'is-selected' : ''} onClick={() => setSelectedSlime(slime.id)}>
+                    <img src={`${import.meta.env.BASE_URL}${slime.icon}`} alt="" />
+                    <span><strong>{slime.name}</strong><small>Power {Math.floor(slime.power)}</small></span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="dispatch-console__empty">控えのスライムが必要です。Campで主力から外すと派遣できます。</div>
+            )}
+
+            <button
+              className="dispatch-send-button"
+              type="button"
+              disabled={!canSend}
+              onClick={() => {
+                if (selectedSlime === null) return;
+                const result = controller.startDispatch(contract.id, selectedSlime);
+                setNotice(result.accepted ? `${contract.name}へ出発しました` : rejectionLabel(result.reason));
+              }}
+            >
+              <span>▶</span><strong>出発させる</strong>
+            </button>
+          </>
+        )}
+      </div>
+
       {notice !== null && <button className="toast-notice" type="button" onClick={() => setNotice(null)}>{notice}</button>}
     </section>
+  );
+}
+
+function RunningDispatch({ contract, state }: { contract: ReturnType<typeof selectDispatchScreen>['contracts'][number]; state: ReturnType<typeof useGameState> }) {
+  const slime = contract.slimeId === null ? null : state.gameData.roster.slimes[contract.slimeId];
+  const presentation = slime === undefined || slime === null ? null : getSlimePresentation(slime);
+  const progress = contract.durationSec <= 0 ? 0 : Math.max(0, Math.min(1, 1 - contract.remainingSec / contract.durationSec));
+  return (
+    <div className="dispatch-running-panel">
+      <div className="dispatch-running-panel__slime">
+        {presentation !== null && <img src={`${import.meta.env.BASE_URL}${presentation.icon}`} alt="" />}
+        <span><strong>{presentation?.name ?? 'Slime'}</strong><small>任務遂行中</small></span>
+      </div>
+      <div className="dispatch-running-panel__time"><span>RETURN IN</span><strong>{formatDuration(contract.remainingSec)}</strong></div>
+      <div className="dispatch-running-panel__track"><i style={{ transform: `scaleX(${progress})` }} /></div>
+      <small>帰還時に報酬は自動で受け取ります。</small>
+    </div>
   );
 }
 

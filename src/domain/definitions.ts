@@ -419,6 +419,8 @@ function stageClearRewards(clearReward: Readonly<Record<string, number>>): reado
     hardeningGel: ids.token.hardeningGel,
     forgeKey: ids.token.forgeKey,
     promotionMaterial: ids.token.promotionMaterial,
+    reinforcedBow: ids.token.reinforcedBow,
+    temperedSteel: ids.token.temperedSteel,
   };
   for (const [key, count] of Object.entries(clearReward)) {
     const tokenId = tokenByKey[key];

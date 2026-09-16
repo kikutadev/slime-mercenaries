@@ -26,7 +26,6 @@ interface FusionSceneProps {
   sequenceKey: number;
   fromRank: number;
   toRank: number;
-  onCommit: () => void;
   onComplete: () => void;
 }
 
@@ -150,12 +149,9 @@ function FusionScene(props: FusionSceneProps) {
   const resultRef = useRef<THREE.Group>(null);
   const latestTime = useRef(0);
   const startedAt = useRef(-Infinity);
-  const committed = useRef(false);
   const completed = useRef(false);
-  const commitRef = useRef(props.onCommit);
   const completeRef = useRef(props.onComplete);
 
-  commitRef.current = props.onCommit;
   completeRef.current = props.onComplete;
 
   useEffect(() => {
@@ -172,7 +168,6 @@ function FusionScene(props: FusionSceneProps) {
   useEffect(() => {
     if (!props.isFusing) return;
     startedAt.current = latestTime.current;
-    committed.current = false;
     completed.current = false;
   }, [props.isFusing, props.sequenceKey]);
 
@@ -226,10 +221,6 @@ function FusionScene(props: FusionSceneProps) {
     animateJelly(leftParts, clock.elapsedTime, 0);
     animateJelly(rightParts, clock.elapsedTime, Math.PI);
 
-    if (!committed.current && elapsed >= 0.57) {
-      committed.current = true;
-      commitRef.current();
-    }
 
     if (elapsed >= 0.58) {
       result.visible = true;
@@ -271,7 +262,6 @@ interface SlimePreviewProps {
   sequenceKey: number;
   fromRank: number;
   toRank: number;
-  onFusionCommit: () => void;
   onFusionComplete: () => void;
 }
 
@@ -297,7 +287,6 @@ export function SlimePreview(props: SlimePreviewProps) {
           sequenceKey={props.sequenceKey}
           fromRank={props.fromRank}
           toRank={props.toRank}
-          onCommit={props.onFusionCommit}
           onComplete={props.onFusionComplete}
         />
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.49, 0]} receiveShadow>
