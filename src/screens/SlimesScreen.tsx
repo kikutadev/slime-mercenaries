@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { BottomSheet } from 'idle-game-kit/react';
 import { useGameController, useGameState } from '../app/GameProvider';
 import {
@@ -10,8 +10,8 @@ import {
   selectSlimeDetail,
 } from '../application/selectors/ui-selectors';
 import { FusionWorkbench } from '../components/fusion/FusionWorkbench';
-import { SlimePreview } from '../components/SlimePreview';
-import { ids, weaponDefinitions, type JobSlimeId } from '../domain';
+import { CampSlimeStage, type CampSlimeReaction } from '../components/CampSlimeStage';
+import { ids, type JobSlimeId } from '../domain';
 import { getSlimePresentation } from '../game/slimes';
 
 interface Props {
@@ -20,7 +20,14 @@ interface Props {
   onOpenBattle: () => void;
 }
 
-type CampMode = 'none' | 'train' | 'weapon' | 'formation' | 'fusion';
+type CampMode = 'none' | 'train' | 'formation' | 'fusion';
+
+type CampFeedback = Readonly<{
+  key: number;
+  reaction: CampSlimeReaction;
+  title: string;
+  detail?: string;
+}>;
 
 export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   const state = useGameState();
@@ -37,11 +44,11 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   const [mode, setMode] = useState<CampMode>('none');
   const [createOpen, setCreateOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<CampFeedback>({ key: 0, reaction: 'idle', title: '' });
 
-  const compatibleWeapons = useMemo(() => {
-    if (selected === null) return [];
-    return Object.values(weaponDefinitions).filter((weapon) => weapon.family === selected);
-  }, [selected]);
+  const triggerFeedback = (reaction: CampSlimeReaction, title: string, detail?: string) => {
+    setFeedback((current) => ({ key: current.key + 1, reaction, title, ...(detail === undefined ? {} : { detail }) }));
+  };
 
   const runAction = (success: string, action: () => { accepted: boolean; reason?: string }) => {
     const result = action();
@@ -59,7 +66,9 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
     if (!alreadyOwned) {
       const open = result.state.gameData.roster.formationSlots.findIndex((slot) => slot === null);
       if (open >= 0) controller.assignSlime(jobId, open);
-      setNotice(`${getSlimePresentation(result.state.gameData.roster.slimes[jobId]!).name} が仲間になりました`);
+      const name = getSlimePresentation(result.state.gameData.roster.slimes[jobId]!).name;
+      setNotice(null);
+      triggerFeedback('recruit', `${name}が仲間になった！`, '出撃編成に自動で加わりました');
     } else {
       setNotice(`${getSlimePresentation(result.state.gameData.roster.slimes[jobId]!).name} の核を獲得`);
     }
@@ -80,7 +89,6 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   return (
     <section className="screen screen--camp screen--active" aria-label="キャンプ">
       <header className="camp-topbar">
-        <div><p className="eyebrow">傭兵団の拠点</p><h1>キャンプ</h1></div>
         <div className="camp-resources"><span>G</span><strong>{hud.gold}</strong></div>
       </header>
 
@@ -89,7 +97,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
           const slime = state.gameData.roster.slimes[id]!;
           const p = getSlimePresentation(slime);
           return (
-            <button key={id} className={id === selected ? 'is-selected' : ''} type="button" onClick={() => { onSelect(id); setMode('none'); }}>
+            <button key={id} className={id === selected ? 'is-selected' : ''} type="button" onClick={() => { onSelect(id); setMode('none'); setFeedback((current) => ({ key: current.key + 1, reaction: 'idle', title: '' })); }}>
               <img src={`${import.meta.env.BASE_URL}${p.icon}`} alt="" />
               <span>Lv.{slime.level}</span>
             </button>
@@ -107,27 +115,36 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
         </div>
       ) : (
         <>
-          <div className="camp-world">
+          <div className={`camp-world camp-world--${feedback.reaction}`}>
             <div className="camp-world__sky" />
             <div className="camp-world__hills camp-world__hills--far" />
             <div className="camp-world__hills camp-world__hills--near" />
             <div className="camp-world__ground" />
+            {feedback.reaction === 'level-up' && feedback.title !== '' && (
+              <div className="camp-gold-flight" key={`gold-${feedback.key}`} aria-hidden="true">
+                <i /><i /><i /><i /><i /><i />
+              </div>
+            )}
+            {(feedback.reaction === 'level-up' || feedback.reaction === 'recruit') && feedback.title !== '' && (
+              <div className="camp-reward-ring" key={`ring-${feedback.key}`} aria-hidden="true" />
+            )}
             <div className="camp-prop camp-prop--tent"><span>▲</span></div>
             <div className="camp-prop camp-prop--dummy"><span>＋</span></div>
-            <div className="camp-prop camp-prop--forge"><span>✦</span></div>
             <div className="camp-prop camp-prop--flag"><span>⚑</span></div>
 
             <div className="camp-slime-stage">
-              <SlimePreview
+              <CampSlimeStage
                 slimeId={selected}
                 fusionRank={detail.fusionRank}
-                fusionReady={false}
-                isFusing={false}
-                sequenceKey={0}
-                fromRank={detail.fusionRank}
-                toRank={detail.fusionRank + 1}
-                      onFusionComplete={() => undefined}
+                reaction={feedback.reaction}
+                reactionKey={feedback.key}
               />
+              {feedback.title !== '' && (
+                <div className={`camp-action-feedback camp-action-feedback--${feedback.reaction}`} key={feedback.key}>
+                  <strong>{feedback.title}</strong>
+                  {feedback.detail !== undefined && <small>{feedback.detail}</small>}
+                </div>
+              )}
               <div className="camp-slime-name">
                 <span>{detail.role}</span><strong>{detail.name}</strong><small>Lv.{detail.level} · 合成ランク {detail.fusionRank}</small>
               </div>
@@ -139,8 +156,8 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
             <button className={`camp-hotspot camp-hotspot--fusion ${detail.fusion?.canFuse ? 'is-ready' : ''}`} type="button" onClick={() => setMode('fusion')}>
               <span>✦</span><strong>合成</strong><small>{detail.fusion?.canFuse ? '合成可能' : '合成台'}</small>
             </button>
-            <button className={`camp-hotspot camp-hotspot--weapon ${mode === 'weapon' ? 'is-active' : ''}`} type="button" onClick={() => setMode(mode === 'weapon' ? 'none' : 'weapon')}>
-              <span>⌁</span><strong>武器庫</strong><small>{detail.weaponName}</small>
+            <button className="camp-hotspot camp-hotspot--nursery" type="button" onClick={() => setCreateOpen(true)}>
+              <span>●</span><strong>育成所</strong><small>仲間を増やす</small>
             </button>
             <button className={`camp-hotspot camp-hotspot--formation ${mode === 'formation' ? 'is-active' : ''}`} type="button" onClick={() => setMode(mode === 'formation' ? 'none' : 'formation')}>
               <span>⚑</span><strong>編成</strong><small>{detail.assignment === 'battle' ? '出撃中' : '控え'}</small>
@@ -166,34 +183,18 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                     key={index}
                     type="button"
                     disabled={action === null || !action.available}
-                    onClick={() => action !== null && runAction(`Lv.${action.targetLevel}へ強化`, () => controller.levelUpSlime(selected, action.count))}
+                    onClick={() => {
+                      if (action === null) return;
+                      const result = controller.levelUpSlime(selected, action.count);
+                      if (!result.accepted) { setNotice(rejectionLabel(result.reason)); return; }
+                      setNotice(null);
+                      triggerFeedback('level-up', `Lv.${action.targetLevel}`, `-${action.cost} G`);
+                    }}
                   >
                     <span>{index === 0 ? '+1' : index === 1 ? '+10' : '最大'}</span>
                     <strong>{action?.cost ?? '—'} G</strong>
                   </button>
                 ))}
-              </div>
-            </div>
-          )}
-
-          {mode === 'weapon' && (
-            <div className="camp-action-dock camp-action-dock--weapon">
-              <div><span>武器庫</span><strong>武器を付け替える</strong><small>武器は鍛造で獲得できます</small></div>
-              <div className="camp-weapon-strip">
-                {compatibleWeapons.map((weapon) => {
-                  const instance = Object.values(state.gameData.equipment.inventory).find((item) => item.definitionId === weapon.id);
-                  const owned = instance !== undefined;
-                  const equipped = detail.weaponName === weapon.displayName;
-                  return (
-                    <button key={weapon.id} type="button" disabled={!owned || equipped} className={equipped ? 'is-equipped' : ''} onClick={() => {
-                      const result = controller.equipWeapon(selected, weapon.id);
-                      setNotice(result.accepted ? `${weapon.displayName}を装備` : rejectionLabel(result.reason));
-                    }}>
-                      <span className={`weapon-rarity weapon-rarity--${weapon.rarity}`}>{rarityLabel(weapon.rarity)}</span>
-                      <strong>{weapon.displayName}</strong><small>{equipped ? '装備中' : owned ? `攻撃倍率 ×${weapon.dpsMultiplier.toFixed(2)}` : '未所持'}</small>
-                    </button>
-                  );
-                })}
               </div>
             </div>
           )}
@@ -208,8 +209,17 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                     type="button"
                     className={slot.slimeId === selected ? 'is-selected' : ''}
                     onClick={() => {
-                      if (slot.slimeId === selected) controller.removeSlime(slot.slotIndex);
-                      else runAction('編成を更新しました', () => controller.assignSlime(selected, slot.slotIndex));
+                      if (slot.slimeId === selected) {
+                        const result = controller.removeSlime(slot.slotIndex);
+                        if (!result.accepted) { setNotice(rejectionLabel(result.reason)); return; }
+                        setNotice(null);
+                        triggerFeedback('formation', '控えへ移動', '派遣に出せるようになりました');
+                      } else {
+                        const result = controller.assignSlime(selected, slot.slotIndex);
+                        if (!result.accepted) { setNotice(rejectionLabel(result.reason)); return; }
+                        setNotice(null);
+                        triggerFeedback('formation', `編成 ${slot.slotIndex + 1}へ`, '次の戦闘から反映されます');
+                      }
                     }}
                   >
                     {slot.icon !== null ? <img src={`${import.meta.env.BASE_URL}${slot.icon}`} alt="" /> : <span>＋</span>}
@@ -275,12 +285,4 @@ function resourceLabel(tokenId: string): string {
   if (tokenId === ids.token.slimeGel) return 'スライムジェル';
   if (tokenId === ids.token.lifeWater) return '生命の水';
   return tokenId;
-}
-
-function rarityLabel(rarity: string): string {
-  switch (rarity) {
-    case 'mythic': return '神話';
-    case 'rare': return '希少';
-    default: return '一般';
-  }
 }

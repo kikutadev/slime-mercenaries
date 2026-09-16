@@ -14,7 +14,14 @@ interface FusionWorkbenchProps {
   onRecruit: () => void;
 }
 
-type FusionRun = Readonly<{ fromRank: number; toRank: number; fromName: string }>;
+type FusionRunRequirement = Readonly<{ tokenId: string; label: string; owned: number; required: number; missing: number }>;
+
+type FusionRun = Readonly<{
+  fromRank: number;
+  toRank: number;
+  fromName: string;
+  requirements: readonly FusionRunRequirement[];
+}>;
 
 export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: FusionWorkbenchProps) {
   const state = useGameState();
@@ -67,12 +74,12 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
     setCompletedBehavior(behavior);
     setSequenceKey((value) => value + 1);
     setCompleted(false);
-    setRun({ fromRank, toRank: fromRank + 1, fromName: detail.name });
+    setRun({ fromRank, toRank: fromRank + 1, fromName: detail.name, requirements: detail.fusion.requirements });
   };
 
   return (
     <div className={`fusion-workbench ${run !== null ? 'is-running' : ''} ${completed ? 'is-complete' : ''}`} aria-label="合成祭壇">
-      <button className="world-close" type="button" onClick={onClose} aria-label="合成画面を閉じる">×</button>
+      <button className="world-close" type="button" disabled={run !== null} onClick={onClose} aria-label="合成画面を閉じる">×</button>
 
       <div className="fusion-workbench__header">
         <span>合成祭壇</span>
@@ -83,6 +90,18 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
       <div className="fusion-workbench__stage">
         <div className="fusion-rune fusion-rune--outer" />
         <div className="fusion-rune fusion-rune--inner" />
+        {run !== null && (
+          <div className="fusion-absorb-layer" key={`absorb-${sequenceKey}`} aria-hidden="true">
+            {run.requirements.map((requirement) => {
+              const meta = getFusionIngredientPresentation(requirement.tokenId);
+              return (
+                <span key={requirement.tokenId}>
+                  <img src={`${import.meta.env.BASE_URL}${meta.asset}`} alt="" />
+                </span>
+              );
+            })}
+          </div>
+        )}
         <SlimePreview
           slimeId={slimeId}
           fusionRank={run?.fromRank ?? progress.fusionRank}
