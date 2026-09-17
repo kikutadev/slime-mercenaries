@@ -1,6 +1,6 @@
 # Parallel Enemy Families Production Plan — Leaf / Flower / Forest Critter
 
-Status: Implemented — pending latest-main integration/deploy verification
+Status: Completed
 Date: 2026-09-18
 Baseline: `origin/main` at planning time = `95a3c85`
 Reference: `docs/content/enemy-next-families-reference-v1.md`
@@ -919,3 +919,41 @@ Do not start three model lanes immediately.
 First implement **Gate A shared-family foundation** in one coordinator branch/worktree and freeze it. Once that commit is accepted, create three independent worktrees from the exact same commit and dispatch Leaf / Flower / Critter simultaneously.
 
 This is the shortest path to genuine parallelism without repeating the Mushroom V1 problem or creating merge-heavy shared-file work.
+
+## 19. Completion record — 2026-09-18
+
+Implemented and production-verified.
+
+Parallel lane commits:
+
+- Leaf: `b213173` (`813d0a1` after coordinator cherry-pick)
+- Flower: `0d8e419` (`28c0962` after coordinator cherry-pick)
+- Forest Critter: `07cea52` (`3ac5894` after coordinator cherry-pick)
+- Shared multi-family foundation: `6d24006`
+- Coordinator integration: `f855c30`
+
+Delivered production enemies:
+
+- `leafling` / ちびリーフ
+- `whirl-leaf` / くるりリーフ
+- `bud-bloom` / つぼみん
+- `puff-flower` / ぽふぽふ花
+- `round-hedgehog` / まるハリ
+- `acorn-squirrel` / どんぐりリス
+
+Acceptance results:
+
+- typecheck: PASS
+- tests: 68 / 68 PASS
+- GLB validation: 10 / 10 enemies PASS
+- production build: PASS
+- 6 new enemies distinguishable in grayscale family boards
+- production gallery verified for Idle / Move / Attack / Hit / Defeat
+- gust / pollen / acorn projectile paths verified in gallery and battle runtime
+- 12 enemies + 6 friendly slimes crowd test completed at portrait-mobile viewport
+- existing friendly production motion methods mechanically verified unchanged from pre-integration `origin/main`
+- canonical production deployment verified at `https://games.kikuta.dev/slime-mercenaries/`
+- all six production GLBs return HTTP 200 from the canonical deployment
+
+GitHub Pages remains redirect-only and was not converted back into a game-hosting deployment target.
+
