@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 
+import { SLIME_MOTION_TIMING, getGuardianAttackMotion } from '../../slime-motion';
+
 import {
   TIER3_DEFENSE_THRESHOLDS,
   TIER3_DEFENSE_TIMING,
@@ -25,7 +27,9 @@ function expectFinitePose(pose: DefensePose): void {
 }
 
 function materialOpacity(object: THREE.Object3D | undefined): number {
-  if (!(object instanceof THREE.Mesh) || !(object.material instanceof THREE.MeshBasicMaterial)) return 0;
+  if (!(object instanceof THREE.Mesh) || !(object.material instanceof THREE.MeshBasicMaterial)) {
+    return 0;
+  }
   return object.material.opacity;
 }
 
@@ -148,6 +152,56 @@ describe('tier3 defense production motions', () => {
   });
 });
 
+describe('tier3 defense differentiation from Guardian', () => {
+  it('keeps both Tier-3 attacks materially slower/heavier than Guardian timing', () => {
+    expect(TIER3_DEFENSE_TIMING.paladinAttack).toBeGreaterThan(
+      SLIME_MOTION_TIMING.guardianAttack * 1.25,
+    );
+    expect(TIER3_DEFENSE_TIMING.fortressAttack).toBeGreaterThan(
+      SLIME_MOTION_TIMING.guardianAttack * 1.50,
+    );
+  });
+
+  it('makes Paladin shield commitment visibly stronger than Guardian at flash and contact', () => {
+    const guardianFlashFrame = getGuardianAttackMotion(
+      TIER3_DEFENSE_THRESHOLDS.paladinShieldFlashU,
+    );
+    const paladinFlashFrame = getPaladinAttackMotion(
+      TIER3_DEFENSE_THRESHOLDS.paladinShieldFlashU,
+    );
+    const guardianContactFrame = getGuardianAttackMotion(
+      TIER3_DEFENSE_THRESHOLDS.paladinContactU,
+    );
+    const paladinContactFrame = getPaladinAttackMotion(
+      TIER3_DEFENSE_THRESHOLDS.paladinContactU,
+    );
+
+    expect(paladinFlashFrame.deformation.squash)
+      .toBeGreaterThan(guardianFlashFrame.deformation.squash + 0.12);
+    expect(Math.abs(paladinFlashFrame.equipment.angle))
+      .toBeGreaterThan(Math.abs(guardianFlashFrame.equipment.angle) * 3);
+
+    expect(paladinContactFrame.bodyOffset)
+      .toBeGreaterThan(guardianContactFrame.bodyOffset + 0.14);
+    expect(Math.abs(paladinContactFrame.equipment.angle))
+      .toBeGreaterThan(Math.abs(guardianContactFrame.equipment.angle) * 4);
+    expect(paladinContactFrame.holyImpactPulse).toBeGreaterThan(0.4);
+  });
+
+  it('makes Fortress lock a static silhouette Guardian cannot resemble', () => {
+    const guardianLockedFrame = getGuardianAttackMotion(0.84);
+    const fortressLockedFrame = getFortressAttackMotion(0.84);
+
+    expect(fortressLockedFrame.fortifyLock).toBe(1);
+    expect(fortressLockedFrame.deformation.squash)
+      .toBeGreaterThan(guardianLockedFrame.deformation.squash * 6);
+    expect(Math.abs(fortressLockedFrame.equipment.angle))
+      .toBeGreaterThan(Math.abs(guardianLockedFrame.equipment.angle) + 0.70);
+    expect(fortressLockedFrame.deformation.jump).toBe(0);
+    expect(Math.abs(fortressLockedFrame.bodyOffset)).toBeLessThan(0.1);
+  });
+});
+
 describe('tier3 defense signature VFX contracts', () => {
   const cameraQuaternion = new THREE.Quaternion();
   const caster = new THREE.Vector3(1, 0.2, -2);
@@ -228,5 +282,58 @@ describe('tier3 defense signature VFX contracts', () => {
 
     applyFortressSignatureVfx(group, getFortressAttackMotion(1), cameraQuaternion, caster);
     expect(group.visible).toBe(false);
+  });
+
+  it('keeps signature VFX finite and bounded across the complete authored timeline', () => {
+    const paladin = createPaladinSignatureVfx();
+    const fortress = createFortressSignatureVfx();
+
+    const assertBoundedGroup = (group: THREE.Group): void => {
+      group.traverse((object) => {
+        for (const value of [
+          object.position.x,
+          object.position.y,
+          object.position.z,
+          object.scale.x,
+          object.scale.y,
+          object.scale.z,
+          object.quaternion.x,
+          object.quaternion.y,
+          object.quaternion.z,
+          object.quaternion.w,
+        ]) {
+          expect(Number.isFinite(value)).toBe(true);
+        }
+
+        expect(Math.abs(object.scale.x)).toBeLessThanOrEqual(4);
+        expect(Math.abs(object.scale.y)).toBeLessThanOrEqual(4);
+        expect(Math.abs(object.scale.z)).toBeLessThanOrEqual(4);
+
+        if (object instanceof THREE.Mesh && object.material instanceof THREE.MeshBasicMaterial) {
+          expect(Number.isFinite(object.material.opacity)).toBe(true);
+          expect(object.material.opacity).toBeGreaterThanOrEqual(0);
+          expect(object.material.opacity).toBeLessThanOrEqual(1);
+        }
+      });
+    };
+
+    for (let step = 0; step <= 100; step += 1) {
+      const u = step / 100;
+      applyPaladinSignatureVfx(
+        paladin,
+        getPaladinAttackMotion(u),
+        cameraQuaternion,
+        caster,
+        shield,
+      );
+      applyFortressSignatureVfx(
+        fortress,
+        getFortressAttackMotion(u),
+        cameraQuaternion,
+        caster,
+      );
+      assertBoundedGroup(paladin);
+      assertBoundedGroup(fortress);
+    }
   });
 });
