@@ -10,18 +10,26 @@ import {
   clearMorphs,
   clamp01,
   createGreatswordSpinArc,
+  createGunBulletMesh,
+  createMagicOrbMesh,
+  createMuzzleFlashMesh,
   createSlimeArrowMesh,
   createSwordSlashArc,
   getAllyDefeatMotion,
   getArrowArcHeight,
   getBowAttackMotion,
+  getDaggerAttackMotion,
   getGreatswordAttackMotion,
   getGreatswordSpinVfxPose,
+  getGunAttackMotion,
   getHopTravelMotion,
   getIdleMotion,
+  getShieldAttackMotion,
   getSwordAttackMotion,
+  getWandAttackMotion,
   getSwordSlashVfxPose,
   type MorphMesh,
+  type SlimeEquipmentMotionKind,
 } from '../game/slime-motion';
 import type { GalleryCameraId, GalleryMotionId, SlimeGalleryDefinition } from './types';
 
@@ -30,6 +38,8 @@ interface ModelParts {
   faceRoot: THREE.Object3D | null;
   equipment: THREE.Object3D | null;
   weaponTip: THREE.Object3D | null;
+  projectileOrigin: THREE.Object3D | null;
+  spellOrigin: THREE.Object3D | null;
   normalEyes: THREE.Object3D[];
   xEyes: THREE.Group[];
   bodyBaseScale: THREE.Vector3;
@@ -88,12 +98,16 @@ function collectParts(model: THREE.Object3D, definition: SlimeGalleryDefinition)
   const faceRoot = model.getObjectByName('FaceRoot') ?? null;
   const equipment = definition.equipmentAnchor ? model.getObjectByName(definition.equipmentAnchor) ?? null : null;
   const weaponTip = definition.weaponTipName ? model.getObjectByName(definition.weaponTipName) ?? null : null;
+  const projectileOrigin = model.getObjectByName('ProjectileOrigin') ?? null;
+  const spellOrigin = model.getObjectByName('SpellOrigin') ?? null;
   const { normalEyes, xEyes } = buildDefeatEyes(model);
   return {
     body,
     faceRoot,
     equipment,
     weaponTip,
+    projectileOrigin,
+    spellOrigin,
     normalEyes,
     xEyes,
     bodyBaseScale: body?.scale.clone() ?? new THREE.Vector3(1, 1, 1),
@@ -104,8 +118,19 @@ function collectParts(model: THREE.Object3D, definition: SlimeGalleryDefinition)
   };
 }
 
-function equipmentKind(definition: SlimeGalleryDefinition): 'sword' | 'bow' {
-  return definition.modelKind === 'bow' ? 'bow' : 'sword';
+function equipmentKind(definition: SlimeGalleryDefinition): SlimeEquipmentMotionKind {
+  if (definition.modelKind === 'bow') return 'bow';
+  if (definition.modelKind === 'shield') return 'shield';
+  if (definition.modelKind === 'wand') return 'wand';
+  if (definition.modelKind === 'dagger') return 'dagger';
+  if (definition.modelKind === 'gun') return 'gun';
+  return 'sword';
+}
+
+function targetDistanceFor(definition: SlimeGalleryDefinition): number {
+  if (definition.modelKind === 'bow' || definition.modelKind === 'wand' || definition.modelKind === 'gun') return 1.55;
+  if (definition.modelKind === 'shield') return 0.82;
+  return 0.95;
 }
 
 function resetParts(parts: ModelParts): void {
@@ -141,6 +166,16 @@ function clipDuration(motion: GalleryMotionId, definition: SlimeGalleryDefinitio
       const releaseAt = SLIME_MOTION_TIMING.bowAttack * SLIME_MOTION_THRESHOLDS.bowReleaseU;
       return releaseAt + SLIME_MOTION_TIMING.arrowFlight;
     }
+    if (definition.modelKind === 'shield') return SLIME_MOTION_TIMING.shieldAttack;
+    if (definition.modelKind === 'wand') {
+      const releaseAt = SLIME_MOTION_TIMING.wandAttack * SLIME_MOTION_THRESHOLDS.wandReleaseU;
+      return releaseAt + SLIME_MOTION_TIMING.magicOrbFlight;
+    }
+    if (definition.modelKind === 'dagger') return SLIME_MOTION_TIMING.daggerAttack;
+    if (definition.modelKind === 'gun') {
+      const releaseAt = SLIME_MOTION_TIMING.gunAttack * SLIME_MOTION_THRESHOLDS.gunReleaseU;
+      return releaseAt + SLIME_MOTION_TIMING.bulletFlight;
+    }
     return SLIME_MOTION_TIMING.swordAttack;
   }
   return 2.4;
@@ -154,7 +189,7 @@ function CameraRig({ mode, motion, definition }: { mode: GalleryCameraId; motion
     const yaw = THREE.MathUtils.degToRad(definition.inspectionFacingYawDegrees ?? 0);
     const inspectForward = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).normalize();
     const inspectRight = new THREE.Vector3(-inspectForward.z, 0, inspectForward.x).normalize();
-    const targetDistance = definition.modelKind === 'bow' ? 1.55 : 0.95;
+    const targetDistance = targetDistanceFor(definition);
 
     if (mode === 'gameplay') {
       camera.position.copy(lookAt).addScaledVector(BATTLE_CAMERA_OFFSET, 0.34 * compact);
@@ -163,12 +198,16 @@ function CameraRig({ mode, motion, definition }: { mode: GalleryCameraId; motion
       camera.position.set(0, 0.82, 2.15 * compact);
       camera.lookAt(lookAt);
     } else if (motion === 'attack') {
-      const midpoint = GALLERY_HOME.clone().addScaledVector(inspectForward, targetDistance * 0.46);
+      const midpoint = GALLERY_HOME.clone().addScaledVector(inspectForward, targetDistance * 0.50);
       midpoint.y = 0.26;
+      const ranged = targetDistance >= 1.4;
+      const sideDistance = (ranged ? 3.00 : 2.10) * compact;
+      const forwardDistance = (ranged ? 0.22 : 0.62) * compact;
+      const height = (ranged ? 0.94 : 0.86) * compact;
       camera.position.copy(midpoint)
-        .addScaledVector(inspectRight, 2.10 * compact)
-        .addScaledVector(inspectForward, 0.62 * compact)
-        .add(new THREE.Vector3(0, 0.86 * compact, 0));
+        .addScaledVector(inspectRight, sideDistance)
+        .addScaledVector(inspectForward, forwardDistance)
+        .add(new THREE.Vector3(0, height, 0));
       camera.lookAt(midpoint);
     } else {
       camera.position.copy(GALLERY_HOME)
@@ -191,6 +230,9 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
   const slash = useMemo(() => createSwordSlashArc(), []);
   const spin = useMemo(() => createGreatswordSpinArc(), []);
   const arrow = useMemo(() => createSlimeArrowMesh(), []);
+  const magicOrb = useMemo(() => createMagicOrbMesh(), []);
+  const bullet = useMemo(() => createGunBulletMesh(), []);
+  const muzzleFlash = useMemo(() => createMuzzleFlashMesh(), []);
   const startedAt = useRef(0);
   const previousReplayKey = useRef(replayKey);
   const inspectionYaw = THREE.MathUtils.degToRad(definition.inspectionFacingYawDegrees ?? 0);
@@ -223,7 +265,13 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
     slash.material.dispose();
     spin.geometry.dispose();
     spin.material.dispose();
-  }, [slash, spin]);
+    magicOrb.geometry.dispose();
+    magicOrb.material.dispose();
+    bullet.geometry.dispose();
+    bullet.material.dispose();
+    muzzleFlash.geometry.dispose();
+    muzzleFlash.material.dispose();
+  }, [bullet, magicOrb, muzzleFlash, slash, spin]);
 
   useFrame(({ clock, camera }) => {
     const root = rootRef.current;
@@ -238,7 +286,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
     root.rotation.set(0, baseYaw, 0);
     root.scale.setScalar(PRODUCTION_SCALE);
 
-    const targetDistance = definition.modelKind === 'bow' ? 1.55 : 0.95;
+    const targetDistance = targetDistanceFor(definition);
     const dummyHome = tempA.copy(GALLERY_HOME).addScaledVector(forward, targetDistance).clone();
     if (dummyRef.current) {
       dummyRef.current.visible = showDummy && cameraMode !== 'front' && motion === 'attack';
@@ -249,6 +297,10 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
     slash.visible = false; slash.material.opacity = 0;
     spin.visible = false; spin.material.opacity = 0;
     arrow.visible = false;
+    magicOrb.visible = false;
+    bullet.visible = false;
+    muzzleFlash.visible = false;
+    muzzleFlash.material.opacity = 0;
 
     const duration = clipDuration(motion, definition);
     const elapsed = Math.max(0, (clock.elapsedTime - startedAt.current) * speed);
@@ -317,6 +369,67 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       return;
     }
 
+    if (definition.modelKind === 'shield') {
+      const u = clamp01(local / SLIME_MOTION_TIMING.shieldAttack);
+      const pose = getShieldAttackMotion(u);
+      root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
+      applyPose(parts, definition, pose);
+      return;
+    }
+
+    if (definition.modelKind === 'wand') {
+      const attackTime = Math.min(local, SLIME_MOTION_TIMING.wandAttack);
+      const attackU = clamp01(attackTime / SLIME_MOTION_TIMING.wandAttack);
+      applyPose(parts, definition, getWandAttackMotion(attackU));
+      root.updateMatrixWorld(true);
+      const releaseAt = SLIME_MOTION_TIMING.wandAttack * SLIME_MOTION_THRESHOLDS.wandReleaseU;
+      if (local >= releaseAt) {
+        const flightU = clamp01((local - releaseAt) / SLIME_MOTION_TIMING.magicOrbFlight);
+        if (parts.spellOrigin) parts.spellOrigin.getWorldPosition(tempA);
+        else tempA.copy(root.position);
+        tempB.copy(dummyHome).add(new THREE.Vector3(0, 0.28, 0));
+        magicOrb.visible = flightU < 1;
+        magicOrb.position.lerpVectors(tempA, tempB, flightU);
+        magicOrb.position.y += getArrowArcHeight(flightU) * 0.45;
+      }
+      return;
+    }
+
+    if (definition.modelKind === 'dagger') {
+      const u = clamp01(local / SLIME_MOTION_TIMING.daggerAttack);
+      const pose = getDaggerAttackMotion(u);
+      root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
+      applyPose(parts, definition, pose);
+      return;
+    }
+
+    if (definition.modelKind === 'gun') {
+      const attackTime = Math.min(local, SLIME_MOTION_TIMING.gunAttack);
+      const attackU = clamp01(attackTime / SLIME_MOTION_TIMING.gunAttack);
+      const pose = getGunAttackMotion(attackU);
+      root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
+      applyPose(parts, definition, pose);
+      root.updateMatrixWorld(true);
+      const releaseAt = SLIME_MOTION_TIMING.gunAttack * SLIME_MOTION_THRESHOLDS.gunReleaseU;
+      if (local >= releaseAt) {
+        const flightU = clamp01((local - releaseAt) / SLIME_MOTION_TIMING.bulletFlight);
+        if (parts.projectileOrigin) parts.projectileOrigin.getWorldPosition(tempA);
+        else tempA.copy(root.position);
+        tempB.copy(dummyHome).add(new THREE.Vector3(0, 0.25, 0));
+        bullet.visible = flightU < 1;
+        bullet.position.lerpVectors(tempA, tempB, flightU);
+        if (pose.muzzlePulse > 0.01) {
+          muzzleFlash.visible = true;
+          muzzleFlash.position.copy(tempA);
+          tempQ.setFromUnitVectors(yAxis, tempB.clone().sub(tempA).normalize());
+          muzzleFlash.quaternion.copy(tempQ);
+          muzzleFlash.scale.setScalar(0.65 + pose.muzzlePulse * 0.75);
+          muzzleFlash.material.opacity = pose.muzzlePulse * 0.95;
+        }
+      }
+      return;
+    }
+
     if (definition.modelKind === 'greatsword') {
       const u = clamp01(local / SLIME_MOTION_TIMING.greatswordAttack);
       const pose = getGreatswordAttackMotion(u);
@@ -367,6 +480,9 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       <primitive object={slash} />
       <primitive object={spin} />
       <primitive object={arrow} />
+      <primitive object={magicOrb} />
+      <primitive object={bullet} />
+      <primitive object={muzzleFlash} />
     </>
   );
 }

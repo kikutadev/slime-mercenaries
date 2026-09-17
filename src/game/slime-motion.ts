@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export type SlimeEquipmentMotionKind = 'sword' | 'bow';
+export type SlimeEquipmentMotionKind = 'sword' | 'bow' | 'shield' | 'wand' | 'dagger' | 'gun';
 
 export type MorphMesh = THREE.Mesh & {
   morphTargetDictionary?: Record<string, number>;
@@ -47,6 +47,27 @@ export interface BowAttackMotionPose extends IdleMotionPose {
   release: number;
 }
 
+export interface ShieldAttackMotionPose extends IdleMotionPose {
+  bodyOffset: number;
+  contactProgress: number;
+}
+
+export interface WandAttackMotionPose extends IdleMotionPose {
+  bodyOffset: number;
+  castProgress: number;
+}
+
+export interface DaggerAttackMotionPose extends IdleMotionPose {
+  bodyOffset: number;
+  stabProgress: number;
+}
+
+export interface GunAttackMotionPose extends IdleMotionPose {
+  bodyOffset: number;
+  shotProgress: number;
+  muzzlePulse: number;
+}
+
 export interface AllyDefeatMotionPose {
   squash: number;
   bodyScaleX: number;
@@ -60,8 +81,14 @@ export const SLIME_MOTION_TIMING = {
   swordAttack: 0.88,
   greatswordAttack: 0.60,
   bowAttack: 0.62,
+  shieldAttack: 0.74,
+  wandAttack: 0.82,
+  daggerAttack: 0.62,
+  gunAttack: 0.70,
   allyDefeat: 0.72,
   arrowFlight: 0.38,
+  magicOrbFlight: 0.44,
+  bulletFlight: 0.24,
   hopCycles: 3,
 } as const;
 export const SLIME_MOTION_THRESHOLDS = {
@@ -69,6 +96,10 @@ export const SLIME_MOTION_THRESHOLDS = {
   greatswordHitSlashU: 0.50,
   bowReleaseU: 0.56,
   arrowHitU: 0.94,
+  shieldContactU: 0.48,
+  wandReleaseU: 0.54,
+  daggerContactU: 0.42,
+  gunReleaseU: 0.40,
 } as const;
 
 export interface SwordSlashVfxPose {
@@ -174,10 +205,10 @@ export function applyEquipmentPose(
   pose: EquipmentPose,
 ): void {
   if (!equipment) return;
-  const primaryAxis = kind === 'sword' ? localXAxis : localZAxis;
+  const primaryAxis = kind === 'bow' ? localZAxis : localXAxis;
   tempQuaternion.setFromAxisAngle(primaryAxis, pose.angle);
   equipment.quaternion.copy(baseQuaternion).multiply(tempQuaternion);
-  if (kind === 'sword' && Math.abs(pose.sweep) > 0.0001) {
+  if (kind !== 'bow' && Math.abs(pose.sweep) > 0.0001) {
     tempQuaternion2.setFromAxisAngle(localZAxis, pose.sweep);
     equipment.quaternion.multiply(tempQuaternion2);
   }
@@ -344,6 +375,145 @@ export function getBowAttackMotion(uInput: number): BowAttackMotionPose {
   };
 }
 
+
+export function getShieldAttackMotion(uInput: number): ShieldAttackMotionPose {
+  const u = clamp01(uInput);
+  let bodyOffset = 0;
+  let squash = 0;
+  let stretch = 0;
+  let lean = 0;
+  let angle = 0;
+  let lift = 0;
+  let contactProgress = -1;
+  if (u < 0.28) {
+    const p = easeInOutCubic(u / 0.28);
+    bodyOffset = -0.06 * p;
+    squash = 0.26 * p;
+    lean = -0.10 * p;
+    angle = -0.16 * p;
+    lift = 0.008 * p;
+  } else if (u < 0.58) {
+    const p = (u - 0.28) / 0.30;
+    const release = easeOutCubic(p);
+    contactProgress = p;
+    bodyOffset = THREE.MathUtils.lerp(-0.06, 0.28, release);
+    squash = 0.10 * (1 - p);
+    stretch = 0.19 * Math.sin(p * Math.PI);
+    lean = THREE.MathUtils.lerp(-0.10, 0.18, release);
+    angle = THREE.MathUtils.lerp(-0.16, 0.20, release);
+    lift = 0.012 * Math.sin(p * Math.PI);
+  } else {
+    const p = easeInOutCubic((u - 0.58) / 0.42);
+    bodyOffset = THREE.MathUtils.lerp(0.28, 0, p);
+    angle = THREE.MathUtils.lerp(0.20, 0, p);
+    lean = THREE.MathUtils.lerp(0.18, 0, p);
+    squash = 0.08 * Math.sin(p * Math.PI);
+  }
+  return {
+    bodyOffset, contactProgress,
+    deformation: { squash, stretch, lean, wobble: 0, jump: 0 },
+    equipment: { angle, lift, sweep: 0 },
+  };
+}
+
+export function getWandAttackMotion(uInput: number): WandAttackMotionPose {
+  const u = clamp01(uInput);
+  const charge = clamp01(u / 0.42);
+  const castProgress = clamp01((u - 0.42) / 0.22);
+  const recover = clamp01((u - 0.64) / 0.36);
+  const castEase = easeOutCubic(castProgress);
+  const recoverEase = easeInOutCubic(recover);
+  const releaseKick = castProgress > 0 && castProgress < 1 ? Math.sin(castProgress * Math.PI) : 0;
+  const bodyOffset = u < 0.42
+    ? -0.07 * easeInOutCubic(charge)
+    : THREE.MathUtils.lerp(THREE.MathUtils.lerp(-0.07, 0.12, castEase), 0, recoverEase);
+  const angleBeforeRecover = THREE.MathUtils.lerp(-0.46 * charge, 0.72, castEase);
+  return {
+    bodyOffset, castProgress: u < 0.42 ? -1 : castProgress,
+    deformation: {
+      squash: 0.14 * charge * (1 - castProgress),
+      stretch: 0.18 * releaseKick,
+      lean: (-0.09 * charge + 0.16 * releaseKick) * (1 - recoverEase),
+      wobble: 0.04 * Math.sin(u * Math.PI * 3) * (1 - recoverEase),
+      jump: 0,
+    },
+    equipment: {
+      angle: THREE.MathUtils.lerp(angleBeforeRecover, 0, recoverEase),
+      lift: 0.018 * charge + 0.022 * releaseKick,
+      sweep: THREE.MathUtils.lerp(-0.08 * charge + 0.16 * castEase, 0, recoverEase),
+    },
+  };
+}
+
+export function getDaggerAttackMotion(uInput: number): DaggerAttackMotionPose {
+  const u = clamp01(uInput);
+  let bodyOffset = 0;
+  let squash = 0;
+  let stretch = 0;
+  let lean = 0;
+  let angle = 0;
+  let sweep = 0;
+  let stabProgress = -1;
+  if (u < 0.18) {
+    const p = easeInOutCubic(u / 0.18);
+    bodyOffset = -0.04 * p;
+    squash = 0.18 * p;
+    lean = -0.12 * p;
+    angle = -0.30 * p;
+  } else if (u < 0.46) {
+    const p = (u - 0.18) / 0.28;
+    const dash = easeOutCubic(p);
+    stabProgress = p;
+    bodyOffset = THREE.MathUtils.lerp(-0.04, 0.42, dash);
+    stretch = 0.27 * Math.sin(p * Math.PI);
+    lean = THREE.MathUtils.lerp(-0.12, 0.28, dash);
+    angle = THREE.MathUtils.lerp(-0.30, 0.58, dash);
+    sweep = 0.08 * dash;
+  } else {
+    const p = easeInOutCubic((u - 0.46) / 0.54);
+    const spring = Math.sin(p * Math.PI * 2) * Math.exp(-4 * p);
+    bodyOffset = THREE.MathUtils.lerp(0.42, 0, p);
+    angle = THREE.MathUtils.lerp(0.58, 0, p);
+    sweep = THREE.MathUtils.lerp(0.08, 0, p);
+    squash = Math.max(0, -spring) * 0.12;
+    stretch = Math.max(0, spring) * 0.10;
+    lean = spring * 0.08;
+  }
+  return {
+    bodyOffset, stabProgress,
+    deformation: { squash, stretch, lean, wobble: 0, jump: 0 },
+    equipment: { angle, lift: 0.006 * stretch, sweep },
+  };
+}
+
+export function getGunAttackMotion(uInput: number): GunAttackMotionPose {
+  const u = clamp01(uInput);
+  const aim = clamp01(u / 0.32);
+  const shotProgress = clamp01((u - 0.32) / 0.14);
+  const recover = clamp01((u - 0.46) / 0.54);
+  const shotPulse = shotProgress > 0 && shotProgress < 1 ? Math.sin(shotProgress * Math.PI) : 0;
+  const recoil = shotProgress > 0 ? easeOutCubic(shotProgress) : 0;
+  const recoverEase = easeOutCubic(recover);
+  const recoilOffset = THREE.MathUtils.lerp(-0.11 * recoil, 0, recoverEase);
+  return {
+    bodyOffset: recoilOffset,
+    shotProgress: u < 0.32 ? -1 : shotProgress,
+    muzzlePulse: shotPulse,
+    deformation: {
+      squash: (0.08 * aim + 0.24 * shotPulse) * (1 - recoverEase),
+      stretch: 0.05 * recoverEase,
+      lean: (-0.04 * aim - 0.16 * recoil) * (1 - recoverEase),
+      wobble: 0.08 * Math.sin(recover * Math.PI * 3) * (1 - recoverEase),
+      jump: 0,
+    },
+    equipment: {
+      angle: THREE.MathUtils.lerp(-0.05 * aim - 0.18 * recoil, 0, recoverEase),
+      lift: 0.006 * aim,
+      sweep: 0,
+    },
+  };
+}
+
 export function getAllyDefeatMotion(uInput: number, side: -1 | 1): AllyDefeatMotionPose {
   const u = clamp01(uInput);
   const squash = Math.sin(Math.min(1, u * 1.4) * Math.PI * 0.5);
@@ -382,6 +552,35 @@ export function createSlimeArrowMesh(): THREE.Group {
   fletching.rotation.y = Math.PI / 4;
   group.add(fletching);
   return group;
+}
+
+
+export function createMagicOrbMesh(): THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial> {
+  const material = new THREE.MeshBasicMaterial({
+    color: '#aa7cff', transparent: true, opacity: 0.92, depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.055, 16, 10), material);
+  orb.visible = false;
+  orb.renderOrder = 6;
+  return orb;
+}
+
+export function createGunBulletMesh(): THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial> {
+  const material = new THREE.MeshBasicMaterial({ color: '#ffe7a3' });
+  const bullet = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 6), material);
+  bullet.visible = false;
+  bullet.renderOrder = 6;
+  return bullet;
+}
+
+export function createMuzzleFlashMesh(): THREE.Mesh<THREE.ConeGeometry, THREE.MeshBasicMaterial> {
+  const material = new THREE.MeshBasicMaterial({
+    color: '#ffd66b', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  const flash = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.16, 8), material);
+  flash.visible = false;
+  flash.renderOrder = 7;
+  return flash;
 }
 
 /** Build the exact short slash arc used by production Sword attacks. */

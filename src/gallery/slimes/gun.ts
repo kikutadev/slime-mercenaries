@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#b98755',
   inspectionFacingYawDegrees: 90,
   inspectionSideDistance: 1.22,
-  equipmentAnchor: null,
+  equipmentAnchor: 'GunAnchor',
   weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. The oversized flintlock, dark bore and readable lock/grip mass define the branch; recoil, muzzle flash and ProjectileOrigin behavior are withheld until production runtime integration.',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production Gun Shot: short aim, crisp recoil, muzzle flash and Bullet from the authored ProjectileOrigin.',
 };
 
 export default definition;

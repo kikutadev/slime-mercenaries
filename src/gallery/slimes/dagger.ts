@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#6f62a7',
   inspectionFacingYawDegrees: 90,
   inspectionSideDistance: 1.0,
-  equipmentAnchor: null,
-  weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. A broad short dagger and low open-face cowl identify the skirmisher branch; hop-in stab and recoil are withheld until production combat motion is integrated.',
+  equipmentAnchor: 'WeaponAnchor',
+  weaponTipName: 'WeaponTip',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production Dagger Stab: quick hop-in thrust and elastic hop-back with no combat-anchor drift.',
 };
 
 export default definition;

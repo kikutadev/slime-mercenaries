@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#a688e8',
   inspectionFacingYawDegrees: 90,
   inspectionSideDistance: 1.05,
-  equipmentAnchor: null,
+  equipmentAnchor: 'WandAnchor',
   weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. Crooked crystal wand and bent cap establish the magic branch; casting motion and SpellOrigin VFX stay hidden until the production runtime implements them.',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production Wand Cast: jelly charge, wand flick, then Magic Orb from the authored SpellOrigin.',
 };
 
 export default definition;

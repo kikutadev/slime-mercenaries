@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#d9bd72',
   inspectionFacingYawDegrees: 90,
   inspectionSideDistance: 1.05,
-  equipmentAnchor: null,
+  equipmentAnchor: 'ShieldAnchor',
   weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. The finished round shield keeps the face visible and points toward the combat front; shield-bash/body-block motion is not published until production runtime owns it.',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production Shield Bash: protected wind-up, compact body-check, then stable return to combat anchor.',
 };
 
 export default definition;

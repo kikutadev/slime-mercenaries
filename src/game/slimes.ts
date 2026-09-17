@@ -2,7 +2,7 @@ import { ids, type JobSlimeId } from '../domain/definitions';
 import type { SlimeProgress } from '../domain/state';
 
 export type SlimeId = JobSlimeId;
-export type BattleBehaviorId = 'sword-melee' | 'bow-ranged';
+export type BattleBehaviorId = 'sword-melee' | 'bow-ranged' | 'shield-defender' | 'wand-magic' | 'dagger-skirmisher' | 'gun-ranged';
 export type FusionItemCategory = 'slime' | 'weapon' | 'material';
 export type FusionItemId =
   | typeof ids.token.swordCore
