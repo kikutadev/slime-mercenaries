@@ -1,0 +1,2 @@
+import type {SlimeGalleryDefinition} from '../types';
+export default {id:'whirl-leaf',order:206,entityKind:'enemy',name:'くるりリーフ',classification:'Enemy / Clover Road / Leaf Harasser',role:'二枚葉を半回転させ、小さな風を飛ばす素早い敵。',modelKind:'whirl-leaf',asset:'assets/enemies/whirl-leaf.glb',accent:'#58aa62',productionScale:.34,enemyBehaviorId:'leaf-whirl',equipmentAnchor:null,weaponTipName:null,availableMotions:['idle','move','attack','hit','defeat'],implementationStatus:'implemented',notes:'Two-leaf pinwheel silhouette. No continuous propeller spin.'} satisfies SlimeGalleryDefinition;

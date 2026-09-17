@@ -1,0 +1,2 @@
+import {describe,it,expect} from 'vitest'; import {getLeafMotionProfile} from './leaf';
+for(const id of ['leaf-hop-slap','leaf-whirl'] as const){describe(id,()=>{it('keeps poses finite and bounded',()=>{const p=getLeafMotionProfile(id);expect(p.contactU).toBeGreaterThan(0);expect(p.contactU).toBeLessThan(1);for(let i=0;i<=20;i++){const u=i/20;for(const pose of [p.attack(u),p.hit(u,-1),p.defeat(u,1)])for(const v of Object.values(pose).filter((v)=>typeof v==='number'))expect(Number.isFinite(v)).toBe(true)}})})}
