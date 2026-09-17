@@ -46,6 +46,26 @@ import {
   type MorphMesh,
   type SlimeEquipmentMotionKind,
 } from './slime-motion';
+import {
+  TIER3_SWORD_THRESHOLDS,
+  TIER3_SWORD_TIMING,
+  applyBerserkerSignatureVfx,
+  applyBlademasterSignatureVfx,
+  createBerserkerSignatureVfx,
+  createBlademasterSignatureVfx,
+  getBerserkerAttackMotion,
+  getBlademasterAttackMotion,
+} from './slime-motions/tier3/sword';
+import {
+  TIER3_BOW_TIMING,
+  applySniperSignatureVfx,
+  applyStormSignatureVfx,
+  createSniperSignatureVfx,
+  createStormSignatureVfx,
+  getSniperAttackMotion,
+  getStormArcherAttackMotion,
+  getStormShotReleaseU,
+} from './slime-motions/tier3/bow';
 import type { BattleBehaviorId } from './slimes';
 import {
   applyEnemySecondaryPose,
@@ -103,6 +123,7 @@ interface AllyUnit {
   guardPulseVfx: THREE.Group | null;
   mageCastSigil: THREE.Group | null;
   rogueSlashArc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null;
+  signatureVfx: THREE.Group | null;
   weaponTip: THREE.Object3D | null;
   projectileOrigin: THREE.Object3D | null;
   spellOrigin: THREE.Object3D | null;
@@ -707,6 +728,16 @@ export class BattleRuntime {
     if (mageCastSigil) this.scene.add(mageCastSigil);
     const rogueSlashArc = config.behaviorId === 'rogue-twin-strike' ? createRogueSlashArc() : null;
     if (rogueSlashArc) this.scene.add(rogueSlashArc);
+    const signatureVfx = config.behaviorId === 'blademaster-dash'
+      ? createBlademasterSignatureVfx()
+      : config.behaviorId === 'berserker-smash'
+        ? createBerserkerSignatureVfx()
+        : config.behaviorId === 'sniper-pierce'
+          ? createSniperSignatureVfx()
+          : config.behaviorId === 'storm-volley'
+            ? createStormSignatureVfx()
+            : null;
+    if (signatureVfx) this.scene.add(signatureVfx);
     const unit: AllyUnit = {
       id: `ally-${config.slimeId}-${config.slotIndex}`,
       slimeId: config.slimeId,
@@ -723,6 +754,7 @@ export class BattleRuntime {
       guardPulseVfx,
       mageCastSigil,
       rogueSlashArc,
+      signatureVfx,
       weaponTip,
       projectileOrigin,
       spellOrigin,
@@ -796,22 +828,34 @@ export class BattleRuntime {
   private equipmentKindFor(unit: AllyUnit): SlimeEquipmentMotionKind {
     switch (unit.behaviorId) {
       case 'bow-ranged':
-      case 'ranger-double-shot': return 'bow';
-      case 'fighter-combo': return 'sword';
+      case 'ranger-double-shot':
+      case 'sniper-pierce':
+      case 'storm-volley': return 'bow';
+      case 'fighter-combo':
+      case 'blademaster-dash':
+      case 'berserker-smash': return 'sword';
       case 'shield-defender':
-      case 'guardian-guard': return 'shield';
+      case 'guardian-guard':
+      case 'paladin-holy-strike':
+      case 'fortress-fortify': return 'shield';
       case 'wand-magic':
-      case 'mage-aoe': return 'wand';
+      case 'mage-aoe':
+      case 'archmage-grand-spell':
+      case 'frost-mage-freeze': return 'wand';
       case 'dagger-skirmisher':
-      case 'rogue-twin-strike': return 'dagger';
+      case 'rogue-twin-strike':
+      case 'ninja-afterimage':
+      case 'assassin-execute': return 'dagger';
       case 'gun-ranged':
-      case 'gunner-burst': return 'gun';
+      case 'gunner-burst':
+      case 'cannoneer-blast':
+      case 'engineer-turret': return 'gun';
       default: return 'sword';
     }
   }
 
   private isMeleeBehavior(unit: AllyUnit): boolean {
-    return unit.behaviorId === 'sword-melee' || unit.behaviorId === 'fighter-combo' || unit.behaviorId === 'shield-defender' || unit.behaviorId === 'guardian-guard' || unit.behaviorId === 'dagger-skirmisher' || unit.behaviorId === 'rogue-twin-strike';
+    return unit.behaviorId === 'sword-melee' || unit.behaviorId === 'fighter-combo' || unit.behaviorId === 'blademaster-dash' || unit.behaviorId === 'berserker-smash' || unit.behaviorId === 'shield-defender' || unit.behaviorId === 'guardian-guard' || unit.behaviorId === 'paladin-holy-strike' || unit.behaviorId === 'fortress-fortify' || unit.behaviorId === 'dagger-skirmisher' || unit.behaviorId === 'rogue-twin-strike' || unit.behaviorId === 'ninja-afterimage' || unit.behaviorId === 'assassin-execute';
   }
 
   private setEquipmentSwing(unit: AllyUnit, angle: number, lift = 0, sweep = 0): void {
@@ -841,6 +885,7 @@ export class BattleRuntime {
     applyGuardPulseVfx(unit.guardPulseVfx, 0, 1);
     applyMageCastSigil(unit.mageCastSigil, 0, 0);
     if (unit.rogueSlashArc) { unit.rogueSlashArc.visible = false; unit.rogueSlashArc.material.opacity = 0; }
+    if (unit.signatureVfx) unit.signatureVfx.visible = false;
   }
 
   private updateIdle(unit: AllyUnit, now: number, phaseOffset = 0): void {
@@ -1135,8 +1180,12 @@ export class BattleRuntime {
     this.allies.forEach((ally) => {
       if (ally.behaviorId === 'sword-melee') this.updateSword(now, ally);
       else if (ally.behaviorId === 'fighter-combo') this.updateFighter(now, ally);
+      else if (ally.behaviorId === 'blademaster-dash') this.updateBlademaster(now, ally);
+      else if (ally.behaviorId === 'berserker-smash') this.updateBerserker(now, ally);
       else if (ally.behaviorId === 'bow-ranged') this.updateBow(now, ally);
       else if (ally.behaviorId === 'ranger-double-shot') this.updateRanger(now, ally);
+      else if (ally.behaviorId === 'sniper-pierce') this.updateSniper(now, ally);
+      else if (ally.behaviorId === 'storm-volley') this.updateStormArcher(now, ally);
       else if (ally.behaviorId === 'shield-defender') this.updateShield(now, ally);
       else if (ally.behaviorId === 'guardian-guard') this.updateGuardian(now, ally);
       else if (ally.behaviorId === 'wand-magic') this.updateWand(now, ally);
@@ -1309,6 +1358,225 @@ export class BattleRuntime {
       this.setEquipmentSwing(fighter, 0);
       this.resetSlash();
       fighter.nextAttackAt = now + 0.46;
+    }
+  }
+
+  private updateBlademaster(now: number, unit: AllyUnit): void {
+    if (!unit.alive) return;
+    if (unit.attackStartedAt !== -Infinity && !unit.attackTarget?.alive) {
+      unit.attackStartedAt = -Infinity;
+      unit.attackTarget = null;
+      unit.hitsApplied = 0;
+      unit.root.position.copy(unit.combatAnchor);
+      if (unit.signatureVfx) unit.signatureVfx.visible = false;
+    }
+    if (unit.attackStartedAt === -Infinity && now >= unit.nextAttackAt) {
+      const target = this.findNearest(unit, this.getLivingEnemies());
+      if (target) {
+        unit.attackStartedAt = now;
+        unit.attackTarget = target;
+        unit.hitsApplied = 0;
+      }
+    }
+    if (unit.attackStartedAt === -Infinity || !unit.attackTarget) {
+      unit.root.position.copy(unit.combatAnchor);
+      this.updateIdle(unit, now, 0.18 + unit.slotIndex * 0.17);
+      const target = this.findNearest(unit, this.getLivingEnemies());
+      if (target) this.facePoint(unit, target.root.position);
+      return;
+    }
+    const target = unit.attackTarget;
+    const u = clamp01((now - unit.attackStartedAt) / TIER3_SWORD_TIMING.blademasterAttack);
+    const pose = getBlademasterAttackMotion(u);
+    this.tempVector.copy(target.root.position).sub(unit.combatAnchor).setY(0);
+    if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
+    unit.root.position.copy(unit.combatAnchor).addScaledVector(this.tempVector, pose.bodyOffset);
+    this.facePoint(unit, target.root.position);
+    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    this.tempVector2.copy(target.root.position);
+    this.tempVector2.y = 0.28;
+    applyBlademasterSignatureVfx(unit.signatureVfx, pose, this.camera.quaternion, this.tempVector2);
+    if (u >= TIER3_SWORD_THRESHOLDS.blademasterCutU && unit.hitsApplied === 0) {
+      unit.hitsApplied = 1;
+      const lineStart = unit.combatAnchor.clone();
+      const lineDirection = this.tempVector.clone();
+      const targets = this.getLivingEnemies().filter((enemy) => {
+        this.tempVector2.copy(enemy.root.position).sub(lineStart).setY(0);
+        const projection = this.tempVector2.dot(lineDirection);
+        if (projection < -0.08 || projection > 1.72) return false;
+        this.tempVector3.copy(lineDirection).multiplyScalar(projection);
+        return this.tempVector2.sub(this.tempVector3).length() <= 0.34;
+      });
+      for (const enemy of targets) this.applyDamage(enemy, enemy === target ? 3 : 2, 'melee', unit.root.position);
+      this.startHitStop(0.055);
+      this.startCameraShake(0.10, 0.032);
+    }
+    if (u >= 1) {
+      unit.attackStartedAt = -Infinity;
+      unit.attackTarget = null;
+      unit.hitsApplied = 0;
+      unit.root.position.copy(unit.combatAnchor);
+      unit.nextAttackAt = now + 0.48;
+      this.setEquipmentSwing(unit, 0);
+      if (unit.signatureVfx) unit.signatureVfx.visible = false;
+    }
+  }
+
+  private updateBerserker(now: number, unit: AllyUnit): void {
+    if (!unit.alive) return;
+    if (unit.attackStartedAt !== -Infinity && !unit.attackTarget?.alive) {
+      unit.attackStartedAt = -Infinity;
+      unit.attackTarget = null;
+      unit.hitsApplied = 0;
+      if (unit.signatureVfx) unit.signatureVfx.visible = false;
+    }
+    if (unit.attackStartedAt === -Infinity && now >= unit.nextAttackAt) {
+      const target = this.findNearest(unit, this.getLivingEnemies());
+      if (target) {
+        unit.attackStartedAt = now;
+        unit.attackTarget = target;
+        unit.hitsApplied = 0;
+      }
+    }
+    if (unit.attackStartedAt === -Infinity || !unit.attackTarget) {
+      unit.root.position.copy(unit.combatAnchor);
+      this.updateIdle(unit, now, 0.64 + unit.slotIndex * 0.21);
+      const target = this.findNearest(unit, this.getLivingEnemies());
+      if (target) this.facePoint(unit, target.root.position);
+      return;
+    }
+    const target = unit.attackTarget;
+    const u = clamp01((now - unit.attackStartedAt) / TIER3_SWORD_TIMING.berserkerAttack);
+    const pose = getBerserkerAttackMotion(u);
+    this.tempVector.copy(target.root.position).sub(unit.combatAnchor).setY(0);
+    const distance = this.tempVector.length();
+    if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
+    const offset = Math.min(pose.bodyOffset, Math.max(0, distance - MELEE_BODY_GAP));
+    unit.root.position.copy(unit.combatAnchor).addScaledVector(this.tempVector, offset);
+    this.facePoint(unit, target.root.position);
+    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    this.tempVector2.copy(target.root.position); this.tempVector2.y = 0.12;
+    applyBerserkerSignatureVfx(unit.signatureVfx, pose, this.camera.quaternion, this.tempVector2);
+    if (u >= TIER3_SWORD_THRESHOLDS.berserkerImpactU && unit.hitsApplied === 0 && target.alive) {
+      unit.hitsApplied = 1;
+      this.applyDamage(target, 4, 'melee', unit.root.position);
+      this.startHitStop(0.070);
+      this.startCameraShake(0.15, 0.055);
+    }
+    if (u >= 1 || !target.alive) {
+      unit.attackStartedAt = -Infinity;
+      unit.attackTarget = null;
+      unit.hitsApplied = 0;
+      unit.root.position.copy(unit.combatAnchor);
+      unit.nextAttackAt = now + 0.72;
+      this.setEquipmentSwing(unit, 0);
+      if (unit.signatureVfx) unit.signatureVfx.visible = false;
+    }
+  }
+
+  private updateSniper(now: number, unit: AllyUnit): void {
+    if (!unit.alive) return;
+    if (unit.attackStartedAt !== -Infinity && !unit.attackTarget?.alive) {
+      unit.attackStartedAt = -Infinity;
+      unit.attackTarget = null;
+      unit.shotApplied = false;
+      if (unit.signatureVfx) unit.signatureVfx.visible = false;
+    }
+    if (unit.attackStartedAt === -Infinity && now >= unit.nextAttackAt) {
+      const target = this.findNearest(unit, this.getLivingEnemies());
+      if (target) {
+        unit.attackStartedAt = now;
+        unit.attackTarget = target;
+        unit.shotApplied = false;
+      }
+    }
+    if (unit.attackStartedAt === -Infinity || !unit.attackTarget) {
+      unit.root.position.copy(unit.home);
+      this.updateIdle(unit, now, 1.48 + unit.slotIndex * 0.11);
+      const target = this.findNearest(unit, this.getLivingEnemies());
+      if (target) this.facePoint(unit, target.root.position);
+      return;
+    }
+    const target = unit.attackTarget;
+    const u = clamp01((now - unit.attackStartedAt) / TIER3_BOW_TIMING.sniperAttack);
+    const pose = getSniperAttackMotion(u);
+    this.facePoint(unit, target.root.position);
+    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    unit.root.updateMatrixWorld(true);
+    (unit.projectileOrigin ?? unit.equipmentAnchor).getWorldPosition(this.tempVector2);
+    this.tempVector3.copy(target.root.position).add(new THREE.Vector3(0, 0.28, 0));
+    applySniperSignatureVfx(unit.signatureVfx, pose, this.camera.quaternion, this.tempVector2, this.tempVector3);
+    if (!unit.shotApplied && u >= 0.58) {
+      unit.shotApplied = true;
+      this.fireArrowProfile(unit, target, TIER3_BOW_TIMING.sniperArrowFlight, 4, 0.10, 0.86);
+      this.startCameraShake(0.08, 0.028);
+    }
+    if (u >= 1) {
+      unit.attackStartedAt = -Infinity;
+      unit.attackTarget = null;
+      unit.shotApplied = false;
+      unit.nextAttackAt = now + 1.18;
+      this.setEquipmentSwing(unit, 0);
+      if (unit.signatureVfx) unit.signatureVfx.visible = false;
+    }
+  }
+
+  private updateStormArcher(now: number, unit: AllyUnit): void {
+    if (!unit.alive) return;
+    if (unit.attackStartedAt !== -Infinity && !unit.attackTarget?.alive) {
+      unit.attackStartedAt = -Infinity;
+      unit.attackTarget = null;
+      unit.hitsApplied = 0;
+      if (unit.signatureVfx) unit.signatureVfx.visible = false;
+    }
+    if (unit.attackStartedAt === -Infinity && now >= unit.nextAttackAt) {
+      const target = this.findNearest(unit, this.getLivingEnemies());
+      if (target) {
+        unit.attackStartedAt = now;
+        unit.attackTarget = target;
+        unit.hitsApplied = 0;
+      }
+    }
+    if (unit.attackStartedAt === -Infinity || !unit.attackTarget) {
+      unit.root.position.copy(unit.home);
+      this.updateIdle(unit, now, 1.72 + unit.slotIndex * 0.13);
+      const target = this.findNearest(unit, this.getLivingEnemies());
+      if (target) this.facePoint(unit, target.root.position);
+      return;
+    }
+    const target = unit.attackTarget;
+    const u = clamp01((now - unit.attackStartedAt) / TIER3_BOW_TIMING.stormArcherAttack);
+    const pose = getStormArcherAttackMotion(u);
+    this.facePoint(unit, target.root.position);
+    this.tempVector.copy(target.root.position).sub(unit.home).setY(0);
+    if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
+    this.tempVector2.set(-this.tempVector.z, 0, this.tempVector.x);
+    unit.root.position.copy(unit.home).addScaledVector(this.tempVector2, pose.bodyOffset);
+    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    unit.root.updateMatrixWorld(true);
+    (unit.projectileOrigin ?? unit.equipmentAnchor).getWorldPosition(this.tempVector3);
+    applyStormSignatureVfx(unit.signatureVfx, pose, this.camera.quaternion, this.tempVector3);
+    const candidates = this.getLivingEnemies().slice().sort((a, b) => a.root.position.distanceToSquared(unit.root.position) - b.root.position.distanceToSquared(unit.root.position));
+    for (const shotIndex of [0, 1, 2] as const) {
+      const mask = 1 << shotIndex;
+      if (u >= getStormShotReleaseU(shotIndex) && (unit.hitsApplied & mask) === 0) {
+        unit.hitsApplied |= mask;
+        const shotTarget = candidates[shotIndex] ?? target;
+        if (shotTarget?.alive) this.fireArrowProfile(unit, shotTarget, TIER3_BOW_TIMING.stormArrowFlight, 2, 0.45, 0.90);
+      }
+    }
+    if (u >= 1) {
+      unit.attackStartedAt = -Infinity;
+      unit.attackTarget = null;
+      unit.hitsApplied = 0;
+      unit.root.position.copy(unit.home);
+      unit.nextAttackAt = now + 0.72;
+      this.setEquipmentSwing(unit, 0);
+      if (unit.signatureVfx) unit.signatureVfx.visible = false;
     }
   }
 
@@ -1941,14 +2209,18 @@ export class BattleRuntime {
     }
   }
 
-  private fireArrow(bow: AllyUnit, target: EnemyUnit): void {
+  private fireArrowProfile(bow: AllyUnit, target: EnemyUnit, duration: number, damage: number, arcHeightScale: number, hitU: number): void {
     const root = this.createArrowMesh();
     (bow.projectileOrigin ?? bow.equipmentAnchor).getWorldPosition(this.tempVector);
     const start = this.tempVector.clone();
     const end = target.root.position.clone().add(new THREE.Vector3(0, 0.28, 0));
     root.position.copy(start);
     this.scene.add(root);
-    this.projectiles.push({ root, start, end, target, startedAt: this.simulationNow, duration: SLIME_MOTION_TIMING.arrowFlight, hitApplied: false, damage: 1, splashRadius: 0, splashDamage: 0, arcHeightScale: 1, orientToTravel: true, hitU: SLIME_MOTION_THRESHOLDS.arrowHitU });
+    this.projectiles.push({ root, start, end, target, startedAt: this.simulationNow, duration, hitApplied: false, damage, splashRadius: 0, splashDamage: 0, arcHeightScale, orientToTravel: true, hitU });
+  }
+
+  private fireArrow(bow: AllyUnit, target: EnemyUnit): void {
+    this.fireArrowProfile(bow, target, SLIME_MOTION_TIMING.arrowFlight, 1, 1, SLIME_MOTION_THRESHOLDS.arrowHitU);
   }
 
   private updateProjectiles(now: number): void {

@@ -2,7 +2,31 @@ import { ids, type JobSlimeId } from '../domain/definitions';
 import type { SlimeProgress } from '../domain/state';
 
 export type SlimeId = JobSlimeId;
-export type BattleBehaviorId = 'sword-melee' | 'fighter-combo' | 'bow-ranged' | 'ranger-double-shot' | 'shield-defender' | 'guardian-guard' | 'wand-magic' | 'mage-aoe' | 'dagger-skirmisher' | 'rogue-twin-strike' | 'gun-ranged' | 'gunner-burst';
+export type BattleBehaviorId =
+  | 'sword-melee'
+  | 'fighter-combo'
+  | 'blademaster-dash'
+  | 'berserker-smash'
+  | 'bow-ranged'
+  | 'ranger-double-shot'
+  | 'sniper-pierce'
+  | 'storm-volley'
+  | 'shield-defender'
+  | 'guardian-guard'
+  | 'paladin-holy-strike'
+  | 'fortress-fortify'
+  | 'wand-magic'
+  | 'mage-aoe'
+  | 'archmage-grand-spell'
+  | 'frost-mage-freeze'
+  | 'dagger-skirmisher'
+  | 'rogue-twin-strike'
+  | 'ninja-afterimage'
+  | 'assassin-execute'
+  | 'gun-ranged'
+  | 'gunner-burst'
+  | 'cannoneer-blast'
+  | 'engineer-turret';
 export type FusionItemCategory = 'slime' | 'weapon' | 'material';
 export type FusionItemId =
   | typeof ids.token.swordCore

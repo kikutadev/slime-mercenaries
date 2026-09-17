@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#63c8d7',
   inspectionFacingYawDegrees: -20,
   inspectionSideDistance: 1.48,
-  equipmentAnchor: null,
+  equipmentAnchor: 'StormBowAnchor',
   weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. Feather crest, crystal electric tips and energized bow rails establish the wave-clear branch; fan/chained-arrow motion remains production-runtime work.',
+  availableMotions: ['idle', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production storm signature: charged jump into three-way electric fan volley with chain-lightning aftermath.',
 };
 
 export default definition;

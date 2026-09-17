@@ -48,6 +48,25 @@ import {
   type MorphMesh,
   type SlimeEquipmentMotionKind,
 } from '../game/slime-motion';
+import {
+  TIER3_SWORD_TIMING,
+  applyBerserkerSignatureVfx,
+  applyBlademasterSignatureVfx,
+  createBerserkerSignatureVfx,
+  createBlademasterSignatureVfx,
+  getBerserkerAttackMotion,
+  getBlademasterAttackMotion,
+} from '../game/slime-motions/tier3/sword';
+import {
+  TIER3_BOW_TIMING,
+  applySniperSignatureVfx,
+  applyStormSignatureVfx,
+  createSniperSignatureVfx,
+  createStormSignatureVfx,
+  getSniperAttackMotion,
+  getStormArcherAttackMotion,
+  getStormShotReleaseU,
+} from '../game/slime-motions/tier3/bow';
 import { EnemyGalleryStage } from './EnemyGalleryStage';
 import type { GalleryCameraId, GalleryMotionId, SlimeGalleryDefinition } from './types';
 
@@ -91,6 +110,7 @@ const BATTLE_CAMERA_OFFSET = BATTLE_CAMERA_POSITION.clone().sub(BATTLE_CAMERA_LO
 const yAxis = new THREE.Vector3(0, 1, 0);
 const tempA = new THREE.Vector3();
 const tempB = new THREE.Vector3();
+const tempC = new THREE.Vector3();
 const tempQ = new THREE.Quaternion();
 
 
@@ -170,6 +190,7 @@ function equipmentKind(definition: SlimeGalleryDefinition): SlimeEquipmentMotion
 }
 
 function targetDistanceFor(definition: SlimeGalleryDefinition): number {
+  if (definition.id === 'sniper' || definition.id === 'storm-archer') return 1.42;
   if (definition.modelKind === 'bow' || definition.modelKind === 'wand' || definition.modelKind === 'gun') return 1.55;
   if (definition.modelKind === 'shield') return 0.82;
   return 0.95;
@@ -206,6 +227,10 @@ function clipDuration(motion: GalleryMotionId, definition: SlimeGalleryDefinitio
   if (motion === 'move') return 1.55;
   if (motion === 'defeat') return SLIME_MOTION_TIMING.allyDefeat;
   if (motion === 'attack') {
+    if (definition.id === 'blademaster') return TIER3_SWORD_TIMING.blademasterAttack;
+    if (definition.id === 'berserker') return TIER3_SWORD_TIMING.berserkerAttack;
+    if (definition.id === 'sniper') return TIER3_BOW_TIMING.sniperAttack;
+    if (definition.id === 'storm-archer') return TIER3_BOW_TIMING.stormArcherAttack;
     if (definition.id === 'fighter') return SLIME_MOTION_TIMING.fighterAttack;
     if (definition.id === 'guardian') return SLIME_MOTION_TIMING.guardianAttack;
     if (definition.id === 'mage') {
@@ -258,12 +283,13 @@ function CameraRig({ mode, motion, definition }: { mode: GalleryCameraId; motion
       camera.lookAt(lookAt);
     } else if (motion === 'attack') {
       const ranged = targetDistance >= 1.4;
-      const focusFraction = ranged ? 0.44 : 0.42;
+      const cinematicTier3 = ['blademaster', 'berserker', 'sniper', 'storm-archer'].includes(definition.id);
+      const focusFraction = cinematicTier3 ? (definition.id === 'blademaster' ? 0.84 : ranged ? 0.50 : 0.58) : (ranged ? 0.44 : 0.42);
       const midpoint = GALLERY_HOME.clone().addScaledVector(inspectForward, targetDistance * focusFraction);
-      midpoint.y = 0.26;
-      const sideDistance = (ranged ? 2.85 : 2.35) * compact;
-      const forwardDistance = (ranged ? 0.92 : 0.82) * compact;
-      const height = (ranged ? 0.96 : 0.88) * compact;
+      midpoint.y = cinematicTier3 ? 0.24 : 0.26;
+      const sideDistance = (cinematicTier3 ? (ranged ? 2.88 : definition.id === 'blademaster' ? 2.35 : 2.10) : (ranged ? 2.85 : 2.35)) * compact;
+      const forwardDistance = (cinematicTier3 ? (ranged ? 0.72 : 0.68) : (ranged ? 0.92 : 0.82)) * compact;
+      const height = (cinematicTier3 ? (ranged ? 0.82 : 0.78) : (ranged ? 0.96 : 0.88)) * compact;
       camera.position.copy(midpoint)
         .addScaledVector(inspectRight, sideDistance)
         .addScaledVector(inspectForward, forwardDistance)
@@ -300,6 +326,11 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
   const magicOrb = useMemo(() => createMagicOrbMesh(), []);
   const bullet = useMemo(() => createGunBulletMesh(), []);
   const muzzleFlash = useMemo(() => createMuzzleFlashMesh(), []);
+  const blademasterSignature = useMemo(() => createBlademasterSignatureVfx(), []);
+  const berserkerSignature = useMemo(() => createBerserkerSignatureVfx(), []);
+  const sniperSignature = useMemo(() => createSniperSignatureVfx(), []);
+  const stormSignature = useMemo(() => createStormSignatureVfx(), []);
+  const stormArrows = useMemo(() => [createSlimeArrowMesh(), createSlimeArrowMesh(), createSlimeArrowMesh()], []);
   const startedAt = useRef(0);
   const previousReplayKey = useRef(replayKey);
   const inspectionYaw = THREE.MathUtils.degToRad(definition.inspectionFacingYawDegrees ?? 0);
@@ -345,7 +376,12 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
     bullet.material.dispose();
     muzzleFlash.geometry.dispose();
     muzzleFlash.material.dispose();
-  }, [bullet, guardPulse, gunnerTracer, mageCastSigil, mageOrb, magicOrb, muzzleFlash, rogueSlash, slash, spin]);
+    disposeObjectResources(blademasterSignature);
+    disposeObjectResources(berserkerSignature);
+    disposeObjectResources(sniperSignature);
+    disposeObjectResources(stormSignature);
+    stormArrows.forEach((stormArrow) => disposeObjectResources(stormArrow));
+  }, [berserkerSignature, blademasterSignature, bullet, guardPulse, gunnerTracer, mageCastSigil, mageOrb, magicOrb, muzzleFlash, rogueSlash, slash, sniperSignature, spin, stormArrows, stormSignature]);
 
   useFrame(({ clock, camera }) => {
     const root = rootRef.current;
@@ -380,6 +416,11 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
     bullet.visible = false;
     muzzleFlash.visible = false;
     muzzleFlash.material.opacity = 0;
+    blademasterSignature.visible = false;
+    berserkerSignature.visible = false;
+    sniperSignature.visible = false;
+    stormSignature.visible = false;
+    stormArrows.forEach((stormArrow) => { stormArrow.visible = false; });
 
     const duration = clipDuration(motion, definition);
     const elapsed = Math.max(0, (clock.elapsedTime - startedAt.current) * speed);
@@ -421,6 +462,79 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
         equipmentKind(definition),
         pose.equipment,
       );
+      return;
+    }
+
+    if (definition.id === 'blademaster') {
+      const u = clamp01(local / TIER3_SWORD_TIMING.blademasterAttack);
+      const pose = getBlademasterAttackMotion(u);
+      root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
+      applyPose(parts, definition, pose);
+      tempC.copy(dummyHome);
+      tempC.y = 0.28;
+      applyBlademasterSignatureVfx(blademasterSignature, pose, camera.quaternion, tempC);
+      return;
+    }
+
+    if (definition.id === 'berserker') {
+      const u = clamp01(local / TIER3_SWORD_TIMING.berserkerAttack);
+      const pose = getBerserkerAttackMotion(u);
+      root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
+      applyPose(parts, definition, pose);
+      tempC.copy(dummyHome);
+      tempC.y = 0.13;
+      applyBerserkerSignatureVfx(berserkerSignature, pose, camera.quaternion, tempC);
+      return;
+    }
+
+    if (definition.id === 'sniper') {
+      const attackTime = Math.min(local, TIER3_BOW_TIMING.sniperAttack);
+      const u = clamp01(attackTime / TIER3_BOW_TIMING.sniperAttack);
+      const pose = getSniperAttackMotion(u);
+      applyPose(parts, definition, pose);
+      root.updateMatrixWorld(true);
+      if (parts.projectileOrigin) parts.projectileOrigin.getWorldPosition(tempA);
+      else if (parts.equipment) parts.equipment.getWorldPosition(tempA);
+      else tempA.copy(root.position);
+      tempB.copy(dummyHome).add(new THREE.Vector3(0, 0.28, 0));
+      applySniperSignatureVfx(sniperSignature, pose, camera.quaternion, tempA, tempB);
+      const releaseAt = TIER3_BOW_TIMING.sniperAttack * 0.58;
+      if (local >= releaseAt && local < releaseAt + TIER3_BOW_TIMING.sniperArrowFlight) {
+        const flightU = clamp01((local - releaseAt) / TIER3_BOW_TIMING.sniperArrowFlight);
+        tempB.copy(dummyHome).add(new THREE.Vector3(0, 0.28, 0));
+        arrow.visible = true;
+        arrow.position.lerpVectors(tempA, tempB, flightU);
+        arrow.position.y += getArrowArcHeight(flightU) * 0.10;
+        tempQ.setFromUnitVectors(yAxis, tempB.clone().sub(tempA).normalize());
+        arrow.quaternion.copy(tempQ);
+      }
+      return;
+    }
+
+    if (definition.id === 'storm-archer') {
+      const attackTime = Math.min(local, TIER3_BOW_TIMING.stormArcherAttack);
+      const u = clamp01(attackTime / TIER3_BOW_TIMING.stormArcherAttack);
+      const pose = getStormArcherAttackMotion(u);
+      tempC.set(-forward.z, 0, forward.x);
+      root.position.copy(GALLERY_HOME).addScaledVector(tempC, pose.bodyOffset);
+      applyPose(parts, definition, pose);
+      root.updateMatrixWorld(true);
+      if (parts.projectileOrigin) parts.projectileOrigin.getWorldPosition(tempA);
+      else if (parts.equipment) parts.equipment.getWorldPosition(tempA);
+      else tempA.copy(root.position);
+      applyStormSignatureVfx(stormSignature, pose, camera.quaternion, tempA);
+      for (const shotIndex of [0, 1, 2] as const) {
+        const releaseAt = TIER3_BOW_TIMING.stormArcherAttack * getStormShotReleaseU(shotIndex);
+        if (local < releaseAt || local >= releaseAt + TIER3_BOW_TIMING.stormArrowFlight) continue;
+        const flightU = clamp01((local - releaseAt) / TIER3_BOW_TIMING.stormArrowFlight);
+        const stormArrow = stormArrows[shotIndex]!;
+        tempB.copy(dummyHome).addScaledVector(tempC, (shotIndex - 1) * 0.24).add(new THREE.Vector3(0, 0.28, 0));
+        stormArrow.visible = true;
+        stormArrow.position.lerpVectors(tempA, tempB, flightU);
+        stormArrow.position.y += getArrowArcHeight(flightU) * 0.45;
+        tempQ.setFromUnitVectors(yAxis, tempB.clone().sub(tempA).normalize());
+        stormArrow.quaternion.copy(tempQ);
+      }
       return;
     }
 
@@ -701,13 +815,18 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
     <>
       <group ref={rootRef}><primitive object={model} /></group>
       <group ref={dummyRef}>
-        <mesh castShadow position={[0, 0.22, 0]} scale={[0.25, 0.22, 0.24]}>
+        <mesh castShadow position={[0, 0.22, 0]} scale={[0.18, 0.16, 0.17]}>
           <sphereGeometry args={[1, 28, 20]} />
           <meshStandardMaterial color="#9c6a8f" roughness={0.68} />
         </mesh>
-        <mesh position={[-0.055, 0.26, 0.21]}><sphereGeometry args={[0.026, 12, 8]} /><meshBasicMaterial color="#251d2a" /></mesh>
-        <mesh position={[0.055, 0.26, 0.21]}><sphereGeometry args={[0.026, 12, 8]} /><meshBasicMaterial color="#251d2a" /></mesh>
+        <mesh position={[-0.043, 0.21, 0.155]}><sphereGeometry args={[0.021, 12, 8]} /><meshBasicMaterial color="#251d2a" /></mesh>
+        <mesh position={[0.043, 0.21, 0.155]}><sphereGeometry args={[0.021, 12, 8]} /><meshBasicMaterial color="#251d2a" /></mesh>
       </group>
+      <primitive object={blademasterSignature} />
+      <primitive object={berserkerSignature} />
+      <primitive object={sniperSignature} />
+      <primitive object={stormSignature} />
+      {stormArrows.map((stormArrow, index) => <primitive key={`storm-arrow-${index}`} object={stormArrow} />)}
       <primitive object={slash} />
       <primitive object={spin} />
       <primitive object={guardPulse} />
