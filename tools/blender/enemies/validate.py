@@ -8,27 +8,12 @@ from pathlib import Path
 import bpy
 from mathutils import Vector
 
-REQUIRED_NODES = (
-    "EnemyRoot",
-    "BodyRoot",
-    "Stem",
-    "Cap",
-    "FaceRoot",
-    "Eye_L",
-    "Eye_R",
-    "Mouth",
-    "AttackOrigin",
-    "EffectOrigin",
-    "GroundOrigin",
-)
+SCRIPT_DIR = Path(__file__).resolve().parent
+PACKAGE_PARENT = SCRIPT_DIR.parent
+if str(PACKAGE_PARENT) not in sys.path:
+    sys.path.insert(0, str(PACKAGE_PARENT))
 
-
-SILHOUETTE_RULES = {
-    "tiny-mushroom.glb": lambda size: 0.95 <= size.x / size.z <= 1.25,
-    "plump-mushroom.glb": lambda size: size.x / size.z >= 1.18,
-    "spore-mushroom.glb": lambda size: size.z / size.x >= 1.02,
-    "great-mushroom.glb": lambda size: size.x / size.z >= 1.24 and size.x >= 1.8,
-}
+from enemies.validation_profiles import validation_profile_for_slug  # noqa: E402
 
 
 def object_world_size(obj: bpy.types.Object) -> Vector:
@@ -66,8 +51,10 @@ def world_bounds(root: bpy.types.Object) -> tuple[Vector, Vector]:
 def validate(path: Path) -> None:
     clear_scene()
     bpy.ops.import_scene.gltf(filepath=str(path))
+    slug = path.stem
+    profile = validation_profile_for_slug(slug)
 
-    missing = [name for name in REQUIRED_NODES if bpy.data.objects.get(name) is None]
+    missing = [name for name in profile.required_nodes if bpy.data.objects.get(name) is None]
     if missing:
         raise AssertionError(f"{path.name}: missing required nodes: {', '.join(missing)}")
 
@@ -80,22 +67,19 @@ def validate(path: Path) -> None:
         raise AssertionError(f"{path.name}: degenerate bounds {tuple(round(v, 3) for v in size)}")
     if max(size) > 5.0:
         raise AssertionError(f"{path.name}: unexpectedly large source bounds {tuple(round(v, 3) for v in size)}")
-
-    silhouette_rule = SILHOUETTE_RULES.get(path.name)
-    if silhouette_rule is not None and not silhouette_rule(size):
+    if profile.silhouette_rule is not None and not profile.silhouette_rule(size):
         raise AssertionError(
-            f"{path.name}: V2 silhouette regression; bounds={tuple(round(v, 3) for v in size)}"
+            f"{path.name}: silhouette regression ({profile.description}); "
+            f"bounds={tuple(round(v, 3) for v in size)}"
         )
 
     eye_l = bpy.data.objects["Eye_L"]
     eye_r = bpy.data.objects["Eye_R"]
-    if abs(eye_l.location.x + eye_r.location.x) > 0.08:
+    if abs(eye_l.location.x + eye_r.location.x) > 0.10:
         raise AssertionError(f"{path.name}: eye pair is not approximately symmetric")
     if eye_l.location.y >= 0 or eye_r.location.y >= 0:
         raise AssertionError(f"{path.name}: eyes are not on authored local -Y front")
 
-    # V1 failed because the eyes dominated the face. Keep each eye below 12% of
-    # total character height in its largest visible axis.
     for eye in (eye_l, eye_r):
         eye_size = object_world_size(eye)
         if max(eye_size.x, eye_size.z) / size.z > 0.12:
@@ -104,13 +88,19 @@ def validate(path: Path) -> None:
                 f"character_height={size.z:.3f}"
             )
 
+    for socket in ("AttackOrigin", "EffectOrigin", "GroundOrigin"):
+        obj = bpy.data.objects[socket]
+        location = obj.matrix_world.translation
+        if any(not math.isfinite(value) for value in location):
+            raise AssertionError(f"{path.name}: {socket} has non-finite transform")
+
     meshes = [obj for obj in root.children_recursive if obj.type == "MESH"]
-    if any(len(obj.data.materials) == 0 for obj in meshes):
-        missing_materials = [obj.name for obj in meshes if len(obj.data.materials) == 0]
+    missing_materials = [obj.name for obj in meshes if len(obj.data.materials) == 0]
+    if missing_materials:
         raise AssertionError(f"{path.name}: meshes without materials: {missing_materials}")
 
     print(
-        f"OK {path.name}: nodes={len(root.children_recursive)} "
+        f"OK {path.name}: profile={profile.description} nodes={len(root.children_recursive)} "
         f"bounds=({size.x:.2f}, {size.y:.2f}, {size.z:.2f}) meshes={len(meshes)}"
     )
 

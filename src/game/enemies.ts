@@ -4,7 +4,13 @@ export type EnemyBehaviorId =
   | 'mushroom-bump'
   | 'mushroom-heavy-bump'
   | 'mushroom-spore'
-  | 'mushroom-boss';
+  | 'mushroom-boss'
+  | 'leaf-hop-slap'
+  | 'leaf-whirl'
+  | 'flower-bud-poke'
+  | 'flower-pollen'
+  | 'critter-roll'
+  | 'critter-acorn';
 
 export type EnemyScaleClass = 'fodder' | 'elite' | 'boss';
 

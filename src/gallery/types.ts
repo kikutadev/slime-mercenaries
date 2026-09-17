@@ -2,7 +2,7 @@ export type GalleryMotionId = 'idle' | 'move' | 'attack' | 'hit' | 'defeat';
 
 export type GalleryCameraId = 'inspection' | 'gameplay' | 'front';
 
-export type GalleryModelKind = 'plain' | 'sword' | 'greatsword' | 'bow' | 'shield' | 'wand' | 'dagger' | 'gun' | 'tiny-mushroom' | 'plump-mushroom' | 'spore-mushroom' | 'great-mushroom';
+export type GalleryModelKind = 'plain' | 'sword' | 'greatsword' | 'bow' | 'shield' | 'wand' | 'dagger' | 'gun' | 'tiny-mushroom' | 'plump-mushroom' | 'spore-mushroom' | 'great-mushroom' | 'leafling' | 'whirl-leaf' | 'bud-bloom' | 'puff-flower' | 'round-hedgehog' | 'acorn-squirrel';
 
 export interface SlimeGalleryDefinition {
   id: string;

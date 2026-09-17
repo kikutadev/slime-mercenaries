@@ -11,7 +11,7 @@ if str(PACKAGE_PARENT) not in sys.path:
     sys.path.insert(0, str(PACKAGE_PARENT))
 
 from enemies.common.export import clear_scene, export_glb  # noqa: E402
-from enemies.families.mushroom import MushroomDefinition, build_mushroom  # noqa: E402
+from enemies.registry import resolve_family_builder  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -27,15 +27,21 @@ def main() -> None:
     module_name = args.slug.replace("-", "_")
     module = importlib.import_module(f"enemies.definitions.{module_name}")
     definition = getattr(module, "DEFINITION")
-    if not isinstance(definition, MushroomDefinition):
-        raise TypeError(f"Unsupported enemy definition type for {args.slug}: {type(definition)!r}")
-    if definition.slug != args.slug:
-        raise ValueError(f"Definition slug mismatch: expected {args.slug}, got {definition.slug}")
+    family = getattr(module, "FAMILY", "mushroom")
+    builder = resolve_family_builder(family)
+
+    if not isinstance(definition, builder.definition_type):
+        raise TypeError(
+            f"Unsupported {family} definition type for {args.slug}: {type(definition)!r}; "
+            f"expected {builder.definition_type!r}"
+        )
+    if getattr(definition, "slug", None) != args.slug:
+        raise ValueError(f"Definition slug mismatch: expected {args.slug}, got {getattr(definition, 'slug', None)}")
 
     clear_scene()
-    build_mushroom(definition)
+    builder.build(definition)
     export_glb(Path(args.output).resolve())
-    print(f"Exported {definition.slug} -> {args.output}")
+    print(f"Exported {definition.slug} ({family}) -> {args.output}")
 
 
 if __name__ == "__main__":

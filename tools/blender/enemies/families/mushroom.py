@@ -434,3 +434,7 @@ def build_mushroom(definition: MushroomDefinition) -> bpy.types.Object:
     create_empty("EffectOrigin", root, (0.0, -cap_y * 0.62, definition.cap_height + cap_z * 0.04))
     create_empty("GroundOrigin", root, (0.0, 0.0, 0.0))
     return root
+
+# Generic enemy builder contract consumed by `enemies.registry`.
+DEFINITION_TYPE = MushroomDefinition
+build_enemy = build_mushroom
