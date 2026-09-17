@@ -23,8 +23,15 @@
     "generate:enemy:plump": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/build.py -- --slug plump-mushroom --output public/assets/enemies/plump-mushroom.glb",
     "generate:enemy:spore": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/build.py -- --slug spore-mushroom --output public/assets/enemies/spore-mushroom.glb",
     "generate:enemy:great": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/build.py -- --slug great-mushroom --output public/assets/enemies/great-mushroom.glb",
-    "generate:enemies": "npm run generate:enemy:tiny && npm run generate:enemy:plump && npm run generate:enemy:spore && npm run generate:enemy:great",
-    "validate:enemies": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/validate.py -- -- public/assets/enemies/tiny-mushroom.glb public/assets/enemies/plump-mushroom.glb public/assets/enemies/spore-mushroom.glb public/assets/enemies/great-mushroom.glb"
+    "generate:enemies": "npm run generate:enemy:tiny && npm run generate:enemy:plump && npm run generate:enemy:spore && npm run generate:enemy:great && npm run generate:enemy:new-families",
+    "validate:enemies": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/validate.py -- -- public/assets/enemies/tiny-mushroom.glb public/assets/enemies/plump-mushroom.glb public/assets/enemies/spore-mushroom.glb public/assets/enemies/great-mushroom.glb public/assets/enemies/leafling.glb public/assets/enemies/whirl-leaf.glb public/assets/enemies/bud-bloom.glb public/assets/enemies/puff-flower.glb public/assets/enemies/round-hedgehog.glb public/assets/enemies/acorn-squirrel.glb",
+    "generate:enemy:leafling": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/build.py -- --slug leafling --output public/assets/enemies/leafling.glb",
+    "generate:enemy:whirl-leaf": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/build.py -- --slug whirl-leaf --output public/assets/enemies/whirl-leaf.glb",
+    "generate:enemy:bud-bloom": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/build.py -- --slug bud-bloom --output public/assets/enemies/bud-bloom.glb",
+    "generate:enemy:puff-flower": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/build.py -- --slug puff-flower --output public/assets/enemies/puff-flower.glb",
+    "generate:enemy:round-hedgehog": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/build.py -- --slug round-hedgehog --output public/assets/enemies/round-hedgehog.glb",
+    "generate:enemy:acorn-squirrel": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/build.py -- --slug acorn-squirrel --output public/assets/enemies/acorn-squirrel.glb",
+    "generate:enemy:new-families": "npm run generate:enemy:leafling && npm run generate:enemy:whirl-leaf && npm run generate:enemy:bud-bloom && npm run generate:enemy:puff-flower && npm run generate:enemy:round-hedgehog && npm run generate:enemy:acorn-squirrel"
   },
   "dependencies": {
     "@react-three/fiber": "^9.7.0",

@@ -31,9 +31,9 @@ def build_enemy(d: LeafDefinition):
     for n,x in [('Foot_L',-.13),('Foot_R',.13)]: create_ellipsoid(n,(x,-.01,.07),(.11,.15,.07),body_mat,body,segments=16,rings=10)
     leaf_root=create_empty('LeafRoot',body,(0,0,.45))
     if d.profile=='single':
-        leaf=create_ellipsoid('Leaf',(0,.015,.13),(.43,.16,.22),leaf_mat,leaf_root,segments=28,rings=16); leaf.rotation_euler.y=-.18
-        create_ellipsoid('LeafVein',(0,-.145,.13),(.27,.015,.018),accent,leaf_root,segments=14,rings=8)
-        tip=create_empty('LeafTip',leaf_root,(.39,0,.15))
+        leaf=create_ellipsoid('Leaf',(-.025,.015,.17),(.47,.13,.18),leaf_mat,leaf_root,segments=28,rings=16); leaf.rotation_euler.y=-.16; leaf.rotation_euler.z=.24
+        vein=create_ellipsoid('LeafVein',(-.02,-.118,.17),(.30,.012,.014),accent,leaf_root,segments=14,rings=8); vein.rotation_euler.z=.24
+        tip=create_empty('LeafTip',leaf_root,(.42,0,.28))
     else:
         a=create_ellipsoid('Leaf',(0,.015,.10),(.40,.14,.17),leaf_mat,leaf_root,segments=26,rings=14); a.rotation_euler.y=-.20; a.rotation_euler.z=.42
         sec=create_empty('LeafSecondary',leaf_root,(0,0,.04))

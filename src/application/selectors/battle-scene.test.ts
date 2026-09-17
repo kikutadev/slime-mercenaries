@@ -87,7 +87,9 @@ describe('battle scene projection', () => {
     };
     const model = selectBattleSceneModel(advanced);
     expect(model.encounter?.id).toBe('encounter.clover-road.03.02');
-    expect(model.encounter?.enemies.filter((enemy) => enemy.id === 'spore-mushroom')).toHaveLength(2);
+    expect(model.encounter?.enemies.filter((enemy) => enemy.id === 'puff-flower')).toHaveLength(2);
+    expect(model.encounter?.enemies.filter((enemy) => enemy.id === 'bud-bloom')).toHaveLength(2);
+    expect(model.encounter?.enemies.filter((enemy) => enemy.id === 'whirl-leaf')).toHaveLength(1);
     expect(model.encounterKey).toContain('encounter.clover-road.03.02');
   });
 

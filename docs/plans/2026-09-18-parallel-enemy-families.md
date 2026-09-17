@@ -1,6 +1,6 @@
 # Parallel Enemy Families Production Plan — Leaf / Flower / Forest Critter
 
-Status: Planned
+Status: Implemented — pending latest-main integration/deploy verification
 Date: 2026-09-18
 Baseline: `origin/main` at planning time = `95a3c85`
 Reference: `docs/content/enemy-next-families-reference-v1.md`

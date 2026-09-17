@@ -48,17 +48,14 @@ import {
 } from './slime-motion';
 import type { BattleBehaviorId } from './slimes';
 import {
-  ENEMY_MOTION_TIMING,
-  MUSHROOM_SPORE_FLIGHT_SECONDS,
-  createMushroomSporeMesh,
-  getEnemyAttackContactU,
-  getEnemyAttackDuration,
-  getEnemyAttackMotion,
-  getMushroomDefeatMotion,
-  getMushroomHitMotion,
-  getMushroomIdleMotion,
-  getMushroomMoveMotion,
-  getMushroomSporeArcHeight,
+  applyEnemySecondaryPose,
+  captureEnemyRigRestPose,
+  getEnemyMotionProfile,
+  resetEnemySecondaryPose,
+  resolveEnemyRigParts,
+  type EnemyMotionProfile,
+  type EnemyRigParts,
+  type EnemyRigRestPose,
 } from './enemy-motion';
 import type { EnemyBehaviorId, EnemyId, EnemyScaleClass } from './enemies';
 
@@ -150,6 +147,9 @@ interface EnemyUnit {
   faceBasePosition: THREE.Vector3;
   faceBaseScale: THREE.Vector3;
   effectOrigin: THREE.Object3D | null;
+  motionProfile: EnemyMotionProfile;
+  rigParts: EnemyRigParts;
+  rigRest: EnemyRigRestPose;
   shadow: THREE.Mesh<THREE.CircleGeometry, BasicMaterial>;
   home: THREE.Vector3;
   baseScale: number;
@@ -201,8 +201,8 @@ interface MuzzleFlashRuntime {
   duration: number;
 }
 
-interface SporeRuntime {
-  root: THREE.Group;
+interface EnemyProjectileRuntime {
+  root: THREE.Object3D;
   start: THREE.Vector3;
   end: THREE.Vector3;
   target: AllyUnit;
@@ -211,6 +211,7 @@ interface SporeRuntime {
   startedAt: number;
   duration: number;
   hitApplied: boolean;
+  arcHeight: (u: number) => number;
 }
 
 interface ImpactRuntime {
@@ -308,7 +309,7 @@ export class BattleRuntime {
   private readonly allies: AllyUnit[] = [];
   private readonly enemies: EnemyUnit[] = [];
   private readonly projectiles: ProjectileRuntime[] = [];
-  private readonly spores: SporeRuntime[] = [];
+  private readonly enemyProjectiles: EnemyProjectileRuntime[] = [];
   private readonly muzzleFlashes: MuzzleFlashRuntime[] = [];
   private readonly tracers: TracerRuntime[] = [];
   private readonly impacts: ImpactRuntime[] = [];
@@ -379,7 +380,7 @@ export class BattleRuntime {
 
       this.allies.forEach((ally) => this.updateAllyDefeat(ally, simulationNow));
       this.updateProjectiles(simulationNow);
-      this.updateSpores(simulationNow);
+      this.updateEnemyProjectiles(simulationNow);
       this.updateMuzzleFlashes(simulationNow);
       this.updateTracers(simulationNow);
       this.updateImpacts(simulationNow);
@@ -558,6 +559,9 @@ export class BattleRuntime {
     const bodyRoot = root.getObjectByName('BodyRoot') ?? root;
     const faceRoot = root.getObjectByName('FaceRoot') ?? null;
     const effectOrigin = root.getObjectByName('EffectOrigin') ?? null;
+    const motionProfile = getEnemyMotionProfile(config.behaviorId);
+    const rigParts = resolveEnemyRigParts(root);
+    const rigRest = captureEnemyRigRestPose(rigParts);
     const normalEyes = ['Eye_L', 'Eye_R']
       .map((name) => root.getObjectByName(name))
       .filter((eye): eye is THREE.Object3D => Boolean(eye));
@@ -574,7 +578,7 @@ export class BattleRuntime {
       bodyBaseScale: bodyRoot.scale.clone(), faceRoot,
       faceBasePosition: faceRoot?.position.clone() ?? new THREE.Vector3(),
       faceBaseScale: faceRoot?.scale.clone() ?? new THREE.Vector3(1, 1, 1),
-      effectOrigin, shadow, home,
+      effectOrigin, motionProfile, rigParts, rigRest, shadow, home,
       baseScale: config.renderScale, maxHp: config.maxHp, hp: config.maxHp, moveSpeed: config.moveSpeed,
       attackRange: config.attackRange, attackInterval: config.attackInterval, attackDamage: config.attackDamage,
       alive: true, state: 'idle', defeatStartedAt: -Infinity, hitStartedAt: -Infinity,
@@ -1031,9 +1035,9 @@ export class BattleRuntime {
 
   private updateEnemyDefeat(enemy: EnemyUnit, now: number): void {
     if (enemy.state !== 'defeat') return;
-    const u = clamp01((now - enemy.defeatStartedAt) / ENEMY_MOTION_TIMING.defeat);
+    const u = clamp01((now - enemy.defeatStartedAt) / enemy.motionProfile.defeatDuration);
     const side = enemy.index % 2 === 0 ? -1 : 1;
-    const pose = getMushroomDefeatMotion(u, side);
+    const pose = enemy.motionProfile.defeat(u, side);
     enemy.root.rotation.z = pose.rotationZ;
     enemy.root.position.x = enemy.attackOrigin.x + pose.lateralDrift;
     enemy.root.position.z = enemy.attackOrigin.z - pose.backwardDrift;
@@ -1047,6 +1051,7 @@ export class BattleRuntime {
       enemy.bodyBaseScale.y * pose.scaleY,
       enemy.bodyBaseScale.z * pose.scaleZ,
     );
+    applyEnemySecondaryPose(enemy.rigParts, enemy.rigRest, pose.secondary);
     if (enemy.faceRoot) {
       enemy.faceRoot.position.copy(enemy.faceBasePosition);
       enemy.faceRoot.position.y += 0.055 * Math.sin(Math.min(1, u / 0.72) * Math.PI * 0.5);
@@ -1999,8 +2004,10 @@ export class BattleRuntime {
     }
   }
 
-  private fireSpore(enemy: EnemyUnit, target: AllyUnit): void {
-    const root = createMushroomSporeMesh();
+  private fireEnemyProjectile(enemy: EnemyUnit, target: AllyUnit): void {
+    const projectile = enemy.motionProfile.projectile;
+    if (!projectile) return;
+    const root = projectile.createMesh();
     enemy.root.updateMatrixWorld(true);
     if (enemy.effectOrigin) enemy.effectOrigin.getWorldPosition(this.tempVector);
     else this.tempVector.copy(enemy.root.position).add(new THREE.Vector3(0, 0.34, 0));
@@ -2008,7 +2015,7 @@ export class BattleRuntime {
     const end = target.root.position.clone().add(new THREE.Vector3(0, 0.22, 0));
     root.position.copy(start);
     this.scene.add(root);
-    this.spores.push({
+    this.enemyProjectiles.push({
       root,
       start,
       end,
@@ -2016,21 +2023,22 @@ export class BattleRuntime {
       sourcePosition: enemy.root.position.clone(),
       damage: enemy.attackDamage,
       startedAt: this.simulationNow,
-      duration: MUSHROOM_SPORE_FLIGHT_SECONDS,
+      duration: projectile.flightSeconds,
       hitApplied: false,
+      arcHeight: projectile.arcHeight,
     });
   }
 
-  private updateSpores(now: number): void {
-    for (let i = this.spores.length - 1; i >= 0; i -= 1) {
-      const spore = this.spores[i]!;
+  private updateEnemyProjectiles(now: number): void {
+    for (let i = this.enemyProjectiles.length - 1; i >= 0; i -= 1) {
+      const spore = this.enemyProjectiles[i]!;
       const u = clamp01((now - spore.startedAt) / spore.duration);
       if (spore.target.alive) {
         this.tempVector.copy(spore.target.root.position).add(new THREE.Vector3(0, 0.22, 0));
         spore.end.lerp(this.tempVector, 0.2);
       }
       spore.root.position.lerpVectors(spore.start, spore.end, u);
-      spore.root.position.y += getMushroomSporeArcHeight(u);
+      spore.root.position.y += spore.arcHeight(u);
       spore.root.rotation.y = now * 7.5;
       spore.root.rotation.z = now * 4.2;
       if (!spore.hitApplied && u >= 0.86) {
@@ -2039,7 +2047,7 @@ export class BattleRuntime {
       }
       if (u >= 1) {
         this.scene.remove(spore.root);
-        this.spores.splice(i, 1);
+        this.enemyProjectiles.splice(i, 1);
       }
     }
   }
@@ -2061,7 +2069,7 @@ export class BattleRuntime {
   private updateEnemyApproachIdle(enemy: EnemyUnit, now: number): void {
     if (!enemy.alive || enemy.state === 'defeat' || enemy.state === 'dead') return;
     enemy.root.position.copy(enemy.home);
-    const pose = getMushroomIdleMotion(now, enemy.index * 0.73);
+    const pose = enemy.motionProfile.idle(now, enemy.index * 0.73);
     enemy.root.position.y = pose.jump;
     enemy.root.scale.set(
       enemy.baseScale * pose.scaleX,
@@ -2071,6 +2079,7 @@ export class BattleRuntime {
     const target = this.findNearest(enemy, this.getLivingAllies());
     if (target) this.facePoint(enemy, this.getEnemyTargetPosition(target));
     enemy.root.rotation.z = pose.wobbleZ;
+    applyEnemySecondaryPose(enemy.rigParts, enemy.rigRest, pose.secondary);
     enemy.shadow.position.set(enemy.home.x, 0.011, enemy.home.z);
     enemy.shadow.scale.set(1.35, 0.68, 1);
     enemy.shadow.material.opacity = 0.22;
@@ -2106,7 +2115,7 @@ export class BattleRuntime {
         step = Math.min(step, Math.max(0, actualDistance - MELEE_BODY_GAP));
       }
       enemy.root.position.addScaledVector(this.tempVector, step);
-      const pose = getMushroomMoveMotion(now, enemy.index * 0.19);
+      const pose = enemy.motionProfile.move(now, enemy.index * 0.19);
       enemy.root.position.y = pose.jump;
       enemy.root.scale.set(
         enemy.baseScale * pose.scaleX,
@@ -2114,11 +2123,12 @@ export class BattleRuntime {
         enemy.baseScale * pose.scaleZ,
       );
       enemy.root.rotation.z = pose.wobbleZ;
+      applyEnemySecondaryPose(enemy.rigParts, enemy.rigRest, pose.secondary);
     } else {
       enemy.root.position.y = 0;
-      const idle = getMushroomIdleMotion(now, enemy.index * 0.73);
+      const idle = enemy.motionProfile.idle(now, enemy.index * 0.73);
       const hitU = clamp01((now - enemy.hitStartedAt) / 0.2);
-      const hit = getMushroomHitMotion(hitU, enemy.index % 2 === 0 ? -1 : 1);
+      const hit = enemy.motionProfile.hit(hitU, enemy.index % 2 === 0 ? -1 : 1);
       const hitActive = enemy.hitStartedAt > 0 && hitU < 1;
       enemy.root.scale.set(
         enemy.baseScale * idle.scaleX * (hitActive ? hit.scaleX : 1),
@@ -2126,6 +2136,7 @@ export class BattleRuntime {
         enemy.baseScale * idle.scaleZ * (hitActive ? hit.scaleZ : 1),
       );
       enemy.root.rotation.z = idle.wobbleZ + (hitActive ? hit.rotationZ : 0);
+      applyEnemySecondaryPose(enemy.rigParts, enemy.rigRest, hitActive ? hit.secondary : idle.secondary);
       if (now >= enemy.nextAttackAt) {
         enemy.attackStartedAt = now;
         enemy.attackOrigin.copy(enemy.root.position);
@@ -2148,17 +2159,17 @@ export class BattleRuntime {
       enemy.root.position.copy(enemy.attackOrigin);
       return;
     }
-    const duration = getEnemyAttackDuration(enemy.behaviorId);
+    const duration = enemy.motionProfile.attackDuration;
     const u = clamp01((now - enemy.attackStartedAt) / duration);
-    const pose = getEnemyAttackMotion(enemy.behaviorId, u);
+    const pose = enemy.motionProfile.attack(u);
     const targetPosition = target.root.position;
     this.tempVector.copy(targetPosition).sub(enemy.attackOrigin).setY(0);
     const distance = this.tempVector.length();
     if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
     const maxTravel = Math.max(0, distance - MELEE_BODY_GAP);
-    const travelBase = enemy.behaviorId === 'mushroom-spore'
-      ? 0.16
-      : Math.min(distance * 0.42, enemy.scaleClass === 'boss' ? 0.5 : 0.4, maxTravel);
+    const travelBase = enemy.motionProfile.projectile
+      ? enemy.motionProfile.attackTravelDistance
+      : Math.min(distance * 0.42, enemy.motionProfile.attackTravelDistance, maxTravel);
     enemy.root.position.copy(enemy.attackOrigin).addScaledVector(this.tempVector, travelBase * pose.travel);
     enemy.root.position.y = pose.jump;
     enemy.root.scale.set(
@@ -2168,10 +2179,11 @@ export class BattleRuntime {
     );
     this.facePoint(enemy, targetPosition);
     enemy.root.rotation.z = pose.wobbleZ;
+    applyEnemySecondaryPose(enemy.rigParts, enemy.rigRest, pose.secondary);
 
-    if (!enemy.attackHitApplied && u >= getEnemyAttackContactU(enemy.behaviorId)) {
+    if (!enemy.attackHitApplied && u >= enemy.motionProfile.contactU) {
       enemy.attackHitApplied = true;
-      if (enemy.behaviorId === 'mushroom-spore') this.fireSpore(enemy, target);
+      if (enemy.motionProfile.projectile) this.fireEnemyProjectile(enemy, target);
       else this.applyDamage(target, enemy.attackDamage, 'enemy', enemy.root.position);
     }
     if (u >= 1) {
@@ -2271,6 +2283,7 @@ export class BattleRuntime {
     enemy.root.rotation.set(0, 0, 0);
     enemy.root.scale.setScalar(enemy.baseScale);
     enemy.bodyRoot.scale.copy(enemy.bodyBaseScale);
+    resetEnemySecondaryPose(enemy.rigParts, enemy.rigRest);
     if (enemy.faceRoot) {
       enemy.faceRoot.position.copy(enemy.faceBasePosition);
       enemy.faceRoot.scale.copy(enemy.faceBaseScale);
@@ -2290,7 +2303,7 @@ export class BattleRuntime {
       tracer.mesh.geometry.dispose();
       tracer.mesh.material.dispose();
     });
-    this.spores.splice(0).forEach((spore) => this.scene.remove(spore.root));
+    this.enemyProjectiles.splice(0).forEach((spore) => this.scene.remove(spore.root));
     this.impacts.splice(0).forEach((impact) => this.scene.remove(impact.group));
     this.resetSlash();
     this.resetSpinArc();

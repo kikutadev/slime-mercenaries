@@ -1,10 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { ENEMY_MOTION_THRESHOLDS, getEnemyAttackContactU, getEnemyAttackMotion, getMushroomDefeatMotion } from './enemy-motion';
-import type { EnemyBehaviorId } from './enemies';
+import { ENEMY_MOTION_THRESHOLDS, getEnemyAttackContactU, getEnemyAttackMotion, getEnemyMotionProfile, getMushroomDefeatMotion } from './enemy-motion';
+import { ENEMIES, type EnemyBehaviorId } from './enemies';
 
-const BEHAVIORS: readonly EnemyBehaviorId[] = ['mushroom-bump', 'mushroom-heavy-bump', 'mushroom-spore', 'mushroom-boss'];
+const BEHAVIORS: readonly EnemyBehaviorId[] = [...new Set(Object.values(ENEMIES).map((enemy) => enemy.behaviorId))];
 
 describe('enemy motion', () => {
+
+  it('resolves one production motion profile for every authored enemy behavior', () => {
+    for (const enemy of Object.values(ENEMIES)) {
+      const profile = getEnemyMotionProfile(enemy.behaviorId);
+      expect(profile.attackDuration, enemy.id).toBeGreaterThan(0);
+      expect(profile.contactU, enemy.id).toBeGreaterThan(0);
+      expect(profile.contactU, enemy.id).toBeLessThan(1);
+      expect(profile.moveDistance, enemy.id).toBeGreaterThan(0);
+    }
+  });
   it('returns finite positive scales across attack timelines', () => {
     for (const behavior of BEHAVIORS) {
       for (let step = 0; step <= 20; step += 1) {

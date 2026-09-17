@@ -32,6 +32,12 @@ const EXPECTED_MOTIONS: Readonly<Record<string, readonly string[]>> = {
   'plump-mushroom': ['idle', 'move', 'attack', 'hit', 'defeat'],
   'spore-mushroom': ['idle', 'move', 'attack', 'hit', 'defeat'],
   'great-mushroom': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'leafling': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'whirl-leaf': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'bud-bloom': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'puff-flower': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'round-hedgehog': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'acorn-squirrel': ['idle', 'move', 'attack', 'hit', 'defeat'],
 };
 
 describe('slime gallery catalog', () => {
