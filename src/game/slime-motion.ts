@@ -35,6 +35,11 @@ export interface SwordAttackMotionPose extends IdleMotionPose {
   releaseProgress: number;
 }
 
+export interface FighterAttackMotionPose extends SwordAttackMotionPose {
+  comboHit: 0 | 1;
+  slashDirection: 1 | -1;
+}
+
 export interface GreatswordAttackMotionPose extends IdleMotionPose {
   rootYawOffset: number;
   slashU: number;
@@ -45,6 +50,12 @@ export interface GreatswordAttackMotionPose extends IdleMotionPose {
 export interface BowAttackMotionPose extends IdleMotionPose {
   tension: number;
   release: number;
+}
+
+export interface RangerAttackMotionPose extends BowAttackMotionPose {
+  shotIndex: 0 | 1;
+  shotProgress: number;
+  lateralOffset: number;
 }
 
 export interface ShieldAttackMotionPose extends IdleMotionPose {
@@ -81,6 +92,8 @@ export const SLIME_MOTION_TIMING = {
   swordAttack: 0.88,
   greatswordAttack: 0.60,
   bowAttack: 0.62,
+  fighterAttack: 0.84,
+  rangerAttack: 0.84,
   shieldAttack: 0.74,
   wandAttack: 0.82,
   daggerAttack: 0.62,
@@ -95,6 +108,7 @@ export const SLIME_MOTION_THRESHOLDS = {
   swordHitReleaseProgress: 0.50,
   greatswordHitSlashU: 0.50,
   bowReleaseU: 0.56,
+  fighterHitReleaseProgress: 0.46,
   arrowHitU: 0.94,
   shieldContactU: 0.48,
   wandReleaseU: 0.54,
@@ -308,6 +322,32 @@ export function getSwordAttackMotion(uInput: number): SwordAttackMotionPose {
   };
 }
 
+export function getFighterAttackMotion(uInput: number): FighterAttackMotionPose {
+  const u = clamp01(uInput);
+  const firstPhaseEnd = 0.48;
+  const comboHit: 0 | 1 = u < firstPhaseEnd ? 0 : 1;
+  const localU = comboHit === 0 ? u / firstPhaseEnd : (u - firstPhaseEnd) / (1 - firstPhaseEnd);
+  const base = getSwordAttackMotion(localU);
+  const direction: 1 | -1 = comboHit === 0 ? 1 : -1;
+  const settleBlend = comboHit === 1 ? 0.92 : 1;
+  return {
+    ...base,
+    comboHit,
+    slashDirection: direction,
+    bodyOffset: base.bodyOffset * (comboHit === 0 ? 0.92 : 0.78),
+    deformation: {
+      ...base.deformation,
+      lean: base.deformation.lean * direction * settleBlend,
+      wobble: base.deformation.wobble + (comboHit === 1 ? Math.sin(localU * Math.PI) * 0.035 : 0),
+    },
+    equipment: {
+      angle: base.equipment.angle * direction,
+      lift: base.equipment.lift,
+      sweep: base.equipment.sweep * direction,
+    },
+  };
+}
+
 export function getGreatswordAttackMotion(uInput: number): GreatswordAttackMotionPose {
   const u = clamp01(uInput);
   const anticipation = clamp01(u / 0.16);
@@ -375,6 +415,38 @@ export function getBowAttackMotion(uInput: number): BowAttackMotionPose {
   };
 }
 
+
+export function getRangerAttackMotion(uInput: number): RangerAttackMotionPose {
+  const u = clamp01(uInput);
+  const firstPhaseEnd = 0.44;
+  const shotIndex: 0 | 1 = u < firstPhaseEnd ? 0 : 1;
+  const shotProgress = shotIndex === 0 ? u / firstPhaseEnd : (u - firstPhaseEnd) / (1 - firstPhaseEnd);
+  const base = getBowAttackMotion(shotProgress);
+  const lateralOffset = Math.sin(u * Math.PI) * 0.10;
+  const sideSign = shotIndex === 0 ? -1 : 1;
+  return {
+    ...base,
+    shotIndex,
+    shotProgress,
+    lateralOffset,
+    deformation: {
+      ...base.deformation,
+      lean: base.deformation.lean + sideSign * Math.sin(shotProgress * Math.PI) * 0.035,
+      wobble: sideSign * Math.sin(shotProgress * Math.PI) * 0.025,
+    },
+    equipment: {
+      ...base.equipment,
+      angle: base.equipment.angle + sideSign * 0.035 * Math.sin(shotProgress * Math.PI),
+    },
+  };
+}
+
+export function getRangerShotReleaseU(shotIndex: 0 | 1): number {
+  const firstPhaseEnd = 0.44;
+  return shotIndex === 0
+    ? firstPhaseEnd * SLIME_MOTION_THRESHOLDS.bowReleaseU
+    : firstPhaseEnd + (1 - firstPhaseEnd) * SLIME_MOTION_THRESHOLDS.bowReleaseU;
+}
 
 export function getShieldAttackMotion(uInput: number): ShieldAttackMotionPose {
   const u = clamp01(uInput);

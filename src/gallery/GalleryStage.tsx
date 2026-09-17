@@ -19,11 +19,14 @@ import {
   getArrowArcHeight,
   getBowAttackMotion,
   getDaggerAttackMotion,
+  getFighterAttackMotion,
   getGreatswordAttackMotion,
   getGreatswordSpinVfxPose,
   getGunAttackMotion,
   getHopTravelMotion,
   getIdleMotion,
+  getRangerAttackMotion,
+  getRangerShotReleaseU,
   getShieldAttackMotion,
   getSwordAttackMotion,
   getWandAttackMotion,
@@ -161,6 +164,10 @@ function clipDuration(motion: GalleryMotionId, definition: SlimeGalleryDefinitio
   if (motion === 'move') return 1.55;
   if (motion === 'defeat') return SLIME_MOTION_TIMING.allyDefeat;
   if (motion === 'attack') {
+    if (definition.id === 'fighter') return SLIME_MOTION_TIMING.fighterAttack;
+    if (definition.id === 'ranger') {
+      return SLIME_MOTION_TIMING.rangerAttack * getRangerShotReleaseU(1) + SLIME_MOTION_TIMING.arrowFlight;
+    }
     if (definition.modelKind === 'greatsword') return SLIME_MOTION_TIMING.greatswordAttack;
     if (definition.modelKind === 'bow') {
       const releaseAt = SLIME_MOTION_TIMING.bowAttack * SLIME_MOTION_THRESHOLDS.bowReleaseU;
@@ -198,12 +205,13 @@ function CameraRig({ mode, motion, definition }: { mode: GalleryCameraId; motion
       camera.position.set(0, 0.82, 2.15 * compact);
       camera.lookAt(lookAt);
     } else if (motion === 'attack') {
-      const midpoint = GALLERY_HOME.clone().addScaledVector(inspectForward, targetDistance * 0.50);
-      midpoint.y = 0.26;
       const ranged = targetDistance >= 1.4;
-      const sideDistance = (ranged ? 3.00 : 2.10) * compact;
-      const forwardDistance = (ranged ? 0.22 : 0.62) * compact;
-      const height = (ranged ? 0.94 : 0.86) * compact;
+      const focusFraction = ranged ? 0.44 : 0.42;
+      const midpoint = GALLERY_HOME.clone().addScaledVector(inspectForward, targetDistance * focusFraction);
+      midpoint.y = 0.26;
+      const sideDistance = (ranged ? 2.85 : 2.35) * compact;
+      const forwardDistance = (ranged ? 0.92 : 0.82) * compact;
+      const height = (ranged ? 0.96 : 0.88) * compact;
       camera.position.copy(midpoint)
         .addScaledVector(inspectRight, sideDistance)
         .addScaledVector(inspectForward, forwardDistance)
@@ -345,6 +353,36 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       return;
     }
 
+    if (definition.id === 'ranger') {
+      const attackTime = Math.min(local, SLIME_MOTION_TIMING.rangerAttack);
+      const attackU = clamp01(attackTime / SLIME_MOTION_TIMING.rangerAttack);
+      if (attackTime < SLIME_MOTION_TIMING.rangerAttack) {
+        const pose = getRangerAttackMotion(attackU);
+        tempB.set(-forward.z, 0, forward.x);
+        root.position.copy(GALLERY_HOME).addScaledVector(tempB, pose.lateralOffset);
+        applyPose(parts, definition, pose);
+      } else {
+        applyPose(parts, definition, getIdleMotion(local, 1.32));
+      }
+      for (const shotIndex of [0, 1] as const) {
+        const releaseAt = SLIME_MOTION_TIMING.rangerAttack * getRangerShotReleaseU(shotIndex);
+        if (local < releaseAt || local >= releaseAt + SLIME_MOTION_TIMING.arrowFlight) continue;
+        const flightU = clamp01((local - releaseAt) / SLIME_MOTION_TIMING.arrowFlight);
+        root.updateMatrixWorld(true);
+        if (parts.projectileOrigin) parts.projectileOrigin.getWorldPosition(tempA);
+        else if (parts.equipment) parts.equipment.getWorldPosition(tempA);
+        else tempA.copy(root.position);
+        tempB.copy(dummyHome).add(new THREE.Vector3(0, 0.28, 0));
+        arrow.visible = true;
+        arrow.position.lerpVectors(tempA, tempB, flightU);
+        arrow.position.y += getArrowArcHeight(flightU);
+        tempQ.setFromUnitVectors(yAxis, tempB.clone().sub(tempA).normalize());
+        arrow.quaternion.copy(tempQ);
+        break;
+      }
+      return;
+    }
+
     if (definition.modelKind === 'bow') {
       const attackTime = Math.min(local, SLIME_MOTION_TIMING.bowAttack);
       const attackU = clamp01(attackTime / SLIME_MOTION_TIMING.bowAttack);
@@ -426,6 +464,26 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
           muzzleFlash.scale.setScalar(0.65 + pose.muzzlePulse * 0.75);
           muzzleFlash.material.opacity = pose.muzzlePulse * 0.95;
         }
+      }
+      return;
+    }
+
+    if (definition.id === 'fighter') {
+      const u = clamp01(local / SLIME_MOTION_TIMING.fighterAttack);
+      const pose = getFighterAttackMotion(u);
+      root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
+      applyPose(parts, definition, pose);
+      root.updateMatrixWorld(true);
+      if (pose.releaseProgress >= 0 && parts.weaponTip) {
+        parts.weaponTip.getWorldPosition(tempA);
+        const slashVfx = getSwordSlashVfxPose(pose.releaseProgress);
+        slash.visible = slashVfx.visible;
+        slash.position.copy(tempA);
+        slash.position.y += 0.012;
+        slash.quaternion.copy(camera.quaternion);
+        slash.rotation.z = pose.slashDirection > 0 ? slashVfx.rotationZ : (-slashVfx.rotationZ - 0.28);
+        slash.scale.set(slashVfx.scaleX, slashVfx.scaleY, 1);
+        slash.material.opacity = slashVfx.opacity;
       }
       return;
     }

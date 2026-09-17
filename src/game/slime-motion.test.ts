@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   SLIME_MOTION_THRESHOLDS,
   getDaggerAttackMotion,
+  getFighterAttackMotion,
   getGunAttackMotion,
+  getRangerAttackMotion,
+  getRangerShotReleaseU,
   getShieldAttackMotion,
   getWandAttackMotion,
   type EquipmentPose,
@@ -30,4 +33,21 @@ describe('production branch motion poses', () => {
     expect(getWandAttackMotion(SLIME_MOTION_THRESHOLDS.wandReleaseU).castProgress).toBeGreaterThanOrEqual(0);
     expect(getGunAttackMotion(SLIME_MOTION_THRESHOLDS.gunReleaseU).shotProgress).toBeGreaterThanOrEqual(0);
   });
+
+  it('keeps Fighter hits and Ranger shots ordered as connected two-step attacks', () => {
+    const fighterFirst = getFighterAttackMotion(0.34);
+    const fighterSecond = getFighterAttackMotion(0.78);
+    expect(fighterFirst.comboHit).toBe(0);
+    expect(fighterSecond.comboHit).toBe(1);
+    expect(fighterFirst.slashDirection).toBe(1);
+    expect(fighterSecond.slashDirection).toBe(-1);
+
+    const rangerFirst = getRangerAttackMotion(0.30);
+    const rangerSecond = getRangerAttackMotion(0.76);
+    expect(rangerFirst.shotIndex).toBe(0);
+    expect(rangerSecond.shotIndex).toBe(1);
+    expect(getRangerShotReleaseU(0)).toBeLessThan(getRangerShotReleaseU(1));
+    expect(getRangerShotReleaseU(1)).toBeLessThan(1);
+  });
+
 });

@@ -12,11 +12,13 @@ import {
   getArrowArcHeight,
   getBowAttackMotion,
   getDaggerAttackMotion,
+  getFighterAttackMotion,
   getGreatswordAttackMotion,
   getGreatswordSpinVfxPose,
   getGunAttackMotion,
   getHopTravelMotion,
   getIdleMotion,
+  getRangerAttackMotion,
   getShieldAttackMotion,
   getSwordAttackMotion,
   getWandAttackMotion,
@@ -639,7 +641,9 @@ export class BattleRuntime {
 
   private equipmentKindFor(unit: AllyUnit): SlimeEquipmentMotionKind {
     switch (unit.behaviorId) {
-      case 'bow-ranged': return 'bow';
+      case 'bow-ranged':
+      case 'ranger-double-shot': return 'bow';
+      case 'fighter-combo': return 'sword';
       case 'shield-defender': return 'shield';
       case 'wand-magic': return 'wand';
       case 'dagger-skirmisher': return 'dagger';
@@ -649,7 +653,7 @@ export class BattleRuntime {
   }
 
   private isMeleeBehavior(unit: AllyUnit): boolean {
-    return unit.behaviorId === 'sword-melee' || unit.behaviorId === 'shield-defender' || unit.behaviorId === 'dagger-skirmisher';
+    return unit.behaviorId === 'sword-melee' || unit.behaviorId === 'fighter-combo' || unit.behaviorId === 'shield-defender' || unit.behaviorId === 'dagger-skirmisher';
   }
 
   private setEquipmentSwing(unit: AllyUnit, angle: number, lift = 0, sweep = 0): void {
@@ -887,7 +891,7 @@ export class BattleRuntime {
       ally.attackTarget = null;
       ally.hitsApplied = 0;
       ally.shotApplied = false;
-      ally.nextAttackAt = now + (ally.behaviorId === 'bow-ranged' ? 0.65 : 1.7) + ally.slotIndex * 0.05;
+      ally.nextAttackAt = now + ((ally.behaviorId === 'bow-ranged' || ally.behaviorId === 'ranger-double-shot') ? 0.65 : 1.7) + ally.slotIndex * 0.05;
       const firstEnemy = this.findNearest(ally, this.getLivingEnemies());
       if (firstEnemy) this.facePoint(ally, firstEnemy.root.position);
     });
@@ -933,7 +937,9 @@ export class BattleRuntime {
   private updateCombat(now: number): void {
     this.allies.forEach((ally) => {
       if (ally.behaviorId === 'sword-melee') this.updateSword(now, ally);
+      else if (ally.behaviorId === 'fighter-combo') this.updateFighter(now, ally);
       else if (ally.behaviorId === 'bow-ranged') this.updateBow(now, ally);
+      else if (ally.behaviorId === 'ranger-double-shot') this.updateRanger(now, ally);
       else if (ally.behaviorId === 'shield-defender') this.updateShield(now, ally);
       else if (ally.behaviorId === 'wand-magic') this.updateWand(now, ally);
       else if (ally.behaviorId === 'dagger-skirmisher') this.updateDagger(now, ally);
@@ -1027,6 +1033,82 @@ export class BattleRuntime {
     }
 
     if (u >= 1 || !target.alive) this.finishSwordAttack(now, sword, target);
+  }
+
+  private updateFighter(now: number, fighter: AllyUnit): void {
+    if (!fighter.alive) return;
+    if (fighter.attackStartedAt !== -Infinity && !fighter.attackTarget?.alive) {
+      fighter.attackStartedAt = -Infinity;
+      fighter.attackTarget = null;
+      fighter.hitsApplied = 0;
+      fighter.root.position.copy(fighter.combatAnchor);
+      this.setEquipmentSwing(fighter, 0);
+      this.resetSlash();
+    }
+    if (fighter.attackStartedAt === -Infinity && now >= fighter.nextAttackAt) {
+      const target = this.findNearest(fighter, this.getLivingEnemies());
+      if (target) {
+        fighter.attackStartedAt = now;
+        fighter.attackTarget = target;
+        fighter.hitsApplied = 0;
+      }
+    }
+    if (fighter.attackStartedAt === -Infinity || !fighter.attackTarget) {
+      fighter.root.position.copy(fighter.combatAnchor);
+      this.updateIdle(fighter, now, 0.32 + fighter.slotIndex * 0.21);
+      const target = this.findNearest(fighter, this.getLivingEnemies());
+      if (target) this.facePoint(fighter, target.root.position);
+      this.resetSlash();
+      return;
+    }
+
+    const target = fighter.attackTarget;
+    const u = clamp01((now - fighter.attackStartedAt) / SLIME_MOTION_TIMING.fighterAttack);
+    const pose = getFighterAttackMotion(u);
+    this.tempVector.copy(target.root.position).sub(fighter.combatAnchor).setY(0);
+    const distance = this.tempVector.length();
+    if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
+    let offset = pose.bodyOffset;
+    if (offset > 0) {
+      offset = Math.min(offset, Math.max(0, distance - MELEE_BODY_GAP));
+      offset = this.getSafeMeleeForwardOffset(fighter.combatAnchor, this.tempVector, offset);
+    }
+    fighter.root.position.copy(fighter.combatAnchor).addScaledVector(this.tempVector, offset);
+    this.facePoint(fighter, target.root.position);
+    this.applyUnitDeformation(fighter, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    this.setEquipmentSwing(fighter, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    fighter.root.updateMatrixWorld(true);
+
+    if (pose.releaseProgress >= 0 && fighter.weaponTip) {
+      fighter.weaponTip.getWorldPosition(this.tempVector3);
+      const slashVfx = getSwordSlashVfxPose(pose.releaseProgress);
+      if (this.slashArc) {
+        this.slashArc.visible = slashVfx.visible;
+        this.slashArc.position.copy(this.tempVector3);
+        this.slashArc.position.y += 0.012;
+        this.slashArc.quaternion.copy(this.camera.quaternion);
+        this.slashArc.rotation.z = pose.slashDirection > 0 ? slashVfx.rotationZ : (-slashVfx.rotationZ - 0.28);
+        this.slashArc.scale.set(slashVfx.scaleX, slashVfx.scaleY, 1);
+        this.slashArc.material.opacity = slashVfx.opacity;
+      }
+      if (pose.releaseProgress >= SLIME_MOTION_THRESHOLDS.fighterHitReleaseProgress && fighter.hitsApplied === pose.comboHit && target.alive) {
+        const damage = pose.comboHit === 0 ? 1 : 2;
+        fighter.hitsApplied += 1;
+        this.applyDamage(target, damage, 'melee', fighter.root.position);
+      }
+    } else {
+      this.resetSlash();
+    }
+
+    if (u >= 1 || !target.alive) {
+      fighter.attackStartedAt = -Infinity;
+      fighter.attackTarget = null;
+      fighter.hitsApplied = 0;
+      fighter.root.position.copy(fighter.combatAnchor);
+      this.setEquipmentSwing(fighter, 0);
+      this.resetSlash();
+      fighter.nextAttackAt = now + 0.46;
+    }
   }
 
   private updateGreatswordAttack(now: number, sword: AllyUnit, target: EnemyUnit, fusionRank: number): void {
@@ -1366,6 +1448,54 @@ export class BattleRuntime {
       bow.attackTarget = null;
       bow.nextAttackAt = now + 1.0;
       this.setEquipmentSwing(bow, 0);
+    }
+  }
+
+  private updateRanger(now: number, ranger: AllyUnit): void {
+    if (!ranger.alive) return;
+    if (ranger.attackStartedAt !== -Infinity && !ranger.attackTarget?.alive) {
+      ranger.attackStartedAt = -Infinity;
+      ranger.attackTarget = null;
+      ranger.hitsApplied = 0;
+    }
+    if (ranger.attackStartedAt === -Infinity && now >= ranger.nextAttackAt) {
+      const target = this.findNearest(ranger, this.getLivingEnemies());
+      if (target) {
+        ranger.attackStartedAt = now;
+        ranger.attackTarget = target;
+        ranger.hitsApplied = 0;
+      }
+    }
+    if (ranger.attackStartedAt === -Infinity || !ranger.attackTarget) {
+      ranger.root.position.copy(ranger.home);
+      this.updateIdle(ranger, now, 1.32 + ranger.slotIndex * 0.27);
+      const target = this.findNearest(ranger, this.getLivingEnemies());
+      if (target) this.facePoint(ranger, target.root.position);
+      return;
+    }
+
+    const target = ranger.attackTarget;
+    const u = clamp01((now - ranger.attackStartedAt) / SLIME_MOTION_TIMING.rangerAttack);
+    const pose = getRangerAttackMotion(u);
+    this.facePoint(ranger, target.root.position);
+    this.tempVector.copy(target.root.position).sub(ranger.home).setY(0);
+    if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
+    this.tempVector2.set(-this.tempVector.z, 0, this.tempVector.x);
+    ranger.root.position.copy(ranger.home).addScaledVector(this.tempVector2, pose.lateralOffset);
+    this.applyUnitDeformation(ranger, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    this.setEquipmentSwing(ranger, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    if (pose.shotProgress >= SLIME_MOTION_THRESHOLDS.bowReleaseU && ranger.hitsApplied === pose.shotIndex && target.alive) {
+      ranger.hitsApplied += 1;
+      ranger.root.updateMatrixWorld(true);
+      this.fireArrow(ranger, target);
+    }
+    if (u >= 1) {
+      ranger.attackStartedAt = -Infinity;
+      ranger.attackTarget = null;
+      ranger.hitsApplied = 0;
+      ranger.root.position.copy(ranger.home);
+      this.setEquipmentSwing(ranger, 0);
+      ranger.nextAttackAt = now + 0.68;
     }
   }
 

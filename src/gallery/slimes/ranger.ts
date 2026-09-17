@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#4e9e62',
   inspectionFacingYawDegrees: -20,
   inspectionSideDistance: 1.34,
-  equipmentAnchor: null,
+  equipmentAnchor: 'RangerBowAnchor',
   weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. Recurved bow, green hood and rear quiver establish the Ranger branch; the connected double-shot and evasive sidestep are not faked in the gallery.',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production double-shot: two connected releases with a restrained lateral step, using the same shared motion and arrow timing as battle runtime.',
 };
 
 export default definition;

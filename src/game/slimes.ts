@@ -2,7 +2,7 @@ import { ids, type JobSlimeId } from '../domain/definitions';
 import type { SlimeProgress } from '../domain/state';
 
 export type SlimeId = JobSlimeId;
-export type BattleBehaviorId = 'sword-melee' | 'bow-ranged' | 'shield-defender' | 'wand-magic' | 'dagger-skirmisher' | 'gun-ranged';
+export type BattleBehaviorId = 'sword-melee' | 'fighter-combo' | 'bow-ranged' | 'ranger-double-shot' | 'shield-defender' | 'wand-magic' | 'dagger-skirmisher' | 'gun-ranged';
 export type FusionItemCategory = 'slime' | 'weapon' | 'material';
 export type FusionItemId =
   | typeof ids.token.swordCore
@@ -103,6 +103,44 @@ export function getSlimePresentation(slime: SlimeProgress): SlimePresentation {
       tier: slime.jobTier,
       asset: 'assets/greatsword-slime.glb',
       accent: '#ffd76f',
+      form: slime.fusionFormId,
+    };
+  }
+  if (slime.typeId === 'sword' && slime.promotionPathId === 'fighter') {
+    return {
+      ...base,
+      name: promotedName ?? '戦士スライム',
+      role: '前衛・連撃',
+      tier: slime.jobTier,
+      asset: 'assets/fighter-slime.glb',
+      accent: '#c7654e',
+      battle: {
+        ...base.battle,
+        behaviorId: 'fighter-combo',
+        equipmentAnchorName: 'WeaponAnchor',
+        weaponTipName: 'WeaponTip',
+        maxHp: Math.max(base.battle.maxHp, 8),
+        formationRole: 'front',
+      },
+      form: slime.fusionFormId,
+    };
+  }
+  if (slime.typeId === 'bow' && slime.promotionPathId === 'ranger') {
+    return {
+      ...base,
+      name: promotedName ?? 'レンジャースライム',
+      role: '後衛・連射',
+      tier: slime.jobTier,
+      asset: 'assets/ranger-slime.glb',
+      accent: '#4e9e62',
+      battle: {
+        ...base.battle,
+        behaviorId: 'ranger-double-shot',
+        equipmentAnchorName: 'RangerBowAnchor',
+        weaponTipName: null,
+        maxHp: Math.max(base.battle.maxHp, 5),
+        formationRole: 'back',
+      },
       form: slime.fusionFormId,
     };
   }

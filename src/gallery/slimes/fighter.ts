@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#c7654e',
   inspectionFacingYawDegrees: 90,
   inspectionSideDistance: 1.18,
-  equipmentAnchor: null,
-  weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. Broader sword and delayed headband tails establish the Tier-2 bruiser silhouette; the connected two-hit combo remains withheld until production combat motion is shared by game and gallery.',
+  equipmentAnchor: 'WeaponAnchor',
+  weaponTipName: 'WeaponTip',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production two-hit combo: forward slash into a faster body-assisted return cut using the same shared motion as battle runtime.',
 };
 
 export default definition;
