@@ -944,7 +944,7 @@ Delivered production enemies:
 Acceptance results:
 
 - typecheck: PASS
-- tests: 68 / 68 PASS
+- tests: 84 / 84 PASS
 - GLB validation: 10 / 10 enemies PASS
 - production build: PASS
 - 6 new enemies distinguishable in grayscale family boards
@@ -956,4 +956,21 @@ Acceptance results:
 - all six production GLBs return HTTP 200 from the canonical deployment
 
 GitHub Pages remains redirect-only and was not converted back into a game-hosting deployment target.
+
+
+## 20. Chat-parallel production polish round — 2026-09-18
+
+The six new enemies were then independently polished in three **separate ChatGPT project chats** sharing one clean worktree (`.slime-enemy-parallel`). File ownership remained family-exclusive; child chats were forbidden from shared runtime, registry, deploy, and git history operations.
+
+Polish acceptance:
+
+- Leaf: single broad soft leaf vs compact two-leaf pinwheel, sharper slap/whirl timing, gust release/flight verified.
+- Flower: closed vertical bud vs round pom-pom crown, shape-based attack tells, pollen release/flight/pre-impact verified.
+- Critter: low plush hedgehog shell vs oversized squirrel tail, roll/acorn timing refined, tail/ear secondary motion bounded.
+- 128px grayscale family boards reviewed for all three families.
+- Attack reviewed as six-frame contact sheets rather than still poses.
+- Hit/Defeat and portrait battle-camera contact reviewed for every family.
+- Latest coordinator gate: 84/84 tests PASS, typecheck PASS, 10/10 enemy GLB validation PASS, production build PASS.
+
+The shared worktree is the integration source; per-family child chats do not commit or deploy independently.
 
