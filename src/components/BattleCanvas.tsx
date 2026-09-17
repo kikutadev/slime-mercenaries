@@ -39,6 +39,21 @@ function BattleRuntimeScene({ model, onSnapshot }: BattleCanvasProps) {
         maxHp: ally.maxHp,
         formationRole: ally.formationRole,
       })),
+      enemies: model.encounter?.enemies.map((enemy) => ({
+        enemyId: enemy.id,
+        name: enemy.name,
+        asset: enemy.asset,
+        behaviorId: enemy.behaviorId,
+        maxHp: enemy.maxHp,
+        moveSpeed: enemy.moveSpeed,
+        attackRange: enemy.attackRange,
+        attackInterval: enemy.attackInterval,
+        attackDamage: enemy.attackDamage,
+        renderScale: enemy.renderScale,
+        scaleClass: enemy.scaleClass,
+        shadowRadius: enemy.shadowRadius,
+        instanceIndex: enemy.instanceIndex,
+      })) ?? [],
       onSnapshot: (snapshot) => snapshotRef.current(snapshot),
     });
     runtimeRef.current = runtime;

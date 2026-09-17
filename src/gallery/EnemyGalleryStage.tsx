@@ -95,6 +95,8 @@ function EnemyModel({ definition, motion, speed, loop, showDummy, replayKey }: E
   const gltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}${definition.asset}`);
   const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
   const eyes = useMemo(() => buildDefeatEyes(model), [model]);
+  const bodyRoot = useMemo(() => model.getObjectByName('BodyRoot') ?? model, [model]);
+  const bodyBaseScale = useMemo(() => bodyRoot.scale.clone(), [bodyRoot]);
   const faceRoot = useMemo(() => model.getObjectByName('FaceRoot') ?? null, [model]);
   const faceBasePosition = useMemo(() => faceRoot?.position.clone() ?? new THREE.Vector3(), [faceRoot]);
   const faceBaseScale = useMemo(() => faceRoot?.scale.clone() ?? new THREE.Vector3(1, 1, 1), [faceRoot]);
@@ -132,6 +134,7 @@ function EnemyModel({ definition, motion, speed, loop, showDummy, replayKey }: E
     root.position.copy(HOME);
     root.rotation.set(0, 0, 0);
     root.scale.setScalar(scale);
+    bodyRoot.scale.copy(bodyBaseScale);
     if (faceRoot) {
       faceRoot.position.copy(faceBasePosition);
       faceRoot.scale.copy(faceBaseScale);
@@ -182,19 +185,17 @@ function EnemyModel({ definition, motion, speed, loop, showDummy, replayKey }: E
       root.position.z -= pose.backwardDrift;
       root.position.y += pose.yOffset;
       root.rotation.z = pose.rotationZ;
-      root.scale.set(
-        scale * pose.scaleX * pose.opacity,
-        scale * pose.scaleY * pose.opacity,
-        scale * pose.scaleZ * pose.opacity,
+      root.scale.setScalar(scale * pose.opacity);
+      bodyRoot.scale.set(
+        bodyBaseScale.x * pose.scaleX,
+        bodyBaseScale.y * pose.scaleY,
+        bodyBaseScale.z * pose.scaleZ,
       );
       if (faceRoot) {
         faceRoot.position.copy(faceBasePosition);
-        faceRoot.position.z += 0.14 * Math.sin(Math.min(1, u / 0.72) * Math.PI * 0.5);
-        faceRoot.scale.set(
-          faceBaseScale.x / Math.max(0.2, pose.scaleX),
-          faceBaseScale.y / Math.max(0.2, pose.scaleY),
-          faceBaseScale.z / Math.max(0.2, pose.scaleZ),
-        );
+        faceRoot.position.y += 0.055 * Math.sin(Math.min(1, u / 0.72) * Math.PI * 0.5);
+        faceRoot.position.z += 0.38 * Math.sin(Math.min(1, u / 0.72) * Math.PI * 0.5);
+        faceRoot.scale.copy(faceBaseScale);
       }
       eyes.normalEyes.forEach((eye) => { eye.visible = false; });
       eyes.xEyes.forEach((eye) => { eye.visible = true; });

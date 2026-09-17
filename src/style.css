@@ -160,6 +160,15 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .battle-enemy-compact > div:first-child { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; font-size: 9px; }
 .battle-enemy-compact strong { font-size: 10px; }
 .battle-enemy-compact span { opacity: .72; }
+.battle-enemy-compact.is-boss {
+  left: 14%;
+  right: 14%;
+  border-color: rgba(255,226,170,.72);
+  background: rgba(54,43,48,.78);
+  box-shadow: 0 12px 26px rgba(65,43,36,.18);
+}
+.battle-enemy-compact.is-boss strong { color: #fff2cf; letter-spacing: .02em; }
+.battle-enemy-compact.is-boss span { color: #ffd98b; font-weight: 900; opacity: .9; }
 .enemy-hp-track { position: relative; height: 5px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.18); }
 .enemy-hp-fill { position: absolute; inset: 0; transform-origin: left center; background: linear-gradient(90deg, #ff8f72, #ffd16e); transition: transform 160ms ease; }
 

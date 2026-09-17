@@ -66,4 +66,45 @@ describe('battle scene projection', () => {
     const after = selectBattleSceneModel({ ...state, tokens: { ...state.tokens, 'token.unrelated': 99 } });
     expect(after.visualKey).toBe(before.visualKey);
   });
+
+  it('projects the authored enemy encounter for the current wave', () => {
+    const model = selectBattleSceneModel(createSwordBattleState());
+    expect(model.encounter?.id).toBe('encounter.clover-road.01.01');
+    expect(model.encounter?.displayName).toBe('ちびキノコの群れ');
+    expect(model.encounter?.enemies).toHaveLength(3);
+    expect(model.encounter?.enemies.every((enemy) => enemy.id === 'tiny-mushroom')).toBe(true);
+  });
+
+  it('changes enemy composition with stage and wave progression', () => {
+    const state = createSwordBattleState();
+    const advanced = {
+      ...state,
+      gameData: {
+        ...state.gameData,
+        progression: { ...state.gameData.progression, currentStage: 3 },
+        combat: { ...state.gameData.combat, currentWaveIndex: 1 },
+      },
+    };
+    const model = selectBattleSceneModel(advanced);
+    expect(model.encounter?.id).toBe('encounter.clover-road.03.02');
+    expect(model.encounter?.enemies.filter((enemy) => enemy.id === 'spore-mushroom')).toHaveLength(2);
+    expect(model.encounterKey).toContain('encounter.clover-road.03.02');
+  });
+
+  it('projects the authored great mushroom boss encounter', () => {
+    const state = createSwordBattleState();
+    const bossState = {
+      ...state,
+      gameData: {
+        ...state.gameData,
+        progression: { ...state.gameData.progression, currentStage: 5 },
+        combat: { ...state.gameData.combat, currentWaveIndex: 3 },
+      },
+    };
+    const model = selectBattleSceneModel(bossState);
+    expect(model.encounter?.id).toBe('encounter.clover-road.05.boss');
+    expect(model.encounter?.boss).toBe(true);
+    expect(model.encounter?.enemies).toHaveLength(1);
+    expect(model.encounter?.enemies[0]?.id).toBe('great-mushroom');
+  });
 });

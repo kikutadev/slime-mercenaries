@@ -1,4 +1,5 @@
-import { equippedWeaponDefinition, type JobSlimeId, type SlimeMercenariesState } from '../../domain';
+import { currentCombatEncounter, equippedWeaponDefinition, type JobSlimeId, type SlimeMercenariesState } from '../../domain';
+import { resolveEncounterDefinition, type ResolvedEncounter } from '../../game/encounters';
 import { getSlimePresentation, type BattleBehaviorId } from '../../game/slimes';
 
 /**
@@ -28,6 +29,7 @@ export type BattleSceneModel = Readonly<{
   visualKey: string;
   stageNumber: number;
   waveIndex: number;
+  encounter: ResolvedEncounter | null;
   allies: readonly BattleSceneAlly[];
 }>;
 
@@ -64,7 +66,14 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
 
   const stageNumber = state.gameData.progression.currentStage;
   const waveIndex = state.gameData.combat.currentWaveIndex;
-  const encounterKey = `${state.gameData.progression.currentAreaId}:${stageNumber}:${waveIndex}`;
+  const combatEncounter = currentCombatEncounter(state);
+  const encounterId = combatEncounter === null
+    ? null
+    : combatEncounter.kind === 'boss'
+      ? `encounter.clover-road.${String(stageNumber).padStart(2, '0')}.boss`
+      : `encounter.clover-road.${String(stageNumber).padStart(2, '0')}.${String(waveIndex + 1).padStart(2, '0')}`;
+  const encounter = encounterId === null ? null : resolveEncounterDefinition(encounterId);
+  const encounterKey = `${state.gameData.progression.currentAreaId}:${stageNumber}:${waveIndex}:${encounter?.id ?? 'none'}`;
   const visualKey = allies
     .map((ally) => [
       ally.slotIndex,
@@ -78,5 +87,5 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
     ].join(':'))
     .join('|');
 
-  return { encounterKey, visualKey, stageNumber, waveIndex, allies };
+  return { encounterKey, visualKey, stageNumber, waveIndex, encounter, allies };
 }

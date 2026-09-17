@@ -10,9 +10,9 @@ const INITIAL_BATTLE: BattleSnapshot = {
   phase: 'loading',
   label: '出撃準備中',
   result: null,
-  enemyAlive: 3,
-  enemyHp: 12,
-  enemyMaxHp: 12,
+  enemyAlive: 0,
+  enemyHp: 0,
+  enemyMaxHp: 0,
   allies: {},
 };
 
@@ -52,8 +52,8 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeI
       </header>
 
       {hasBattleSlime && (
-        <div className="battle-enemy-compact" aria-label="敵の体力">
-          <div><strong>森のキノコ</strong><span>残り{battle.enemyAlive}体</span></div>
+        <div className={`battle-enemy-compact ${sceneModel.encounter?.boss ? 'is-boss' : ''}`} aria-label="敵の体力">
+          <div><strong>{sceneModel.encounter?.displayName ?? '敵部隊'}</strong><span>{sceneModel.encounter?.boss ? 'BOSS' : `残り${battle.enemyAlive}体`}</span></div>
           <div className="enemy-hp-track"><div className="enemy-hp-fill" style={{ transform: `scaleX(${enemyRatio})` }} /></div>
         </div>
       )}
