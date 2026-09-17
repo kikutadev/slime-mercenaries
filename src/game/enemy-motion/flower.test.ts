@@ -1,0 +1,2 @@
+import {describe,it,expect} from 'vitest'; import {getFlowerMotionProfile} from './flower';
+for(const id of ['flower-bud-poke','flower-pollen'] as const){describe(id,()=>{it('keeps production motion finite',()=>{const p=getFlowerMotionProfile(id);expect(p.attackDuration).toBeGreaterThan(0);for(let i=0;i<=20;i++){const u=i/20;for(const pose of [p.attack(u),p.hit(u,1),p.defeat(u,-1)])for(const v of Object.values(pose).filter(v=>typeof v==='number'))expect(Number.isFinite(v)).toBe(true)}})})}
