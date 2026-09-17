@@ -26,8 +26,39 @@ describe('enemy encounter content', () => {
         expect(enemy.maxHp).toBeGreaterThan(0);
         expect(enemy.moveSpeed).toBeGreaterThan(0);
         expect(enemy.attackInterval).toBeGreaterThan(0);
+        expect(enemy.initialAttackDelay).toBeGreaterThanOrEqual(0);
+        expect(enemy.initialAttackDelay).toBeLessThanOrEqual(2);
       }
     }
+  });
+
+  it('assigns every visible enemy a unique presentation slot per encounter', () => {
+    for (const encounter of CLOVER_ROAD_ENCOUNTERS) {
+      const resolved = resolveEncounterDefinition(encounter.id);
+      const slots = resolved.enemies.map((enemy) => enemy.formationSlot);
+      expect(new Set(slots).size, encounter.id).toBe(slots.length);
+    }
+  });
+
+  it('spotlights each new family before mixing it with older families', () => {
+    expect(resolveEncounterDefinition('encounter.clover-road.02.01').enemies.map((enemy) => enemy.id))
+      .toEqual(['leafling', 'leafling', 'leafling', 'leafling']);
+    expect(resolveEncounterDefinition('encounter.clover-road.03.01').enemies.map((enemy) => enemy.id))
+      .toEqual(['bud-bloom', 'bud-bloom', 'bud-bloom', 'bud-bloom']);
+    expect(resolveEncounterDefinition('encounter.clover-road.04.01').enemies.map((enemy) => enemy.id))
+      .toEqual(['round-hedgehog', 'round-hedgehog', 'round-hedgehog']);
+  });
+
+  it('stages ranged pressure behind a frontline in the stage 5 gauntlet', () => {
+    const encounter = resolveEncounterDefinition('encounter.clover-road.05.02');
+    const byId = new Map(encounter.enemies.map((enemy) => [enemy.id, enemy]));
+    expect(byId.get('leafling')?.formationSlot.startsWith('front-')).toBe(true);
+    expect(byId.get('bud-bloom')?.formationSlot.startsWith('front-')).toBe(true);
+    expect(byId.get('round-hedgehog')?.formationSlot.startsWith('front-')).toBe(true);
+    expect(byId.get('spore-mushroom')?.formationSlot.startsWith('back-')).toBe(true);
+    expect(byId.get('whirl-leaf')?.initialAttackDelay).toBeGreaterThan(byId.get('round-hedgehog')?.initialAttackDelay ?? 0);
+    expect(byId.get('puff-flower')?.initialAttackDelay).toBeGreaterThan(byId.get('whirl-leaf')?.initialAttackDelay ?? 0);
+    expect(byId.get('acorn-squirrel')?.formationSlot).toBe('rear-center');
   });
 
   it('uses a boss-class enemy for the boss encounter', () => {
@@ -36,5 +67,6 @@ describe('enemy encounter content', () => {
     expect(boss.enemies).toHaveLength(1);
     expect(boss.enemies[0]?.scaleClass).toBe('boss');
     expect(boss.enemies[0]?.id).toBe('great-mushroom');
+    expect(boss.enemies[0]?.formationSlot).toBe('front-center');
   });
 });

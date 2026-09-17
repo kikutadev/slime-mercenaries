@@ -58,6 +58,7 @@ import {
   type EnemyRigRestPose,
 } from './enemy-motion';
 import type { EnemyBehaviorId, EnemyId, EnemyScaleClass } from './enemies';
+import type { EnemyFormationSlot } from './encounters';
 
 export interface BattleSnapshotAlly {
   hp: number;
@@ -159,6 +160,7 @@ interface EnemyUnit {
   attackRange: number;
   attackInterval: number;
   attackDamage: number;
+  initialAttackDelay: number;
   alive: boolean;
   state: UnitState;
   defeatStartedAt: number;
@@ -247,6 +249,8 @@ export interface BattleRuntimeEnemyConfig {
   scaleClass: EnemyScaleClass;
   shadowRadius: number;
   instanceIndex: number;
+  formationSlot: EnemyFormationSlot;
+  initialAttackDelay: number;
 }
 
 export interface BattleRuntimeOptions {
@@ -275,12 +279,21 @@ const MELEE_COMBAT_POSITIONS = [
   new THREE.Vector3(0, 0.02, -0.42),
   new THREE.Vector3(0.72, 0.02, -0.34),
 ] as const;
-const ENEMY_SPAWNS = [
-  new THREE.Vector3(-0.3, 0, -1.38),
-  new THREE.Vector3(0.12, 0, -1.55),
-  new THREE.Vector3(0.44, 0, -1.3),
-];
-const TARGET_HOME = ENEMY_SPAWNS[1]!;
+const ENEMY_FORMATION_POSITIONS: Readonly<Record<EnemyFormationSlot, THREE.Vector3>> = {
+  'front-left': new THREE.Vector3(-0.62, 0, -1.34),
+  'front-center': new THREE.Vector3(0, 0, -1.46),
+  'front-right': new THREE.Vector3(0.62, 0, -1.34),
+  'mid-left': new THREE.Vector3(-0.82, 0, -1.78),
+  'mid-center': new THREE.Vector3(0, 0, -1.86),
+  'mid-right': new THREE.Vector3(0.82, 0, -1.78),
+  'back-left': new THREE.Vector3(-0.68, 0, -2.18),
+  'back-center': new THREE.Vector3(0, 0, -2.26),
+  'back-right': new THREE.Vector3(0.68, 0, -2.18),
+  'rear-left': new THREE.Vector3(-0.94, 0, -2.52),
+  'rear-center': new THREE.Vector3(0, 0, -2.60),
+  'rear-right': new THREE.Vector3(0.94, 0, -2.52),
+};
+const TARGET_HOME = ENEMY_FORMATION_POSITIONS['front-center'];
 const ENEMY_MAX_HP = 4;
 const ENEMY_ATTACK_RANGE = 0.72;
 const ENEMY_MOVE_SPEED = 0.74;
@@ -526,9 +539,8 @@ export class BattleRuntime {
     return shadow;
   }
 
-  private enemyHome(index: number): THREE.Vector3 {
-    const fallback = new THREE.Vector3(((index % 5) - 2) * 0.42, 0, -2.45 - Math.floor(index / 5) * 0.34);
-    return (ENEMY_SPAWNS[index] ?? fallback).clone();
+  private enemyHome(formationSlot: EnemyFormationSlot): THREE.Vector3 {
+    return ENEMY_FORMATION_POSITIONS[formationSlot].clone();
   }
 
   /** Load each authored enemy GLB once per battle runtime, then clone its scene for each unit. */
@@ -543,7 +555,7 @@ export class BattleRuntime {
   }
 
   private async loadEnemy(config: BattleRuntimeEnemyConfig): Promise<EnemyUnit> {
-    const home = this.enemyHome(config.instanceIndex);
+    const home = this.enemyHome(config.formationSlot);
     const template = await this.loadEnemyTemplate(config.asset);
     const root = template.clone(true) as THREE.Group;
     root.name = `EnemyRuntime:${config.enemyId}:${config.instanceIndex}`;
@@ -581,6 +593,7 @@ export class BattleRuntime {
       effectOrigin, motionProfile, rigParts, rigRest, shadow, home,
       baseScale: config.renderScale, maxHp: config.maxHp, hp: config.maxHp, moveSpeed: config.moveSpeed,
       attackRange: config.attackRange, attackInterval: config.attackInterval, attackDamage: config.attackDamage,
+      initialAttackDelay: config.initialAttackDelay,
       alive: true, state: 'idle', defeatStartedAt: -Infinity, hitStartedAt: -Infinity,
       attackStartedAt: -Infinity, attackOrigin: home.clone(), attackTarget: null, attackHitApplied: false,
       nextAttackAt: 0, lastUpdateAt: 0, normalEyes, xEyes,
@@ -1079,8 +1092,8 @@ export class BattleRuntime {
       const firstEnemy = this.findNearest(ally, this.getLivingEnemies());
       if (firstEnemy) this.facePoint(ally, firstEnemy.root.position);
     });
-    this.enemies.forEach((enemy, index) => {
-      enemy.nextAttackAt = now + 0.82 + index * 0.2;
+    this.enemies.forEach((enemy) => {
+      enemy.nextAttackAt = now + 0.82 + enemy.initialAttackDelay;
       enemy.lastUpdateAt = now;
     });
     this.emitSnapshot(true);
@@ -1107,11 +1120,11 @@ export class BattleRuntime {
       });
       this.phase = 'combat';
       this.phaseStartedAt = now;
-      this.enemies.forEach((enemy, index) => {
+      this.enemies.forEach((enemy) => {
         enemy.attackStartedAt = -Infinity;
         enemy.attackTarget = null;
         enemy.attackHitApplied = false;
-        enemy.nextAttackAt = now + 0.38 + index * 0.18;
+        enemy.nextAttackAt = now + enemy.initialAttackDelay;
         enemy.lastUpdateAt = now;
       });
       this.emitSnapshot(true);
@@ -2276,7 +2289,7 @@ export class BattleRuntime {
     enemy.attackStartedAt = -Infinity;
     enemy.attackTarget = null;
     enemy.attackHitApplied = false;
-    enemy.nextAttackAt = now + 0.8 + enemy.index * 0.11;
+    enemy.nextAttackAt = now + enemy.initialAttackDelay;
     enemy.lastUpdateAt = now;
     enemy.root.visible = true;
     enemy.root.position.copy(enemy.home);

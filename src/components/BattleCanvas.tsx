@@ -53,6 +53,8 @@ function BattleRuntimeScene({ model, onSnapshot }: BattleCanvasProps) {
         scaleClass: enemy.scaleClass,
         shadowRadius: enemy.shadowRadius,
         instanceIndex: enemy.instanceIndex,
+        formationSlot: enemy.formationSlot,
+        initialAttackDelay: enemy.initialAttackDelay,
       })) ?? [],
       onSnapshot: (snapshot) => snapshotRef.current(snapshot),
     });

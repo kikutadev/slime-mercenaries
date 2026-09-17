@@ -974,3 +974,26 @@ Polish acceptance:
 
 The shared worktree is the integration source; per-family child chats do not commit or deploy independently.
 
+## 21. Clover Road encounter choreography round — 2026-09-18
+
+After family production polish, Stage 2–5 encounter presentation was rebuilt so the new enemies are introduced as gameplay reads rather than a flat roster shuffle.
+
+Implemented:
+
+- semantic enemy formation slots: `front / mid / back / rear`, each with left/center/right positions
+- per-group first-attack delay and stagger, while preserving each enemy's normal repeated attack interval
+- Stage 2 first wave now spotlights Leafling before Whirl Leaf appears as a backliner
+- Stage 3 first wave spotlights Bud Bloom before Puff Flower pollen is introduced from the back row
+- Stage 4 first wave spotlights Round Hedgehog before Acorn Squirrel is introduced behind the rolling frontline
+- Stage 5 ranged-only wall was replaced with a front/mid/back/rear gauntlet; spore/gust/pollen/acorn pressure begins sequentially instead of on one frame
+- HP, enemy stats, stage work, rewards, and offline simulation balance remain unchanged
+
+Acceptance:
+
+- all authored enemies in an encounter occupy unique formation slots
+- first-attack delays are bounded and covered by content tests
+- family spotlight waves are locked by tests
+- Stage 5 frontline/backline ordering is locked by tests
+- portrait 430x932 runtime captures completed for Stage 2, 3, 4, Stage 5 gauntlet, and the 10-enemy finale
+- fresh-browser QA reproduced zero failed requests after the initial dev-server warmup
+- latest full gate: 87 / 87 tests PASS, typecheck PASS, 10 / 10 GLB validation PASS, production build PASS

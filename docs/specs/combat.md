@@ -1,7 +1,7 @@
 # Combat Specification
 
 Status: Current
-Date: 2026-09-16
+Date: 2026-09-18
 
 ## 1. Combat goal
 
@@ -138,6 +138,38 @@ last enemy defeat
 ```
 
 No result modal for normal waves.
+
+### 8.1 Encounter staging
+
+Enemy composition owns presentation choreography independently from economy balance. A visual encounter may specify semantic formation slots and a minimum first-attack delay without changing HP, work, rewards, or offline simulation values.
+
+Enemy formation uses four depth bands:
+
+```text
+front:  melee pressure / family showcase
+mid:    second-rank support / mixed melee
+back:   readable ranged line
+rear:   one late pressure source when the wave needs extra depth
+```
+
+Rules:
+
+- a newly introduced family gets one readable spotlight wave before it is mixed with older families
+- melee/frontline bodies should establish the contact shape before ranged VFX begin
+- ranged enemies should not release every projectile on the same frame; first attacks are deliberately staggered
+- formation slots are authored per encounter when role readability matters; simple onboarding waves may use automatic front-to-rear placement
+- Stage 5 should read as a mixed gauntlet with front/mid/back roles, not as a wall of simultaneous projectiles
+- presentation staging must not become a second combat balance system; subsequent attack cadence remains owned by the enemy definition/motion profile
+
+Current Clover Road progression:
+
+```text
+Stage 1  Mushroom onboarding
+Stage 2  Leaf spotlight -> Whirl Leaf backline -> mushroom/leaf mix
+Stage 3  Flower spotlight -> Puff Flower backline -> plant/spore mix
+Stage 4  Critter spotlight -> Acorn Squirrel backline -> forest mix
+Stage 5  mixed frontline/backline gauntlet -> Great Mushroom checkpoint
+```
 
 ## 9. Bosses
 
