@@ -1,0 +1,2 @@
+import {describe,it,expect} from 'vitest'; import {getCritterMotionProfile} from './critter';
+for(const id of ['critter-roll','critter-acorn'] as const){describe(id,()=>{it('keeps secondary motion finite',()=>{const p=getCritterMotionProfile(id);expect(p.contactU).toBeGreaterThan(0);for(let i=0;i<=20;i++){const u=i/20;for(const pose of [p.attack(u),p.hit(u,-1),p.defeat(u,1)])for(const v of Object.values(pose).filter(v=>typeof v==='number'))expect(Number.isFinite(v)).toBe(true)}})})}
