@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#52477c',
   inspectionFacingYawDegrees: 90,
   inspectionSideDistance: 1.16,
-  equipmentAnchor: null,
+  equipmentAnchor: 'WeaponAnchor',
   weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. Asymmetric twin daggers and deeper hood folds establish the Rogue branch; sidestep and back-attack behavior remain production-runtime work.',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production Rogue Twin Strike: primary and OffhandAnchor alternate across a fast two-hit sidestep combo.',
 };
 
 export default definition;

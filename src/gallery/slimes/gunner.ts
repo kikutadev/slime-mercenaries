@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#9a6b3c',
   inspectionFacingYawDegrees: 90,
   inspectionSideDistance: 1.34,
-  equipmentAnchor: null,
+  equipmentAnchor: 'GunAnchor',
   weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. Protective goggles and a compact repeating carbine establish the sustained-fire branch; the 3–5 shot burst and recoil cadence remain production-runtime work.',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production Gunner Burst: three authored muzzle releases with individual recoil and shared bullet/muzzle-flash VFX.',
 };
 
 export default definition;

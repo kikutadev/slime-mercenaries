@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#725ac7',
   inspectionFacingYawDegrees: 90,
   inspectionSideDistance: 1.22,
-  equipmentAnchor: null,
+  equipmentAnchor: 'WandAnchor',
   weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. Taller hat, stronger wand and independent floating rune establish the Mage branch; splash casting and rune motion remain production-runtime work.',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production Mage Cast: authored MageRuneAnchor charges and spins, then the shared magic orb resolves as a small AoE in BattleRuntime.',
 };
 
 export default definition;

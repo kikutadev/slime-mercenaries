@@ -437,3 +437,14 @@ The initiative is complete when:
 - all accepted forms are viewable under `/slime-mercenaries/gallery/`
 - only built output is deployed publicly
 - all forms satisfy model and production acceptance gates
+
+## Animation production quality gate — tier escalation
+
+Model completion alone is not a release condition. Every combat form must make its job identity readable from motion, timing and VFX even with the name hidden.
+
+- **Tier 1 — core grammar:** one clear anticipation, one primary action, one recovery. Keep VFX restrained to one readable contact/projectile cue. The purpose is to establish each branch's basic physical language.
+- **Tier 2 — specialization:** do not ship a faster Tier-1 replay. Require at least one branch-specific secondary motion (off-hand, rune, shield pulse, recoil cadence, sidestep, etc.) plus a second VFX layer or multi-beat payoff. The job should be identifiable from the animation alone.
+- **Tier 3 — signature sequence:** require a unique 3+ beat sequence (anticipation → signature action → secondary payoff → recovery), dedicated VFX vocabulary, stronger timing contrast, and a visibly richer aftermath. Tier-3 motion must not be representable as “Tier-2 with larger numbers.”
+- **Rare / mutation forms:** may break the branch grammar entirely. Their body/equipment motion, environmental VFX or camera accent should communicate rarity before UI text is read.
+
+Quality review is performed in both **Battle** and **3/4 Inspect** views at mobile width. Acceptance requires readable silhouette, no clipping, correct attack direction, visible secondary motion, and VFX that retain their intended color on the production background. Gallery-only substitute animation is prohibited; the gallery must execute the same shared production motion/VFX implementation as `BattleRuntime`.

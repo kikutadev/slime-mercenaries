@@ -7,9 +7,18 @@ import {
   SLIME_MOTION_THRESHOLDS,
   applyDeformationPose,
   applyEquipmentPose,
+  applyMageRunePose,
+  applyGuardPulseVfx,
+  applyMageCastSigil,
+  applyRogueSlashVfx,
   clearMorphs,
   clamp01,
   createGreatswordSpinArc,
+  createGuardPulseVfx,
+  createMageCastSigil,
+  createMageOrbVfx,
+  createRogueSlashArc,
+  createGunnerTracerMesh,
   createGunBulletMesh,
   createMagicOrbMesh,
   createMuzzleFlashMesh,
@@ -20,13 +29,18 @@ import {
   getBowAttackMotion,
   getDaggerAttackMotion,
   getFighterAttackMotion,
+  getGuardianAttackMotion,
   getGreatswordAttackMotion,
   getGreatswordSpinVfxPose,
   getGunAttackMotion,
+  getGunnerAttackMotion,
+  getGunnerShotReleaseU,
   getHopTravelMotion,
   getIdleMotion,
+  getMageAttackMotion,
   getRangerAttackMotion,
   getRangerShotReleaseU,
+  getRogueAttackMotion,
   getShieldAttackMotion,
   getSwordAttackMotion,
   getWandAttackMotion,
@@ -41,6 +55,8 @@ interface ModelParts {
   body: MorphMesh | null;
   faceRoot: THREE.Object3D | null;
   equipment: THREE.Object3D | null;
+  secondaryEquipment: THREE.Object3D | null;
+  mageRune: THREE.Object3D | null;
   weaponTip: THREE.Object3D | null;
   projectileOrigin: THREE.Object3D | null;
   spellOrigin: THREE.Object3D | null;
@@ -51,6 +67,10 @@ interface ModelParts {
   faceBaseScale: THREE.Vector3;
   equipmentBaseQuaternion: THREE.Quaternion;
   equipmentBasePosition: THREE.Vector3;
+  secondaryEquipmentBaseQuaternion: THREE.Quaternion;
+  secondaryEquipmentBasePosition: THREE.Vector3;
+  mageRuneBaseQuaternion: THREE.Quaternion;
+  mageRuneBaseScale: THREE.Vector3;
 }
 
 interface StageProps {
@@ -72,6 +92,16 @@ const yAxis = new THREE.Vector3(0, 1, 0);
 const tempA = new THREE.Vector3();
 const tempB = new THREE.Vector3();
 const tempQ = new THREE.Quaternion();
+
+
+function disposeObjectResources(root: THREE.Object3D): void {
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    object.geometry.dispose();
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    materials.forEach((material) => material.dispose());
+  });
+}
 
 function buildDefeatEyes(model: THREE.Object3D): { normalEyes: THREE.Object3D[]; xEyes: THREE.Group[] } {
   const normalEyes = ['Eye_L', 'Eye_R']
@@ -101,6 +131,8 @@ function collectParts(model: THREE.Object3D, definition: SlimeGalleryDefinition)
   const body = model.getObjectByName('Body') as MorphMesh | null;
   const faceRoot = model.getObjectByName('FaceRoot') ?? null;
   const equipment = definition.equipmentAnchor ? model.getObjectByName(definition.equipmentAnchor) ?? null : null;
+  const secondaryEquipment = model.getObjectByName('OffhandAnchor') ?? null;
+  const mageRune = model.getObjectByName('MageRuneAnchor') ?? null;
   const weaponTip = definition.weaponTipName ? model.getObjectByName(definition.weaponTipName) ?? null : null;
   const projectileOrigin = model.getObjectByName('ProjectileOrigin') ?? null;
   const spellOrigin = model.getObjectByName('SpellOrigin') ?? null;
@@ -109,6 +141,8 @@ function collectParts(model: THREE.Object3D, definition: SlimeGalleryDefinition)
     body,
     faceRoot,
     equipment,
+    secondaryEquipment,
+    mageRune,
     weaponTip,
     projectileOrigin,
     spellOrigin,
@@ -119,6 +153,10 @@ function collectParts(model: THREE.Object3D, definition: SlimeGalleryDefinition)
     faceBaseScale: faceRoot?.scale.clone() ?? new THREE.Vector3(1, 1, 1),
     equipmentBaseQuaternion: equipment?.quaternion.clone() ?? new THREE.Quaternion(),
     equipmentBasePosition: equipment?.position.clone() ?? new THREE.Vector3(),
+    secondaryEquipmentBaseQuaternion: secondaryEquipment?.quaternion.clone() ?? new THREE.Quaternion(),
+    secondaryEquipmentBasePosition: secondaryEquipment?.position.clone() ?? new THREE.Vector3(),
+    mageRuneBaseQuaternion: mageRune?.quaternion.clone() ?? new THREE.Quaternion(),
+    mageRuneBaseScale: mageRune?.scale.clone() ?? new THREE.Vector3(1, 1, 1),
   };
 }
 
@@ -146,6 +184,9 @@ function resetParts(parts: ModelParts): void {
   }
   parts.equipment?.quaternion.copy(parts.equipmentBaseQuaternion);
   if (parts.equipment) parts.equipment.position.copy(parts.equipmentBasePosition);
+  parts.secondaryEquipment?.quaternion.copy(parts.secondaryEquipmentBaseQuaternion);
+  if (parts.secondaryEquipment) parts.secondaryEquipment.position.copy(parts.secondaryEquipmentBasePosition);
+  applyMageRunePose(parts.mageRune, parts.mageRuneBaseQuaternion, parts.mageRuneBaseScale, 0, 0);
   parts.normalEyes.forEach((eye) => { eye.visible = true; });
   parts.xEyes.forEach((eye) => { eye.visible = false; });
 }
@@ -166,6 +207,16 @@ function clipDuration(motion: GalleryMotionId, definition: SlimeGalleryDefinitio
   if (motion === 'defeat') return SLIME_MOTION_TIMING.allyDefeat;
   if (motion === 'attack') {
     if (definition.id === 'fighter') return SLIME_MOTION_TIMING.fighterAttack;
+    if (definition.id === 'guardian') return SLIME_MOTION_TIMING.guardianAttack;
+    if (definition.id === 'mage') {
+      const releaseAt = SLIME_MOTION_TIMING.mageAttack * SLIME_MOTION_THRESHOLDS.mageReleaseU;
+      return releaseAt + SLIME_MOTION_TIMING.magicOrbFlight;
+    }
+    if (definition.id === 'rogue') return SLIME_MOTION_TIMING.rogueAttack;
+    if (definition.id === 'gunner') {
+      const releaseAt = SLIME_MOTION_TIMING.gunnerAttack * getGunnerShotReleaseU(2);
+      return releaseAt + SLIME_MOTION_TIMING.bulletFlight;
+    }
     if (definition.id === 'ranger') {
       return SLIME_MOTION_TIMING.rangerAttack * getRangerShotReleaseU(1) + SLIME_MOTION_TIMING.arrowFlight;
     }
@@ -238,6 +289,11 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
   const dummyRef = useRef<THREE.Group>(null);
   const slash = useMemo(() => createSwordSlashArc(), []);
   const spin = useMemo(() => createGreatswordSpinArc(), []);
+  const guardPulse = useMemo(() => createGuardPulseVfx(), []);
+  const mageCastSigil = useMemo(() => createMageCastSigil(), []);
+  const mageOrb = useMemo(() => createMageOrbVfx(), []);
+  const rogueSlash = useMemo(() => createRogueSlashArc(), []);
+  const gunnerTracer = useMemo(() => createGunnerTracerMesh(), []);
   const arrow = useMemo(() => createSlimeArrowMesh(), []);
   const magicOrb = useMemo(() => createMagicOrbMesh(), []);
   const bullet = useMemo(() => createGunBulletMesh(), []);
@@ -274,13 +330,20 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
     slash.material.dispose();
     spin.geometry.dispose();
     spin.material.dispose();
+    disposeObjectResources(guardPulse);
+    disposeObjectResources(mageCastSigil);
+    disposeObjectResources(mageOrb);
+    rogueSlash.geometry.dispose();
+    rogueSlash.material.dispose();
+    gunnerTracer.geometry.dispose();
+    gunnerTracer.material.dispose();
     magicOrb.geometry.dispose();
     magicOrb.material.dispose();
     bullet.geometry.dispose();
     bullet.material.dispose();
     muzzleFlash.geometry.dispose();
     muzzleFlash.material.dispose();
-  }, [bullet, magicOrb, muzzleFlash, slash, spin]);
+  }, [bullet, guardPulse, gunnerTracer, mageCastSigil, mageOrb, magicOrb, muzzleFlash, rogueSlash, slash, spin]);
 
   useFrame(({ clock, camera }) => {
     const root = rootRef.current;
@@ -305,6 +368,11 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
     }
     slash.visible = false; slash.material.opacity = 0;
     spin.visible = false; spin.material.opacity = 0;
+    applyGuardPulseVfx(guardPulse, 0, 1);
+    applyMageCastSigil(mageCastSigil, 0, 0);
+    mageOrb.visible = false;
+    rogueSlash.visible = false; rogueSlash.material.opacity = 0;
+    gunnerTracer.visible = false; gunnerTracer.material.opacity = 0;
     arrow.visible = false;
     magicOrb.visible = false;
     bullet.visible = false;
@@ -404,6 +472,108 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
         arrow.position.y += getArrowArcHeight(flightU);
         tempQ.setFromUnitVectors(yAxis, tempB.clone().sub(tempA).normalize());
         arrow.quaternion.copy(tempQ);
+      }
+      return;
+    }
+
+    if (definition.id === 'guardian') {
+      const u = clamp01(local / SLIME_MOTION_TIMING.guardianAttack);
+      const pose = getGuardianAttackMotion(u);
+      root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
+      applyPose(parts, definition, pose);
+      guardPulse.position.copy(root.position);
+      guardPulse.position.y = 0.025;
+      applyGuardPulseVfx(guardPulse, pose.guardPulse, pose.guardPulseProgress);
+      return;
+    }
+
+    if (definition.id === 'mage') {
+      const attackTime = Math.min(local, SLIME_MOTION_TIMING.mageAttack);
+      const u = clamp01(attackTime / SLIME_MOTION_TIMING.mageAttack);
+      const pose = getMageAttackMotion(u);
+      root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
+      applyPose(parts, definition, pose);
+      applyMageRunePose(parts.mageRune, parts.mageRuneBaseQuaternion, parts.mageRuneBaseScale, pose.runeRotation, pose.runePulse);
+      root.updateMatrixWorld(true);
+      if (parts.spellOrigin) parts.spellOrigin.getWorldPosition(tempA);
+      else tempA.copy(root.position);
+      mageCastSigil.position.copy(tempA);
+      mageCastSigil.quaternion.copy(camera.quaternion);
+      applyMageCastSigil(mageCastSigil, pose.runePulse, pose.runeRotation);
+      const releaseAt = SLIME_MOTION_TIMING.mageAttack * SLIME_MOTION_THRESHOLDS.mageReleaseU;
+      if (local >= releaseAt) {
+        const flightU = clamp01((local - releaseAt) / SLIME_MOTION_TIMING.magicOrbFlight);
+        tempB.copy(dummyHome).add(new THREE.Vector3(0, 0.28, 0));
+        mageOrb.visible = flightU < 1;
+        mageOrb.position.lerpVectors(tempA, tempB, flightU);
+        mageOrb.position.y += getArrowArcHeight(flightU) * 0.45;
+        mageOrb.rotation.y += 0.09;
+      }
+      return;
+    }
+
+    if (definition.id === 'rogue') {
+      const u = clamp01(local / SLIME_MOTION_TIMING.rogueAttack);
+      const pose = getRogueAttackMotion(u);
+      tempB.set(-forward.z, 0, forward.x);
+      root.position.copy(GALLERY_HOME)
+        .addScaledVector(forward, pose.bodyOffset)
+        .addScaledVector(tempB, pose.lateralOffset);
+      applyPose(parts, definition, pose);
+      applyEquipmentPose(
+        parts.secondaryEquipment,
+        parts.secondaryEquipmentBaseQuaternion,
+        parts.secondaryEquipmentBasePosition,
+        'dagger',
+        pose.secondaryEquipment,
+      );
+      root.updateMatrixWorld(true);
+      const rogueAnchor = pose.comboHit === 1 ? parts.secondaryEquipment : parts.equipment;
+      (rogueAnchor ?? root).getWorldPosition(tempA);
+      tempA.y += 0.02;
+      applyRogueSlashVfx(rogueSlash, pose, camera.quaternion, tempA);
+      return;
+    }
+
+    if (definition.id === 'gunner') {
+      const attackTime = Math.min(local, SLIME_MOTION_TIMING.gunnerAttack);
+      const u = clamp01(attackTime / SLIME_MOTION_TIMING.gunnerAttack);
+      const pose = getGunnerAttackMotion(u);
+      root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
+      applyPose(parts, definition, pose);
+      root.updateMatrixWorld(true);
+      for (const shotIndex of [0, 1, 2] as const) {
+        const releaseAt = SLIME_MOTION_TIMING.gunnerAttack * getGunnerShotReleaseU(shotIndex);
+        if (local < releaseAt || local >= releaseAt + SLIME_MOTION_TIMING.bulletFlight) continue;
+        const flightU = clamp01((local - releaseAt) / SLIME_MOTION_TIMING.bulletFlight);
+        if (parts.projectileOrigin) parts.projectileOrigin.getWorldPosition(tempA);
+        else if (parts.equipment) parts.equipment.getWorldPosition(tempA);
+        else tempA.copy(root.position);
+        tempB.copy(dummyHome).add(new THREE.Vector3(0, 0.25, 0));
+        bullet.visible = flightU < 1;
+        bullet.position.lerpVectors(tempA, tempB, flightU);
+        bullet.scale.setScalar(1.65);
+        const shotElapsed = local - releaseAt;
+        if (shotElapsed >= 0 && shotElapsed < 0.15) {
+          tempQ.setFromUnitVectors(yAxis, tempB.clone().sub(tempA).normalize());
+          gunnerTracer.visible = true;
+          const tracerDirection = tempB.clone().sub(tempA);
+          const tracerLength = Math.min(0.72, tracerDirection.length() * 0.58);
+          tracerDirection.normalize();
+          gunnerTracer.position.copy(tempA).addScaledVector(tracerDirection, tracerLength * 0.5);
+          gunnerTracer.quaternion.copy(tempQ);
+          gunnerTracer.scale.set(1, tracerLength / 0.20, 1);
+          gunnerTracer.material.opacity = (1 - shotElapsed / 0.15) * 0.96;
+        }
+        if (pose.muzzlePulse > 0.01 && pose.shotIndex === shotIndex) {
+          muzzleFlash.visible = true;
+          muzzleFlash.position.copy(tempA);
+          tempQ.setFromUnitVectors(yAxis, tempB.clone().sub(tempA).normalize());
+          muzzleFlash.quaternion.copy(tempQ);
+          muzzleFlash.scale.setScalar(1.00 + pose.muzzlePulse * 1.20);
+          muzzleFlash.material.opacity = pose.muzzlePulse * 1.0;
+        }
+        break;
       }
       return;
     }
@@ -538,6 +708,11 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       </group>
       <primitive object={slash} />
       <primitive object={spin} />
+      <primitive object={guardPulse} />
+      <primitive object={mageCastSigil} />
+      <primitive object={mageOrb} />
+      <primitive object={rogueSlash} />
+      <primitive object={gunnerTracer} />
       <primitive object={arrow} />
       <primitive object={magicOrb} />
       <primitive object={bullet} />

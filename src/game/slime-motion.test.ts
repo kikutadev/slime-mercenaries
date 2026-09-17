@@ -4,8 +4,13 @@ import {
   getDaggerAttackMotion,
   getFighterAttackMotion,
   getGunAttackMotion,
+  getGunnerAttackMotion,
+  getGunnerShotReleaseU,
+  getGuardianAttackMotion,
+  getMageAttackMotion,
   getRangerAttackMotion,
   getRangerShotReleaseU,
+  getRogueAttackMotion,
   getShieldAttackMotion,
   getWandAttackMotion,
   type EquipmentPose,
@@ -48,6 +53,30 @@ describe('production branch motion poses', () => {
     expect(rangerSecond.shotIndex).toBe(1);
     expect(getRangerShotReleaseU(0)).toBeLessThan(getRangerShotReleaseU(1));
     expect(getRangerShotReleaseU(1)).toBeLessThan(1);
+  });
+
+
+  it('keeps Guardian, Mage, Rogue, and Gunner production signatures distinct', () => {
+    const guardian = getGuardianAttackMotion(SLIME_MOTION_THRESHOLDS.guardianContactU + 0.08);
+    expect(guardian.guardPulse).toBeGreaterThan(0);
+    expect(guardian.bodyOffset).toBeGreaterThan(0.05);
+
+    const mage = getMageAttackMotion(SLIME_MOTION_THRESHOLDS.mageReleaseU);
+    expect(mage.runePulse).toBeGreaterThan(0);
+    expect(Number.isFinite(mage.runeRotation)).toBe(true);
+
+    const rogueFirst = getRogueAttackMotion(0.30);
+    const rogueSecond = getRogueAttackMotion(0.72);
+    expect(rogueFirst.comboHit).toBe(0);
+    expect(rogueSecond.comboHit).toBe(1);
+    expect(Math.sign(rogueFirst.deformation.lean)).not.toBe(Math.sign(rogueSecond.deformation.lean));
+
+    const gunner = getGunnerAttackMotion(0.52);
+    finitePose(gunner);
+    expect(gunner.shotIndex).toBe(1);
+    expect(getGunnerShotReleaseU(0)).toBeLessThan(getGunnerShotReleaseU(1));
+    expect(getGunnerShotReleaseU(1)).toBeLessThan(getGunnerShotReleaseU(2));
+    expect(getGunnerShotReleaseU(2)).toBeLessThan(1);
   });
 
 });

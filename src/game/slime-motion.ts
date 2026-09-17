@@ -63,9 +63,19 @@ export interface ShieldAttackMotionPose extends IdleMotionPose {
   contactProgress: number;
 }
 
+export interface GuardianAttackMotionPose extends ShieldAttackMotionPose {
+  guardPulse: number;
+  guardPulseProgress: number;
+}
+
 export interface WandAttackMotionPose extends IdleMotionPose {
   bodyOffset: number;
   castProgress: number;
+}
+
+export interface MageAttackMotionPose extends WandAttackMotionPose {
+  runeRotation: number;
+  runePulse: number;
 }
 
 export interface DaggerAttackMotionPose extends IdleMotionPose {
@@ -73,8 +83,23 @@ export interface DaggerAttackMotionPose extends IdleMotionPose {
   stabProgress: number;
 }
 
+export interface RogueAttackMotionPose extends IdleMotionPose {
+  bodyOffset: number;
+  lateralOffset: number;
+  comboHit: 0 | 1;
+  hitProgress: number;
+  secondaryEquipment: EquipmentPose;
+}
+
 export interface GunAttackMotionPose extends IdleMotionPose {
   bodyOffset: number;
+  shotProgress: number;
+  muzzlePulse: number;
+}
+
+export interface GunnerAttackMotionPose extends IdleMotionPose {
+  bodyOffset: number;
+  shotIndex: 0 | 1 | 2;
   shotProgress: number;
   muzzlePulse: number;
 }
@@ -98,6 +123,10 @@ export const SLIME_MOTION_TIMING = {
   wandAttack: 0.82,
   daggerAttack: 0.62,
   gunAttack: 0.70,
+  guardianAttack: 0.86,
+  mageAttack: 1.02,
+  rogueAttack: 0.72,
+  gunnerAttack: 0.96,
   allyDefeat: 0.72,
   arrowFlight: 0.38,
   magicOrbFlight: 0.44,
@@ -114,6 +143,9 @@ export const SLIME_MOTION_THRESHOLDS = {
   wandReleaseU: 0.54,
   daggerContactU: 0.42,
   gunReleaseU: 0.40,
+  guardianContactU: 0.46,
+  mageReleaseU: 0.56,
+  rogueHitProgress: 0.42,
 } as const;
 
 export interface SwordSlashVfxPose {
@@ -228,6 +260,20 @@ export function applyEquipmentPose(
   }
   equipment.position.copy(basePosition);
   equipment.position.y += pose.lift;
+}
+
+export function applyMageRunePose(
+  rune: THREE.Object3D | null,
+  baseQuaternion: THREE.Quaternion,
+  baseScale: THREE.Vector3,
+  rotation: number,
+  pulse: number,
+): void {
+  if (!rune) return;
+  tempQuaternion.setFromAxisAngle(localZAxis, rotation);
+  rune.quaternion.copy(baseQuaternion).multiply(tempQuaternion);
+  const scale = 1 + pulse * 0.18;
+  rune.scale.copy(baseScale).multiplyScalar(scale);
 }
 
 export function getIdleMotion(now: number, phaseOffset = 0): IdleMotionPose {
@@ -488,6 +534,29 @@ export function getShieldAttackMotion(uInput: number): ShieldAttackMotionPose {
   };
 }
 
+export function getGuardianAttackMotion(uInput: number): GuardianAttackMotionPose {
+  const u = clamp01(uInput);
+  const base = getShieldAttackMotion(u);
+  const pulseU = clamp01((u - SLIME_MOTION_THRESHOLDS.guardianContactU) / 0.34);
+  const guardPulse = pulseU > 0 && pulseU < 1 ? Math.sin(pulseU * Math.PI) : 0;
+  return {
+    ...base,
+    bodyOffset: base.bodyOffset * 0.88,
+    guardPulse,
+    guardPulseProgress: pulseU,
+    deformation: {
+      ...base.deformation,
+      squash: Math.min(1, base.deformation.squash * 1.12 + guardPulse * 0.05),
+      lean: base.deformation.lean * 0.72,
+      wobble: guardPulse * 0.035,
+    },
+    equipment: {
+      ...base.equipment,
+      angle: base.equipment.angle * 0.78,
+    },
+  };
+}
+
 export function getWandAttackMotion(uInput: number): WandAttackMotionPose {
   const u = clamp01(uInput);
   const charge = clamp01(u / 0.42);
@@ -513,6 +582,32 @@ export function getWandAttackMotion(uInput: number): WandAttackMotionPose {
       angle: THREE.MathUtils.lerp(angleBeforeRecover, 0, recoverEase),
       lift: 0.018 * charge + 0.022 * releaseKick,
       sweep: THREE.MathUtils.lerp(-0.08 * charge + 0.16 * castEase, 0, recoverEase),
+    },
+  };
+}
+
+export function getMageAttackMotion(uInput: number): MageAttackMotionPose {
+  const u = clamp01(uInput);
+  const base = getWandAttackMotion(u);
+  const charge = Math.sin(Math.min(1, u / 0.54) * Math.PI * 0.5);
+  const releasePulse = Math.sin(clamp01((u - 0.50) / 0.24) * Math.PI);
+  const recovery = clamp01((u - 0.70) / 0.30);
+  return {
+    ...base,
+    bodyOffset: base.bodyOffset * 0.72,
+    castProgress: u < 0.46 ? -1 : clamp01((u - 0.46) / 0.24),
+    runeRotation: u * Math.PI * 1.35,
+    runePulse: Math.max(charge * (1 - recovery), releasePulse),
+    deformation: {
+      ...base.deformation,
+      squash: base.deformation.squash * 0.82 + charge * 0.04 * (1 - recovery),
+      stretch: Math.max(base.deformation.stretch, releasePulse * 0.20),
+      wobble: Math.sin(u * Math.PI * 4) * 0.035 * (1 - recovery),
+    },
+    equipment: {
+      ...base.equipment,
+      angle: base.equipment.angle * 1.16,
+      lift: base.equipment.lift + charge * 0.010,
     },
   };
 }
@@ -558,6 +653,34 @@ export function getDaggerAttackMotion(uInput: number): DaggerAttackMotionPose {
   };
 }
 
+export function getRogueAttackMotion(uInput: number): RogueAttackMotionPose {
+  const u = clamp01(uInput);
+  const firstPhaseEnd = 0.48;
+  const comboHit: 0 | 1 = u < firstPhaseEnd ? 0 : 1;
+  const localU = comboHit === 0 ? u / firstPhaseEnd : (u - firstPhaseEnd) / (1 - firstPhaseEnd);
+  const base = getDaggerAttackMotion(localU);
+  const activeDirection = comboHit === 0 ? 1 : -1;
+  const counterAngle = Math.sin(localU * Math.PI) * 0.16;
+  const secondaryActive = comboHit === 1;
+  return {
+    bodyOffset: base.bodyOffset * 0.84,
+    lateralOffset: Math.sin(u * Math.PI * 2) * 0.075,
+    comboHit,
+    hitProgress: base.stabProgress,
+    deformation: {
+      ...base.deformation,
+      lean: base.deformation.lean * activeDirection,
+      wobble: base.deformation.wobble + activeDirection * Math.sin(localU * Math.PI) * 0.025,
+    },
+    equipment: secondaryActive
+      ? { angle: -counterAngle, lift: 0, sweep: -counterAngle * 0.35 }
+      : base.equipment,
+    secondaryEquipment: secondaryActive
+      ? { angle: -base.equipment.angle, lift: base.equipment.lift, sweep: -base.equipment.sweep }
+      : { angle: counterAngle, lift: 0, sweep: counterAngle * 0.35 },
+  };
+}
+
 export function getGunAttackMotion(uInput: number): GunAttackMotionPose {
   const u = clamp01(uInput);
   const aim = clamp01(u / 0.32);
@@ -584,6 +707,36 @@ export function getGunAttackMotion(uInput: number): GunAttackMotionPose {
       sweep: 0,
     },
   };
+}
+
+export function getGunnerAttackMotion(uInput: number): GunnerAttackMotionPose {
+  const u = clamp01(uInput);
+  const segment = Math.min(2, Math.floor(u * 3)) as 0 | 1 | 2;
+  const segmentStart = segment / 3;
+  const segmentEnd = (segment + 1) / 3;
+  const localU = segment === 2 && u >= 1 ? 1 : clamp01((u - segmentStart) / (segmentEnd - segmentStart));
+  const base = getGunAttackMotion(localU);
+  const burstSettle = 1 - u;
+  return {
+    bodyOffset: base.bodyOffset * (0.62 + segment * 0.06),
+    shotIndex: segment,
+    shotProgress: base.shotProgress,
+    muzzlePulse: base.muzzlePulse,
+    deformation: {
+      ...base.deformation,
+      squash: base.deformation.squash * 0.82,
+      lean: base.deformation.lean * 0.88,
+      wobble: base.deformation.wobble + Math.sin(u * Math.PI * 6) * 0.025 * burstSettle,
+    },
+    equipment: {
+      ...base.equipment,
+      angle: base.equipment.angle * 0.86,
+    },
+  };
+}
+
+export function getGunnerShotReleaseU(shotIndex: 0 | 1 | 2): number {
+  return (shotIndex + SLIME_MOTION_THRESHOLDS.gunReleaseU) / 3;
 }
 
 export function getAllyDefeatMotion(uInput: number, side: -1 | 1): AllyDefeatMotionPose {
@@ -653,6 +806,164 @@ export function createMuzzleFlashMesh(): THREE.Mesh<THREE.ConeGeometry, THREE.Me
   flash.visible = false;
   flash.renderOrder = 7;
   return flash;
+}
+
+export function createGuardPulseVfx(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'GuardianGuardPulseVfx';
+  group.visible = false;
+  group.renderOrder = 7;
+
+  const makeRing = (inner: number, outer: number, color: string, opacity: number) => {
+    const material = new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity, side: THREE.DoubleSide,
+      depthWrite: false, depthTest: false, blending: THREE.NormalBlending,
+    });
+    const mesh = new THREE.Mesh(new THREE.RingGeometry(inner, outer, 40), material);
+    mesh.rotation.x = -Math.PI / 2;
+    group.add(mesh);
+    return mesh;
+  };
+  const inner = makeRing(0.14, 0.20, '#ffd86a', 0);
+  inner.name = 'GuardianPulseInner';
+  const outer = makeRing(0.24, 0.29, '#5bc9ff', 0);
+  outer.name = 'GuardianPulseOuter';
+
+  const spokeMaterial = new THREE.MeshBasicMaterial({
+    color: '#c8eeff', transparent: true, opacity: 0,
+    depthWrite: false, depthTest: false, blending: THREE.NormalBlending,
+  });
+  for (let i = 0; i < 4; i += 1) {
+    const spoke = new THREE.Mesh(new THREE.PlaneGeometry(0.035, 0.42), spokeMaterial.clone());
+    spoke.name = `GuardianPulseSpoke${i + 1}`;
+    spoke.rotation.x = -Math.PI / 2;
+    spoke.rotation.z = i * Math.PI * 0.5;
+    group.add(spoke);
+  }
+  return group;
+}
+
+export function applyGuardPulseVfx(vfx: THREE.Group | null, pulse: number, progress: number): void {
+  if (!vfx) return;
+  const visible = pulse > 0.005 && progress < 1;
+  vfx.visible = visible;
+  if (!visible) return;
+  const scale = 0.74 + easeOutCubic(progress) * 2.15;
+  vfx.scale.setScalar(scale);
+  vfx.rotation.y = progress * 0.42;
+  vfx.children.forEach((child, index) => {
+    if (!(child instanceof THREE.Mesh) || !(child.material instanceof THREE.MeshBasicMaterial)) return;
+    const base = index === 0 ? 0.95 : index === 1 ? 0.70 : 0.52;
+    child.material.opacity = pulse * base;
+  });
+}
+
+export function createMageCastSigil(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'MageCastSigil';
+  group.visible = false;
+  const colors = ['#8b5cff', '#52d7ff'];
+  [0.13, 0.21].forEach((radius, index) => {
+    const material = new THREE.MeshBasicMaterial({
+      color: colors[index]!, transparent: true, opacity: 0,
+      side: THREE.DoubleSide, depthWrite: false, depthTest: false,
+      blending: THREE.NormalBlending,
+    });
+    const ring = new THREE.Mesh(new THREE.RingGeometry(radius, radius + 0.025, 36), material);
+    ring.name = `MageCastRing${index + 1}`;
+    group.add(ring);
+  });
+  for (let i = 0; i < 4; i += 1) {
+    const material = new THREE.MeshBasicMaterial({
+      color: i % 2 === 0 ? '#8f5dff' : '#35cfff', transparent: true, opacity: 0,
+      depthWrite: false, depthTest: false, blending: THREE.NormalBlending,
+    });
+    const spark = new THREE.Mesh(new THREE.PlaneGeometry(0.025, 0.11), material);
+    spark.position.set(Math.cos(i * Math.PI / 2) * 0.18, Math.sin(i * Math.PI / 2) * 0.18, 0.002);
+    spark.rotation.z = i * Math.PI / 2;
+    group.add(spark);
+  }
+  return group;
+}
+
+export function applyMageCastSigil(vfx: THREE.Group | null, pulse: number, rotation: number): void {
+  if (!vfx) return;
+  const visible = pulse > 0.02;
+  vfx.visible = visible;
+  if (!visible) return;
+  vfx.rotation.z = rotation * 0.72;
+  const scale = 0.74 + pulse * 0.62;
+  vfx.scale.setScalar(scale);
+  vfx.children.forEach((child, index) => {
+    if (!(child instanceof THREE.Mesh) || !(child.material instanceof THREE.MeshBasicMaterial)) return;
+    child.material.opacity = pulse * (index < 2 ? 0.82 : 0.60);
+  });
+}
+
+export function createMageOrbVfx(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'MageOrbVfx';
+  group.visible = false;
+  const outerMaterial = new THREE.MeshBasicMaterial({
+    color: '#5f63ff', transparent: true, opacity: 0.38, depthWrite: false,
+  });
+  const outer = new THREE.Mesh(new THREE.SphereGeometry(0.105, 18, 12), outerMaterial);
+  outer.name = 'MageOrbOuter';
+  group.add(outer);
+  const coreMaterial = new THREE.MeshBasicMaterial({ color: '#c8f5ff' });
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.055, 14, 10), coreMaterial);
+  core.name = 'MageOrbCore';
+  group.add(core);
+  return group;
+}
+
+export function createRogueSlashArc(): THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> {
+  const material = new THREE.MeshBasicMaterial({
+    color: '#8d55ff', transparent: true, opacity: 0,
+    side: THREE.DoubleSide, depthWrite: false, depthTest: false,
+    blending: THREE.NormalBlending,
+  });
+  const arc = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.030, 8, 36, Math.PI * 0.72), material);
+  arc.name = 'RogueSlashArc';
+  arc.visible = false;
+  arc.renderOrder = 7;
+  return arc;
+}
+
+export function applyRogueSlashVfx(
+  arc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null,
+  pose: RogueAttackMotionPose,
+  cameraQuaternion: THREE.Quaternion,
+  position: THREE.Vector3,
+): void {
+  if (!arc) return;
+  const active = pose.hitProgress >= 0 && pose.hitProgress < 1;
+  arc.visible = active;
+  if (!active) {
+    arc.material.opacity = 0;
+    return;
+  }
+  const pulse = Math.sin(pose.hitProgress * Math.PI);
+  arc.position.copy(position);
+  arc.quaternion.copy(cameraQuaternion);
+  arc.rotation.z = pose.comboHit === 0
+    ? -0.95 + pose.hitProgress * 1.35
+    : 1.05 - pose.hitProgress * 1.45;
+  arc.scale.set(0.86 + pulse * 0.55, 0.72 + pulse * 0.30, 1);
+  arc.material.color.set(pose.comboHit === 0 ? '#9b72ff' : '#55e0ff');
+  arc.material.opacity = pulse * 0.92;
+}
+
+export function createGunnerTracerMesh(): THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial> {
+  const material = new THREE.MeshBasicMaterial({
+    color: '#ffbd38', transparent: true, opacity: 0.96,
+    depthWrite: false, depthTest: false, blending: THREE.NormalBlending,
+  });
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.20, 0.045), material);
+  mesh.name = 'GunnerTracer';
+  mesh.visible = false;
+  mesh.renderOrder = 8;
+  return mesh;
 }
 
 /** Build the exact short slash arc used by production Sword attacks. */

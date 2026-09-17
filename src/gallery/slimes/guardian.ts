@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#c39a53',
   inspectionFacingYawDegrees: 90,
   inspectionSideDistance: 1.28,
-  equipmentAnchor: null,
+  equipmentAnchor: 'GuardianShieldAnchor',
   weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. Tower shield and compact helm create the Tier-2 defensive read; shield bash and guard pulse remain production-runtime work.',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production Guardian Bash: heavy shield check with a shared guard-pulse ring at contact.',
 };
 
 export default definition;

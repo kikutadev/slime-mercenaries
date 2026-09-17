@@ -2,7 +2,7 @@ import { ids, type JobSlimeId } from '../domain/definitions';
 import type { SlimeProgress } from '../domain/state';
 
 export type SlimeId = JobSlimeId;
-export type BattleBehaviorId = 'sword-melee' | 'fighter-combo' | 'bow-ranged' | 'ranger-double-shot' | 'shield-defender' | 'wand-magic' | 'dagger-skirmisher' | 'gun-ranged';
+export type BattleBehaviorId = 'sword-melee' | 'fighter-combo' | 'bow-ranged' | 'ranger-double-shot' | 'shield-defender' | 'guardian-guard' | 'wand-magic' | 'mage-aoe' | 'dagger-skirmisher' | 'rogue-twin-strike' | 'gun-ranged' | 'gunner-burst';
 export type FusionItemCategory = 'slime' | 'weapon' | 'material';
 export type FusionItemId =
   | typeof ids.token.swordCore
