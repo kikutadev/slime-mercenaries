@@ -10,6 +10,12 @@ const EXPECTED_MOTIONS: Readonly<Record<string, readonly string[]>> = {
   wand: ['idle'],
   dagger: ['idle'],
   gun: ['idle'],
+  fighter: ['idle'],
+  guardian: ['idle'],
+  ranger: ['idle'],
+  mage: ['idle'],
+  rogue: ['idle'],
+  gunner: ['idle'],
 };
 
 describe('slime gallery catalog', () => {

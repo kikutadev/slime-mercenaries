@@ -165,3 +165,103 @@ def create_wand_and_cap(ctx: BuildContext) -> tuple[bpy.types.Object, bpy.types.
 
     _set_spell_origin_from_wand_tip(ctx, wand)
     return wand, cap
+
+
+# Tier-2 Mage keeps the accepted Tier-1 wand geometry and evolves its presentation
+# with a larger pointed hat and one independently animatable floating rune.
+MAGE_RUNE_ANCHOR_LOCAL = Vector((0.82, -0.43, 1.02))
+
+
+def _enable_soft_emission(material: bpy.types.Material, strength: float = 1.6) -> None:
+    """Give a glTF-friendly Principled material a restrained magical self-glow."""
+    if not material.use_nodes or material.node_tree is None:
+        return
+    bsdf = material.node_tree.nodes.get("Principled BSDF")
+    if bsdf is None:
+        return
+    if "Emission Color" in bsdf.inputs:
+        bsdf.inputs["Emission Color"].default_value = tuple(bsdf.inputs["Base Color"].default_value)
+    if "Emission Strength" in bsdf.inputs:
+        bsdf.inputs["Emission Strength"].default_value = strength
+
+
+def _create_mage_rune(ctx: BuildContext) -> bpy.types.Object:
+    """Create one root-level rune glyph so runtime can orbit it independently of the hat."""
+    rune_material = ctx.material("MageRuneBlue", (0.18, 0.48, 1.0, 1.0), roughness=0.22, metallic=0.05)
+    rune_accent = ctx.material("MageRuneViolet", (0.52, 0.18, 0.96, 1.0), roughness=0.24, metallic=0.03)
+    _enable_soft_emission(rune_material, 1.8)
+    _enable_soft_emission(rune_accent, 1.45)
+
+    rune = bpy.data.objects.new("MageRuneAnchor", None)
+    bpy.context.scene.collection.objects.link(rune)
+    rune.parent = ctx.root
+    rune.location = MAGE_RUNE_ANCHOR_LOCAL
+    # Torus is authored in local XY; rotate its normal toward the physical front (-Y).
+    rune.rotation_euler = (math.radians(90.0), math.radians(0.0), math.radians(-11.0))
+
+    bpy.ops.mesh.primitive_torus_add(
+        major_segments=28,
+        minor_segments=8,
+        location=(0.0, 0.0, 0.0),
+        major_radius=0.205,
+        minor_radius=0.024,
+    )
+    ring = bpy.context.active_object
+    assert ring is not None
+    ring.name = "MageRune_Ring"
+    ring.parent = rune
+    ring.location = (0.0, 0.0, 0.0)
+    ring.data.materials.append(rune_material)
+    for polygon in ring.data.polygons:
+        polygon.use_smooth = True
+
+    # A simple angular sigil reads as a rune at small gameplay size without visual noise.
+    create_cylinder_between(
+        "MageRune_Stroke_L",
+        (-0.115, -0.085, 0.0),
+        (0.0, 0.120, 0.0),
+        0.022,
+        rune_accent,
+        rune,
+        vertices=8,
+    )
+    create_cylinder_between(
+        "MageRune_Stroke_R",
+        (0.0, 0.120, 0.0),
+        (0.115, -0.085, 0.0),
+        0.022,
+        rune_accent,
+        rune,
+        vertices=8,
+    )
+    create_cylinder_between(
+        "MageRune_Stroke_Base",
+        (-0.080, -0.020, 0.0),
+        (0.080, -0.020, 0.0),
+        0.018,
+        rune_material,
+        rune,
+        vertices=8,
+    )
+    _create_crystal("MageRune_Core", (0.0, -0.055, 0.0), (0.042, 0.042, 0.030), rune_accent, rune)
+    return rune
+
+
+def create_mage_kit(ctx: BuildContext) -> tuple[bpy.types.Object, bpy.types.Object, bpy.types.Object]:
+    """Evolve the accepted Wand Slime kit into the Tier-2 Mage silhouette."""
+    # Reuse the exact Tier-1 kit first. Any Mage-only changes below affect only this build scene,
+    # so regenerating Wand Slime continues to produce the accepted Tier-1 geometry/transforms.
+    wand, cap = create_wand_and_cap(ctx)
+
+    # Promotion strengthens silhouette rather than body size: a broader/taller pointed hat,
+    # a subtly more imposing wand, and one independent rune on the opposite side.
+    cap.scale = (1.42, 1.34, 1.46)
+    cap.location = (0.08, 0.060, 0.028)
+    cap.rotation_euler[2] = math.radians(-10.0)
+
+    wand.scale = (1.075, 1.075, 1.075)
+    wand.location = (-0.94, -0.575, 0.44)
+    _set_spell_origin_from_wand_tip(ctx, wand)
+
+    rune = _create_mage_rune(ctx)
+    return wand, cap, rune

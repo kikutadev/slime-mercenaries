@@ -5,7 +5,7 @@ import math
 import bpy
 
 from ..base.context import BuildContext
-from ..base.primitives import create_disc, create_ellipsoid
+from ..base.primitives import create_box, create_disc, create_ellipsoid
 
 
 def _create_torus(
@@ -85,5 +85,149 @@ def create_round_shield(ctx: BuildContext) -> bpy.types.Object:
         anchor,
         segments=20,
         rings=12,
+    )
+    return anchor
+
+
+def create_guardian_helm(ctx: BuildContext) -> bpy.types.Object:
+    """Create a compact Tier-2 helm that strengthens the silhouette without hiding the face."""
+    steel = ctx.material("GuardianSteel", (0.34, 0.48, 0.60, 1.0), roughness=0.30, metallic=0.62)
+    edge = ctx.material("GuardianGold", (0.88, 0.55, 0.14, 1.0), roughness=0.29, metallic=0.40)
+    cloth = ctx.material("GuardianPlume", (0.68, 0.08, 0.055, 1.0), roughness=0.60)
+
+    anchor = bpy.data.objects.new("GuardianHelmAnchor", None)
+    bpy.context.scene.collection.objects.link(anchor)
+    anchor.parent = ctx.socket("HeadSocket")
+
+    # The dome sits on the crown and stays above the eye line. A front brow strip
+    # gives a helmet read at gameplay scale without turning the slime humanoid.
+    create_ellipsoid(
+        "Guardian_HelmDome",
+        (0.0, 0.03, 0.10),
+        (0.56, 0.48, 0.28),
+        steel,
+        anchor,
+        segments=28,
+        rings=14,
+    )
+    create_box(
+        "Guardian_HelmBrow",
+        (0.76, 0.12, 0.11),
+        (0.0, -0.43, -0.03),
+        edge,
+        anchor,
+        bevel=0.035,
+    )
+    create_ellipsoid(
+        "Guardian_HelmRivet_L",
+        (-0.31, -0.49, -0.03),
+        (0.055, 0.032, 0.055),
+        edge,
+        anchor,
+        segments=14,
+        rings=8,
+    )
+    create_ellipsoid(
+        "Guardian_HelmRivet_R",
+        (0.31, -0.49, -0.03),
+        (0.055, 0.032, 0.055),
+        edge,
+        anchor,
+        segments=14,
+        rings=8,
+    )
+
+    # A restrained crest differentiates Guardian from Tier-1 Shield while
+    # keeping the body and face as the dominant character language.
+    create_box(
+        "Guardian_HelmCrest",
+        (0.12, 0.34, 0.31),
+        (0.0, 0.03, 0.36),
+        cloth,
+        anchor,
+        bevel=0.045,
+    )
+    return anchor
+
+
+def create_guardian_tower_shield(ctx: BuildContext) -> bpy.types.Object:
+    """Create Guardian's tall planted shield as a new builder, preserving Tier-1 Shield exactly."""
+    steel = ctx.material("GuardianShieldSteel", (0.30, 0.43, 0.54, 1.0), roughness=0.31, metallic=0.58)
+    face = ctx.material("GuardianShieldFace", (0.78, 0.71, 0.53, 1.0), roughness=0.44, metallic=0.08)
+    gold = ctx.material("GuardianShieldGold", (0.90, 0.56, 0.14, 1.0), roughness=0.28, metallic=0.43)
+
+    anchor = bpy.data.objects.new("GuardianShieldAnchor", None)
+    bpy.context.scene.collection.objects.link(anchor)
+    anchor.parent = ctx.socket("OffhandSocket")
+
+    # Physical front is local -Y. The shield is placed on screen-right, close
+    # enough to read as planted protection but clear of both eyes and mouth.
+    anchor.location = (0.93, -0.96, 0.72)
+    anchor.rotation_euler[0] = math.radians(2.0)
+    anchor.rotation_euler[2] = math.radians(-6.0)
+
+    # Tall rounded plate: a beveled core supplies the vertical silhouette; the
+    # top/bottom caps soften the toy-like form and prevent a prototype box read.
+    create_box(
+        "GuardianShield_Core",
+        (0.70, 0.105, 1.06),
+        (0.0, 0.0, 0.0),
+        steel,
+        anchor,
+        bevel=0.085,
+    )
+    create_ellipsoid(
+        "GuardianShield_UpperCap",
+        (0.0, 0.0, 0.49),
+        (0.35, 0.105, 0.24),
+        steel,
+        anchor,
+        segments=24,
+        rings=12,
+    )
+    create_ellipsoid(
+        "GuardianShield_LowerCap",
+        (0.0, 0.0, -0.49),
+        (0.35, 0.105, 0.24),
+        steel,
+        anchor,
+        segments=24,
+        rings=12,
+    )
+
+    # Raised face panel and border accents remain shallow so the silhouette is
+    # strong without wasting depth or increasing clipping risk during squash.
+    create_box(
+        "GuardianShield_FacePanel",
+        (0.56, 0.055, 0.90),
+        (0.0, -0.080, 0.0),
+        face,
+        anchor,
+        bevel=0.065,
+    )
+    create_box(
+        "GuardianShield_Spine",
+        (0.10, 0.040, 0.88),
+        (0.0, -0.122, 0.0),
+        gold,
+        anchor,
+        bevel=0.025,
+    )
+    create_box(
+        "GuardianShield_Crossbar",
+        (0.50, 0.040, 0.10),
+        (0.0, -0.123, 0.10),
+        gold,
+        anchor,
+        bevel=0.025,
+    )
+    create_ellipsoid(
+        "GuardianShield_Boss",
+        (0.0, -0.165, 0.10),
+        (0.135, 0.055, 0.135),
+        gold,
+        anchor,
+        segments=20,
+        rings=10,
     )
     return anchor

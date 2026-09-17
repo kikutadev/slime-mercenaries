@@ -187,3 +187,116 @@ def create_flintlock(ctx: BuildContext) -> bpy.types.Object:
     projectile.rotation_euler = anchor.rotation_euler.copy()
 
     return anchor
+
+
+def create_gunner_kit(ctx: BuildContext) -> tuple[bpy.types.Object, bpy.types.Object]:
+    """Tier-2 Gunner kit: compact repeating carbine plus readable protective goggles.
+
+    The canonical Base Slime remains untouched. The carbine keeps local -Y as its
+    firing axis and derives ProjectileOrigin from the authored muzzle marker.
+    """
+    steel = ctx.material("GunnerSteel", (0.20, 0.26, 0.34, 1.0), roughness=0.22, metallic=0.80)
+    dark_steel = ctx.material("GunnerDarkSteel", (0.028, 0.036, 0.050, 1.0), roughness=0.30, metallic=0.62)
+    wood = ctx.material("GunnerWood", (0.29, 0.11, 0.035, 1.0), roughness=0.66)
+    brass = ctx.material("GunnerBrass", (0.83, 0.49, 0.11, 1.0), roughness=0.28, metallic=0.52)
+    lens = ctx.material("GunnerLens", (0.20, 0.53, 0.66, 1.0), roughness=0.16, metallic=0.10, coat_weight=0.35)
+    strap = ctx.material("GunnerStrap", (0.09, 0.07, 0.055, 1.0), roughness=0.86)
+
+    anchor = bpy.data.objects.new("GunAnchor", None)
+    bpy.context.scene.collection.objects.link(anchor)
+    anchor.parent = ctx.socket("WeaponSocket")
+    anchor.location = (-0.80, -0.50, 0.64)
+    anchor.rotation_euler[0] = math.radians(-3.0)
+    anchor.rotation_euler[2] = math.radians(-8.0)
+
+    # Compact carbine: shorter than a full rifle, but with a clear receiver and stock
+    # so it no longer reads as the Tier-1 flintlock pistol.
+    create_cylinder_between(
+        "Gunner_Barrel",
+        (0.0, -0.18, 0.13),
+        (0.0, -1.36, 0.13),
+        0.068,
+        steel,
+        anchor,
+        vertices=16,
+    )
+    create_cylinder_between(
+        "Gunner_MuzzleRing",
+        (0.0, -1.34, 0.13),
+        (0.0, -1.47, 0.13),
+        0.092,
+        brass,
+        anchor,
+        vertices=16,
+    )
+    create_cylinder_between(
+        "Gunner_Bore",
+        (0.0, -1.455, 0.13),
+        (0.0, -1.495, 0.13),
+        0.052,
+        dark_steel,
+        anchor,
+        vertices=16,
+    )
+    create_box("Gunner_Forestock", (0.22, 0.68, 0.15), (0.0, -0.56, 0.015), wood, anchor, bevel=0.040)
+    create_box("Gunner_Receiver", (0.34, 0.42, 0.31), (0.0, -0.04, 0.055), steel, anchor, bevel=0.045)
+    create_box("Gunner_ReceiverPlate", (0.37, 0.18, 0.18), (-0.018, -0.17, 0.075), brass, anchor, bevel=0.024)
+    create_box("Gunner_Magazine", (0.20, 0.16, 0.30), (0.0, 0.04, -0.24), dark_steel, anchor, bevel=0.030)
+
+    # Rear stock provides the sustained-fire silhouette without humanoid arms.
+    stock = create_box("Gunner_Stock", (0.30, 0.66, 0.27), (0.0, 0.44, -0.06), wood, anchor, bevel=0.060)
+    stock.rotation_euler[0] = math.radians(-8.0)
+    create_ellipsoid(
+        "Gunner_ButtPad",
+        (0.0, 0.78, -0.12),
+        (0.20, 0.11, 0.19),
+        dark_steel,
+        anchor,
+        segments=16,
+        rings=10,
+    )
+    grip = create_box("Gunner_Grip", (0.20, 0.24, 0.38), (0.0, 0.16, -0.27), wood, anchor, bevel=0.045)
+    grip.rotation_euler[0] = math.radians(18.0)
+
+    # Chunky sight and cycling lever stay legible at mobile scale.
+    create_box("Gunner_RearSight", (0.10, 0.10, 0.10), (0.0, 0.02, 0.28), brass, anchor, bevel=0.020)
+    create_box("Gunner_FrontSight", (0.07, 0.07, 0.12), (0.0, -1.16, 0.25), brass, anchor, bevel=0.015)
+    lever = create_box("Gunner_CyclingLever", (0.07, 0.34, 0.10), (-0.20, 0.05, -0.10), brass, anchor, bevel=0.022)
+    lever.rotation_euler[0] = math.radians(20.0)
+
+    muzzle = _create_empty("GunnerMuzzle", anchor, (0.0, -1.495, 0.13))
+    bpy.context.view_layer.update()
+    projectile = ctx.socket("ProjectileOrigin")
+    projectile.location = projectile.parent.matrix_world.inverted() @ muzzle.matrix_world.translation
+    projectile.rotation_euler = anchor.rotation_euler.copy()
+
+    # Goggles are separate head equipment so production motion can give them a
+    # restrained delayed wobble without touching the Body mesh.
+    goggles = bpy.data.objects.new("GunnerGogglesAnchor", None)
+    bpy.context.scene.collection.objects.link(goggles)
+    goggles.parent = ctx.socket("HeadSocket")
+    goggles.location = (0.0, -0.97, -0.29)
+
+    for side, x in (("L", -0.21), ("R", 0.21)):
+        create_ellipsoid(
+            f"Gunner_GoggleFrame_{side}",
+            (x, 0.0, 0.0),
+            (0.17, 0.055, 0.135),
+            brass,
+            goggles,
+            segments=18,
+            rings=10,
+        )
+        create_ellipsoid(
+            f"Gunner_GoggleLens_{side}",
+            (x, -0.045, 0.0),
+            (0.125, 0.030, 0.095),
+            lens,
+            goggles,
+            segments=18,
+            rings=10,
+        )
+    create_box("Gunner_GoggleBridge", (0.18, 0.045, 0.045), (0.0, -0.010, 0.0), brass, goggles, bevel=0.018)
+    create_box("Gunner_GoggleStrap", (0.58, 0.035, 0.055), (0.0, 0.115, 0.0), strap, goggles, bevel=0.018)
+
+    return anchor, goggles
