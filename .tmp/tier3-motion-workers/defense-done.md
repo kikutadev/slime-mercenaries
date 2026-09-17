@@ -116,13 +116,16 @@ Passed:
   - result: **PASS** (`tsc --noEmit`).
 - `pnpm exec vitest run src/game/slime-motions/tier3/defense.test.ts`
   - same verify-deps override;
-  - result: **PASS — 1 file, 6 tests**.
+  - result after differentiation/bounds hardening: **PASS — 1 file, 10 tests**.
 - targeted tests cover:
   - signature beat ordering;
   - stable return / finite values;
   - Fortress no-hop/no-dash invariant;
   - Paladin shield-local flash and post-impact barrier;
-  - Fortress plant dust / ground wave / persistent lock geometry.
+  - Fortress plant dust / ground wave / persistent lock geometry;
+  - explicit Tier3-vs-Guardian timing and silhouette-delta guardrails;
+  - full 101-frame signature VFX traversal with finite transform/quaternion checks;
+  - bounded VFX scale (<= 4x) and opacity (0..1) across the authored timeline.
 - `git diff --check`: run before commit.
 
 Note: an initial pnpm invocation attempted to create `pnpm-lock.yaml` / `pnpm-workspace.yaml` due the dependency-status check. Those generated files were immediately removed; package metadata is unchanged. The pre-existing untracked `node_modules` symlink was left untouched.
@@ -133,6 +136,18 @@ Note: an initial pnpm invocation attempted to create `pnpm-lock.yaml` / `pnpm-wo
 - Fortress should not inherit normal bounce while `fortifyLock` is active. The authored motion deliberately keeps `jump=0`; parent runtime should not layer an independent hop over it.
 - A visual 1x/mobile acceptance capture cannot be produced inside this worker without editing/wiring the shared runtime/gallery, which is explicitly outside this lane. The module exposes all pose/VFX state required for the parent integration pass.
 - Early compatibility exports `createPaladinBarrierVfx/applyPaladinBarrierVfx` and `createFortressLockVfx/applyFortressLockVfx` remain available, but new wiring should use the full signature functions above.
+
+## Follow-up hardening
+
+A second pass added regression guards specifically against Tier3 Defense collapsing back toward Guardian:
+
+- Paladin attack duration must remain > 1.25x Guardian.
+- Fortress attack duration must remain > 1.50x Guardian.
+- Paladin shield commitment at flash/contact must remain materially larger than Guardian in squash, shield angle, and strike travel.
+- Fortress locked silhouette must remain dramatically flatter and more strongly planted than Guardian.
+- Both signature VFX graphs are applied at 101 sampled timeline points and must keep finite transforms/quaternions, <= 4x scale, and opacity within 0..1.
+
+These are acceptance guardrails rather than balance rules; parent integration may tune exact visuals while preserving the intended class distinction.
 
 ## Unresolved
 
