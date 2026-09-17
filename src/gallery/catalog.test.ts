@@ -20,6 +20,8 @@ const EXPECTED_MOTIONS: Readonly<Record<string, readonly string[]>> = {
   berserker: ['idle'],
   paladin: ['idle'],
   fortress: ['idle'],
+  sniper: ['idle'],
+  'storm-archer': ['idle'],
   archmage: ['idle'],
   'frost-mage': ['idle'],
   ninja: ['idle'],

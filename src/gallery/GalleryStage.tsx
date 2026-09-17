@@ -270,10 +270,12 @@ function CameraRig({ mode, motion, definition }: { mode: GalleryCameraId; motion
         .add(new THREE.Vector3(0, height, 0));
       camera.lookAt(midpoint);
     } else {
+      // Inspection is a front-biased 3/4 view. The previous 1.5:0.5 side/forward
+      // ratio was effectively a profile view and hid faces/equipment on asymmetric slimes.
       camera.position.copy(GALLERY_HOME)
-        .addScaledVector(inspectRight, (definition.inspectionSideDistance ?? 1.52) * compact)
-        .addScaledVector(inspectForward, 0.50 * compact)
-        .add(new THREE.Vector3(0, 0.72 * compact, 0));
+        .addScaledVector(inspectRight, (definition.inspectionSideDistance ?? 1.52) * 0.55 * compact)
+        .addScaledVector(inspectForward, 1.05 * compact)
+        .add(new THREE.Vector3(0, 0.78 * compact, 0));
       camera.lookAt(lookAt);
     }
     camera.updateProjectionMatrix();
