@@ -231,3 +231,179 @@ def create_guardian_tower_shield(ctx: BuildContext) -> bpy.types.Object:
         rings=10,
     )
     return anchor
+
+
+
+def create_paladin_halo_crest(ctx: BuildContext) -> bpy.types.Object:
+    """Create Paladin's restrained white-gold halo/crest without changing the Base Slime silhouette."""
+    platinum = ctx.material("PaladinPlatinum", (0.78, 0.84, 0.88, 1.0), roughness=0.22, metallic=0.68)
+    gold = ctx.material("PaladinGold", (0.94, 0.72, 0.24, 1.0), roughness=0.25, metallic=0.52)
+    anchor = bpy.data.objects.new("PaladinHaloAnchor", None)
+    bpy.context.scene.collection.objects.link(anchor)
+    anchor.parent = ctx.socket("HeadSocket")
+
+    # Keep the halo compact and clearly above the face. A slight forward tilt
+    # makes it read from the shallow gameplay camera without becoming a giant VFX ring.
+    halo = _create_torus(
+        "Paladin_Halo",
+        major_radius=0.34,
+        minor_radius=0.035,
+        location=(0.0, 0.03, 0.54),
+        material=gold,
+        parent=anchor,
+    )
+    halo.rotation_euler[0] = math.radians(14.0)
+    halo.rotation_euler[2] = math.radians(-4.0)
+
+    # The halo itself is the Paladin head accent; avoiding a crown-mounted crest
+    # prevents shared-socket clipping at the canonical full Stretch morph.
+    return anchor
+
+
+def create_paladin_aegis(ctx: BuildContext) -> bpy.types.Object:
+    """Create a bright sustain-tank aegis that stays clear of the face and shared morph envelope."""
+    platinum = ctx.material("PaladinShieldPlatinum", (0.76, 0.82, 0.86, 1.0), roughness=0.23, metallic=0.70)
+    pearl = ctx.material("PaladinShieldPearl", (0.94, 0.93, 0.84, 1.0), roughness=0.35, metallic=0.12)
+    gold = ctx.material("PaladinShieldGold", (0.94, 0.70, 0.20, 1.0), roughness=0.25, metallic=0.54)
+
+    anchor = bpy.data.objects.new("PaladinShieldAnchor", None)
+    bpy.context.scene.collection.objects.link(anchor)
+    anchor.parent = ctx.socket("OffhandSocket")
+
+    # Physical front is local/world -Y. Keep the shield to screen-right with a
+    # narrow yaw so both face readability and the raised front plate survive 3/4 views.
+    anchor.location = (0.93, -1.00, 0.72)
+    anchor.rotation_euler[0] = math.radians(2.0)
+    anchor.rotation_euler[2] = math.radians(-7.0)
+
+    create_ellipsoid(
+        "PaladinShield_Back",
+        (0.0, 0.0, 0.0),
+        (0.43, 0.105, 0.55),
+        platinum,
+        anchor,
+        segments=30,
+        rings=18,
+    )
+    create_ellipsoid(
+        "PaladinShield_Face",
+        (0.0, -0.080, 0.0),
+        (0.355, 0.050, 0.475),
+        pearl,
+        anchor,
+        segments=28,
+        rings=16,
+    )
+    create_box(
+        "PaladinShield_Spine",
+        (0.075, 0.035, 0.66),
+        (0.0, -0.133, -0.005),
+        gold,
+        anchor,
+        bevel=0.020,
+    )
+    sigil = create_box(
+        "PaladinShield_Sigil",
+        (0.17, 0.035, 0.17),
+        (0.0, -0.154, 0.10),
+        gold,
+        anchor,
+        bevel=0.026,
+    )
+    sigil.rotation_euler[1] = math.radians(45.0)
+    create_ellipsoid(
+        "PaladinShield_Boss",
+        (0.0, -0.184, 0.10),
+        (0.085, 0.038, 0.085),
+        platinum,
+        anchor,
+        segments=18,
+        rings=10,
+    )
+    return anchor
+
+
+
+def create_fortress_pavise(ctx: BuildContext) -> bpy.types.Object:
+    """Create Fortress's square planted pavise with a heavy lower band and visible ground shoes."""
+    steel = ctx.material("FortressShieldSteel", (0.24, 0.33, 0.39, 1.0), roughness=0.34, metallic=0.66)
+    face = ctx.material("FortressShieldFace", (0.48, 0.52, 0.49, 1.0), roughness=0.48, metallic=0.16)
+    iron = ctx.material("FortressShieldIron", (0.11, 0.16, 0.19, 1.0), roughness=0.40, metallic=0.52)
+    brass = ctx.material("FortressShieldBrass", (0.66, 0.44, 0.14, 1.0), roughness=0.32, metallic=0.48)
+
+    anchor = bpy.data.objects.new("FortressShieldAnchor", None)
+    bpy.context.scene.collection.objects.link(anchor)
+    anchor.parent = ctx.socket("OffhandSocket")
+
+    # The square pavise is intentionally wide and planted but remains offset far
+    # enough right that the face survives front and shallow 3/4 inspection.
+    # Lower extent stays above z=0 to avoid floor penetration on the neutral pose.
+    anchor.location = (1.04, -0.96, 0.60)
+    anchor.rotation_euler[0] = math.radians(1.5)
+    anchor.rotation_euler[2] = math.radians(-3.0)
+
+    create_box(
+        "FortressShield_Core",
+        (0.96, 0.13, 1.02),
+        (0.0, 0.0, 0.0),
+        steel,
+        anchor,
+        bevel=0.060,
+    )
+    create_box(
+        "FortressShield_FacePanel",
+        (0.82, 0.055, 0.88),
+        (0.0, -0.093, 0.015),
+        face,
+        anchor,
+        bevel=0.040,
+    )
+    create_box(
+        "FortressShield_LowerBand",
+        (0.84, 0.045, 0.16),
+        (0.0, -0.132, -0.31),
+        iron,
+        anchor,
+        bevel=0.022,
+    )
+    create_box(
+        "FortressShield_Crossbar",
+        (0.82, 0.040, 0.10),
+        (0.0, -0.136, 0.13),
+        brass,
+        anchor,
+        bevel=0.020,
+    )
+    create_box(
+        "FortressShield_Spine",
+        (0.095, 0.040, 0.76),
+        (0.0, -0.137, 0.02),
+        iron,
+        anchor,
+        bevel=0.020,
+    )
+
+    for x in (-0.34, 0.34):
+        for z in (-0.31, 0.31):
+            create_ellipsoid(
+                f"FortressShield_Rivet_{'L' if x < 0 else 'R'}_{'Low' if z < 0 else 'High'}",
+                (x, -0.158, z),
+                (0.055, 0.030, 0.055),
+                brass,
+                anchor,
+                segments=14,
+                rings=8,
+            )
+
+    # Two low shoes make the shield read as planted rather than hand-held. They
+    # remain above the floor and are intentionally shallow to avoid clipping.
+    for x in (-0.35, 0.35):
+        create_box(
+            f"FortressShield_Foot_{'L' if x < 0 else 'R'}",
+            (0.18, 0.17, 0.11),
+            (x, 0.015, -0.45),
+            iron,
+            anchor,
+            bevel=0.025,
+        )
+    return anchor

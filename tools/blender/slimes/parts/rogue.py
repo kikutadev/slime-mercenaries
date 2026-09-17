@@ -395,3 +395,410 @@ def create_rogue_tier2_hood_accents(ctx: BuildContext) -> bpy.types.Object:
         math.radians(-40.0),
     )
     return anchor
+
+
+# ---------------------------------------------------------------------------
+# Tier 3 — Ninja / Assassin
+# ---------------------------------------------------------------------------
+
+
+def _create_shuriken_mesh(
+    *,
+    name: str,
+    parent: bpy.types.Object,
+    material: bpy.types.Material,
+    outer_radius: float = 0.28,
+    inner_radius: float = 0.105,
+    thickness: float = 0.035,
+) -> bpy.types.Object:
+    """Create a chunky four-point throwing star readable at mobile gameplay size."""
+    profile: list[tuple[float, float]] = []
+    for index in range(8):
+        angle = math.radians(90.0 - index * 45.0)
+        radius = outer_radius if index % 2 == 0 else inner_radius
+        profile.append((math.cos(angle) * radius, math.sin(angle) * radius))
+
+    half_depth = thickness * 0.5
+    vertices = [(x, -half_depth, z) for x, z in profile]
+    vertices.extend((x, half_depth, z) for x, z in profile)
+    front = tuple(range(8))
+    back = tuple(range(15, 7, -1))
+    faces: list[tuple[int, ...]] = [front, back]
+    for index in range(8):
+        nxt = (index + 1) % 8
+        faces.append((index, nxt, 8 + nxt, 8 + index))
+
+    mesh = bpy.data.meshes.new(f"{name}Mesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    obj.parent = parent
+    obj.data.materials.append(material)
+
+    bevel = obj.modifiers.new(name="ShurikenEdgeSoftening", type="BEVEL")
+    bevel.width = 0.010
+    bevel.segments = 2
+    return obj
+
+
+def create_ninja_shuriken(ctx: BuildContext) -> bpy.types.Object:
+    """Create Ninja's single readable throwing star on the physical front-left."""
+    steel = ctx.material(
+        "NinjaShurikenSteel",
+        (0.35, 0.43, 0.55, 1.0),
+        roughness=0.26,
+        metallic=0.74,
+    )
+    hub_material = ctx.material(
+        "NinjaShurikenHub",
+        (0.09, 0.07, 0.17, 1.0),
+        roughness=0.52,
+        metallic=0.24,
+    )
+
+    anchor = bpy.data.objects.new("WeaponAnchor", None)
+    bpy.context.scene.collection.objects.link(anchor)
+    anchor.parent = ctx.socket("WeaponSocket")
+    # Front is local -Y. The star floats just outside the body, as if the jelly is
+    # pinching it directly, so no humanoid hand/arm vocabulary is introduced.
+    anchor.location = (-0.93, -0.73, 0.50)
+    anchor.rotation_euler = (
+        math.radians(-8.0),
+        math.radians(-20.0),
+        math.radians(12.0),
+    )
+
+    _create_shuriken_mesh(
+        name="Ninja_Shuriken",
+        parent=anchor,
+        material=steel,
+        outer_radius=0.29,
+        inner_radius=0.108,
+        thickness=0.042,
+    )
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=1.0)
+    hub = bpy.context.active_object
+    assert hub is not None
+    hub.name = "Ninja_ShurikenHub"
+    hub.parent = anchor
+    hub.scale = (0.058, 0.050, 0.058)
+    hub.data.materials.append(hub_material)
+
+    tip = bpy.data.objects.new("WeaponTip", None)
+    bpy.context.scene.collection.objects.link(tip)
+    tip.parent = anchor
+    tip.location = (0.0, 0.0, 0.29)
+    return anchor
+
+
+def _create_scarf_tail(
+    *,
+    name: str,
+    parent: bpy.types.Object,
+    material: bpy.types.Material,
+    length: float,
+    width: float,
+    bend: float,
+) -> bpy.types.Object:
+    """Create a tapered ribbon tail in the XZ plane with minimal thickness."""
+    half_width = width * 0.5
+    # The tail grows toward +X and bends slightly in Z. Its root stays compact at
+    # the rear socket, while the free end becomes the readable silhouette cue.
+    points = [
+        (0.0, -half_width),
+        (0.0, half_width),
+        (length * 0.52, half_width * 0.88 + bend * 0.42),
+        (length, half_width * 0.50 + bend),
+        (length * 0.94, -half_width * 0.50 + bend - width * 0.22),
+        (length * 0.50, -half_width * 0.88 + bend * 0.36),
+    ]
+    # Author in X/Z and extrude along Y, which is depth in the Blender source scene.
+    depth = 0.035
+    vertices = [(x, -depth, z) for x, z in points]
+    vertices.extend((x, depth, z) for x, z in points)
+    front = tuple(range(6))
+    back = tuple(range(11, 5, -1))
+    faces: list[tuple[int, ...]] = [front, back]
+    for index in range(6):
+        nxt = (index + 1) % 6
+        faces.append((index, nxt, 6 + nxt, 6 + index))
+
+    mesh = bpy.data.meshes.new(f"{name}Mesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    obj.parent = parent
+    obj.data.materials.append(material)
+    bevel = obj.modifiers.new(name="ClothEdgeSoftening", type="BEVEL")
+    bevel.width = 0.018
+    bevel.segments = 2
+    return obj
+
+
+def create_ninja_scarf_and_plate(ctx: BuildContext) -> tuple[bpy.types.Object, bpy.types.Object]:
+    """Add two visible scarf tails plus a compact forehead plate without hiding the face."""
+    scarf = ctx.material("NinjaScarf", (0.18, 0.035, 0.11, 1.0), roughness=0.88)
+    scarf_shadow = ctx.material("NinjaScarfShadow", (0.12, 0.018, 0.070, 1.0), roughness=0.92)
+    plate = ctx.material(
+        "NinjaForeheadPlate",
+        (0.46, 0.53, 0.62, 1.0),
+        roughness=0.31,
+        metallic=0.62,
+    )
+    plate_mark = ctx.material("NinjaPlateMark", (0.10, 0.08, 0.16, 1.0), roughness=0.66)
+
+    scarf_anchor = bpy.data.objects.new("NinjaScarfAnchor", None)
+    bpy.context.scene.collection.objects.link(scarf_anchor)
+    scarf_anchor.parent = ctx.socket("BackSocket")
+    scarf_anchor.location = (0.18, 0.06, 0.02)
+    scarf_anchor.rotation_euler = (
+        math.radians(7.0),
+        math.radians(-9.0),
+        math.radians(-11.0),
+    )
+
+    knot = create_ellipsoid(
+        "Ninja_ScarfKnot",
+        (0.18, 0.0, 0.08),
+        (0.13, 0.075, 0.11),
+        scarf_shadow,
+        scarf_anchor,
+        segments=16,
+        rings=10,
+    )
+    knot.rotation_euler[1] = math.radians(-12.0)
+
+    upper = _create_scarf_tail(
+        name="Ninja_ScarfTail_Upper",
+        parent=scarf_anchor,
+        material=scarf,
+        length=0.74,
+        width=0.18,
+        bend=0.10,
+    )
+    upper.location = (0.18, -0.035, 0.18)
+    upper.rotation_euler[0] = math.radians(5.0)
+    upper.rotation_euler[2] = math.radians(18.0)
+
+    lower = _create_scarf_tail(
+        name="Ninja_ScarfTail_Lower",
+        parent=scarf_anchor,
+        material=scarf_shadow,
+        length=0.66,
+        width=0.15,
+        bend=-0.16,
+    )
+    lower.location = (0.24, 0.035, 0.24)
+    lower.rotation_euler[0] = math.radians(-5.0)
+    lower.rotation_euler[2] = math.radians(-14.0)
+
+    head_anchor = bpy.data.objects.new("NinjaHeadAnchor", None)
+    bpy.context.scene.collection.objects.link(head_anchor)
+    head_anchor.parent = ctx.socket("HeadSocket")
+    head_anchor.location = (0.0, 0.0, -0.035)
+
+    # A narrow plate sits above the eye line. The large eye area remains completely open.
+    create_box(
+        "Ninja_ForeheadPlate",
+        (0.40, 0.050, 0.105),
+        (0.0, -0.825, -0.235),
+        plate,
+        head_anchor,
+        bevel=0.030,
+    )
+    create_box(
+        "Ninja_PlateMark",
+        (0.105, 0.056, 0.026),
+        (0.0, -0.833, -0.234),
+        plate_mark,
+        head_anchor,
+        bevel=0.010,
+    )
+    return scarf_anchor, head_anchor
+
+
+def _create_curved_blade_mesh(
+    *,
+    name: str,
+    parent: bpy.types.Object,
+    material: bpy.types.Material,
+    mirrored: bool,
+) -> tuple[bpy.types.Object, tuple[float, float, float]]:
+    """Create a visibly hooked short blade with an explicit physical tip coordinate."""
+    sign = -1.0 if mirrored else 1.0
+    # Outer edge swells away from the handle and then hooks back inward at the tip.
+    # The inner edge is strongly concave so the silhouette still reads as curved at 96 px.
+    profile = [
+        (-0.120 * sign, 0.050),
+        (0.020 * sign, 0.075),
+        (0.170 * sign, 0.220),
+        (0.260 * sign, 0.400),
+        (0.285 * sign, 0.565),
+        (0.235 * sign, 0.700),
+        (0.105 * sign, 0.790),
+        (-0.020 * sign, 0.825),  # physical hooked tip
+        (0.045 * sign, 0.660),
+        (0.095 * sign, 0.500),
+        (0.055 * sign, 0.335),
+        (-0.055 * sign, 0.170),
+    ]
+    thickness = 0.042
+    vertices = [(x, -thickness, z) for x, z in profile]
+    vertices.extend((x, thickness, z) for x, z in profile)
+    count = len(profile)
+    front = tuple(range(count))
+    back = tuple(range(count * 2 - 1, count - 1, -1))
+    faces: list[tuple[int, ...]] = [front, back]
+    for index in range(count):
+        nxt = (index + 1) % count
+        faces.append((index, nxt, count + nxt, count + index))
+
+    mesh = bpy.data.meshes.new(f"{name}Mesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    blade = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(blade)
+    blade.parent = parent
+    blade.data.materials.append(material)
+    bevel = blade.modifiers.new(name="CurvedBladeEdgeSoftening", type="BEVEL")
+    bevel.width = 0.012
+    bevel.segments = 2
+    return blade, (-0.020 * sign, 0.0, 0.825)
+
+
+def _create_assassin_blade(
+    ctx: BuildContext,
+    *,
+    offhand: bool,
+) -> bpy.types.Object:
+    """Create one compact curved execution blade and place its tip socket on the actual mesh tip."""
+    steel = ctx.material(
+        "AssassinBladeSteel",
+        (0.52, 0.60, 0.70, 1.0),
+        roughness=0.22,
+        metallic=0.80,
+    )
+    grip = ctx.material("AssassinBladeGrip", (0.035, 0.022, 0.060, 1.0), roughness=0.86)
+    guard = ctx.material(
+        "AssassinBladeGuard",
+        (0.14, 0.10, 0.24, 1.0),
+        roughness=0.44,
+        metallic=0.30,
+    )
+
+    anchor_name = "OffhandAnchor" if offhand else "WeaponAnchor"
+    socket_name = "OffhandSocket" if offhand else "WeaponSocket"
+    tip_name = "OffhandWeaponTip" if offhand else "WeaponTip"
+    anchor = bpy.data.objects.new(anchor_name, None)
+    bpy.context.scene.collection.objects.link(anchor)
+    anchor.parent = ctx.socket(socket_name)
+
+    if offhand:
+        anchor.location = (0.94, -0.70, 0.29)
+        anchor.rotation_euler = (
+            math.radians(-9.0),
+            math.radians(27.0),
+            math.radians(-37.0),
+        )
+    else:
+        anchor.location = (-0.98, -0.70, 0.31)
+        anchor.rotation_euler = (
+            math.radians(-9.0),
+            math.radians(-29.0),
+            math.radians(39.0),
+        )
+
+    _, tip_coordinate = _create_curved_blade_mesh(
+        name="Assassin_OffhandBlade" if offhand else "Assassin_PrimaryBlade",
+        parent=anchor,
+        material=steel,
+        mirrored=offhand,
+    )
+    create_box(
+        "Assassin_OffhandGuard" if offhand else "Assassin_PrimaryGuard",
+        (0.255, 0.083, 0.052),
+        (0.0, 0.0, 0.020),
+        guard,
+        anchor,
+        bevel=0.016,
+    )
+    create_box(
+        "Assassin_OffhandGrip" if offhand else "Assassin_PrimaryGrip",
+        (0.076, 0.070, 0.205),
+        (0.0, 0.0, -0.120),
+        grip,
+        anchor,
+        bevel=0.013,
+    )
+    tip = bpy.data.objects.new(tip_name, None)
+    bpy.context.scene.collection.objects.link(tip)
+    tip.parent = anchor
+    tip.location = tip_coordinate
+    return anchor
+
+
+def create_assassin_blades(ctx: BuildContext) -> tuple[bpy.types.Object, bpy.types.Object]:
+    """Create the restrained pair of curved blades that define Assassin's execution silhouette."""
+    return (
+        _create_assassin_blade(ctx, offhand=False),
+        _create_assassin_blade(ctx, offhand=True),
+    )
+
+
+def create_assassin_mask(ctx: BuildContext) -> bpy.types.Object:
+    """Create a narrow lower-face cloth band while leaving both eyes fully visible."""
+    cloth = ctx.material("AssassinMask", (0.020, 0.012, 0.050, 1.0), roughness=0.94)
+    trim = ctx.material("AssassinMaskTrim", (0.12, 0.065, 0.18, 1.0), roughness=0.78)
+    anchor = bpy.data.objects.new("AssassinMaskAnchor", None)
+    bpy.context.scene.collection.objects.link(anchor)
+    anchor.parent = ctx.socket("HeadSocket")
+    anchor.location = (0.0, 0.0, -0.035)
+
+    # Flat, shallow cloth strip rather than a face-sized ellipsoid. The slight downward
+    # center follows the jelly face and reads as a restrained mask at gameplay scale.
+    outline = [
+        (-0.39, -0.490),
+        (-0.20, -0.512),
+        (0.00, -0.522),
+        (0.20, -0.512),
+        (0.39, -0.490),
+        (0.35, -0.595),
+        (0.18, -0.612),
+        (0.00, -0.620),
+        (-0.18, -0.612),
+        (-0.35, -0.595),
+    ]
+    depth = 0.030
+    y = -1.035
+    vertices = [(x, y - depth, z) for x, z in outline]
+    vertices.extend((x, y + depth, z) for x, z in outline)
+    count = len(outline)
+    front = tuple(range(count))
+    back = tuple(range(count * 2 - 1, count - 1, -1))
+    faces: list[tuple[int, ...]] = [front, back]
+    for index in range(count):
+        nxt = (index + 1) % count
+        faces.append((index, nxt, count + nxt, count + index))
+
+    mesh = bpy.data.meshes.new("Assassin_NarrowMaskMesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    mask = bpy.data.objects.new("Assassin_NarrowMask", mesh)
+    bpy.context.scene.collection.objects.link(mask)
+    mask.parent = anchor
+    mask.data.materials.append(cloth)
+    bevel = mask.modifiers.new(name="MaskEdgeSoftening", type="BEVEL")
+    bevel.width = 0.018
+    bevel.segments = 2
+
+    create_box(
+        "Assassin_MaskTrim",
+        (0.22, 0.036, 0.014),
+        (0.0, y - 0.034, -0.500),
+        trim,
+        anchor,
+        bevel=0.007,
+    )
+    return anchor

@@ -296,3 +296,236 @@ def create_fighter_sword(ctx: BuildContext) -> bpy.types.Object:
     weapon_tip.parent = anchor
     weapon_tip.location = (0.0, 0.0, 1.705)
     return anchor
+
+
+
+def _create_profile_prism(
+    name: str,
+    profile: list[tuple[float, float]],
+    thickness: float,
+    material: bpy.types.Material,
+    parent: bpy.types.Object,
+) -> bpy.types.Object:
+    """Extrude a 2D X/Z profile along Y for readable custom blade silhouettes."""
+    if len(profile) < 3:
+        raise ValueError("profile prism requires at least three profile points")
+    half_y = thickness * 0.5
+    vertices = [(x, -half_y, z) for x, z in profile] + [(x, half_y, z) for x, z in profile]
+    count = len(profile)
+    faces: list[tuple[int, ...]] = []
+    # Front faces local -Y, matching the slime's physical front side.
+    faces.append(tuple(range(count - 1, -1, -1)))
+    faces.append(tuple(range(count, count * 2)))
+    for index in range(count):
+        nxt = (index + 1) % count
+        faces.append((index, nxt, count + nxt, count + index))
+
+    mesh = bpy.data.meshes.new(f"{name}Mesh")
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    obj.parent = parent
+    obj.data.materials.append(material)
+
+    bevel = obj.modifiers.new(name="BladeEdgeSoftening", type="BEVEL")
+    bevel.width = min(0.022, thickness * 0.20)
+    bevel.segments = 2
+    return obj
+
+
+def create_blademaster_scarf(ctx: BuildContext) -> bpy.types.Object:
+    """Tier-3 light scarf/head ribbon with one long readable trailing tail."""
+    cloth = ctx.material("BlademasterScarf", (0.055, 0.20, 0.34, 1.0), roughness=0.52)
+    accent = ctx.material("BlademasterScarfAccent", (0.20, 0.72, 0.92, 1.0), roughness=0.44)
+
+    anchor = bpy.data.objects.new("BlademasterScarfAnchor", None)
+    bpy.context.scene.collection.objects.link(anchor)
+    anchor.parent = ctx.socket("HeadSocket")
+
+    _create_headband_ribbon(
+        "Blademaster_ScarfBand",
+        anchor,
+        cloth,
+        radius_x=0.90,
+        radius_y=0.77,
+        center_z=-0.22,
+        height=0.082,
+    )
+
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=14, ring_count=8, radius=1.0)
+    knot = bpy.context.active_object
+    assert knot is not None
+    knot.name = "Blademaster_ScarfKnot"
+    knot.parent = anchor
+    knot.location = (0.78, -0.69, -0.23)
+    knot.scale = (0.090, 0.062, 0.076)
+    knot.data.materials.append(accent)
+
+    _create_tapered_headband_tail(
+        "Blademaster_ScarfTail_Long",
+        anchor,
+        cloth,
+        start=(0.79, -0.68, -0.25),
+        end=(1.34, -0.48, -0.68),
+        start_width=0.115,
+        end_width=0.040,
+    )
+    _create_tapered_headband_tail(
+        "Blademaster_ScarfTail_Short",
+        anchor,
+        accent,
+        start=(0.78, -0.69, -0.24),
+        end=(1.08, -0.66, -0.49),
+        start_width=0.090,
+        end_width=0.038,
+    )
+    return anchor
+
+
+def create_blademaster_sword(ctx: BuildContext) -> bpy.types.Object:
+    """Long, narrow Tier-3 blade emphasizing speed over mass."""
+    steel = ctx.material("BlademasterSteel", (0.64, 0.78, 0.90, 1.0), roughness=0.18, metallic=0.86)
+    edge = ctx.material("BlademasterEdge", (0.90, 0.97, 1.0, 1.0), roughness=0.12, metallic=0.72)
+    guard = ctx.material("BlademasterGuard", (0.16, 0.30, 0.42, 1.0), roughness=0.28, metallic=0.62)
+    grip = ctx.material("BlademasterGrip", (0.055, 0.075, 0.10, 1.0), roughness=0.72)
+
+    anchor = _new_anchor(ctx, "WeaponAnchor", (-1.08, -0.53, 0.40))
+    anchor.rotation_euler[0] = math.radians(-13.0)
+    anchor.rotation_euler[1] = math.radians(-20.0)
+    anchor.rotation_euler[2] = math.radians(20.0)
+
+    profile = [
+        (-0.105, 0.18),
+        (0.095, 0.18),
+        (0.115, 1.52),
+        (0.070, 1.78),
+        (-0.010, 1.98),
+        (-0.095, 1.60),
+    ]
+    _create_profile_prism("Blademaster_Blade", profile, 0.072, steel, anchor)
+    create_box("Blademaster_EdgeAccent", (0.030, 0.078, 1.42), (0.075, -0.002, 0.98), edge, anchor, bevel=0.010)
+    create_box("Blademaster_Guard", (0.54, 0.100, 0.080), (0.0, 0.0, 0.10), guard, anchor, bevel=0.022)
+    create_box("Blademaster_Grip", (0.105, 0.088, 0.39), (0.0, 0.0, -0.15), grip, anchor, bevel=0.016)
+
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=1.0)
+    pommel = bpy.context.active_object
+    assert pommel is not None
+    pommel.name = "Blademaster_Pommel"
+    pommel.parent = anchor
+    pommel.location = (0.0, 0.0, -0.405)
+    pommel.scale = (0.080, 0.080, 0.080)
+    pommel.data.materials.append(guard)
+
+    weapon_tip = bpy.data.objects.new("WeaponTip", None)
+    bpy.context.scene.collection.objects.link(weapon_tip)
+    weapon_tip.parent = anchor
+    weapon_tip.location = (-0.010, 0.0, 1.99)
+    return anchor
+
+
+def create_berserker_head_accents(ctx: BuildContext) -> bpy.types.Object:
+    """Wild brow and torn cloth accents that keep the round face readable."""
+    cloth = ctx.material("BerserkerCloth", (0.36, 0.035, 0.030, 1.0), roughness=0.66)
+    brow_mat = ctx.material("BerserkerBrow", (0.12, 0.025, 0.018, 1.0), roughness=0.82)
+
+    anchor = bpy.data.objects.new("BerserkerHeadAccentAnchor", None)
+    bpy.context.scene.collection.objects.link(anchor)
+    anchor.parent = ctx.socket("HeadSocket")
+
+    _create_headband_ribbon(
+        "Berserker_ClothBand",
+        anchor,
+        cloth,
+        radius_x=0.91,
+        radius_y=0.78,
+        center_z=-0.12,
+        height=0.105,
+    )
+    _create_tapered_headband_tail(
+        "Berserker_TornTail_A",
+        anchor,
+        cloth,
+        start=(0.78, -0.69, -0.15),
+        end=(1.24, -0.54, -0.66),
+        start_width=0.145,
+        end_width=0.052,
+    )
+    _create_tapered_headband_tail(
+        "Berserker_TornTail_B",
+        anchor,
+        cloth,
+        start=(0.76, -0.70, -0.17),
+        end=(0.98, -0.73, -0.72),
+        start_width=0.115,
+        end_width=0.040,
+    )
+
+    for side, x, angle in (("L", -0.225, -15.0), ("R", 0.225, 15.0)):
+        brow = create_box(
+            f"Berserker_Brow_{side}",
+            (0.25, 0.040, 0.040),
+            (x, -1.000, -0.230),
+            brow_mat,
+            anchor,
+            bevel=0.016,
+        )
+        brow.rotation_euler[1] = math.radians(angle)
+    return anchor
+
+
+def create_berserker_greatsword(ctx: BuildContext) -> bpy.types.Object:
+    """Chipped, broad Tier-3 greatsword with a deliberately rough asymmetric profile."""
+    steel = ctx.material("BerserkerSteel", (0.34, 0.39, 0.43, 1.0), roughness=0.34, metallic=0.74)
+    edge = ctx.material("BerserkerEdge", (0.68, 0.72, 0.72, 1.0), roughness=0.24, metallic=0.62)
+    guard = ctx.material("BerserkerGuard", (0.24, 0.11, 0.065, 1.0), roughness=0.54, metallic=0.34)
+    grip = ctx.material("BerserkerGrip", (0.10, 0.040, 0.028, 1.0), roughness=0.84)
+
+    anchor = _new_anchor(ctx, "WeaponAnchor", (-1.14, -0.50, 0.40))
+    anchor.rotation_euler[0] = math.radians(-8.0)
+    anchor.rotation_euler[1] = math.radians(-27.0)
+    anchor.rotation_euler[2] = math.radians(17.0)
+
+    # The right edge contains two visible chips; the silhouette stays broad at mobile scale.
+    profile = [
+        (-0.30, 0.20),
+        (0.29, 0.20),
+        (0.30, 0.78),
+        (0.22, 0.88),
+        (0.31, 1.00),
+        (0.30, 1.35),
+        (0.19, 1.45),
+        (0.29, 1.58),
+        (0.17, 1.78),
+        (0.00, 1.94),
+        (-0.25, 1.69),
+    ]
+    _create_profile_prism("Berserker_Blade", profile, 0.145, steel, anchor)
+    create_box("Berserker_EdgeAccent", (0.055, 0.152, 1.18), (-0.215, -0.002, 1.00), edge, anchor, bevel=0.014)
+    create_box("Berserker_Guard", (0.84, 0.155, 0.145), (0.0, 0.0, 0.11), guard, anchor, bevel=0.032)
+    create_box("Berserker_Grip", (0.16, 0.128, 0.50), (0.0, 0.0, -0.21), grip, anchor, bevel=0.022)
+
+    for side, x in (("L", -0.43), ("R", 0.43)):
+        bpy.ops.mesh.primitive_cone_add(vertices=6, radius1=0.10, radius2=0.025, depth=0.25)
+        spike = bpy.context.active_object
+        assert spike is not None
+        spike.name = f"Berserker_GuardSpike_{side}"
+        spike.parent = anchor
+        spike.location = (x, 0.0, 0.11)
+        spike.rotation_euler[1] = math.radians(90.0 if side == "R" else -90.0)
+        spike.data.materials.append(guard)
+
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=1.0)
+    pommel = bpy.context.active_object
+    assert pommel is not None
+    pommel.name = "Berserker_Pommel"
+    pommel.parent = anchor
+    pommel.location = (0.0, 0.0, -0.53)
+    pommel.scale = (0.13, 0.13, 0.13)
+    pommel.data.materials.append(guard)
+
+    weapon_tip = bpy.data.objects.new("WeaponTip", None)
+    bpy.context.scene.collection.objects.link(weapon_tip)
+    weapon_tip.parent = anchor
+    weapon_tip.location = (0.0, 0.0, 1.95)
+    return anchor

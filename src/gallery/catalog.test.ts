@@ -16,6 +16,16 @@ const EXPECTED_MOTIONS: Readonly<Record<string, readonly string[]>> = {
   mage: ['idle'],
   rogue: ['idle'],
   gunner: ['idle'],
+  blademaster: ['idle'],
+  berserker: ['idle'],
+  paladin: ['idle'],
+  fortress: ['idle'],
+  archmage: ['idle'],
+  'frost-mage': ['idle'],
+  ninja: ['idle'],
+  assassin: ['idle'],
+  cannoneer: ['idle'],
+  engineer: ['idle'],
 };
 
 describe('slime gallery catalog', () => {

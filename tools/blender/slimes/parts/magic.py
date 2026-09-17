@@ -265,3 +265,264 @@ def create_mage_kit(ctx: BuildContext) -> tuple[bpy.types.Object, bpy.types.Obje
 
     rune = _create_mage_rune(ctx)
     return wand, cap, rune
+
+# Tier-3 magic forms keep the canonical slime body unchanged. Their stronger
+# silhouettes come from socketed headgear, staffs, and independently animatable
+# effect anchors that the runtime coordinator may animate later.
+ARCHMAGE_MOTE_POSITIONS = (
+    (-0.98, -0.12, 1.10),
+    (0.96, -0.28, 0.92),
+    (0.34, 0.34, 1.48),
+)
+FROST_STAFF_VISUAL_TIP_LOCAL = Vector((0.0, 0.0, 1.30))
+
+
+def _set_spell_origin_from_anchor_tip(
+    ctx: BuildContext,
+    anchor: bpy.types.Object,
+    tip_local: Vector,
+) -> None:
+    """Align SpellOrigin with an authored visible casting point on any magic anchor."""
+    bpy.context.view_layer.update()
+    tip_world = anchor.matrix_world @ tip_local
+    root_local_tip = ctx.root.matrix_world.inverted() @ tip_world
+    ctx.socket("SpellOrigin").location = root_local_tip
+
+
+def _create_star_badge(
+    name: str,
+    location: tuple[float, float, float],
+    radius_outer: float,
+    radius_inner: float,
+    material: bpy.types.Material,
+    parent: bpy.types.Object,
+) -> bpy.types.Object:
+    """Create a lightweight five-point star in the local XZ plane."""
+    vertices: list[tuple[float, float, float]] = []
+    for index in range(10):
+        angle = math.radians(90.0 + index * 36.0)
+        radius = radius_outer if index % 2 == 0 else radius_inner
+        vertices.append((math.cos(angle) * radius, 0.0, math.sin(angle) * radius))
+
+    mesh = bpy.data.meshes.new(f"{name}Mesh")
+    mesh.from_pydata(vertices, [], [list(range(10))])
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    obj.parent = parent
+    obj.location = location
+    obj.data.materials.append(material)
+    return obj
+
+
+def _create_archmage_motes(ctx: BuildContext) -> list[bpy.types.Object]:
+    """Create three root-level mote anchors so runtime can orbit them independently."""
+    mote_material = ctx.material("ArchmageMoteGold", (1.0, 0.60, 0.12, 1.0), roughness=0.20, metallic=0.08)
+    mote_core = ctx.material("ArchmageMoteCore", (0.36, 0.58, 1.0, 1.0), roughness=0.16, metallic=0.04)
+    _enable_soft_emission(mote_material, 1.65)
+    _enable_soft_emission(mote_core, 1.45)
+
+    anchors: list[bpy.types.Object] = []
+    for index, position in enumerate(ARCHMAGE_MOTE_POSITIONS, start=1):
+        anchor = bpy.data.objects.new(f"ArchmageMoteAnchor_{index}", None)
+        bpy.context.scene.collection.objects.link(anchor)
+        anchor.parent = ctx.root
+        anchor.location = position
+
+        create_ellipsoid(
+            f"ArchmageMote_{index}",
+            (0.0, 0.0, 0.0),
+            (0.070, 0.060, 0.070),
+            mote_material,
+            anchor,
+            segments=14,
+            rings=8,
+        )
+        _create_star_badge(
+            f"ArchmageMoteStar_{index}",
+            (0.0, -0.066, 0.0),
+            0.070,
+            0.031,
+            mote_core,
+            anchor,
+        )
+        anchors.append(anchor)
+    return anchors
+
+
+def create_archmage_kit(
+    ctx: BuildContext,
+) -> tuple[bpy.types.Object, bpy.types.Object, bpy.types.Object, list[bpy.types.Object]]:
+    """Promote Mage into Tier-3 Archmage without changing the shared body scale."""
+    wand, cap, rune = create_mage_kit(ctx)
+
+    deep_violet = ctx.material("ArchmageDeepViolet", (0.10, 0.025, 0.34, 1.0), roughness=0.42)
+    star_gold = ctx.material("ArchmageStarGold", (1.0, 0.52, 0.08, 1.0), roughness=0.24, metallic=0.10)
+    star_blue = ctx.material("ArchmageStarBlue", (0.18, 0.44, 1.0, 1.0), roughness=0.18, metallic=0.05)
+    _enable_soft_emission(star_gold, 1.45)
+    _enable_soft_emission(star_blue, 1.25)
+
+    # The Tier-3 hat is intentionally much taller than Mage's, while the jelly body
+    # remains untouched. Lifting the seat reduces clipping during the current shared
+    # Stretch morph, whose HeadSocket is still static.
+    cap.scale = (1.58, 1.47, 1.92)
+    cap.location = (0.06, 0.055, 0.07)
+    cap.rotation_euler[2] = math.radians(-12.0)
+
+    # A dark lower mantle plus large front star makes the silhouette read as
+    # 'star wizard' even at small gameplay scale rather than merely 'bigger Mage'.
+    create_ellipsoid(
+        "ArchmageHat_Mantle",
+        (0.025, -0.010, 0.155),
+        (0.315, 0.250, 0.060),
+        deep_violet,
+        cap,
+        segments=24,
+        rings=10,
+    )
+    _create_star_badge(
+        "ArchmageHat_Star",
+        (0.015, -0.270, 0.335),
+        0.145,
+        0.064,
+        star_gold,
+        cap,
+    )
+    _create_star_badge(
+        "ArchmageHat_StarSmall",
+        (-0.155, -0.245, 0.495),
+        0.070,
+        0.031,
+        star_blue,
+        cap,
+    )
+
+    # Strengthen the casting focus without replacing the accepted Mage wand vocabulary.
+    wand.scale = (1.12, 1.12, 1.16)
+    wand.location = (-0.98, -0.59, 0.45)
+    _set_spell_origin_from_wand_tip(ctx, wand)
+
+    motes = _create_archmage_motes(ctx)
+    return wand, cap, rune, motes
+
+
+def _create_frost_crown(ctx: BuildContext) -> bpy.types.Object:
+    """Create a pale crystal crown that keeps the face and low slime silhouette open."""
+    ice = ctx.material("FrostCrownIce", (0.68, 0.91, 1.0, 1.0), roughness=0.16, metallic=0.04)
+    ice_bright = ctx.material("FrostCrownBright", (0.88, 0.98, 1.0, 1.0), roughness=0.10, metallic=0.02)
+    navy = ctx.material("FrostCrownNavy", (0.035, 0.10, 0.28, 1.0), roughness=0.42)
+    _enable_soft_emission(ice_bright, 1.20)
+
+    crown = bpy.data.objects.new("FrostCrownAnchor", None)
+    bpy.context.scene.collection.objects.link(crown)
+    crown.parent = ctx.socket("HeadSocket")
+    crown.location = (0.02, 0.055, 0.12)
+
+    create_ellipsoid(
+        "FrostCrown_Band",
+        (0.0, 0.0, 0.060),
+        (0.360, 0.270, 0.055),
+        navy,
+        crown,
+        segments=24,
+        rings=10,
+    )
+
+    spike_specs = (
+        (-0.255, 0.120, 0.310, 0.105, 0.080),
+        (-0.130, 0.150, 0.450, 0.120, 0.090),
+        (0.000, 0.170, 0.565, 0.135, 0.100),
+        (0.135, 0.150, 0.440, 0.120, 0.090),
+        (0.260, 0.115, 0.300, 0.100, 0.078),
+    )
+    for index, (x, y, height, base_radius, tip_radius) in enumerate(spike_specs, start=1):
+        _create_tapered_segment(
+            f"FrostCrown_Spike_{index}",
+            (x, y, 0.095),
+            (x * 1.08, y - 0.010, height),
+            base_radius,
+            tip_radius * 0.16,
+            ice_bright if index == 3 else ice,
+            crown,
+            vertices=8,
+        )
+    _create_crystal("FrostCrown_Core", (0.0, -0.245, 0.115), (0.085, 0.050, 0.095), ice_bright, crown)
+    return crown
+
+
+def _create_frost_staff(ctx: BuildContext) -> bpy.types.Object:
+    """Create a dedicated ice staff with an unambiguous visible SpellOrigin."""
+    navy = ctx.material("FrostStaffNavy", (0.025, 0.075, 0.22, 1.0), roughness=0.48)
+    ice = ctx.material("FrostStaffIce", (0.50, 0.84, 1.0, 1.0), roughness=0.14, metallic=0.05)
+    ice_bright = ctx.material("FrostStaffBright", (0.84, 0.98, 1.0, 1.0), roughness=0.09, metallic=0.03)
+    _enable_soft_emission(ice_bright, 1.28)
+
+    staff = bpy.data.objects.new("FrostStaffAnchor", None)
+    bpy.context.scene.collection.objects.link(staff)
+    staff.parent = ctx.socket("WeaponSocket")
+    staff.location = (-0.96, -0.58, 0.40)
+    staff.rotation_euler = (
+        math.radians(-6.0),
+        math.radians(-8.0),
+        math.radians(7.0),
+    )
+
+    create_cylinder_between(
+        "FrostStaff_ShaftLower",
+        (0.0, 0.0, -0.34),
+        (-0.015, 0.0, 0.42),
+        0.050,
+        navy,
+        staff,
+        vertices=10,
+    )
+    create_cylinder_between(
+        "FrostStaff_ShaftUpper",
+        (-0.015, 0.0, 0.42),
+        (0.0, 0.0, 0.88),
+        0.046,
+        ice,
+        staff,
+        vertices=10,
+    )
+    create_ellipsoid("FrostStaff_Collar", (-0.010, 0.0, 0.44), (0.075, 0.060, 0.065), ice_bright, staff, segments=14, rings=8)
+
+    # Three prongs frame the large crystal and keep the casting axis physically clear.
+    create_cylinder_between("FrostStaff_Prong_L", (0.0, 0.0, 0.86), (-0.125, 0.0, 1.10), 0.025, ice, staff, vertices=8)
+    create_cylinder_between("FrostStaff_Prong_R", (0.0, 0.0, 0.86), (0.125, 0.0, 1.10), 0.025, ice, staff, vertices=8)
+    create_cylinder_between("FrostStaff_Prong_Back", (0.0, 0.0, 0.88), (0.0, 0.085, 1.08), 0.021, ice, staff, vertices=8)
+    _create_crystal("FrostStaff_Crystal", (0.0, 0.0, 1.145), (0.145, 0.115, 0.165), ice_bright, staff)
+
+    _set_spell_origin_from_anchor_tip(ctx, staff, FROST_STAFF_VISUAL_TIP_LOCAL)
+    return staff
+
+
+def _create_frost_side_crystals(ctx: BuildContext) -> list[bpy.types.Object]:
+    """Add restrained ground-level ice accents; mist remains runtime VFX responsibility."""
+    ice = ctx.material("FrostSideIce", (0.62, 0.90, 1.0, 1.0), roughness=0.18, metallic=0.02)
+    accents: list[bpy.types.Object] = []
+    for index, (x, y, z, scale, tilt) in enumerate(
+        (
+            (-0.63, 0.12, 0.16, (0.060, 0.050, 0.145), -16.0),
+            (0.70, 0.08, 0.14, (0.052, 0.045, 0.120), 14.0),
+        ),
+        start=1,
+    ):
+        anchor = bpy.data.objects.new(f"FrostSideCrystalAnchor_{index}", None)
+        bpy.context.scene.collection.objects.link(anchor)
+        anchor.parent = ctx.root
+        anchor.location = (x, y, z)
+        crystal = _create_crystal(f"FrostSideCrystal_{index}", (0.0, 0.0, 0.0), scale, ice, anchor)
+        crystal.rotation_euler[1] = math.radians(tilt)
+        accents.append(anchor)
+    return accents
+
+
+def create_frost_mage_kit(
+    ctx: BuildContext,
+) -> tuple[bpy.types.Object, bpy.types.Object, list[bpy.types.Object]]:
+    """Create Frost Mage's crown/staff identity on the canonical shared slime body."""
+    crown = _create_frost_crown(ctx)
+    staff = _create_frost_staff(ctx)
+    accents = _create_frost_side_crystals(ctx)
+    return staff, crown, accents
