@@ -26,6 +26,10 @@ const EXPECTED_MOTIONS: Readonly<Record<string, readonly string[]>> = {
   assassin: ['idle'],
   cannoneer: ['idle'],
   engineer: ['idle'],
+  'tiny-mushroom': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'plump-mushroom': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'spore-mushroom': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'great-mushroom': ['idle', 'move', 'attack', 'hit', 'defeat'],
 };
 
 describe('slime gallery catalog', () => {

@@ -18,7 +18,13 @@
     "generate:wand": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant wand --output public/assets/wand-slime.glb",
     "generate:dagger": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant dagger --output public/assets/dagger-slime.glb",
     "generate:gun": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant gun --output public/assets/gun-slime.glb",
-    "generate:tier1": "tools/blender/generate_tier1_parallel.sh"
+    "generate:tier1": "tools/blender/generate_tier1_parallel.sh",
+    "generate:enemy:tiny": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/build.py -- --slug tiny-mushroom --output public/assets/enemies/tiny-mushroom.glb",
+    "generate:enemy:plump": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/build.py -- --slug plump-mushroom --output public/assets/enemies/plump-mushroom.glb",
+    "generate:enemy:spore": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/build.py -- --slug spore-mushroom --output public/assets/enemies/spore-mushroom.glb",
+    "generate:enemy:great": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/build.py -- --slug great-mushroom --output public/assets/enemies/great-mushroom.glb",
+    "generate:enemies": "npm run generate:enemy:tiny && npm run generate:enemy:plump && npm run generate:enemy:spore && npm run generate:enemy:great",
+    "validate:enemies": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/validate.py -- -- public/assets/enemies/tiny-mushroom.glb public/assets/enemies/plump-mushroom.glb public/assets/enemies/spore-mushroom.glb public/assets/enemies/great-mushroom.glb"
   },
   "dependencies": {
     "@react-three/fiber": "^9.7.0",

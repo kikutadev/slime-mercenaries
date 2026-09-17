@@ -34,6 +34,7 @@ import {
   type MorphMesh,
   type SlimeEquipmentMotionKind,
 } from '../game/slime-motion';
+import { EnemyGalleryStage } from './EnemyGalleryStage';
 import type { GalleryCameraId, GalleryMotionId, SlimeGalleryDefinition } from './types';
 
 interface ModelParts {
@@ -546,6 +547,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
 }
 
 export function GalleryStage(props: StageProps) {
+  if (props.definition.entityKind === 'enemy') return <EnemyGalleryStage {...props} />;
   return (
     <div className="gallery-stage" aria-label={`${props.definition.name} motion preview`}>
       <Canvas

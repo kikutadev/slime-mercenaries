@@ -1,11 +1,12 @@
-export type GalleryMotionId = 'idle' | 'move' | 'attack' | 'defeat';
+export type GalleryMotionId = 'idle' | 'move' | 'attack' | 'hit' | 'defeat';
 
 export type GalleryCameraId = 'inspection' | 'gameplay' | 'front';
 
-export type GalleryModelKind = 'plain' | 'sword' | 'greatsword' | 'bow' | 'shield' | 'wand' | 'dagger' | 'gun';
+export type GalleryModelKind = 'plain' | 'sword' | 'greatsword' | 'bow' | 'shield' | 'wand' | 'dagger' | 'gun' | 'tiny-mushroom' | 'plump-mushroom' | 'spore-mushroom' | 'great-mushroom';
 
 export interface SlimeGalleryDefinition {
   id: string;
+  entityKind?: 'slime' | 'enemy';
   order: number;
   name: string;
   classification: string;
@@ -13,6 +14,10 @@ export interface SlimeGalleryDefinition {
   modelKind: GalleryModelKind;
   asset: string;
   accent: string;
+  /** Runtime scale used by enemy models; slimes retain the existing canonical scale. */
+  productionScale?: number;
+  /** Enemy-only production behavior selector. */
+  enemyBehaviorId?: import('../game/enemies').EnemyBehaviorId;
   /** Equipment anchor used only once a production motion profile owns it. */
   equipmentAnchor: string | null;
   weaponTipName: string | null;

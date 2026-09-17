@@ -7,6 +7,7 @@ const MOTION_LABELS: Record<GalleryMotionId, string> = {
   idle: 'Idle',
   move: 'Move',
   attack: 'Attack',
+  hit: 'Hit',
   defeat: 'Defeat',
 };
 
@@ -64,7 +65,7 @@ export default function GalleryApp() {
       </header>
 
       <section className="gallery-layout">
-        <aside className="gallery-roster" aria-label="Slime models">
+        <aside className="gallery-roster" aria-label="Published models">
           <div className="gallery-roster__heading">
             <span>ROSTER</span>
             <strong>Published models</strong>

@@ -1,6 +1,9 @@
 import type { SlimeGalleryDefinition, SlimeGalleryModule } from './types';
 
-const modules = import.meta.glob<SlimeGalleryModule>('./slimes/*.ts', { eager: true });
+const modules = {
+  ...import.meta.glob<SlimeGalleryModule>('./slimes/*.ts', { eager: true }),
+  ...import.meta.glob<SlimeGalleryModule>('./enemies/*.ts', { eager: true }),
+};
 
 export const slimeGalleryCatalog: readonly SlimeGalleryDefinition[] = Object.values(modules)
   .map((module) => module.default)
