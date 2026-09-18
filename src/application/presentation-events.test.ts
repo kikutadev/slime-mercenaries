@@ -32,6 +32,22 @@ describe('presentation event policy', () => {
     ]);
   });
 
+  it('projects mutation progress rewards into the authoritative battle receipt', () => {
+    const cue = toBattleRewardCue([
+      event('stageCleared', {
+        grantedRewards: [
+          { kind: 'mutation-fragment', id: 'king', amount: 3 },
+          { kind: 'mutation-catalyst', id: 'prism', amount: 1 },
+        ],
+      }),
+    ]);
+
+    expect(cue?.items).toEqual([
+      { kind: 'material', id: 'mutation-fragment:king', label: 'キングスライムの欠片', amount: 3 },
+      { kind: 'material', id: 'mutation-catalyst:prism', label: 'プリズムスライムの核', amount: 1 },
+    ]);
+  });
+
   it('ignores malformed or unrelated event reward payloads', () => {
     expect(toBattleRewardCue([
       event('dispatchCompleted', { grantedRewards: [{ kind: 'currency', id: 'currency.gold', amount: 10 }] }),

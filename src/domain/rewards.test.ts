@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readCurrency, readToken } from 'idle-game-kit';
 
 import { ids } from './definitions';
-import { applySlimeProductRewards } from './rewards';
+import { applySlimeProductRewards, describeSlimeProductRewards } from './rewards';
 import { createInitialSlimeMercenariesState } from './state';
 
 describe('Slime Mercenaries product rewards', () => {
@@ -27,6 +27,18 @@ describe('Slime Mercenaries product rewards', () => {
 
     expect(rewarded.gameData.mutationProgress.king.fragments).toBe(7);
     expect(rewarded.gameData.mutationProgress.prism.catalysts).toBe(1);
+  });
+
+  it('describes product-specific mutation rewards without pretending they are Kit tokens', () => {
+    expect(describeSlimeProductRewards([
+      { type: 'mutation-fragment', mutationId: 'king', count: 4 },
+      { type: 'mutation-catalyst', mutationId: 'prism', count: 1 },
+      { type: 'currency', currencyId: ids.currency.gold, amount: 25, source: 'test' },
+    ])).toEqual([
+      { kind: 'mutation-fragment', id: 'king', amount: 4 },
+      { kind: 'mutation-catalyst', id: 'prism', amount: 1 },
+      { kind: 'currency', id: ids.currency.gold, amount: 25 },
+    ]);
   });
 
   it('preserves reward ordering while mixing Kit and product-specific rewards', () => {

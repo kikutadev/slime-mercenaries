@@ -49,19 +49,31 @@ export function toBattleRewardCue(events: readonly DomainEvent[]): BattleRewardC
     for (const reward of rewards) {
       if (typeof reward !== 'object' || reward === null) continue;
       if (!('kind' in reward) || !('id' in reward) || !('amount' in reward)) continue;
-      if ((reward.kind !== 'currency' && reward.kind !== 'token')
+      if ((reward.kind !== 'currency'
+          && reward.kind !== 'token'
+          && reward.kind !== 'mutation-fragment'
+          && reward.kind !== 'mutation-catalyst')
         || typeof reward.id !== 'string'
         || typeof reward.amount !== 'number'
         || !Number.isFinite(reward.amount)
         || reward.amount <= 0) continue;
 
       const kind = reward.kind === 'currency' && reward.id === ids.currency.gold ? 'gold' : 'material';
-      const key = `${kind}:${reward.id}`;
+      const rewardId = reward.kind === 'mutation-fragment' || reward.kind === 'mutation-catalyst'
+        ? `${reward.kind}:${reward.id}`
+        : reward.id;
+      const mutationName = MUTATION_DISPLAY_NAMES[reward.id as SlimeMutationId] ?? 'レア変異';
+      const label = reward.kind === 'mutation-fragment'
+        ? `${mutationName}の欠片`
+        : reward.kind === 'mutation-catalyst'
+          ? `${mutationName}の核`
+          : BATTLE_REWARD_LABELS[reward.id] ?? (kind === 'gold' ? 'G' : '素材');
+      const key = `${kind}:${rewardId}`;
       const previous = aggregated.get(key);
       aggregated.set(key, {
         kind,
-        id: reward.id,
-        label: BATTLE_REWARD_LABELS[reward.id] ?? (kind === 'gold' ? 'G' : '素材'),
+        id: rewardId,
+        label,
         amount: (previous?.amount ?? 0) + reward.amount,
       });
       contributed = true;

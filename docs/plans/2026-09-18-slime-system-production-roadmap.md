@@ -113,7 +113,7 @@ Expand beyond Clover Road toward the authored eight-area world. Reuse the enemy 
 
 ## Phase 8 — Production release hardening
 
-Status: In Progress — 3D route splitting + initial bundle guard implemented
+Status: In Progress — 3D route splitting + bundle guard + unified release gate implemented
 
 - validation sandbox becomes explicit opt-in when the validation build is no longer the intended public build
 - mobile performance/code splitting pass
@@ -127,15 +127,19 @@ Status: In Progress — 3D route splitting + initial bundle guard implemented
 - Temporary combat-effect primitives cover damage reduction, movement slow, execute thresholds and line-pierce distance.
 - All 12 Tier-3 specializations now expose distinct battle behavior IDs, dedicated production motion contracts, and shared Gallery/BattleRuntime VFX. Tier-2 prototype fallbacks and the fake Engineer turret runtime were removed; Engineer uses the actual model turret root.
 - Forge now contains one Common/Rare/Mythic weapon for all six families using the same per-family 55/18/2 weight pattern, preserving the prior aggregate rarity ratio.
-- Existing-body Rare Mutation state exists for King/Golden/Dragon/Prism. The Application controller now exposes the authoritative mutate command, headless selectors expose per-instance eligibility/readiness, and combat rewards can carry product-owned mutation Fragment/Catalyst rewards without leaking mutation concepts into Kit Core. Fragment conversion thresholds are intentionally not invented. Dragon selected origins remain closed until authored; Mimic remains a separate special-capture problem.
+- Existing-body Rare Mutation state exists for King/Golden/Dragon/Prism. The Application controller exposes the authoritative mutate command, headless selectors expose per-instance eligibility/readiness, and product-owned Mutation Fragment/Catalyst rewards flow through the same authoritative battle reward payload/receipt without leaking mutation concepts into Kit Core. Fragment conversion thresholds are intentionally not invented. Dragon selected origins remain closed until authored; Mimic remains a separate special-capture problem.
 - The first-world manifest now registers all eight canonical area IDs in stable sequence. Per-area save progress is initialized/normalized for all known areas, and combat resolves the next world stage generically without skipping an unauthored area. Areas 2-8 still need authored stage/enemy/balance content.
-- Battle, Camp resident 3D, and Fusion 3D are lazy boundaries. The production entry no longer statically preloads Three/R3F; current initial static JS is 374.2 KiB raw / 109.5 KiB gzip. `pnpm run check:bundle` enforces a 160 KiB gzip budget and rejects WebGL/3D-only chunks in the initial static graph.
+- Battle, Camp resident 3D, and Fusion 3D are lazy boundaries. The production entry no longer statically preloads Three/R3F; current initial static JS is 374.7 KiB raw / 109.6 KiB gzip. `pnpm run check:bundle` enforces a 160 KiB gzip budget and rejects WebGL/3D-only chunks in the initial static graph.
+- `pnpm run verify:release` is the single release-check entry point and runs typecheck, the full test suite, production build, initial-bundle guard, and all three same-core simulator checks.
 
 ## Verification contract
 
 Use pnpm exclusively for this repo:
 
 ```text
+pnpm run verify:release
+
+# Individual gates remain available:
 pnpm run typecheck
 pnpm test
 pnpm run build

@@ -21,7 +21,7 @@ import {
   type StageWaveDefinition,
 } from './definitions';
 import { highestStageClearedForArea, withHighestStageClearedForArea, type SlimeInstanceId, type SlimeMercenariesState, type SlimeProgress } from './state';
-import { applySlimeProductRewards, type SlimeProductReward } from './rewards';
+import { applySlimeProductRewards, describeSlimeProductRewards } from './rewards';
 
 export type CombatEncounter = Readonly<{
   kind: 'wave' | 'boss';
@@ -340,7 +340,7 @@ function resolveNormalWave(
     stageNumber: stage.stageNumber,
     waveNumber,
     grantedRewards: [
-      ...rewardEventItems(wave.rewards),
+      ...describeSlimeProductRewards(wave.rewards),
       ...random.granted.map((drop) => ({ kind: 'token' as const, id: drop.tokenId, amount: drop.count })),
     ],
     randomDrops: random.granted,
@@ -370,7 +370,7 @@ function resolveBoss(
       semanticEvent(nextState, 'bossDefeated', stage.id, {
         stageId: stage.id,
         stageNumber: stage.stageNumber,
-        grantedRewards: rewardEventItems(boss.rewards),
+        grantedRewards: describeSlimeProductRewards(boss.rewards),
       }),
       ...completed.events,
     ],
@@ -478,7 +478,7 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
       nextAreaId: nextStage?.areaId ?? null,
       nextStageNumber: nextStage?.stageNumber ?? null,
       farming: false,
-      grantedRewards: firstClear ? rewardEventItems(stage.clearRewards) : [],
+      grantedRewards: firstClear ? describeSlimeProductRewards(stage.clearRewards) : [],
     })],
   };
 }
@@ -576,30 +576,6 @@ function resolveRandomDrops(
     granted.push({ tokenId: drop.tokenId, count: drop.count });
   }
   return { state: nextState, granted };
-}
-
-type CombatRewardEventItem = Readonly<{
-  kind: 'currency' | 'token';
-  id: string;
-  amount: number;
-}>;
-
-function rewardEventItems(rewards: readonly SlimeProductReward[]): readonly CombatRewardEventItem[] {
-  const items: CombatRewardEventItem[] = [];
-  const visit = (reward: SlimeProductReward): void => {
-    if (reward.type === 'currency') {
-      const amount = GameNumber.from(reward.amount).toNumber();
-      if (amount > 0) items.push({ kind: 'currency', id: reward.currencyId, amount });
-      return;
-    }
-    if (reward.type === 'token') {
-      if (reward.count > 0) items.push({ kind: 'token', id: reward.tokenId, amount: reward.count });
-      return;
-    }
-    if (reward.type === 'composite') reward.rewards.forEach((nested) => visit(nested));
-  };
-  rewards.forEach(visit);
-  return items;
 }
 
 function activeSlimes(state: SlimeMercenariesState): readonly SlimeProgress[] {
