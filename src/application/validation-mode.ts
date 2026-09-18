@@ -5,6 +5,7 @@ import {
   createJobSlime,
   firstSlimeIdByType,
   ids,
+  jobCreationDefinitions,
   withHighestStageClearedForArea,
   type SlimeInstanceId,
   type SlimeMercenariesState,
@@ -134,9 +135,20 @@ export function prepareValidationRoster(
   let next = applyValidationSandboxResources(state);
   for (const typeId of NORMAL_JOB_SLIME_IDS) {
     if (firstSlimeIdByType(next, typeId) !== null) continue;
-    const created = createJobSlime(next, typeId);
+    const progression = next.gameData.progression;
+    const commandState: SlimeMercenariesState = {
+      ...next,
+      gameData: {
+        ...next.gameData,
+        progression: { ...progression, currentAreaId: jobCreationDefinitions[typeId].unlockAreaId },
+      },
+    };
+    const created = createJobSlime(commandState, typeId);
     if (!created.accepted) return { accepted: false, state, events: [], reason: 'job-create-failed' };
-    next = applyValidationSandboxResources(created.state);
+    next = applyValidationSandboxResources({
+      ...created.state,
+      gameData: { ...created.state.gameData, progression },
+    });
   }
 
   for (const [slotIndex, typeId] of NORMAL_JOB_SLIME_IDS.entries()) {

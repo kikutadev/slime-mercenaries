@@ -1,10 +1,10 @@
 import type { CommandResult, DomainEvent } from 'idle-game-kit';
 import { resolveAreaDefinition, resolveStageDefinition } from './definitions';
-import { highestStageClearedForArea, type SlimeMercenariesState } from './state';
+import { highestStageClearedForArea, isAreaUnlocked, type SlimeMercenariesState } from './state';
 
 export function maxSelectableStageForArea(state: SlimeMercenariesState, areaId: string): number {
   const area = resolveAreaDefinition(areaId);
-  if (area === undefined || state.gameData.progression.areas[areaId] === undefined || area.stages.length === 0) return 0;
+  if (area === undefined || !isAreaUnlocked(state.gameData.progression, area.id) || area.stages.length === 0) return 0;
   return Math.min(area.stages.length, highestStageClearedForArea(state.gameData.progression, areaId) + 1);
 }
 
@@ -19,7 +19,7 @@ export function enterAreaStage(
 ): CommandResult<SlimeMercenariesState, 'unknown-area' | 'locked-area' | 'no-content' | 'locked-stage'> {
   const area = resolveAreaDefinition(areaId);
   if (area === undefined) return reject(state, 'unknown-area');
-  if (state.gameData.progression.areas[areaId] === undefined) return reject(state, 'locked-area');
+  if (!isAreaUnlocked(state.gameData.progression, area.id)) return reject(state, 'locked-area');
   if (area.stages.length === 0) return reject(state, 'no-content');
   const maxSelectableStage = maxSelectableStageForArea(state, areaId);
   if (!Number.isSafeInteger(stageNumber) || stageNumber <= 0 || stageNumber > maxSelectableStage) {

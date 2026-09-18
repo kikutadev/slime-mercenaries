@@ -1,5 +1,5 @@
 import { NORMAL_JOB_SLIME_IDS, resolveAreaDefinition, resolveStageDefinition, weaponDefinitionsByDefinitionId } from './definitions';
-import type { SlimeMercenariesState } from './state';
+import { isAreaUnlocked, type SlimeMercenariesState } from './state';
 
 const NORMAL_JOB_IDS = new Set<string>(NORMAL_JOB_SLIME_IDS);
 
@@ -11,7 +11,7 @@ export function assertSlimeStateInvariants(state: SlimeMercenariesState): void {
   const progression = state.gameData.progression;
   const currentArea = resolveAreaDefinition(progression.currentAreaId);
   invariant(currentArea !== undefined, `Unknown current area: ${progression.currentAreaId}`);
-  invariant(progression.areas[progression.currentAreaId] !== undefined, `Current area is not unlocked: ${progression.currentAreaId}`);
+  invariant(isAreaUnlocked(progression, progression.currentAreaId as Parameters<typeof isAreaUnlocked>[1]), 'Current area is not unlocked: ' + progression.currentAreaId);
   invariant(resolveStageDefinition(progression.currentAreaId, progression.currentStage) !== null,
     `Unknown current stage: ${progression.currentAreaId}:${progression.currentStage}`);
 

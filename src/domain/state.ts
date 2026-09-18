@@ -1,5 +1,5 @@
 import { GameNumber, createLoadoutState, createRngStreams, createTimedActivityState, type GameNumberSerialized, type GameState, type InventoryState, type LoadoutState, type TimedActivityState } from 'idle-game-kit';
-import { AREA_IDS, dispatchContractDefinitions, ids, initialEconomyBalance, slimeWeaponLoadoutDefinitions, type DispatchContractId, type JobSlimeId } from './definitions';
+import { AREA_IDS, areaDefinitions, dispatchContractDefinitions, ids, initialEconomyBalance, slimeWeaponLoadoutDefinitions, type AreaId, type DispatchContractId, type JobSlimeId } from './definitions';
 
 export const SLIME_MERCENARIES_SCHEMA_VERSION = 6;
 export const SLIME_MERCENARIES_DEFINITION_VERSION = '2026-09-18.5';
@@ -92,15 +92,22 @@ export function highestStageClearedForArea(
   return progression.areas[areaId]?.highestStageCleared ?? 0;
 }
 
-export function withAreaUnlocked(
+export function isAreaUnlocked(
   progression: SlimeProgressionState,
-  areaId: string,
-): SlimeProgressionState {
-  if (progression.areas[areaId] !== undefined) return progression;
-  return {
-    ...progression,
-    areas: { ...progression.areas, [areaId]: { highestStageCleared: 0 } },
-  };
+  areaId: AreaId,
+): boolean {
+  const targetIndex = AREA_IDS.indexOf(areaId);
+  if (targetIndex <= 0) return targetIndex === 0;
+  const currentIndex = AREA_IDS.indexOf(progression.currentAreaId as AreaId);
+  if (currentIndex >= targetIndex) return true;
+
+  for (let index = 0; index < targetIndex; index += 1) {
+    const precedingAreaId = AREA_IDS[index]!;
+    const stageCount = areaDefinitions[precedingAreaId].stages.length;
+    if (stageCount === 0) return false;
+    if (highestStageClearedForArea(progression, precedingAreaId) < stageCount) return false;
+  }
+  return true;
 }
 
 export function withHighestStageClearedForArea(

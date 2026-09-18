@@ -20,7 +20,7 @@ import {
   type StageDefinition,
   type StageWaveDefinition,
 } from './definitions';
-import { highestStageClearedForArea, withAreaUnlocked, withHighestStageClearedForArea, type SlimeInstanceId, type SlimeMercenariesState, type SlimeProgress } from './state';
+import { highestStageClearedForArea, withHighestStageClearedForArea, type SlimeInstanceId, type SlimeMercenariesState, type SlimeProgress } from './state';
 import { applySlimeProductRewards, describeSlimeProductRewards } from './rewards';
 
 export type CombatEncounter = Readonly<{
@@ -465,9 +465,7 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
       },
     };
   } else {
-    const progressed = areaChanged
-      ? withAreaUnlocked(clearedProgression, nextStage.areaId)
-      : clearedProgression;
+    const progressed = clearedProgression;
     nextState = {
       ...nextState,
       gameData: {

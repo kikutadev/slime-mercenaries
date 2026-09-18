@@ -86,6 +86,7 @@ export type JobCreationDefinition = Readonly<{
   jobGearTokenId: string;
   jobGearCount: number;
   fusionCoreTokenId: string;
+  unlockAreaId: WorldAreaId;
   startingLevel: number;
   startingJobTier: number;
 }>;
@@ -124,6 +125,7 @@ export const jobCreationDefinitions: Readonly<Record<JobSlimeId, JobCreationDefi
     jobGearTokenId: ids.token.trainingSword,
     jobGearCount: 1,
     fusionCoreTokenId: ids.token.swordCore,
+    unlockAreaId: 'area.clover-road',
     startingLevel: 1,
     startingJobTier: 1,
   },
@@ -134,6 +136,7 @@ export const jobCreationDefinitions: Readonly<Record<JobSlimeId, JobCreationDefi
     jobGearTokenId: ids.token.trainingShield,
     jobGearCount: 1,
     fusionCoreTokenId: ids.token.shieldCore,
+    unlockAreaId: 'area.amber-mine',
     startingLevel: 1,
     startingJobTier: 1,
   },
@@ -144,6 +147,7 @@ export const jobCreationDefinitions: Readonly<Record<JobSlimeId, JobCreationDefi
     jobGearTokenId: ids.token.trainingBow,
     jobGearCount: 1,
     fusionCoreTokenId: ids.token.bowCore,
+    unlockAreaId: 'area.clover-road',
     startingLevel: 1,
     startingJobTier: 1,
   },
@@ -154,6 +158,7 @@ export const jobCreationDefinitions: Readonly<Record<JobSlimeId, JobCreationDefi
     jobGearTokenId: ids.token.trainingWand,
     jobGearCount: 1,
     fusionCoreTokenId: ids.token.wandCore,
+    unlockAreaId: 'area.mushroom-forest',
     startingLevel: 1,
     startingJobTier: 1,
   },
@@ -164,6 +169,7 @@ export const jobCreationDefinitions: Readonly<Record<JobSlimeId, JobCreationDefi
     jobGearTokenId: ids.token.trainingDagger,
     jobGearCount: 1,
     fusionCoreTokenId: ids.token.daggerCore,
+    unlockAreaId: 'area.mushroom-forest',
     startingLevel: 1,
     startingJobTier: 1,
   },
@@ -174,6 +180,7 @@ export const jobCreationDefinitions: Readonly<Record<JobSlimeId, JobCreationDefi
     jobGearTokenId: ids.token.trainingGun,
     jobGearCount: 1,
     fusionCoreTokenId: ids.token.gunCore,
+    unlockAreaId: 'area.amber-mine',
     startingLevel: 1,
     startingJobTier: 1,
   },

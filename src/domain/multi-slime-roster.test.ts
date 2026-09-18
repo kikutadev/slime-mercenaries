@@ -98,6 +98,10 @@ describe('multi-slime roster', () => {
           definition.jobGearTokenId,
           definition.jobGearCount * 2,
         ),
+        gameData: {
+          ...state.gameData,
+          progression: { ...state.gameData.progression, currentAreaId: definition.unlockAreaId },
+        },
       };
       const first = createJobSlime(state, typeId);
       if (!first.accepted) throw new Error(`${typeId} first creation failed`);

@@ -30,7 +30,8 @@ describe('world navigation', () => {
         ...initial.gameData,
         progression: {
           ...initial.gameData.progression,
-          areas: { ...initial.gameData.progression.areas, 'area.mushroom-forest': { highestStageCleared: 0 } },
+          currentAreaId: 'area.mushroom-forest',
+          currentStage: 1,
         },
       },
     };

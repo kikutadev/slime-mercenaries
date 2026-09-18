@@ -16,6 +16,10 @@ function createOwned(typeId: JobSlimeId, jobTier: number): Readonly<{ state: Sli
       definition.jobGearTokenId,
       definition.jobGearCount,
     ),
+    gameData: {
+      ...state.gameData,
+      progression: { ...state.gameData.progression, currentAreaId: definition.unlockAreaId },
+    },
   };
   const created = createJobSlime(state, typeId);
   if (!created.accepted) throw new Error(`setup ${typeId} creation failed`);
