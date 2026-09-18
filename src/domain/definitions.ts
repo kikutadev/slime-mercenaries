@@ -581,6 +581,8 @@ export type PromotionDefinition = Readonly<{
   resultDisplayName: string;
   minLevel: number;
   goldCost: number;
+  /** Earliest world area required for this promotion. Branch-specific crest gates may be stricter later. */
+  unlockAreaId: WorldAreaId | null;
   recipe: readonly TokenRequirement[];
 }>;
 
@@ -635,6 +637,7 @@ function promotion(
     resultDisplayName,
     minLevel: tuning.minLevel,
     goldCost: tuning.goldCost,
+    unlockAreaId: toTier >= 3 ? 'area.sunken-marsh' : null,
     recipe: [{ tokenId: ids.token.promotionMaterial, count: tuning.promotionMaterial }],
   };
 }

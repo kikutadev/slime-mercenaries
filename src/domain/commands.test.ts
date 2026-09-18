@@ -18,6 +18,7 @@ import {
   previewPlainSlimeCraft,
   previewSlimeFusion,
   previewSlimeLevelUp,
+  previewSlimePromotion,
   promoteSlime,
 } from './commands';
 import {
@@ -303,6 +304,47 @@ describe('promotion', () => {
       fusionFormId: 'greatsword',
     });
     expect(promoted.state.gameData.codex.slimeForms['slime.fighter']).toMatchObject({ viewedAtSimTimeSec: null });
+  });
+
+  it('keeps Tier-3 branches locked until the first authored crest area is unlocked', () => {
+    const { state, swordId } = createSword();
+    const sword = state.gameData.roster.slimes[swordId]!;
+    const tier2Step = promotionDefinitions.sword[0]!;
+    const tier3Step = promotionDefinitions.sword[1]!;
+    const totalPromotionMaterial = [...tier2Step.recipe, ...tier3Step.recipe]
+      .filter((requirement) => requirement.tokenId === ids.token.promotionMaterial)
+      .reduce((sum, requirement) => sum + requirement.count, 0);
+    let prepared: SlimeMercenariesState = {
+      ...state,
+      tokens: grantToken(state.tokens, ids.token.promotionMaterial, totalPromotionMaterial),
+      gameData: {
+        ...state.gameData,
+        roster: {
+          ...state.gameData.roster,
+          slimes: { ...state.gameData.roster.slimes, [swordId]: { ...sword, level: tier3Step.minLevel } },
+        },
+      },
+    };
+    prepared = applyRewards(prepared, [{ type: 'currency', currencyId: ids.currency.gold, amount: 1_000_000, source: 'test' }], { resolveCurrencyDefinition }) as SlimeMercenariesState;
+    const tier2 = promoteSlime(prepared, swordId, tier2Step.id);
+    if (!tier2.accepted) throw new Error(`Tier-2 setup failed: ${tier2.reason}`);
+
+    expect(previewSlimePromotion(tier2.state, swordId, tier3Step.id)).toMatchObject({
+      unlockAreaId: 'area.sunken-marsh',
+      unlocked: false,
+      canPromote: false,
+    });
+    expect(promoteSlime(tier2.state, swordId, tier3Step.id)).toMatchObject({ accepted: false, reason: 'promotion-locked' });
+
+    const unlocked: SlimeMercenariesState = {
+      ...tier2.state,
+      gameData: {
+        ...tier2.state.gameData,
+        progression: withAreaUnlocked(tier2.state.gameData.progression, 'area.sunken-marsh'),
+      },
+    };
+    expect(previewSlimePromotion(unlocked, swordId, tier3Step.id)).toMatchObject({ unlocked: true, canPromote: true });
+    expect(promoteSlime(unlocked, swordId, tier3Step.id).accepted).toBe(true);
   });
 
   it('rejects Promotion atomically when materials are missing', () => {

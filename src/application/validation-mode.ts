@@ -128,6 +128,8 @@ export function prepareValidationRoster(
   for (const typeId of NORMAL_JOB_SLIME_IDS) {
     progression = withAreaUnlocked(progression, jobCreationDefinitions[typeId].unlockAreaId);
   }
+  // Tier-3 validation needs the earliest authored crest area without changing production gates.
+  progression = withAreaUnlocked(progression, 'area.sunken-marsh');
   next = { ...next, gameData: { ...next.gameData, progression } };
   const events = [];
   for (const typeId of NORMAL_JOB_SLIME_IDS) {

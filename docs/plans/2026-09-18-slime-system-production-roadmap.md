@@ -132,6 +132,7 @@ Status: In Progress
 - Existing-body Rare Mutation state exists for King/Golden/Dragon/Prism, with Controller/selector/presentation integration. Fragment thresholds are intentionally not invented. Dragon selected origins remain closed until authored; Mimic remains a separate special-capture problem.
 - The authored eight-area horizon is registered in sequence. Stage progression is definition-driven, per-area highest progress is durable, and unlocked stages can be revisited through one Domain command. Areas 2-8 still need actual stage/enemy/reward content; empty future areas are not treated as playable.
 - Normal job creation enforces the authored area gates: Sword/Bow at Clover Road, Wand/Dagger at Mushroom Forest, Shield/Gun at Amber Mine. Validation mode explicitly unlocks those area definitions only for sandbox testing.
+- Tier-3 Promotion has a global Area-4/Sunken-Marsh floor so generic materials cannot unlock specializations during Area 1-3. Later branch-specific crest gates remain content data and may be stricter.
 
 ## Verification contract
 

@@ -215,7 +215,9 @@ Requirements may include:
 - branch crest from relevant area/boss
 - player selects one of two specializations
 
-Exact thresholds are balance data.
+Tier 3 has a global progression floor at Area 4 / Sunken Marsh, the first authored Tier-3 crest area. This is only the earliest gate: branch-specific crest definitions may require a later area or boss once that content is authored. Owning generic promotion material early must not bypass the Area-4 floor.
+
+Exact thresholds beyond that floor are balance/content data.
 
 ## 9. Fusion behavior
 

@@ -513,6 +513,8 @@ export type SlimePromotionPreview = Readonly<{
   levelMet: boolean;
   goldCost: GameNumber;
   canAffordGold: boolean;
+  unlockAreaId: string | null;
+  unlocked: boolean;
   requirements: readonly TokenRequirementPreview[];
   canPromote: boolean;
 }>;
@@ -524,15 +526,16 @@ function promotionPreviewForStep(
 ): SlimePromotionPreview {
   const slime = state.gameData.roster.slimes[slimeId];
   if (slime === undefined) {
-    return { slimeId, step: null, levelMet: false, goldCost: GameNumber.zero(), canAffordGold: false, requirements: [], canPromote: false };
+    return { slimeId, step: null, levelMet: false, goldCost: GameNumber.zero(), canAffordGold: false, unlockAreaId: null, unlocked: false, requirements: [], canPromote: false };
   }
   const requirements = step.recipe.map((requirement) => previewRequirement(state, requirement));
   const goldCost = GameNumber.from(step.goldCost);
   const levelMet = slime.level >= step.minLevel;
   const canAffordGold = readCurrency(state.currencies, ids.currency.gold).compare(goldCost) >= 0;
+  const unlocked = step.unlockAreaId === null || state.gameData.progression.areas[step.unlockAreaId] !== undefined;
   return {
-    slimeId, step, levelMet, goldCost, canAffordGold, requirements,
-    canPromote: levelMet && canAffordGold && requirements.every((requirement) => requirement.missing === 0),
+    slimeId, step, levelMet, goldCost, canAffordGold, unlockAreaId: step.unlockAreaId, unlocked, requirements,
+    canPromote: unlocked && levelMet && canAffordGold && requirements.every((requirement) => requirement.missing === 0),
   };
 }
 
@@ -564,6 +567,8 @@ export function previewSlimePromotion(
     levelMet: state.gameData.roster.slimes[slimeId] !== undefined,
     goldCost: GameNumber.zero(),
     canAffordGold: true,
+    unlockAreaId: null,
+    unlocked: false,
     requirements: [],
     canPromote: false,
   };
@@ -573,7 +578,7 @@ export function promoteSlime(
   state: SlimeMercenariesState,
   slimeId: SlimeInstanceId,
   promotionId?: string,
-): CommandResult<SlimeMercenariesState, 'not-owned' | 'max-tier' | 'promotion-choice-required' | 'invalid-promotion' | 'level-too-low' | 'insufficient-materials' | 'insufficient-gold'> {
+): CommandResult<SlimeMercenariesState, 'not-owned' | 'max-tier' | 'promotion-choice-required' | 'invalid-promotion' | 'promotion-locked' | 'level-too-low' | 'insufficient-materials' | 'insufficient-gold'> {
   const slime = state.gameData.roster.slimes[slimeId];
   if (slime === undefined) return reject(state, 'not-owned');
   const choices = previewSlimePromotions(state, slimeId);
@@ -583,6 +588,7 @@ export function promoteSlime(
     ? choices[0]!
     : choices.find((choice) => choice.step?.id === promotionId);
   if (preview === undefined || preview.step === null) return reject(state, 'invalid-promotion');
+  if (!preview.unlocked) return reject(state, 'promotion-locked');
   if (!preview.levelMet) return reject(state, 'level-too-low');
   if (preview.requirements.some((requirement) => requirement.missing > 0)) return reject(state, 'insufficient-materials');
   if (!preview.canAffordGold) return reject(state, 'insufficient-gold');
