@@ -1253,3 +1253,91 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
   filter: blur(1.5px);
   pointer-events: none;
 }
+
+
+/* Dispatch production pass — authored route diorama + live 3D travelers */
+.dispatch-map {
+  background: linear-gradient(180deg, #a7dce9 0%, #dcecc7 100%);
+}
+.dispatch-map-stage {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+}
+.dispatch-map-stage canvas {
+  position: absolute !important;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+.dispatch-map__home {
+  z-index: 7;
+  left: 49%;
+  top: 52%;
+}
+.dispatch-map__home span {
+  width: 38px;
+  height: 38px;
+  border: 2px solid rgba(255,255,255,.82);
+  border-radius: 13px;
+  background: rgba(217,135,90,.92);
+}
+.dispatch-home-icon {
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.dispatch-map__home small {
+  margin-top: 3px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(247,252,241,.82);
+  color: #365945;
+  font-size: 9px;
+}
+.dispatch-map-node {
+  z-index: 9;
+  width: 124px;
+  min-height: 58px;
+  grid-template-columns: 40px 1fr;
+  gap: 7px;
+  padding: 7px 8px;
+  border-radius: 17px;
+  background: rgba(249,254,245,.84);
+}
+.dispatch-map-node__marker {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+}
+.dispatch-landmark-icon {
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.dispatch-map-node__copy strong { font-size: 10px; }
+.dispatch-map-node__copy small { margin-top: 2px; font-size: 9px; }
+.dispatch-world__stats span,
+.dispatch-world__stats strong { font-size: 10px; }
+.dispatch-console__head > div:first-child span { font-size: 9px; }
+.dispatch-console__reward span { font-size: 9px; }
+.dispatch-console__reward strong { font-size: 11px; }
+.dispatch-console__mission small { font-size: 9px; }
+.dispatch-console__mission strong { font-size: 11px; }
+.dispatch-crew-strip strong { font-size: 10px; }
+.dispatch-crew-strip small { font-size: 9px; }
+.dispatch-console__empty { font-size: 10px; }
+.dispatch-running-panel__slime strong { font-size: 11px; }
+.dispatch-running-panel__slime small { font-size: 9px; }
+.dispatch-running-panel__time span { font-size: 9px; }
+.dispatch-running-panel > small { font-size: 9px; }
+.dispatch-send-button { font-size: 11px; }
