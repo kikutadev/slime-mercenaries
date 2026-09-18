@@ -1,5 +1,5 @@
 import { gzipSync } from 'node:zlib';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { basename, dirname, join, normalize, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -67,6 +67,22 @@ for (const file of files) {
 if (gzipBytes > maxInitialGzipBytes) {
   throw new Error(
     `Initial JavaScript gzip budget exceeded: ${(gzipBytes / 1024).toFixed(1)} KiB > ${(maxInitialGzipBytes / 1024).toFixed(0)} KiB.`,
+  );
+}
+
+const lazyReactRuntimeLeaks = readdirSync(join(distRoot, 'assets'))
+  .filter((name) => name.endsWith('.js'))
+  .filter((name) => {
+    const source = readFileSync(join(distRoot, 'assets', name), 'utf8');
+    return source.includes('.useMemo=function')
+      && source.includes('.useState=function')
+      && !files.has(join(distRoot, 'assets', name));
+  });
+
+if (lazyReactRuntimeLeaks.length > 0) {
+  throw new Error(
+    'React runtime duplicated into lazy chunk(s): ' + lazyReactRuntimeLeaks.join(', ')
+      + '. Keep react/react-dom deduped so React Three Fiber uses the app renderer instance.',
   );
 }
 
