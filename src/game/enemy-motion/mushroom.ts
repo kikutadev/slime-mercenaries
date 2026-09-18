@@ -9,6 +9,7 @@ export const ENEMY_MOTION_TIMING = {
   sporeAttack: 0.78,
   bossAttack: 1.36,
   defeat: 1.05,
+  bossDefeat: 1.72,
 } as const;
 
 export const ENEMY_MOTION_THRESHOLDS = {
@@ -134,6 +135,29 @@ export function getMushroomDefeatMotion(u: number, side: number): EnemyDefeatPos
   return { scaleX: 1 + collapse * 0.28, scaleY: 1 - collapse * 0.58, scaleZ: 1 + collapse * 0.1, rotationZ: side * collapse * 0.3, yOffset: -0.028 * collapse - 0.04 * fade, lateralDrift: side * drift * 0.13, backwardDrift: drift * 0.12, opacity: 1 - fade };
 }
 
+export function getGreatMushroomDefeatMotion(u: number, side: number): EnemyDefeatPose {
+  const t = clampEnemy01(u);
+  const stagger = Math.sin(clampEnemy01(t / 0.24) * Math.PI);
+  const collapse = t < 0.20 ? 0 : smoothEnemy01((t - 0.20) / 0.46);
+  const rebound = t >= 0.60 && t < 0.79
+    ? Math.sin(((t - 0.60) / 0.19) * Math.PI)
+    : 0;
+  const settle = smoothEnemy01((t - 0.73) / 0.17);
+  const fade = smoothEnemy01((t - 0.87) / 0.13);
+  const heave = Math.sin(clampEnemy01(t / 0.31) * Math.PI) * 0.055;
+
+  return {
+    scaleX: 1 + stagger * 0.06 + collapse * 0.34 - rebound * 0.05,
+    scaleY: 1 + stagger * 0.07 - collapse * 0.50 + rebound * 0.12 - settle * 0.06,
+    scaleZ: 1 + collapse * 0.14,
+    rotationZ: side * (stagger * 0.11 + collapse * 0.47 - rebound * 0.07),
+    yOffset: heave - collapse * 0.052 - settle * 0.025 - fade * 0.035,
+    lateralDrift: side * collapse * 0.20,
+    backwardDrift: collapse * 0.16,
+    opacity: 1 - fade,
+  };
+}
+
 export const MUSHROOM_SPORE_FLIGHT_SECONDS = 0.42;
 
 export function createMushroomSporeMesh(): THREE.Group {
@@ -153,7 +177,7 @@ const PROFILES: Record<MushroomBehaviorId, EnemyMotionProfile> = {
   'mushroom-bump': { familyId: 'mushroom', idle: getMushroomIdleMotion, move: getMushroomMoveMotion, attack: getMushroomBumpAttackMotion, hit: getMushroomHitMotion, defeat: getMushroomDefeatMotion, moveDuration: 1.55, moveDistance: 0.7, attackDuration: ENEMY_MOTION_TIMING.bumpAttack, contactU: ENEMY_MOTION_THRESHOLDS.bumpContactU, attackTravelDistance: 0.4, defeatDuration: ENEMY_MOTION_TIMING.defeat },
   'mushroom-heavy-bump': { familyId: 'mushroom', idle: getMushroomIdleMotion, move: getMushroomMoveMotion, attack: getMushroomHeavyAttackMotion, hit: getMushroomHitMotion, defeat: getMushroomDefeatMotion, moveDuration: 1.55, moveDistance: 0.7, attackDuration: ENEMY_MOTION_TIMING.heavyAttack, contactU: ENEMY_MOTION_THRESHOLDS.heavyContactU, attackTravelDistance: 0.4, defeatDuration: ENEMY_MOTION_TIMING.defeat },
   'mushroom-spore': { familyId: 'mushroom', idle: getMushroomIdleMotion, move: getMushroomMoveMotion, attack: getMushroomSporeAttackMotion, hit: getMushroomHitMotion, defeat: getMushroomDefeatMotion, moveDuration: 1.55, moveDistance: 0.7, attackDuration: ENEMY_MOTION_TIMING.sporeAttack, contactU: ENEMY_MOTION_THRESHOLDS.sporeReleaseU, attackTravelDistance: 0.16, defeatDuration: ENEMY_MOTION_TIMING.defeat, projectile: SPORE_PROJECTILE },
-  'mushroom-boss': { familyId: 'mushroom', idle: getMushroomIdleMotion, move: getMushroomMoveMotion, attack: getGreatMushroomAttackMotion, hit: getMushroomHitMotion, defeat: getMushroomDefeatMotion, moveDuration: 1.55, moveDistance: 0.7, attackDuration: ENEMY_MOTION_TIMING.bossAttack, contactU: ENEMY_MOTION_THRESHOLDS.bossContactU, attackTravelDistance: 0.5, defeatDuration: ENEMY_MOTION_TIMING.defeat, attackVfx: { color: '#f3b95f', radius: 0.52, pose: getGreatMushroomSlamVfxPose, impactColor: '#ffd58a', impactSize: 0.28, cameraShakeDuration: 0.20, cameraShakeAmplitude: 0.045 } },
+  'mushroom-boss': { familyId: 'mushroom', idle: getMushroomIdleMotion, move: getMushroomMoveMotion, attack: getGreatMushroomAttackMotion, hit: getMushroomHitMotion, defeat: getGreatMushroomDefeatMotion, moveDuration: 1.55, moveDistance: 0.7, attackDuration: ENEMY_MOTION_TIMING.bossAttack, contactU: ENEMY_MOTION_THRESHOLDS.bossContactU, attackTravelDistance: 0.5, defeatDuration: ENEMY_MOTION_TIMING.bossDefeat, attackVfx: { color: '#f3b95f', radius: 0.52, pose: getGreatMushroomSlamVfxPose, impactColor: '#ffd58a', impactSize: 0.28, cameraShakeDuration: 0.20, cameraShakeAmplitude: 0.045 } },
 };
 
 export function getMushroomMotionProfile(behaviorId: MushroomBehaviorId): EnemyMotionProfile { return PROFILES[behaviorId]; }

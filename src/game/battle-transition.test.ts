@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getVictoryMarchSlot, getVictoryTransitionPose, shouldUseMarchEntry, victoryStatusLabel } from './battle-transition';
+import { BOSS_VICTORY_PRESENTATION_DELAY, getVictoryMarchSlot, getVictoryPresentationElapsed, getVictoryTransitionPose, shouldUseMarchEntry, victoryStatusLabel } from './battle-transition';
 
 describe('battle victory transition', () => {
   it('progresses from settle through loot into continuous march', () => {
@@ -35,6 +35,14 @@ describe('battle victory transition', () => {
     expect(shouldUseMarchEntry(1, 1)).toBe(true);
     expect(shouldUseMarchEntry(2, 0)).toBe(true);
     expect(shouldUseMarchEntry(Number.NaN, Number.NaN)).toBe(false);
+  });
+
+  it('delays only boss victory presentation so the boss can finish collapsing', () => {
+    expect(BOSS_VICTORY_PRESENTATION_DELAY).toBeCloseTo(0.60);
+    expect(getVictoryPresentationElapsed(0.4, false)).toBeCloseTo(0.4);
+    expect(getVictoryPresentationElapsed(0.4, true)).toBe(0);
+    expect(getVictoryPresentationElapsed(1.0, true)).toBeCloseTo(0.4);
+    expect(getVictoryPresentationElapsed(2.0, false)).toBeCloseTo(2.0);
   });
 
   it('shows loot only during the handoff between defeat and march', () => {

@@ -288,6 +288,18 @@ Initial boss vocabulary can be built from:
 
 One boss should introduce at most one or two new visible questions at a time. Auto movement handles basic survival; player expression comes mainly from growth and formation rather than twitch dodging.
 
+### 9.2 Great Mushroom defeat cadence
+
+The Great Mushroom uses a dedicated defeat cadence rather than the normal mushroom collapse.
+
+- defeat duration: 1.72 seconds; normal mushroom defeat remains 1.05 seconds
+- beats: hit-stagger/heave -> heavy side collapse -> small rebound -> final settle -> late fade
+- the boss keeps its defeat X-eyes while the body collapses
+- boss victory presentation is delayed by 0.60 seconds before the normal victory formation/march timeline begins
+- this delay is presentation-only and does not change Domain victory, rewards, progression, or simulation timing
+- normal-wave victory presentation keeps the existing timing
+- Gallery consumes the same boss defeat motion profile as BattleRuntime
+
 ## 10. Optional universal active action
 
 A universal temporary boost such as Jelly Rush remains a possible later system, but it is **not required for the first core loop**.

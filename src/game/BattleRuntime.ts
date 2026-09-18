@@ -138,7 +138,7 @@ import {
   getEnemyApproachEntryPose,
   getSceneryApproachOffset,
 } from './battle-approach';
-import { getVictoryMarchSlot, getVictoryTransitionPose, shouldUseMarchEntry, victoryStatusLabel } from './battle-transition';
+import { getVictoryMarchSlot, getVictoryPresentationElapsed, getVictoryTransitionPose, shouldUseMarchEntry, victoryStatusLabel } from './battle-transition';
 import { battleRewardParticleCount, battleRewardVisual, type BattleRewardCue } from './battle-reward';
 
 export interface BattleSnapshotAlly {
@@ -834,7 +834,8 @@ export class BattleRuntime {
 
   private updateVictoryMarch(ally: AllyUnit, now: number): void {
     if (!ally.alive) return;
-    const elapsed = Math.max(0, now - this.phaseStartedAt);
+    const rawElapsed = Math.max(0, now - this.phaseStartedAt);
+    const elapsed = getVictoryPresentationElapsed(rawElapsed, this.bossEncounter);
     const pose = getVictoryTransitionPose(elapsed, ally.slotIndex);
     const slot = getVictoryMarchSlot(ally.slotIndex);
     this.tempVector.set(slot.x, 0.02, slot.z);
@@ -3535,7 +3536,8 @@ export class BattleRuntime {
     const elapsed = Math.max(0, now - this.phaseStartedAt);
     this.enemies.forEach((enemy) => this.updateEnemyDefeat(enemy, now));
     if (this.result === 'victory') {
-      const transition = getVictoryTransitionPose(elapsed, 0);
+      const presentationElapsed = getVictoryPresentationElapsed(elapsed, this.bossEncounter);
+      const transition = getVictoryTransitionPose(presentationElapsed, 0);
       this.allies.forEach((ally) => this.updateVictoryMarch(ally, now));
       this.environmentTravel?.(transition.sceneryTravel);
       return;
@@ -3653,7 +3655,8 @@ export class BattleRuntime {
         ? getBossApproachPresentation(approachElapsed).cameraRetreat
         : getApproachCameraRetreat(approachElapsed);
     } else if (this.phase === 'result' && this.result === 'victory') {
-      const transition = getVictoryTransitionPose(this.simulationNow - this.phaseStartedAt, 0);
+      const elapsed = getVictoryPresentationElapsed(this.simulationNow - this.phaseStartedAt, this.bossEncounter);
+      const transition = getVictoryTransitionPose(elapsed, 0);
       this.camera.position.z -= transition.cameraAdvance;
     }
     if (now < this.cameraShakeEndsAt) {
@@ -3679,7 +3682,7 @@ export class BattleRuntime {
         : this.phase === 'combat'
           ? '交戦中'
           : this.result === 'victory'
-            ? victoryStatusLabel(this.simulationNow - this.phaseStartedAt)
+            ? victoryStatusLabel(getVictoryPresentationElapsed(this.simulationNow - this.phaseStartedAt, this.bossEncounter))
             : '敗北';
     const allies = Object.fromEntries(this.allies.map((ally) => [ally.slimeId, {
       hp: ally.hp,

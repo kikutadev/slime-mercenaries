@@ -1143,3 +1143,21 @@ Acceptance:
 - Gallery Great Mushroom Attack captured in gameplay camera with zero browser/runtime errors
 - production build passes with the shared Battle/Gallery VFX contract
 - latest full gate: 217 / 217 tests PASS, typecheck PASS, 10 / 10 GLB validation PASS, production build PASS, initial bundle gate PASS, three 20-seed simulation profiles PASS
+
+## 26. Great Mushroom defeat round — 2026-09-19
+
+Implemented:
+
+- Great Mushroom defeat changed from the shared 1.05-second mushroom collapse to a dedicated 1.72-second boss defeat
+- authored stagger/heave, side collapse, rebound, settle, and late fade
+- normal Tiny/Plump/Spore defeat timing and motion are unchanged
+- boss victory presentation waits 0.60 seconds before applying the existing formation/march timeline
+- Domain victory/reward/progression timing is unchanged
+- Gallery uses the same boss defeat profile automatically
+
+Acceptance:
+
+- pure motion tests cover boss/normal timing separation, finite poses, mirrored collapse, and boss-only victory delay
+- 430x932 authoritative-victory BattleRuntime capture covers stagger / collapse / rebound / settle / march-ready / march
+- boss is visibly settling before the ally formation starts advancing
+- latest full gate: 220 / 220 tests PASS, typecheck PASS, 10 / 10 GLB validation PASS, production build PASS, initial bundle gate PASS, three 20-seed simulation profiles PASS

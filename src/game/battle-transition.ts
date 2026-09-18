@@ -18,6 +18,7 @@ export interface VictoryMarchSlot {
 
 const MARCH_START_SECONDS = 1.08;
 const FORMATION_SETTLE_SECONDS = 0.72;
+export const BOSS_VICTORY_PRESENTATION_DELAY = 0.60;
 
 const MARCH_SLOTS: readonly VictoryMarchSlot[] = [
   { x: -0.52, z: -0.90 },
@@ -41,6 +42,11 @@ export function shouldUseMarchEntry(stageNumber: number, waveIndex: number): boo
   const safeStage = Number.isFinite(stageNumber) ? Math.max(1, Math.floor(stageNumber)) : 1;
   const safeWave = Number.isFinite(waveIndex) ? Math.max(0, Math.floor(waveIndex)) : 0;
   return safeStage > 1 || safeWave > 0;
+}
+
+export function getVictoryPresentationElapsed(elapsed: number, bossEncounter: boolean): number {
+  const safeElapsed = Math.max(0, elapsed);
+  return bossEncounter ? Math.max(0, safeElapsed - BOSS_VICTORY_PRESENTATION_DELAY) : safeElapsed;
 }
 
 export function getVictoryMarchSlot(slotIndex: number): VictoryMarchSlot {
