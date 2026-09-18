@@ -8,6 +8,7 @@ import { SlimesScreen } from '../screens/SlimesScreen';
 import { DispatchScreen } from '../screens/DispatchScreen';
 import { ForgeScreen } from '../screens/ForgeScreen';
 import type { SlimeInstanceId } from '../domain';
+import { NavIcon, type NavIconKind } from '../components/navigation/NavIcon';
 
 type ScreenId = 'battle' | 'slimes' | 'dispatch' | 'forge';
 
@@ -130,10 +131,10 @@ export function AppShell() {
         )}
 
         <nav className="bottom-nav bottom-nav--four" aria-label="メインメニュー">
-          <NavButton id="battle" label="戦闘" icon="⚔" active={screen === 'battle'} attention={false} onClick={setScreen} />
-          <NavButton id="slimes" label="キャンプ" icon="⌂" active={screen === 'slimes'} attention={attention.has('slimes')} onClick={setScreen} />
-          <NavButton id="dispatch" label="派遣" icon="↗" active={screen === 'dispatch'} attention={attention.has('dispatch')} onClick={setScreen} />
-          <NavButton id="forge" label="鍛造" icon="◆" active={screen === 'forge'} attention={attention.has('forge')} onClick={setScreen} />
+          <NavButton id="battle" label="戦闘" icon="battle" active={screen === 'battle'} attention={false} onClick={setScreen} />
+          <NavButton id="slimes" label="キャンプ" icon="camp" active={screen === 'slimes'} attention={attention.has('slimes')} onClick={setScreen} />
+          <NavButton id="dispatch" label="派遣" icon="dispatch" active={screen === 'dispatch'} attention={attention.has('dispatch')} onClick={setScreen} />
+          <NavButton id="forge" label="鍛造" icon="forge" active={screen === 'forge'} attention={attention.has('forge')} onClick={setScreen} />
         </nav>
       </section>
     </main>
@@ -150,14 +151,14 @@ function NavButton({
 }: {
   id: ScreenId;
   label: string;
-  icon: string;
+  icon: NavIconKind;
   active: boolean;
   attention: boolean;
   onClick: (screen: ScreenId) => void;
 }) {
   return (
     <button className={active ? 'is-active' : ''} type="button" onClick={() => onClick(id)}>
-      <span className="nav-icon">{icon}</span>
+      <span className="nav-icon"><NavIcon kind={icon} /></span>
       <span>{label}</span>
       {attention && <span className="nav-notice" aria-label="実行できる項目があります" />}
     </button>

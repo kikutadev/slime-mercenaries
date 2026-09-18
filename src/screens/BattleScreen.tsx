@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { BattleCanvas } from '../components/BattleCanvas';
 import { useGameController, useGameState } from '../app/GameProvider';
 import { selectBattleSceneModel } from '../application/selectors/battle-scene';
@@ -26,22 +26,15 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInst
   const sceneModel = selectBattleSceneModel(state);
   const hasBattleSlime = sceneModel.allies.length > 0;
   const enemyRatio = battle.enemyMaxHp > 0 ? battle.enemyHp / battle.enemyMaxHp : 0;
-  const activeCount = sceneModel.allies.length;
+  const retryClears = state.gameData.combat.retryFarmClearsRemaining;
 
-  const battleStatus = useMemo(() => {
-    if (state.gameData.combat.contentBoundaryReached) return '現在のエリアを踏破しました';
-    if (state.gameData.combat.retryFarmClearsRemaining > 0) {
-      return `再編成中 · ステージ${state.gameData.progression.currentStage} · 再出撃まであと${state.gameData.combat.retryFarmClearsRemaining}周`;
-    }
-    if (activeCount === 0) return '傭兵を編成すると自動戦闘が始まります';
-    return battle.label;
-  }, [
-    activeCount,
-    battle.label,
-    state.gameData.combat.contentBoundaryReached,
-    state.gameData.combat.retryFarmClearsRemaining,
-    state.gameData.progression.currentStage,
-  ]);
+  const contextCue = state.gameData.combat.contentBoundaryReached
+    ? 'このエリアを踏破しました'
+    : retryClears > 0
+      ? `前線から撤退 · 再出撃まであと${retryClears}周`
+      : !hasBattleSlime
+        ? 'キャンプで傭兵を編成すると自動戦闘が始まります'
+        : null;
 
   return (
     <section className="screen screen--battle screen--active" aria-label="戦闘">
@@ -50,28 +43,58 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInst
       ) : (
         <div className="battle-empty-visual" aria-hidden="true">
           <div className="battle-empty-road" />
-          <div className="battle-empty-orb">●</div>
         </div>
       )}
 
       <header className="battle-topbar">
-        <div>
-          <p className="eyebrow">{hud.areaLabel} · ステージ {hud.stageLabel}</p>
+        <div className="battle-stage-chip">
+          <span>{hud.areaLabel}</span>
+          <strong>ステージ {hud.stageLabel}</strong>
         </div>
-        <div className="resource-pill"><span className="resource-pill__coin">G</span><strong>{validationMode ? '∞' : hud.gold}</strong></div>
+        <div className="resource-pill">
+          <span className="resource-pill__coin">G</span>
+          <strong>{validationMode ? '∞' : hud.gold}</strong>
+        </div>
       </header>
 
-      {hasBattleSlime && (
-        <div className={`battle-enemy-compact ${sceneModel.encounter?.boss ? 'is-boss' : ''}`} aria-label="敵の体力">
-          <div><strong>{sceneModel.encounter?.displayName ?? '敵部隊'}</strong><span>{sceneModel.encounter?.boss ? 'BOSS' : `残り${battle.enemyAlive}体`}</span></div>
-          <div className="enemy-hp-track"><div className="enemy-hp-fill" style={{ transform: `scaleX(${enemyRatio})` }} /></div>
+      {hasBattleSlime && sceneModel.encounter !== null && (
+        <div
+          className={sceneModel.encounter.boss ? 'battle-boss-hud' : 'battle-enemy-counter'}
+          aria-label="敵の状態"
+        >
+          <div>
+            <strong>{sceneModel.encounter.displayName}</strong>
+            <span>{sceneModel.encounter.boss ? 'BOSS' : `残り ${battle.enemyAlive}`}</span>
+          </div>
+          {sceneModel.encounter.boss && (
+            <div className="enemy-hp-track">
+              <div className="enemy-hp-fill" style={{ transform: `scaleX(${enemyRatio})` }} />
+            </div>
+          )}
         </div>
       )}
 
-      <div className={`battle-status-strip ${state.gameData.combat.retryFarmClearsRemaining > 0 ? 'is-warning' : ''}`}>
-        <span className="status-dot" />
-        {battleStatus}
-      </div>
+      {battle.result === 'victory' && (
+        <div className="battle-result-burst battle-result-burst--victory" key={`${sceneModel.encounterKey}:victory`}>
+          <div className="battle-reward-coins" aria-hidden="true">
+            <i /><i /><i /><i /><i /><i />
+          </div>
+          <span>突破</span>
+        </div>
+      )}
+
+      {battle.result === 'defeat' && (
+        <div className="battle-result-burst battle-result-burst--defeat" key={`${sceneModel.encounterKey}:defeat`}>
+          <span>撤退</span>
+          <small>ひとつ前の戦場で立て直します</small>
+        </div>
+      )}
+
+      {contextCue !== null && (
+        <div className={`battle-context-cue ${retryClears > 0 ? 'is-warning' : ''}`}>
+          {contextCue}
+        </div>
+      )}
 
       {validationMode && state.gameData.combat.contentBoundaryReached && (
         <button className="battle-validation-restart" type="button" onClick={() => controller.validationResetBattle()}>
@@ -81,13 +104,13 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInst
 
       <div className="battle-party-rail" aria-label="出撃編成">
         {formation.map((slot) => {
-          if (slot.slimeId === null) return <span className="party-dot party-dot--empty" key={slot.slotIndex}>{slot.slotIndex + 1}</span>;
+          if (slot.slimeId === null) {
+            return <span className="party-dot party-dot--empty" key={slot.slotIndex}>{slot.slotIndex + 1}</span>;
+          }
           const sceneAlly = sceneModel.allies.find((ally) => ally.slimeId === slot.slimeId);
           if (sceneAlly === undefined) return null;
           const runtimeAlly = battle.allies[slot.slimeId];
-          const hpRatio = runtimeAlly === undefined
-            ? 1
-            : runtimeAlly.hp / Math.max(1, runtimeAlly.maxHp);
+          const hpRatio = runtimeAlly === undefined ? 1 : runtimeAlly.hp / Math.max(1, runtimeAlly.maxHp);
           return (
             <button className="party-dot" type="button" key={slot.slotIndex} onClick={() => onOpenSlime(slot.slimeId!)}>
               <img src={`${import.meta.env.BASE_URL}${slot.icon}`} alt={slot.name ?? ''} />

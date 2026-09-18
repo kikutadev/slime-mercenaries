@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import type { BattleSceneModel } from '../application/selectors/battle-scene';
 import { BattleRuntime, type BattleSnapshot } from '../game/BattleRuntime';
+import { getBattleEnvironmentPresentation } from '../game/battle-environments';
 
 interface BattleCanvasProps {
   model: BattleSceneModel;
@@ -28,6 +29,8 @@ function BattleRuntimeScene({ model, onSnapshot }: BattleCanvasProps) {
       scene,
       camera,
       baseUrl: import.meta.env.BASE_URL,
+      environment: getBattleEnvironmentPresentation(model.areaId),
+      boss: model.encounter?.boss ?? false,
       allies: model.allies.map((ally) => ({
         slimeId: ally.slimeId,
         slotIndex: ally.slotIndex,
@@ -79,7 +82,7 @@ export function BattleCanvas(props: BattleCanvasProps) {
     <Canvas
       key={`${props.model.encounterKey}:${props.model.visualKey}`}
       className="battle-canvas"
-      camera={{ fov: 31, near: 0.1, far: 50, position: [2.8, 5.35, 8.9] }}
+      camera={{ fov: 30, near: 0.1, far: 50, position: [2.35, 4.72, 7.72] }}
       dpr={[1, 2]}
       gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
       shadows

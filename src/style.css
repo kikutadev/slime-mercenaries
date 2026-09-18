@@ -492,9 +492,10 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
   background: rgba(248,252,244,.84);
   box-shadow: 0 14px 36px rgba(25,58,45,.18);
 }
-.bottom-nav button { border-radius: 14px; font-size: 7px; }
+.bottom-nav button { border-radius: 14px; font-size: 9px; }
 .bottom-nav button.is-active { background: rgba(55,119,70,.1); box-shadow: inset 0 0 0 1px rgba(72,132,82,.07); }
-.nav-icon { font-size: 16px; }
+.nav-icon { width: 23px; height: 23px; display: grid; place-items: center; }
+.nav-icon-svg { width: 23px; height: 23px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 /* CAMP — one playable space instead of a dashboard */
 .screen--camp { overflow: hidden; background: #c9e7ba; }
@@ -886,3 +887,268 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .battle-validation-restart span,.battle-validation-restart strong { display:block; }
 .battle-validation-restart span { font-size:6px; font-weight:900; letter-spacing:.11em; }
 .battle-validation-restart strong { margin-top:1px; font-size:8px; }
+
+
+/* Battle production pass — scene-first hierarchy */
+.battle-stage-chip {
+  display: grid;
+  gap: 1px;
+  padding: 7px 10px 8px;
+  border: 1px solid rgba(255,255,255,.72);
+  border-radius: 14px;
+  background: rgba(244,252,238,.82);
+  box-shadow: 0 8px 22px rgba(35,70,50,.10);
+  backdrop-filter: blur(12px);
+  text-shadow: 0 1px rgba(255,255,255,.55);
+}
+.battle-stage-chip span {
+  color: rgba(24,50,72,.58);
+  font-size: 10px;
+  font-weight: 850;
+}
+.battle-stage-chip strong {
+  font-size: 13px;
+  line-height: 1.1;
+  letter-spacing: -.02em;
+}
+
+.battle-enemy-counter {
+  position: absolute;
+  z-index: 18;
+  top: max(70px, calc(env(safe-area-inset-top) + 58px));
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 140px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255,255,255,.48);
+  border-radius: 999px;
+  background: rgba(27,55,52,.62);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(24,52,42,.11);
+  backdrop-filter: blur(9px);
+}
+.battle-enemy-counter > div,
+.battle-boss-hud > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.battle-enemy-counter strong { font-size: 11px; }
+.battle-enemy-counter span { color: rgba(255,255,255,.72); font-size: 10px; font-weight: 800; }
+
+.battle-boss-hud {
+  position: absolute;
+  z-index: 19;
+  top: max(70px, calc(env(safe-area-inset-top) + 58px));
+  left: 13%;
+  right: 13%;
+  padding: 8px 11px 10px;
+  border: 1px solid rgba(255,219,157,.68);
+  border-radius: 15px;
+  background: rgba(55,39,43,.77);
+  color: #fff;
+  box-shadow: 0 10px 26px rgba(65,43,36,.16);
+  backdrop-filter: blur(9px);
+}
+.battle-boss-hud strong {
+  color: #fff1cb;
+  font-size: 12px;
+}
+.battle-boss-hud span {
+  color: #ffd47a;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .08em;
+}
+.battle-boss-hud .enemy-hp-track { margin-top: 7px; height: 6px; }
+
+.battle-context-cue {
+  position: absolute;
+  z-index: 22;
+  left: 50%;
+  bottom: 70px;
+  max-width: calc(100% - 36px);
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  border: 1px solid rgba(255,255,255,.5);
+  border-radius: 999px;
+  background: rgba(28,59,55,.78);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(23,54,42,.14);
+  backdrop-filter: blur(10px);
+  font-size: 11px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+.battle-context-cue.is-warning { background: rgba(108,68,39,.86); }
+
+.battle-result-burst {
+  position: absolute;
+  z-index: 24;
+  left: 50%;
+  top: 37%;
+  transform: translate(-50%,-50%);
+  pointer-events: none;
+  text-align: center;
+}
+.battle-result-burst > span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 88px;
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid rgba(255,255,255,.72);
+  border-radius: 999px;
+  background: rgba(33,76,52,.86);
+  color: #f7ffe8;
+  box-shadow: 0 12px 34px rgba(30,74,48,.22), 0 0 34px rgba(245,224,123,.26);
+  font-size: 18px;
+  font-weight: 950;
+  letter-spacing: .06em;
+  animation: battle-result-pop .9s cubic-bezier(.2,.85,.25,1) both;
+}
+.battle-result-burst--defeat {
+  top: 41%;
+  display: grid;
+  gap: 6px;
+}
+.battle-result-burst--defeat > span {
+  background: rgba(72,55,51,.86);
+  box-shadow: 0 12px 34px rgba(42,34,31,.2);
+}
+.battle-result-burst--defeat small {
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(31,47,46,.68);
+  color: rgba(255,255,255,.82);
+  font-size: 10px;
+  font-weight: 750;
+  animation: battle-result-pop .95s .08s cubic-bezier(.2,.85,.25,1) both;
+}
+
+.battle-reward-coins {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1px;
+  height: 1px;
+}
+.battle-reward-coins i {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  border: 2px solid #fff0a8;
+  border-radius: 50%;
+  background: #f4c74a;
+  box-shadow: 0 0 12px rgba(246,204,74,.48);
+  opacity: 0;
+  animation: battle-reward-flight .9s cubic-bezier(.18,.72,.2,1) both;
+}
+.battle-reward-coins i:nth-child(2) { animation-delay: .04s; --coin-x: 116px; --coin-y: -222px; }
+.battle-reward-coins i:nth-child(3) { animation-delay: .08s; --coin-x: 134px; --coin-y: -202px; }
+.battle-reward-coins i:nth-child(4) { animation-delay: .12s; --coin-x: 102px; --coin-y: -238px; }
+.battle-reward-coins i:nth-child(5) { animation-delay: .16s; --coin-x: 142px; --coin-y: -230px; }
+.battle-reward-coins i:nth-child(6) { animation-delay: .20s; --coin-x: 122px; --coin-y: -248px; }
+
+.battle-party-rail {
+  bottom: 10px;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid rgba(255,255,255,.48);
+  border-radius: 18px;
+  background: rgba(32,65,55,.52);
+  box-shadow: 0 10px 26px rgba(25,57,43,.14);
+  backdrop-filter: blur(12px);
+}
+.party-dot {
+  width: 41px;
+  height: 41px;
+  border-radius: 12px;
+  box-shadow: none;
+}
+.party-dot--empty {
+  border-color: rgba(255,255,255,.32);
+  background: rgba(255,255,255,.14);
+  color: rgba(255,255,255,.62);
+}
+.party-dot__hp {
+  left: 4px;
+  right: 4px;
+  bottom: 3px;
+  height: 3px;
+}
+
+@keyframes battle-result-pop {
+  0% { opacity: 0; transform: translateY(12px) scale(.72); }
+  22%,72% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-10px) scale(.96); }
+}
+@keyframes battle-reward-flight {
+  0% { opacity: 0; transform: translate(-50%,-50%) scale(.45); }
+  15% { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform: translate(var(--coin-x, 126px), var(--coin-y, -214px)) scale(.62);
+  }
+}
+
+
+/* Camp production pass — authored 3D diorama behind lightweight interaction labels */
+.screen--camp {
+  background: linear-gradient(180deg, #a8def0 0%, #d8efc8 38%, #9dcb7e 100%);
+}
+.camp-environment-stage {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+}
+.camp-environment-stage canvas {
+  position: absolute !important;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+.camp-hotspot {
+  grid-template-columns: 32px auto;
+  min-height: 52px;
+  padding: 7px 10px;
+  border-radius: 15px;
+  background: rgba(247,252,241,.83);
+}
+.camp-hotspot > span {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+}
+.camp-station-icon {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.camp-hotspot strong { font-size: 11px; line-height: 1.05; }
+.camp-hotspot small { max-width: 102px; font-size: 9px; line-height: 1.1; }
+.camp-slime-name { min-width: 190px; padding: 8px 13px; }
+.camp-slime-name span { font-size: 9px; letter-spacing: .05em; }
+.camp-slime-name strong { margin-top: 1px; font-size: 14px; }
+.camp-slime-name small { margin-top: 1px; font-size: 9px; }
+
+.camp-resident-stage::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  bottom: 29px;
+  width: 104px;
+  height: 28px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(35,65,42,.26) 0%, rgba(35,65,42,.12) 46%, rgba(35,65,42,0) 72%);
+  filter: blur(1.5px);
+  pointer-events: none;
+}

@@ -156,10 +156,6 @@ export function CampSlimeStage({ slimeId, fusionRank, reaction, reactionKey }: C
         <directionalLight position={[-3, 5, 4]} intensity={4.0} castShadow />
         <pointLight position={[2.2, 1.8, 2]} intensity={1.15} color={presentation.accent} />
         <CampResident slimeId={slimeId} fusionRank={fusionRank} reaction={reaction} reactionKey={reactionKey} />
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.52, 0]} receiveShadow>
-          <circleGeometry args={[1.42, 48]} />
-          <meshStandardMaterial color="#d6e8b8" roughness={1} transparent opacity={0.68} />
-        </mesh>
       </Canvas>
     </div>
   );

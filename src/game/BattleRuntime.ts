@@ -59,6 +59,7 @@ import {
   type EnemyRigRestPose,
 } from './enemy-motion';
 import type { EnemyBehaviorId, EnemyId, EnemyScaleClass } from './enemies';
+import type { BattleEnvironmentPresentation } from './battle-environments';
 
 export interface BattleSnapshotAlly {
   hp: number;
@@ -266,6 +267,8 @@ export interface BattleRuntimeOptions {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   baseUrl: string;
+  environment: BattleEnvironmentPresentation;
+  boss: boolean;
   allies: readonly BattleRuntimeAllyConfig[];
   enemies: readonly BattleRuntimeEnemyConfig[];
   /** Domain-authored encounter result. Runtime presents it but never owns progression. */
@@ -304,8 +307,6 @@ const MELEE_BODY_GAP = 0.58;
 const RESULT_HOLD_SECONDS = 1.85;
 const AUTHORITATIVE_DEFEAT_LEAD_SECONDS = 2.2;
 const AUTHORITATIVE_VICTORY_LEAD_SECONDS = 1.0;
-const CAMERA_BASE_POSITION = new THREE.Vector3(2.8, 5.35, 8.9);
-const CAMERA_LOOK_AT = new THREE.Vector3(0, 0.38, -1.05);
 
 function createMaterial(color: string, roughness = 0.8): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, roughness, metalness: 0 });
@@ -317,6 +318,10 @@ export class BattleRuntime {
   private readonly loader = new GLTFLoader();
   private readonly enemyTemplatePromises = new Map<string, Promise<THREE.Group>>();
   private readonly baseUrl: string;
+  private readonly environment: BattleEnvironmentPresentation;
+  private readonly boss: boolean;
+  private readonly cameraBasePosition = new THREE.Vector3();
+  private readonly cameraLookAt = new THREE.Vector3();
   private readonly allyConfigs: readonly BattleRuntimeAllyConfig[];
   private readonly enemyConfigs: readonly BattleRuntimeEnemyConfig[];
   private readonly authoritativeResult: 'victory' | 'defeat' | null;
@@ -334,6 +339,8 @@ export class BattleRuntime {
   private readonly tracers: TracerRuntime[] = [];
   private readonly impacts: ImpactRuntime[] = [];
   private readonly turrets: TurretRuntime[] = [];
+  private rewardChest: THREE.Group | null = null;
+  private rewardChestLid: THREE.Object3D | null = null;
   private slashArc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null = null;
   private spinArc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null = null;
   private disposed = false;
@@ -356,6 +363,10 @@ export class BattleRuntime {
     this.scene = options.scene;
     this.camera = options.camera;
     this.baseUrl = options.baseUrl;
+    this.environment = options.environment;
+    this.boss = options.boss;
+    this.cameraBasePosition.set(...options.environment.cameraPosition);
+    this.cameraLookAt.set(...options.environment.cameraLookAt);
     this.allyConfigs = options.allies;
     this.enemyConfigs = options.enemies;
     this.authoritativeResult = options.authoritativeResult;
@@ -367,16 +378,17 @@ export class BattleRuntime {
     if (this.initialized || this.disposed) return;
     this.initialized = true;
 
-    this.scene.background = new THREE.Color('#b7e8fa');
-    this.scene.fog = new THREE.Fog('#ccecca', 9, 22);
-    this.camera.position.copy(CAMERA_BASE_POSITION);
-    this.camera.lookAt(CAMERA_LOOK_AT);
+    this.scene.background = new THREE.Color(this.environment.background);
+    this.scene.fog = new THREE.Fog(this.environment.fog, this.environment.fogNear, this.environment.fogFar);
+    this.camera.position.copy(this.cameraBasePosition);
+    this.camera.lookAt(this.cameraLookAt);
 
-    this.createEnvironment();
     this.createLighting();
     this.createSlashArc();
 
-    const [loadedAllies, loadedEnemies] = await Promise.all([
+    const [, , loadedAllies, loadedEnemies] = await Promise.all([
+      this.loadEnvironment(),
+      this.loadRewardChest(),
       Promise.all(this.allyConfigs.map((config) => this.loadUnit(config))),
       Promise.all(this.enemyConfigs.map((config) => this.loadEnemy(config))),
     ]);
@@ -443,83 +455,38 @@ export class BattleRuntime {
     this.disposed = true;
   }
 
-  private createEnvironment(): void {
-    const grass = new THREE.Mesh(new THREE.PlaneGeometry(16, 22), createMaterial('#8bd266', 0.94));
-    grass.rotation.x = -Math.PI / 2;
-    grass.position.set(0, -0.045, -3.2);
-    grass.receiveShadow = true;
-    this.scene.add(grass);
-
-    const road = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 20), createMaterial('#e7cd92', 0.98));
-    road.rotation.x = -Math.PI / 2;
-    road.rotation.z = THREE.MathUtils.degToRad(-4);
-    road.position.set(0.08, -0.032, -3.75);
-    road.receiveShadow = true;
-    this.scene.add(road);
-
-    const roadEdgeMaterial = createMaterial('#c3ae75', 1);
-    for (const side of [-1, 1]) {
-      const edge = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 20), roadEdgeMaterial);
-      edge.rotation.x = -Math.PI / 2;
-      edge.rotation.z = THREE.MathUtils.degToRad(-4);
-      edge.position.set(side * 2.38 + 0.08, -0.02, -3.75);
-      this.scene.add(edge);
-    }
-
-    const fenceMaterial = createMaterial('#9c6b43', 0.93);
-    const railMaterial = createMaterial('#b98558', 0.9);
-    const postGeometry = new THREE.BoxGeometry(0.12, 0.64, 0.12);
-    const railGeometry = new THREE.BoxGeometry(0.08, 0.095, 1.9);
-    for (const side of [-1, 1]) {
-      const x = side * 3.2;
-      for (let z = -9; z <= 3; z += 1.9) {
-        const post = new THREE.Mesh(postGeometry, fenceMaterial);
-        post.position.set(x, 0.31, z);
-        post.castShadow = true;
-        this.scene.add(post);
-        if (z < 3) {
-          for (const y of [0.24, 0.43]) {
-            const rail = new THREE.Mesh(railGeometry, railMaterial);
-            rail.position.set(x, y, z + 0.92);
-            rail.castShadow = true;
-            this.scene.add(rail);
-          }
-        }
+  private async loadEnvironment(): Promise<void> {
+    const gltf = await this.loader.loadAsync(`${this.baseUrl}${this.environment.asset}`);
+    if (this.disposed) return;
+    const root = gltf.scene as THREE.Group;
+    root.name = 'BattleEnvironment';
+    root.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        object.castShadow = true;
+        object.receiveShadow = true;
       }
-    }
+    });
+    this.scene.add(root);
+  }
 
-    const flowerColors = ['#fff6a8', '#ffffff', '#f6a3bd', '#b89cff'];
-    const flowerMaterials = flowerColors.map((color) => createMaterial(color, 0.72));
-    const stemMaterial = createMaterial('#4e9f52', 0.95);
-    const stemGeometry = new THREE.CylinderGeometry(0.012, 0.016, 0.18, 6);
-    const bloomGeometry = new THREE.SphereGeometry(0.052, 8, 6);
-    const flowerSeeds: Array<[number, number, number]> = [
-      [-3.7, 1.3, 0], [-3.45, 0.5, 2], [-3.8, -1.2, 1], [3.55, 1.6, 3],
-      [3.7, -0.2, 1], [3.4, -2.1, 2], [-3.55, -3.2, 3], [3.6, -4.2, 0],
-    ];
-    for (const [x, z, colorIndex] of flowerSeeds) {
-      const stem = new THREE.Mesh(stemGeometry, stemMaterial);
-      stem.position.set(x, 0.09, z);
-      this.scene.add(stem);
-      const bloom = new THREE.Mesh(bloomGeometry, flowerMaterials[colorIndex]);
-      bloom.scale.set(1, 0.55, 1);
-      bloom.position.set(x, 0.21, z);
-      this.scene.add(bloom);
-    }
-
-    const trunkMaterial = createMaterial('#8b6547', 0.95);
-    const canopyMaterial = createMaterial('#5ebc60', 0.88);
-    for (const [x, z, size] of [[-4.8, -4.2, 1], [4.65, -6.4, 1.25], [-4.4, -8, 1.35]] as Array<[number, number, number]>) {
-      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.14 * size, 0.18 * size, 1.2 * size, 7), trunkMaterial);
-      trunk.position.set(x, 0.6 * size, z);
-      trunk.castShadow = true;
-      this.scene.add(trunk);
-      const canopy = new THREE.Mesh(new THREE.IcosahedronGeometry(0.85 * size, 2), canopyMaterial);
-      canopy.scale.set(1.1, 0.92, 1);
-      canopy.position.set(x, 1.55 * size, z);
-      canopy.castShadow = true;
-      this.scene.add(canopy);
-    }
+  private async loadRewardChest(): Promise<void> {
+    const gltf = await this.loader.loadAsync(`${this.baseUrl}assets/rewards/battle-chest.glb`);
+    if (this.disposed) return;
+    const root = gltf.scene as THREE.Group;
+    root.name = 'BattleRewardChest';
+    root.visible = false;
+    root.scale.setScalar(0.52);
+    root.position.set(0.85, 0.02, -0.82);
+    root.rotation.y = -0.34;
+    root.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        object.castShadow = true;
+        object.receiveShadow = true;
+      }
+    });
+    this.rewardChest = root;
+    this.rewardChestLid = root.getObjectByName('ChestLidPivot') ?? null;
+    this.scene.add(root);
   }
 
   private createLighting(): void {
@@ -2508,6 +2475,14 @@ export class BattleRuntime {
     this.phase = 'result';
     this.phaseStartedAt = now;
     this.result = result;
+    if (result === 'victory' && this.rewardChest !== null) {
+      this.rewardChest.visible = true;
+      this.rewardChest.position.set(0.85, 0.02, -0.82);
+      this.rewardChest.scale.setScalar(0.01);
+      if (this.rewardChestLid !== null) this.rewardChestLid.rotation.x = 0;
+    } else if (this.rewardChest !== null) {
+      this.rewardChest.visible = false;
+    }
     this.allies.forEach((ally) => {
       ally.attackStartedAt = -Infinity;
       ally.attackTarget = null;
@@ -2522,6 +2497,19 @@ export class BattleRuntime {
   }
 
   private updateResult(now: number): void {
+    if (this.result === 'victory' && this.rewardChest !== null) {
+      const elapsed = Math.max(0, now - this.phaseStartedAt);
+      const appearU = clamp01(elapsed / 0.32);
+      const bounce = Math.sin(Math.min(1, appearU) * Math.PI) * 0.20;
+      const settle = 0.52 * (0.72 + 0.28 * easeOutCubic(appearU));
+      this.rewardChest.visible = true;
+      this.rewardChest.scale.setScalar(settle);
+      this.rewardChest.position.y = 0.02 + bounce;
+      if (this.rewardChestLid !== null) {
+        const openU = clamp01((elapsed - 0.34) / 0.40);
+        this.rewardChestLid.rotation.x = -1.02 * easeOutCubic(openU);
+      }
+    }
     this.allies.forEach((ally) => {
       if (ally.alive) this.updateIdle(ally, now, ally.slotIndex * 0.31);
     });
@@ -2532,6 +2520,7 @@ export class BattleRuntime {
   }
 
   private resetWave(now: number): void {
+    if (this.rewardChest !== null) this.rewardChest.visible = false;
     this.clearProjectiles();
     this.allies.forEach((ally) => {
       this.resetAlly(ally);
@@ -2619,7 +2608,13 @@ export class BattleRuntime {
   }
 
   private updateCamera(now: number): void {
-    this.camera.position.copy(CAMERA_BASE_POSITION);
+    this.camera.position.copy(this.cameraBasePosition);
+    if (this.boss && this.phase === 'approach') {
+      const introU = clamp01((now - this.phaseStartedAt) / 0.9);
+      const emphasis = 1 - easeOutCubic(introU);
+      this.camera.position.z -= 0.72 * emphasis;
+      this.camera.position.y -= 0.18 * emphasis;
+    }
     if (now < this.cameraShakeEndsAt) {
       const duration = Math.max(0.001, this.cameraShakeEndsAt - this.cameraShakeStartedAt);
       const u = clamp01((now - this.cameraShakeStartedAt) / duration);
@@ -2629,7 +2624,7 @@ export class BattleRuntime {
     } else {
       this.cameraShakeAmplitude = 0;
     }
-    this.camera.lookAt(CAMERA_LOOK_AT);
+    this.camera.lookAt(this.cameraLookAt);
   }
 
   private emitSnapshot(force = false): void {
