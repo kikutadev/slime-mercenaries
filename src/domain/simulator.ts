@@ -22,12 +22,12 @@ import {
   previewSlimeLevelUp,
   promoteSlime,
 } from './commands';
-import { assignSlimeToFormation, nextCombatBoundarySec } from './combat';
+import { assignSlimeToFormation, nextCombatBoundarySec, partyCombatPower } from './combat';
 import { startDispatch } from './dispatch';
 import { equipWeapon, forgeEquipment } from './equipment';
 import { advanceSlimeWorldTo } from './world';
 import { balance } from './balance';
-import { ids, type DispatchContractId, type JobSlimeId } from './definitions';
+import { cloverRoadStageDefinitions, ids, type DispatchContractId, type JobSlimeId } from './definitions';
 import { createInitialSlimeMercenariesState, type SlimeMercenariesState } from './state';
 
 export type SlimeSimulatorCommand =
@@ -108,14 +108,18 @@ export function createFirstLoopPolicy(): SimulatorPolicy<SlimeMercenariesState, 
         }
       }
 
-      // If a boss is blocking progression, grow one level at a time whenever Gold allows it.
+      // While a boss is blocking progression, spend affordable Gold only until its power gate is met.
+      // If growth is not affordable yet, keep farming the retreat stage instead of stopping simulation.
       if (state.gameData.combat.blockedBossStage !== null) {
-        const level = previewSlimeLevelUp(state, 'sword', 1);
-        if (level?.available === true
-          && readCurrency(state.currencies, ids.currency.gold).compare(level.totalCost) >= 0) {
-          return { kind: 'command', command: { type: 'level', jobId: 'sword', count: 1 } };
+        const blockedStage = cloverRoadStageDefinitions[state.gameData.combat.blockedBossStage - 1];
+        const requiredPower = blockedStage?.boss?.requiredPartyPower;
+        if (requiredPower !== undefined && partyCombatPower(state).compare(requiredPower) < 0) {
+          const level = previewSlimeLevelUp(state, 'sword', 1);
+          if (level?.available === true
+            && readCurrency(state.currencies, ids.currency.gold).compare(level.totalCost) >= 0) {
+            return { kind: 'command', command: { type: 'level', jobId: 'sword', count: 1 } };
+          }
         }
-        return { kind: 'stop', reason: 'boss-blocked-no-affordable-growth' };
       }
 
       const boundary = nextCombatBoundarySec(state);

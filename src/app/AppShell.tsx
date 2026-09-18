@@ -102,6 +102,9 @@ export function AppShell() {
                 <div><span>ボス撃破</span><strong>{offlineReturn.bossDefeatedCount}</strong></div>
                 <div><span>派遣帰還</span><strong>{offlineReturn.dispatchCompletedCount}</strong></div>
               </div>
+              {offlineReturn.bossRetreatCount > 0 && (
+                <div className="offline-summary__reward"><span>ボス撤退</span><strong>{offlineReturn.bossRetreatCount}回 · 再挑戦中</strong></div>
+              )}
               {offlineReturn.materialDropCount > 0 && (
                 <div className="offline-summary__reward"><span>戦闘ドロップ</span><strong>素材 +{offlineReturn.materialDropCount}</strong></div>
               )}

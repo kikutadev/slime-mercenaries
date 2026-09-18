@@ -1044,3 +1044,31 @@ Acceptance:
 - Stage 1 march endpoint and Stage 2 entry start x/z coordinates match exactly for all six party slots
 - later-encounter approach expands the party from march formation into existing front/back combat positions before combat begins
 - latest full gate: 100 / 100 tests PASS, typecheck PASS, 10 / 10 GLB validation PASS, production build PASS, diff-check PASS
+
+## 24. Boss retreat farming loop — 2026-09-18
+
+The progression/runtime review found that the intended lose-game loop was not implemented in Domain: an underpowered Stage 5 boss only set `blockedBossStage` and stopped combat. The blocker was rebuilt as an authoritative one-Stage retreat/farm/retry loop.
+
+Implemented:
+
+- underpowered boss emits `combatRetreated` and moves `currentStage` back exactly one Stage at Wave 1
+- `blockedBossStage` survives farming Stage clears and is cleared only when the boss is actually beatable/defeated
+- normal-wave Gold and random material drops remain repeatable during farming
+- deterministic Stage-clear rewards and `stageCleared` milestone events are first-clear-only, preventing infinite unlock/material duplication
+- simulator no longer stops at an unaffordable blocker; it levels while affordable/below required power and otherwise keeps farming
+- presentation suppresses the old duplicate `bossBlocked` warning and shows one `ボスに敗北` retreat notice
+- `BattleSceneModel` derives `retreatingFromBoss` only for the first farming Wave after retreat
+- the retreat runtime starts the six allies ahead of the march line, reverses scenery/camera travel, and settles them backward into the existing combat formation
+- battle status changes from the obsolete `ボスで進行停止` copy to `撤退中` / `ボス再挑戦準備`
+- subsequent farming/re-advance waves use the normal forward march handoff
+
+Acceptance so far:
+
+- focused Domain/simulator/presentation/selector/motion gate: 36 / 36 tests PASS, typecheck PASS
+- Stage 5 failure state is Stage 4 / Wave 1 with `blockedBossStage = 5`
+- replaying Stage 4 does not duplicate its one-time `reinforcedBow` Stage-clear reward
+- after growth reaches Stage 5 boss power, the same analytical progression reaches boss defeat/content boundary
+- 430x932 retreat capture confirms ally z movement from the forward retreat line back into authored front/back combat positions
+- runtime snapshot changes `撤退中 -> 交戦中` after the 1.55-second retreat approach
+- offline return summary counts boss retreats and preserves the reached boss Stage even when the party finishes one Stage back
+- latest full gate: 106 / 106 tests PASS, typecheck PASS, 10 / 10 GLB validation PASS, production build PASS, diff-check PASS

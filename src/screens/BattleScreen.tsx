@@ -28,10 +28,25 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeI
 
   const battleStatus = useMemo(() => {
     if (state.gameData.combat.contentBoundaryReached) return '現在のエリアを踏破しました';
-    if (state.gameData.combat.blockedBossStage !== null) return 'ボスで進行停止 · キャンプで強化';
+    if (sceneModel.retreatingFromBoss && battle.phase === 'approach') {
+      return `撤退中 · ステージ ${state.gameData.progression.currentStage}へ`;
+    }
+    if (state.gameData.combat.blockedBossStage !== null) {
+      return state.gameData.progression.currentStage < state.gameData.combat.blockedBossStage
+        ? `ボス再挑戦準備 · ステージ ${state.gameData.progression.currentStage}で素材収集`
+        : 'ボス再挑戦へ進軍中';
+    }
     if (activeCount === 0) return '傭兵を編成すると自動戦闘が始まります';
     return battle.label;
-  }, [activeCount, battle.label, state.gameData.combat.blockedBossStage, state.gameData.combat.contentBoundaryReached]);
+  }, [
+    activeCount,
+    battle.label,
+    battle.phase,
+    sceneModel.retreatingFromBoss,
+    state.gameData.combat.blockedBossStage,
+    state.gameData.combat.contentBoundaryReached,
+    state.gameData.progression.currentStage,
+  ]);
 
   return (
     <section className="screen screen--battle screen--active" aria-label="戦闘">

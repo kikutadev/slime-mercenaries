@@ -224,16 +224,33 @@ Initial dispatch does **not** require:
 
 A simple `choose reserve slime -> choose job -> wait -> return with reward` loop is enough.
 
-## 12. Stage growth and blockers
+## 12. Stage growth, defeat, and retreat farming
 
-Enemy power rises smoothly until a boss checkpoint.
+Enemy power rises smoothly until a boss checkpoint. The core progression is intentionally a **lose -> fall back -> farm -> grow -> re-advance** loop rather than a permanent boss stop.
 
-If a boss is too strong:
+When the authoritative party power is below a boss requirement:
 
-- return to the best cleared farming stage
-- Gold/chests/slime-generation materials/Job Gear components continue
-- UI surfaces a few concrete improvement opportunities such as level/fusion/equipment
-- offline progress stops at the blocking boss rather than faking a clear
+- the boss encounter emits `combatRetreated`
+- progression falls back **exactly one Stage**, never all the way to the beginning
+- the retreat Stage restarts at Wave 1 and remains ordinary auto-battle content
+- normal-wave Gold and authored random material drops remain repeatable farming rewards
+- deterministic Stage-clear unlock/material rewards are **first-clear-only** and are not duplicated by farming reclears
+- the blocked boss Stage remains recorded in `blockedBossStage` until that boss is actually defeated
+- reclearing the retreat Stage automatically advances toward the blocked boss again; there is no manual retry button
+- once party power reaches the requirement, the next boss attempt resolves normally and clears the blocked marker
+- UI surfaces the retreat/farming state and concrete growth systems without selecting an upgrade for the player
+
+Online and offline progression use this same state transition. Offline simulation may farm, retreat, level through its policy, and retry, but it may never fake a boss clear below the authored requirement.
+
+The current Clover Road vertical slice has its first blocker at Stage 5, so an underpowered party follows:
+
+```text
+Stage 5 boss failure
+-> retreat to Stage 4 Wave 1
+-> farm Stage 4
+-> re-enter Stage 5 normal waves
+-> boss retry
+```
 
 ## 13. Offline progression
 

@@ -30,6 +30,7 @@ function BattleRuntimeScene({ model, onSnapshot }: BattleCanvasProps) {
       baseUrl: import.meta.env.BASE_URL,
       stageNumber: model.stageNumber,
       waveIndex: model.waveIndex,
+      retreatingFromBoss: model.retreatingFromBoss,
       allies: model.allies.map((ally) => ({
         slimeId: ally.slimeId,
         slotIndex: ally.slotIndex,
@@ -67,7 +68,7 @@ function BattleRuntimeScene({ model, onSnapshot }: BattleCanvasProps) {
       runtime.dispose();
       runtimeRef.current = null;
     };
-  }, [camera, gl, scene, model.stageNumber, model.waveIndex, model.visualKey]);
+  }, [camera, gl, scene, model.stageNumber, model.waveIndex, model.retreatingFromBoss, model.visualKey]);
 
   useFrame(({ clock }) => {
     runtimeRef.current?.tick(clock.elapsedTime);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getVictoryMarchSlot, getVictoryTransitionPose, shouldUseMarchEntry, victoryStatusLabel } from './battle-transition';
+import { getBossRetreatEntrySlot, getVictoryMarchSlot, getVictoryTransitionPose, shouldUseMarchEntry, victoryStatusLabel } from './battle-transition';
 
 describe('battle victory transition', () => {
   it('progresses from settle through loot into continuous march', () => {
@@ -28,6 +28,14 @@ describe('battle victory transition', () => {
     expect(late.bob).toBeLessThanOrEqual(0.07);
     expect(Math.abs(late.lean)).toBeLessThan(0.08);
     expect(late.cameraAdvance).toBeLessThanOrEqual(0.12);
+  });
+
+  it('starts boss retreat ahead of the march line so all allies visibly run backward', () => {
+    for (let index = 0; index < 6; index += 1) {
+      const march = getVictoryMarchSlot(index);
+      const retreat = getBossRetreatEntrySlot(index);
+      expect(retreat.z).toBeLessThan(march.z);
+    }
   });
 
   it('uses march formation as the handoff origin after the opening encounter', () => {

@@ -93,6 +93,31 @@ describe('battle scene projection', () => {
     expect(model.encounterKey).toContain('encounter.clover-road.03.02');
   });
 
+  it('marks only the first farming wave after a boss failure as a retreat handoff', () => {
+    const state = createSwordBattleState();
+    const retreated = {
+      ...state,
+      gameData: {
+        ...state.gameData,
+        progression: { ...state.gameData.progression, currentStage: 4 },
+        combat: { ...state.gameData.combat, currentWaveIndex: 0, blockedBossStage: 5 },
+      },
+    };
+    const firstFarmWave = selectBattleSceneModel(retreated);
+    expect(firstFarmWave.retreatingFromBoss).toBe(true);
+    expect(firstFarmWave.encounterKey).toContain(':retreat');
+
+    const laterFarmWave = selectBattleSceneModel({
+      ...retreated,
+      gameData: {
+        ...retreated.gameData,
+        combat: { ...retreated.gameData.combat, currentWaveIndex: 1 },
+      },
+    });
+    expect(laterFarmWave.retreatingFromBoss).toBe(false);
+    expect(laterFarmWave.encounterKey).toContain(':advance');
+  });
+
   it('projects the authored great mushroom boss encounter', () => {
     const state = createSwordBattleState();
     const bossState = {

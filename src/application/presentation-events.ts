@@ -24,10 +24,21 @@ export function toPresentationNotices(events: readonly DomainEvent[]): readonly 
       case 'bossDefeated':
         return [notice(event, 'ボス撃破', '大きな報酬を獲得', 'milestone', 65, 'boss-state')];
       case 'bossBlocked':
+        return [];
+      case 'combatRetreated': {
+        const retreatStage = numberPayload(event, 'retreatStageNumber');
         return [{
-          ...notice(event, 'ボスで進行停止', 'キャンプで強化して再挑戦できます', 'warning', 70, 'boss-state'),
+          ...notice(
+            event,
+            'ボスに敗北',
+            retreatStage === null ? '一つ前のステージへ撤退します' : `ステージ ${retreatStage}へ撤退して素材を集めます`,
+            'warning',
+            70,
+            'boss-state',
+          ),
           presentationPreemption: 'discard-current' as const,
         }];
+      }
       case 'slimeJobDiscovered': {
         const jobId = stringPayload(event, 'jobId') as JobSlimeId | null;
         const name = jobId === null ? '新しいスライム' : jobCreationDefinitions[jobId]?.displayName ?? '新しいスライム';
@@ -109,6 +120,7 @@ export type OfflineReturnView = Readonly<{
   furthestStage: number;
   stageClearCount: number;
   bossDefeatedCount: number;
+  bossRetreatCount: number;
   dispatchCompletedCount: number;
   materialDropCount: number;
 }>;
@@ -121,6 +133,7 @@ export function buildOfflineReturnView(
 ): OfflineReturnView {
   let stageClearCount = 0;
   let bossDefeatedCount = 0;
+  let bossRetreatCount = 0;
   let dispatchCompletedCount = 0;
   let materialDropCount = 0;
   let furthestStage = currentStage;
@@ -132,6 +145,10 @@ export function buildOfflineReturnView(
       if (nextStage !== null) furthestStage = Math.max(furthestStage, nextStage);
     } else if (event.type === 'bossDefeated') {
       bossDefeatedCount += 1;
+    } else if (event.type === 'combatRetreated') {
+      bossRetreatCount += 1;
+      const bossStage = numberPayload(event, 'bossStageNumber');
+      if (bossStage !== null) furthestStage = Math.max(furthestStage, bossStage);
     } else if (event.type === 'dispatchCompleted') {
       dispatchCompletedCount += 1;
     } else if (event.type === 'combatWaveCleared') {
@@ -149,6 +166,7 @@ export function buildOfflineReturnView(
     furthestStage,
     stageClearCount,
     bossDefeatedCount,
+    bossRetreatCount,
     dispatchCompletedCount,
     materialDropCount,
   };

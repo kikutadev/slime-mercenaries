@@ -60,8 +60,8 @@ import {
 import type { EnemyBehaviorId, EnemyId, EnemyScaleClass } from './enemies';
 import type { EnemyFormationSlot } from './encounters';
 import { createBattleEnvironment } from './battle-environment';
-import { getApproachCameraRetreat, getEnemyApproachEntryPose, getSceneryApproachOffset } from './battle-approach';
-import { getVictoryMarchSlot, getVictoryTransitionPose, shouldUseMarchEntry, victoryStatusLabel } from './battle-transition';
+import { getApproachCameraRetreat, getEnemyApproachEntryPose, getRetreatCameraOffset, getRetreatSceneryOffset, getSceneryApproachOffset } from './battle-approach';
+import { getBossRetreatEntrySlot, getVictoryMarchSlot, getVictoryTransitionPose, shouldUseMarchEntry, victoryStatusLabel } from './battle-transition';
 
 export interface BattleSnapshotAlly {
   hp: number;
@@ -272,6 +272,7 @@ export interface BattleRuntimeOptions {
   baseUrl: string;
   stageNumber: number;
   waveIndex: number;
+  retreatingFromBoss: boolean;
   allies: readonly BattleRuntimeAllyConfig[];
   enemies: readonly BattleRuntimeEnemyConfig[];
   onSnapshot: (snapshot: BattleSnapshot) => void;
@@ -359,6 +360,7 @@ export class BattleRuntime {
   private cameraShakeAmplitude = 0;
   private lastSnapshotKey = '';
   private continuationEntryPending: boolean;
+  private retreatEntryPending: boolean;
 
   constructor(options: BattleRuntimeOptions) {
     this.scene = options.scene;
@@ -370,6 +372,7 @@ export class BattleRuntime {
     this.enemyConfigs = options.enemies;
     this.onSnapshot = options.onSnapshot;
     this.continuationEntryPending = shouldUseMarchEntry(options.stageNumber, options.waveIndex);
+    this.retreatEntryPending = options.retreatingFromBoss;
   }
 
   async initialize(): Promise<void> {
@@ -677,9 +680,11 @@ export class BattleRuntime {
     const combatAnchor = config.formationRole === 'front'
       ? this.meleeCombatAnchor(config.slotIndex)
       : home.clone();
-    const marchSlot = getVictoryMarchSlot(config.slotIndex);
+    const entrySlot = this.retreatEntryPending
+      ? getBossRetreatEntrySlot(config.slotIndex)
+      : getVictoryMarchSlot(config.slotIndex);
     const approachOrigin = this.continuationEntryPending
-      ? new THREE.Vector3(marchSlot.x, 0.02, marchSlot.z)
+      ? new THREE.Vector3(entrySlot.x, 0.02, entrySlot.z)
       : home.clone();
     const gltf = await this.loader.loadAsync(`${this.baseUrl}${config.asset}`);
     const root = gltf.scene as THREE.Group;
@@ -1093,7 +1098,11 @@ export class BattleRuntime {
   private startBattle(now: number): void {
     this.phase = 'approach';
     this.phaseStartedAt = now;
-    if (this.environmentSceneryRoot) this.environmentSceneryRoot.position.z = getSceneryApproachOffset(0);
+    if (this.environmentSceneryRoot) {
+      this.environmentSceneryRoot.position.z = this.retreatEntryPending
+        ? getRetreatSceneryOffset(0)
+        : getSceneryApproachOffset(0);
+    }
     this.environmentTravel?.(0);
     this.clearVictoryLootMotes();
     this.result = null;
@@ -1116,7 +1125,11 @@ export class BattleRuntime {
   private updateApproach(now: number): void {
     const duration = 1.55;
     const approachElapsed = now - this.phaseStartedAt;
-    if (this.environmentSceneryRoot) this.environmentSceneryRoot.position.z = getSceneryApproachOffset(approachElapsed);
+    if (this.environmentSceneryRoot) {
+      this.environmentSceneryRoot.position.z = this.retreatEntryPending
+        ? getRetreatSceneryOffset(approachElapsed)
+        : getSceneryApproachOffset(approachElapsed);
+    }
     this.allies.forEach((ally) => {
       if (!ally.alive) return;
       const destination = this.isMeleeBehavior(ally) ? ally.combatAnchor : ally.home;
@@ -1141,6 +1154,7 @@ export class BattleRuntime {
       this.phase = 'combat';
       this.phaseStartedAt = now;
       this.continuationEntryPending = false;
+      this.retreatEntryPending = false;
       this.enemies.forEach((enemy) => {
         enemy.attackStartedAt = -Infinity;
         enemy.attackTarget = null;
@@ -2291,6 +2305,7 @@ export class BattleRuntime {
 
   private resetWave(now: number): void {
     this.continuationEntryPending = false;
+    this.retreatEntryPending = false;
     this.clearProjectiles();
     this.allies.forEach((ally) => {
       this.resetAlly(ally);
@@ -2385,7 +2400,9 @@ export class BattleRuntime {
   private updateCamera(now: number): void {
     this.camera.position.copy(CAMERA_BASE_POSITION);
     if (this.phase === 'approach') {
-      this.camera.position.z += getApproachCameraRetreat(this.simulationNow - this.phaseStartedAt);
+      this.camera.position.z += this.retreatEntryPending
+        ? getRetreatCameraOffset(this.simulationNow - this.phaseStartedAt)
+        : getApproachCameraRetreat(this.simulationNow - this.phaseStartedAt);
     } else if (this.phase === 'result' && this.result === 'victory') {
       const transition = getVictoryTransitionPose(this.simulationNow - this.phaseStartedAt, 0);
       this.camera.position.z -= transition.cameraAdvance;
@@ -2409,7 +2426,7 @@ export class BattleRuntime {
     const label = this.phase === 'loading'
       ? '出撃準備中'
       : this.phase === 'approach'
-        ? '接敵中'
+        ? this.retreatEntryPending ? '撤退中' : '接敵中'
         : this.phase === 'combat'
           ? '交戦中'
           : this.result === 'victory'

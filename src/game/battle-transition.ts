@@ -48,6 +48,11 @@ export function getVictoryMarchSlot(slotIndex: number): VictoryMarchSlot {
   return MARCH_SLOTS[safeIndex]!;
 }
 
+export function getBossRetreatEntrySlot(slotIndex: number): VictoryMarchSlot {
+  const march = getVictoryMarchSlot(slotIndex);
+  return { x: march.x * 1.06, z: march.z - 0.92 };
+}
+
 export function getVictoryTransitionPose(elapsed: number, slotIndex: number): VictoryTransitionPose {
   const safeElapsed = Math.max(0, elapsed);
   const formationBlend = smoothstep((safeElapsed - 0.38) / FORMATION_SETTLE_SECONDS);

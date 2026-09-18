@@ -184,16 +184,24 @@ export function advanceCombatTo(
       const required = encounter.boss!.requiredPartyPower;
       const power = partyCombatPower(nextState);
       if (power.compare(required) < 0) {
-        if (nextState.gameData.combat.blockedBossStage !== nextState.gameData.progression.currentStage) {
-          nextState = setBossBlocked(nextState, nextState.gameData.progression.currentStage);
-          events.push(semanticEvent(nextState, 'bossBlocked', `${nextState.gameData.progression.currentStage}`, {
-            stageNumber: nextState.gameData.progression.currentStage,
+        const bossStageNumber = nextState.gameData.progression.currentStage;
+        const firstBlock = nextState.gameData.combat.blockedBossStage !== bossStageNumber;
+        nextState = retreatFromBlockedBoss(nextState, bossStageNumber);
+        if (firstBlock) {
+          events.push(semanticEvent(nextState, 'bossBlocked', `${bossStageNumber}`, {
+            stageNumber: bossStageNumber,
+            retreatStageNumber: nextState.gameData.progression.currentStage,
             requiredPartyPower: required,
             currentPartyPower: power.toNumber(),
           }));
         }
-        nextState = setSimTime(nextState, targetSimTimeSec);
-        break;
+        events.push(semanticEvent(nextState, 'combatRetreated', `${bossStageNumber}`, {
+          bossStageNumber,
+          retreatStageNumber: nextState.gameData.progression.currentStage,
+          requiredPartyPower: required,
+          currentPartyPower: power.toNumber(),
+        }));
+        continue;
       }
       if (nextState.gameData.combat.blockedBossStage !== null) nextState = setBossBlocked(nextState, null);
     }
@@ -291,8 +299,10 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
     const ended = setContentBoundary(state);
     return { state: ended, events: [] };
   }
-  let nextState = applyGenericRewards(state, stage.clearRewards);
+  const firstClear = stage.stageNumber > state.gameData.progression.highestStageCleared;
+  let nextState = firstClear ? applyGenericRewards(state, stage.clearRewards) : state;
   const highestStageCleared = Math.max(nextState.gameData.progression.highestStageCleared, stage.stageNumber);
+  const blockedBossStage = nextState.gameData.combat.blockedBossStage;
   const nextStage = cloverRoadStageDefinitions[stage.stageNumber];
   if (nextStage === undefined) {
     nextState = {
@@ -303,7 +313,7 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
         combat: {
           currentWaveIndex: 0,
           waveWorkRemaining: null,
-          blockedBossStage: null,
+          blockedBossStage,
           contentBoundaryReached: true,
         },
       },
@@ -321,7 +331,7 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
         combat: {
           currentWaveIndex: 0,
           waveWorkRemaining: null,
-          blockedBossStage: null,
+          blockedBossStage,
           contentBoundaryReached: false,
         },
       },
@@ -329,11 +339,13 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
   }
   return {
     state: nextState,
-    events: [semanticEvent(nextState, 'stageCleared', stage.id, {
-      stageId: stage.id,
-      stageNumber: stage.stageNumber,
-      nextStageNumber: nextStage?.stageNumber ?? null,
-    })],
+    events: firstClear
+      ? [semanticEvent(nextState, 'stageCleared', stage.id, {
+          stageId: stage.id,
+          stageNumber: stage.stageNumber,
+          nextStageNumber: nextStage?.stageNumber ?? null,
+        })]
+      : [],
   };
 }
 
@@ -415,6 +427,27 @@ function writeCombat(
     gameData: {
       ...state.gameData,
       combat: { ...state.gameData.combat, ...patch },
+    },
+  };
+}
+
+function retreatFromBlockedBoss(state: SlimeMercenariesState, bossStageNumber: number): SlimeMercenariesState {
+  const retreatStageNumber = Math.max(1, bossStageNumber - 1);
+  return {
+    ...state,
+    gameData: {
+      ...state.gameData,
+      progression: {
+        ...state.gameData.progression,
+        currentStage: retreatStageNumber,
+      },
+      combat: {
+        ...state.gameData.combat,
+        currentWaveIndex: 0,
+        waveWorkRemaining: null,
+        blockedBossStage: bossStageNumber,
+        contentBoundaryReached: false,
+      },
     },
   };
 }

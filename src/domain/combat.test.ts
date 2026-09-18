@@ -10,7 +10,7 @@ import {
   partyCombatDps,
   partyCombatPower,
 } from './combat';
-import { ids } from './definitions';
+import { cloverRoadStageDefinitions, ids } from './definitions';
 import { createInitialSlimeMercenariesState, type SlimeMercenariesState } from './state';
 
 function createSwordParty(seed = 1): SlimeMercenariesState {
@@ -64,28 +64,44 @@ describe('analytical combat progression', () => {
     expect(first.gameData.progression).toEqual(second.gameData.progression);
   });
 
-  it('stops progression at the first boss when party power is below the authored threshold', () => {
-    const advanced = advanceUntilBossBlock(createSwordParty());
+  it('retreats exactly one stage when party power is below the boss gate', () => {
+    const retreated = advanceUntilBossRetreat(createSwordParty());
 
-    expect(advanced.gameData.progression.highestStageCleared).toBe(4);
-    expect(advanced.gameData.combat.blockedBossStage).toBe(advanced.gameData.progression.currentStage);
-    expect(advanced.gameData.combat.contentBoundaryReached).toBe(false);
+    expect(retreated.state.gameData.progression.highestStageCleared).toBe(4);
+    expect(retreated.state.gameData.progression.currentStage).toBe(4);
+    expect(retreated.state.gameData.combat.blockedBossStage).toBe(5);
+    expect(retreated.state.gameData.combat.currentWaveIndex).toBe(0);
+    expect(retreated.state.gameData.combat.contentBoundaryReached).toBe(false);
+    expect(retreated.events.some((event) => event.type === 'bossBlocked')).toBe(true);
+    expect(retreated.events.some((event) => event.type === 'combatRetreated')).toBe(true);
+    expect(nextCombatBoundarySec(retreated.state)).not.toBeNull();
   });
 
-  it('resumes from a boss block after level growth raises party power enough', () => {
-    let state = advanceUntilBossBlock(createSwordParty());
-    const encounter = currentCombatEncounter(state);
-    if (encounter?.kind !== 'boss') throw new Error('expected boss encounter');
+  it('farms normal waves after retreat without duplicating one-time stage-clear rewards', () => {
+    const retreated = advanceUntilBossRetreat(createSwordParty(19));
+    const beforeReinforcedBow = readToken(retreated.state.tokens, ids.token.reinforcedBow);
+    const replayed = advanceUntil(retreated.state, (state) => (
+      state.gameData.progression.currentStage === 5 && state.gameData.combat.currentWaveIndex === 0
+    ));
 
-    while (partyCombatPower(state).compare(encounter.boss!.requiredPartyPower) < 0) {
+    expect(readToken(replayed.state.tokens, ids.token.reinforcedBow)).toBe(beforeReinforcedBow);
+    expect(replayed.events.some((event) => event.type === 'stageCleared' && event.payload?.stageNumber === 4)).toBe(false);
+    expect(replayed.state.gameData.combat.blockedBossStage).toBe(5);
+  });
+
+  it('re-enters the blocked boss and clears it after growth reaches the required power', () => {
+    const retreated = advanceUntilBossRetreat(createSwordParty());
+    let state = retreated.state;
+    const boss = cloverRoadStageDefinitions[4]?.boss;
+    if (boss === undefined) throw new Error('expected Stage 5 boss');
+
+    while (partyCombatPower(state).compare(boss.requiredPartyPower) < 0) {
       const leveled = levelUpSlime(state, 'sword', 1);
       if (!leveled.accepted) throw new Error(`unable to grow through boss gate: ${leveled.reason}`);
       state = leveled.state;
     }
 
-    const boundary = nextCombatBoundarySec(state);
-    if (boundary === null) throw new Error('boss should have a completion boundary after growth');
-    const resumed = advanceCombatTo(state, boundary);
+    const resumed = advanceUntil(state, (candidate) => candidate.gameData.combat.contentBoundaryReached);
     expect(resumed.state.gameData.progression.highestStageCleared).toBe(5);
     expect(resumed.state.gameData.combat.blockedBossStage).toBeNull();
     expect(resumed.state.gameData.combat.contentBoundaryReached).toBe(true);
@@ -106,16 +122,25 @@ describe('analytical combat progression', () => {
   });
 });
 
-function advanceUntilBossBlock(initial: SlimeMercenariesState): SlimeMercenariesState {
+function advanceUntilBossRetreat(initial: SlimeMercenariesState): Readonly<{ state: SlimeMercenariesState; events: readonly import('idle-game-kit').DomainEvent[] }> {
+  return advanceUntil(initial, (state) => (
+    state.gameData.combat.blockedBossStage !== null
+      && state.gameData.progression.currentStage === state.gameData.combat.blockedBossStage - 1
+  ));
+}
+
+function advanceUntil(
+  initial: SlimeMercenariesState,
+  done: (state: SlimeMercenariesState) => boolean,
+): Readonly<{ state: SlimeMercenariesState; events: readonly import('idle-game-kit').DomainEvent[] }> {
   let state = initial;
-  for (let guard = 0; guard < 100; guard += 1) {
+  const events: import('idle-game-kit').DomainEvent[] = [];
+  for (let guard = 0; guard < 300; guard += 1) {
+    if (done(state)) return { state, events };
     const boundary = nextCombatBoundarySec(state);
-    if (boundary === null) {
-      const marked = advanceCombatTo(state, state.simTimeSec + 1);
-      if (marked.state.gameData.combat.blockedBossStage !== null) return marked.state;
-      throw new Error('combat stopped before reaching a boss block');
-    }
-    state = advanceCombatTo(state, boundary).state;
+    const advanced = advanceCombatTo(state, boundary ?? state.simTimeSec + 1);
+    state = advanced.state;
+    events.push(...advanced.events);
   }
-  throw new Error('boss block was not reached within the test guard');
+  throw new Error('combat condition was not reached within the test guard');
 }

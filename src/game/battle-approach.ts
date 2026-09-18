@@ -57,3 +57,14 @@ export function getApproachCameraRetreat(elapsed: number): number {
   const u = easeOutCubic(elapsed / 0.92);
   return 0.22 * (1 - u);
 }
+
+
+export function getRetreatSceneryOffset(elapsed: number): number {
+  const u = easeOutCubic(elapsed / 0.9);
+  return 0.42 * (1 - u);
+}
+
+export function getRetreatCameraOffset(elapsed: number): number {
+  const u = easeOutCubic(elapsed / 0.92);
+  return -0.18 * (1 - u);
+}

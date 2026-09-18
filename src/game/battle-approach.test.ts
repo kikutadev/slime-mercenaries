@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getApproachCameraRetreat, getEnemyApproachEntryPose, getSceneryApproachOffset } from './battle-approach';
+import { getApproachCameraRetreat, getEnemyApproachEntryPose, getRetreatCameraOffset, getRetreatSceneryOffset, getSceneryApproachOffset } from './battle-approach';
 
 describe('battle approach presentation', () => {
   it('moves enemies from behind their authored slot into a stable terminal pose', () => {
@@ -32,6 +32,13 @@ describe('battle approach presentation', () => {
     expect(getSceneryApproachOffset(2)).toBeCloseTo(0);
     expect(getApproachCameraRetreat(0)).toBeCloseTo(0.22);
     expect(getApproachCameraRetreat(2)).toBeCloseTo(0);
+  });
+
+  it('reverses the camera/scenery cue for a boss retreat and settles it before combat', () => {
+    expect(getRetreatSceneryOffset(0)).toBeGreaterThan(0);
+    expect(getRetreatSceneryOffset(2)).toBeCloseTo(0);
+    expect(getRetreatCameraOffset(0)).toBeLessThan(0);
+    expect(getRetreatCameraOffset(2)).toBeCloseTo(0);
   });
 
   it('keeps generated values finite and bounded', () => {

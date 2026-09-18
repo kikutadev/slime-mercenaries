@@ -212,6 +212,34 @@ Rules:
 - local visual defeat may still replay the same encounter because presentation HP is not authoritative product state; this retry must not mutate domain progression
 - transition presentation must not alter HP, damage, wave work, rewards, random drops, offline simulation, or target-selection rules
 
+### 8.3 Boss defeat and one-Stage retreat
+
+Boss failure is an authoritative Domain transition, not a local Three.js decision. The current power-gated boss model emits `combatRetreated`, stores the blocked boss Stage, resets combat to Wave 1 of the immediately previous Stage, and keeps normal farming active.
+
+Presentation handoff:
+
+```text
+boss gate fails in Domain
+-> Stage changes to previous Stage / Wave 1
+-> new runtime starts with status 撤退中
+-> party begins ahead of the normal march line
+-> party hops backward while camera/scenery cue also reverses
+-> 1.55-second approach settles into the existing combat formation
+-> status becomes ボス再挑戦準備 · ステージ Nで素材収集
+-> later waves resume normal forward march presentation
+```
+
+Rules:
+
+- retreat distance is exactly one Stage for the current loop
+- `BattleRuntime` receives only the derived `retreatingFromBoss` presentation flag and never mutates Domain progression
+- only the first Wave after a retreat uses the reverse entry; subsequent farming waves use normal march handoff
+- the reverse entry must settle onto the same authored front/back combat anchors before attacks begin
+- `bossBlocked` is durable internal blocker state; user-facing presentation is driven by `combatRetreated`
+- while farming below the blocked Stage, the battle HUD says that materials are being gathered for the retry rather than claiming progression is stopped
+- deterministic Stage-clear rewards remain first-clear-only; visual retreat does not grant or remove rewards
+- the current analytical boss gate does not model a separate multi-second failed boss HP simulation; the retreat transition truthfully represents the authoritative failure boundary without inventing a second result source
+
 Current Clover Road progression:
 
 ```text

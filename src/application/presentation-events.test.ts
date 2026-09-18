@@ -22,11 +22,31 @@ describe('presentation event policy', () => {
     expect(notice?.presentationCoalescingKey).toBe('stage-progress');
   });
 
+  it('presents boss failure as a retreat rather than a progression stop', () => {
+    const notices = toPresentationNotices([
+      event('bossBlocked', { stageNumber: 5, retreatStageNumber: 4 }),
+      event('combatRetreated', { bossStageNumber: 5, retreatStageNumber: 4 }),
+    ]);
+    expect(notices).toHaveLength(1);
+    expect(notices[0]?.title).toBe('ボスに敗北');
+    expect(notices[0]?.body).toContain('ステージ 4');
+    expect(notices[0]?.tone).toBe('warning');
+  });
+
   it('turns dispatch completion into a non-blocking reward notice', () => {
     const [notice] = toPresentationNotices([event('dispatchCompleted', { contractId: 'roadEscort' })]);
     expect(notice?.title).toBe('派遣帰還');
     expect(notice?.tone).toBe('reward');
   });
+  it('keeps the reached boss stage in offline summary even when the party ends one stage back', () => {
+    const summary = buildOfflineReturnView(600, [
+      event('combatRetreated', { bossStageNumber: 5, retreatStageNumber: 4 }),
+      event('combatRetreated', { bossStageNumber: 5, retreatStageNumber: 4 }),
+    ], 4);
+    expect(summary.furthestStage).toBe(5);
+    expect(summary.bossRetreatCount).toBe(2);
+  });
+
   it('aggregates offline progress into one summary instead of claim-by-claim UI', () => {
     const summary = buildOfflineReturnView(95, [
       event('combatWaveCleared', { randomDrops: [{ tokenId: 'gel', count: 2 }] }),
