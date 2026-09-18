@@ -1029,7 +1029,7 @@ Implemented:
 
 - removed same-encounter reset from the visual victory path; defeat-only visual retry remains
 - added pure `battle-transition.ts` timing/formation contracts for settle, loot, and continuous march
-- final enemy defeat now hands off through generic loot motes into a six-slot compact march formation
+- final enemy defeat now hands off into a six-slot compact march formation; generic fake loot was later replaced by authoritative reward cues
 - survivor HP bars and the old enemy compact HP panel leave the screen during victory handoff
 - roadside scenery gains deterministic wrapping travel so `進軍中` can continue for an arbitrarily long authoritative wait
 - the domain remains the only owner of next-wave selection, rewards, random drops, and stage progression
@@ -1039,7 +1039,7 @@ Implemented:
 
 Acceptance:
 
-- Stage 1 visual victory reaches `戦利品回収` then `進軍中` and remains marching after 20 seconds without respawning the defeated encounter
+- Stage 1 visual victory reaches `撃破` then `進軍中` and remains marching after 20 seconds without respawning the defeated encounter
 - Stage 5 dense-scenery stress capture remains stable through 20 seconds of march travel
 - Stage 1 march endpoint and Stage 2 entry start x/z coordinates match exactly for all six party slots
 - later-encounter approach expands the party from march formation into existing front/back combat positions before combat begins
@@ -1072,3 +1072,29 @@ Acceptance so far:
 - runtime snapshot changes `撤退中 -> 交戦中` after the 1.55-second retreat approach
 - offline return summary counts boss retreats and preserves the reached boss Stage even when the party finishes one Stage back
 - latest full gate: 106 / 106 tests PASS, typecheck PASS, 10 / 10 GLB validation PASS, production build PASS, diff-check PASS
+
+## 25. Authoritative battle reward presentation — 2026-09-18
+
+The wave-clear loot presentation was connected to actual Domain rewards instead of using generic victory particles.
+
+Implemented:
+
+- `combatWaveCleared` now carries `grantedRewards` for authored fixed rewards plus RNG drops that were actually granted
+- `bossDefeated` carries its actual boss rewards
+- first-clear `stageCleared` carries its actual Stage-clear rewards
+- presentation converts those DomainEvents into one aggregated `BattleRewardCue`
+- Gold renders as bounded coin particles; materials use stable orb/shard visual families
+- battle receipt renders exact values such as `G +120` and `スライムジェル +2`
+- the cue is safe across encounter runtime remounts: if the new runtime has not finished loading, it queues the cue until allies exist
+- the old generic victory loot particle trigger was removed, so no reward visual appears without an authoritative reward event
+- routine `ウェーブ突破` notifications outside Battle now use the same exact reward payload
+- while Battle is visible, the low-priority duplicate `combat-reward` global notice is suppressed; milestone/boss/retreat notices are preserved
+- visual particle counts are bounded separately from economic reward size
+- no reward amount, drop chance, combat balance, or simulator logic was changed
+
+Visual acceptance:
+
+- 430x932 QA completed for Gold-only, Gold + Slime Gel, and four-item mixed reward cues
+- mixed rewards remain compact without covering the party rail or battle-status strip
+- first QA 404 was isolated to the QA-only missing `/favicon.ico`; no game/GLB request failed
+- latest full gate: 112 / 112 tests PASS, typecheck PASS, 10 / 10 GLB validation PASS, production build PASS, diff-check PASS

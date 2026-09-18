@@ -193,7 +193,9 @@ Visual victory flow:
 
 ```text
 final visible enemy defeat
--> generic loot motes converge on the party
+-> domain reward event arrives
+-> typed Gold/material loot motes converge on the party
+-> exact reward receipt appears
 -> survivors compact into the forward march formation
 -> enemy HP panel exits
 -> roadside scenery loops forward while status reads 進軍中
@@ -205,8 +207,11 @@ final visible enemy defeat
 Rules:
 
 - the old encounter must not respawn after a visual victory while waiting for the domain
-- visual loot motes communicate collection only; they never encode reward type or quantity
-- actual reward messaging comes from authoritative domain events such as `combatWaveCleared`
+- `combatWaveCleared`, `bossDefeated`, and first-clear `stageCleared` events carry `grantedRewards` describing what was actually granted
+- battle reward visuals are derived only from that authoritative payload; presentation must not infer Gold/material amounts from balance tables
+- Gold uses coin particles; known materials use stable orb/shard visual families; particle counts are capped independently from reward amount
+- the battle receipt shows exact quantities (for example `G +24 · スライムジェル +2`) and may aggregate multiple reward events emitted at the same authoritative boundary
+- while the Battle screen is active, the routine global `combat-reward` notice is suppressed to avoid duplicating the exact receipt; milestone/boss/retreat notices remain
 - Stage 1 / Wave 1 is the only cold-start formation; later waves and stages use the march formation as their approach origin
 - the previous march endpoint and the next encounter start x/z coordinates must match exactly for all six party slots
 - local visual defeat may still replay the same encounter because presentation HP is not authoritative product state; this retry must not mutate domain progression

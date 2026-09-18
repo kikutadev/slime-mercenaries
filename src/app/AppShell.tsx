@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { BottomSheet, usePresentationQueue } from 'idle-game-kit/react';
 import { useGameBootstrap, useGameController, useGameState } from './GameProvider';
 import { selectNavigationAttention, selectOwnedSlimeIds } from '../application/selectors/ui-selectors';
-import { buildOfflineReturnView, presentationNoticeDurationMs, toPresentationNotices } from '../application/presentation-events';
+import { buildOfflineReturnView, presentationNoticeDurationMs, toBattleRewardCue, toPresentationNotices } from '../application/presentation-events';
+import type { BattleRewardCue } from '../game/battle-reward';
 import { BattleScreen } from '../screens/BattleScreen';
 import { SlimesScreen } from '../screens/SlimesScreen';
 import { DispatchScreen } from '../screens/DispatchScreen';
@@ -20,11 +21,25 @@ export function AppShell() {
   const [screen, setScreen] = useState<ScreenId>('slimes');
   const [selectedSlimeId, setSelectedSlimeId] = useState<JobSlimeId | null>(null);
   const [offlineDismissed, setOfflineDismissed] = useState(false);
+  const [battleRewardCue, setBattleRewardCue] = useState<BattleRewardCue | null>(null);
   const presentation = usePresentationQueue(presentationNoticeDurationMs);
 
   useEffect(() => controller.subscribeEvents((events) => {
-    presentation.enqueue(toPresentationNotices(events));
-  }), [controller, presentation.enqueue]);
+    const notices = toPresentationNotices(events);
+    presentation.enqueue(screen === 'battle'
+      ? notices.filter((notice) => notice.presentationCoalescingKey !== 'combat-reward')
+      : notices);
+    const rewardCue = toBattleRewardCue(events);
+    if (rewardCue !== null) setBattleRewardCue(rewardCue);
+  }), [controller, presentation.enqueue, screen]);
+
+  useEffect(() => {
+    if (battleRewardCue === null) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      setBattleRewardCue((current) => current?.id === battleRewardCue.id ? null : current);
+    }, 2_200);
+    return () => window.clearTimeout(timeoutId);
+  }, [battleRewardCue]);
 
   useEffect(() => {
     if (bootstrap.status !== 'ready') return;
@@ -75,7 +90,7 @@ export function AppShell() {
     <main className="page">
       <section className="game-shell" aria-label="ゲーム画面">
         <div className="app-content">
-          {screen === 'battle' && <BattleScreen onOpenSlime={openSlime} />}
+          {screen === 'battle' && <BattleScreen onOpenSlime={openSlime} rewardCue={battleRewardCue} />}
           {screen === 'slimes' && <SlimesScreen selectedId={selectedSlimeId} onSelect={setSelectedSlimeId} onOpenBattle={() => setScreen('battle')} />}
           {screen === 'dispatch' && <DispatchScreen />}
           {screen === 'forge' && <ForgeScreen />}

@@ -7,7 +7,7 @@ describe('battle victory transition', () => {
     expect(getVictoryTransitionPose(0.6, 0).stage).toBe('loot');
     expect(getVictoryTransitionPose(1.4, 0).stage).toBe('march');
     expect(victoryStatusLabel(0.1)).toBe('撃破');
-    expect(victoryStatusLabel(0.6)).toBe('戦利品回収');
+    expect(victoryStatusLabel(0.6)).toBe('進軍中');
     expect(victoryStatusLabel(1.4)).toBe('進軍中');
   });
 

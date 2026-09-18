@@ -3,13 +3,15 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import type { BattleSceneModel } from '../application/selectors/battle-scene';
 import { BattleRuntime, type BattleSnapshot } from '../game/BattleRuntime';
+import type { BattleRewardCue } from '../game/battle-reward';
 
 interface BattleCanvasProps {
   model: BattleSceneModel;
   onSnapshot: (snapshot: BattleSnapshot) => void;
+  rewardCue: BattleRewardCue | null;
 }
 
-function BattleRuntimeScene({ model, onSnapshot }: BattleCanvasProps) {
+function BattleRuntimeScene({ model, onSnapshot, rewardCue }: BattleCanvasProps) {
   const { scene, camera, gl } = useThree();
   const runtimeRef = useRef<BattleRuntime | null>(null);
   const snapshotRef = useRef(onSnapshot);
@@ -69,6 +71,11 @@ function BattleRuntimeScene({ model, onSnapshot }: BattleCanvasProps) {
       runtimeRef.current = null;
     };
   }, [camera, gl, scene, model.stageNumber, model.waveIndex, model.retreatingFromBoss, model.visualKey]);
+
+  useEffect(() => {
+    if (rewardCue === null) return;
+    runtimeRef.current?.presentRewardCue(rewardCue);
+  }, [rewardCue?.id]);
 
   useFrame(({ clock }) => {
     runtimeRef.current?.tick(clock.elapsedTime);

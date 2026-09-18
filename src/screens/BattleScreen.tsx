@@ -5,6 +5,7 @@ import { selectBattleSceneModel } from '../application/selectors/battle-scene';
 import { selectFormation, selectGlobalHud } from '../application/selectors/ui-selectors';
 import type { BattleSnapshot } from '../game/BattleRuntime';
 import type { JobSlimeId } from '../domain';
+import type { BattleRewardCue } from '../game/battle-reward';
 
 const INITIAL_BATTLE: BattleSnapshot = {
   phase: 'loading',
@@ -16,7 +17,13 @@ const INITIAL_BATTLE: BattleSnapshot = {
   allies: {},
 };
 
-export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeId) => void }) {
+export function BattleScreen({
+  onOpenSlime,
+  rewardCue,
+}: {
+  onOpenSlime: (slimeId: JobSlimeId) => void;
+  rewardCue: BattleRewardCue | null;
+}) {
   const state = useGameState();
   const [battle, setBattle] = useState<BattleSnapshot>(INITIAL_BATTLE);
   const [stageArrival, setStageArrival] = useState<number | null>(null);
@@ -60,7 +67,7 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeI
   return (
     <section className="screen screen--battle screen--active" aria-label="戦闘">
       {hasBattleSlime ? (
-        <BattleCanvas model={sceneModel} onSnapshot={setBattle} />
+        <BattleCanvas model={sceneModel} onSnapshot={setBattle} rewardCue={rewardCue} />
       ) : (
         <div className="battle-empty-visual" aria-hidden="true">
           <div className="battle-empty-road" />
@@ -97,6 +104,19 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeI
         <span className="status-dot" />
         {battleStatus}
       </div>
+
+      {rewardCue !== null && (
+        <div className="battle-reward-receipt" key={rewardCue.id} aria-live="polite">
+          <span>戦利品</span>
+          <div>
+            {rewardCue.items.map((item) => (
+              <strong className={item.kind === 'gold' ? 'is-gold' : 'is-material'} key={`${item.kind}:${item.id}`}>
+                {item.label} +{Math.floor(item.amount).toLocaleString('ja-JP')}
+              </strong>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="battle-party-rail" aria-label="出撃編成">
         {formation.map((slot) => {

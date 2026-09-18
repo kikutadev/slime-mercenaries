@@ -1,5 +1,6 @@
 import type { DomainEvent, PresentationQueueItem } from 'idle-game-kit';
-import { jobCreationDefinitions, type JobSlimeId } from '../domain';
+import { ids, jobCreationDefinitions, type JobSlimeId } from '../domain';
+import type { BattleRewardCue, BattleRewardItem } from '../game/battle-reward';
 
 export type PresentationTone = 'reward' | 'milestone' | 'warning' | 'system';
 
@@ -10,6 +11,65 @@ export type SlimePresentationNotice = PresentationQueueItem & Readonly<{
   tone: PresentationTone;
 }>;
 
+
+const BATTLE_REWARD_LABELS: Readonly<Record<string, string>> = {
+  [ids.currency.gold]: 'G',
+  [ids.token.slimeGel]: 'スライムジェル',
+  [ids.token.lifeWater]: '生命の水',
+  [ids.token.trainingSword]: '訓練剣',
+  [ids.token.trainingBow]: '訓練弓',
+  [ids.token.greatswordBlank]: '大剣素材',
+  [ids.token.reinforcedBow]: '強化弓素材',
+  [ids.token.hardeningGel]: '硬化ジェル',
+  [ids.token.temperedSteel]: '鍛鋼',
+  [ids.token.forgeKey]: '鍛造鍵',
+  [ids.token.promotionMaterial]: '進化素材',
+  [ids.token.swordWeaponMaterial]: '剣素材',
+  [ids.token.bowWeaponMaterial]: '弓素材',
+};
+
+export function toBattleRewardCue(events: readonly DomainEvent[]): BattleRewardCue | null {
+  const aggregated = new Map<string, BattleRewardItem>();
+  const contributingIds: string[] = [];
+
+  for (const event of events) {
+    if (event.type !== 'combatWaveCleared' && event.type !== 'bossDefeated' && event.type !== 'stageCleared') continue;
+    const rewards = event.payload?.grantedRewards;
+    if (!Array.isArray(rewards)) continue;
+    let contributed = false;
+
+    for (const reward of rewards) {
+      if (typeof reward !== 'object' || reward === null) continue;
+      if (!('kind' in reward) || !('id' in reward) || !('amount' in reward)) continue;
+      if ((reward.kind !== 'currency' && reward.kind !== 'token')
+        || typeof reward.id !== 'string'
+        || typeof reward.amount !== 'number'
+        || !Number.isFinite(reward.amount)
+        || reward.amount <= 0) continue;
+
+      const kind = reward.kind === 'currency' && reward.id === ids.currency.gold ? 'gold' : 'material';
+      const key = `${kind}:${reward.id}`;
+      const previous = aggregated.get(key);
+      aggregated.set(key, {
+        kind,
+        id: reward.id,
+        label: BATTLE_REWARD_LABELS[reward.id] ?? (kind === 'gold' ? 'G' : '素材'),
+        amount: (previous?.amount ?? 0) + reward.amount,
+      });
+      contributed = true;
+    }
+
+    if (contributed) contributingIds.push(event.id);
+  }
+
+  const items = [...aggregated.values()];
+  if (items.length === 0) return null;
+  return {
+    id: `battle-reward:${contributingIds.join('|')}`,
+    items,
+  };
+}
+
 /**
  * Convert durable DomainEvents into transient UI notices. Presentation policy lives here rather
  * than inside Domain commands or individual screens.
@@ -18,7 +78,7 @@ export function toPresentationNotices(events: readonly DomainEvent[]): readonly 
   return events.flatMap((event) => {
     switch (event.type) {
       case 'combatWaveCleared':
-        return [notice(event, 'ウェーブ突破', randomDropLabel(event) ?? '報酬を獲得', 'reward', 10, 'combat-reward')];
+        return [notice(event, 'ウェーブ突破', eventRewardLabel(event) ?? randomDropLabel(event) ?? '報酬を獲得', 'reward', 10, 'combat-reward')];
       case 'stageCleared':
         return [notice(event, `ステージ ${numberPayload(event, 'stageNumber') ?? ''} 突破`, '次の戦場へ進みます', 'milestone', 45, 'stage-progress')];
       case 'bossDefeated':
@@ -102,6 +162,14 @@ function stringPayload(event: DomainEvent, key: string): string | null {
 function numberPayload(event: DomainEvent, key: string): number | null {
   const value = event.payload?.[key];
   return typeof value === 'number' ? value : null;
+}
+
+function eventRewardLabel(event: DomainEvent): string | null {
+  const cue = toBattleRewardCue([event]);
+  if (cue === null) return null;
+  return cue.items
+    .map((item) => `${item.label} +${Math.floor(item.amount).toLocaleString('ja-JP')}`)
+    .join(' · ');
 }
 
 function randomDropLabel(event: DomainEvent): string | null {

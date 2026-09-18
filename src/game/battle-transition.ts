@@ -85,7 +85,5 @@ export function getVictoryTransitionPose(elapsed: number, slotIndex: number): Vi
 
 export function victoryStatusLabel(elapsed: number): string {
   const stage = getVictoryTransitionPose(elapsed, 0).stage;
-  if (stage === 'settle') return '撃破';
-  if (stage === 'loot') return '戦利品回収';
-  return '進軍中';
+  return stage === 'settle' ? '撃破' : '進軍中';
 }

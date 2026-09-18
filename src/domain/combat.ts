@@ -9,6 +9,7 @@ import {
   type DomainEvent,
   type GameNumberSerialized,
   type OfflineTimePolicy,
+  type Reward,
 } from 'idle-game-kit';
 import { balance } from './balance';
 import { equippedWeaponCombatMultiplier } from './equipment';
@@ -263,6 +264,10 @@ function resolveNormalWave(
     stageId: stage.id,
     stageNumber: stage.stageNumber,
     waveNumber,
+    grantedRewards: [
+      ...rewardEventItems(wave.rewards),
+      ...random.granted.map((drop) => ({ kind: 'token' as const, id: drop.tokenId, amount: drop.count })),
+    ],
     randomDrops: random.granted,
   })];
 
@@ -287,7 +292,11 @@ function resolveBoss(
   return {
     state: completed.state,
     events: [
-      semanticEvent(nextState, 'bossDefeated', stage.id, { stageId: stage.id, stageNumber: stage.stageNumber }),
+      semanticEvent(nextState, 'bossDefeated', stage.id, {
+        stageId: stage.id,
+        stageNumber: stage.stageNumber,
+        grantedRewards: rewardEventItems(boss.rewards),
+      }),
       ...completed.events,
     ],
   };
@@ -344,6 +353,7 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
           stageId: stage.id,
           stageNumber: stage.stageNumber,
           nextStageNumber: nextStage?.stageNumber ?? null,
+          grantedRewards: rewardEventItems(stage.clearRewards),
         })]
       : [],
   };
@@ -368,6 +378,30 @@ function resolveRandomDrops(
     granted.push({ tokenId: drop.tokenId, count: drop.count });
   }
   return { state: nextState, granted };
+}
+
+type CombatRewardEventItem = Readonly<{
+  kind: 'currency' | 'token';
+  id: string;
+  amount: number;
+}>;
+
+function rewardEventItems(rewards: readonly Reward[]): readonly CombatRewardEventItem[] {
+  const items: CombatRewardEventItem[] = [];
+  const visit = (reward: Reward): void => {
+    if (reward.type === 'currency') {
+      const amount = GameNumber.from(reward.amount).toNumber();
+      if (amount > 0) items.push({ kind: 'currency', id: reward.currencyId, amount });
+      return;
+    }
+    if (reward.type === 'token') {
+      if (reward.count > 0) items.push({ kind: 'token', id: reward.tokenId, amount: reward.count });
+      return;
+    }
+    if (reward.type === 'composite') reward.rewards.forEach(visit);
+  };
+  rewards.forEach(visit);
+  return items;
 }
 
 function applyGenericRewards(
