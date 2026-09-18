@@ -86,6 +86,7 @@ export function toBattleRewardCue(events: readonly DomainEvent[]): BattleRewardC
   if (items.length === 0) return null;
   return {
     id: `battle-reward:${contributingIds.join('|')}`,
+    importance: events.some((event) => event.type === 'bossDefeated') ? 'boss' : 'normal',
     items,
   };
 }

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { getApproachCameraRetreat, getEnemyApproachEntryPose, getSceneryApproachOffset } from './battle-approach';
+import {
+  BOSS_APPROACH_SECONDS,
+  BOSS_LANDING_SECONDS,
+  getApproachCameraRetreat,
+  getBossApproachPresentation,
+  getEnemyApproachEntryPose,
+  getSceneryApproachOffset,
+} from './battle-approach';
 
 describe('battle approach presentation', () => {
   it('moves enemies from behind their authored slot into a stable terminal pose', () => {
@@ -24,7 +31,19 @@ describe('battle approach presentation', () => {
 
     expect(rear.zOffset).toBeLessThan(front.zOffset);
     expect(boss.zOffset).toBeLessThan(front.zOffset);
-    expect(boss.scale).toBeGreaterThan(0.8);
+    expect(boss.scale).toBeGreaterThan(0.7);
+  });
+
+  it('gives the boss a long camera lead-in and a single heavy landing window', () => {
+    const start = getBossApproachPresentation(0);
+    const landing = getBossApproachPresentation(BOSS_LANDING_SECONDS);
+    const end = getBossApproachPresentation(BOSS_APPROACH_SECONDS);
+
+    expect(start.cameraRetreat).toBeGreaterThan(0.4);
+    expect(landing.squash).toBeCloseTo(1);
+    expect(end.cameraRetreat).toBeCloseTo(0);
+    expect(end.squash).toBe(0);
+    expect(BOSS_APPROACH_SECONDS).toBeGreaterThan(1.55);
   });
 
   it('settles scenery and camera movement before combat begins', () => {

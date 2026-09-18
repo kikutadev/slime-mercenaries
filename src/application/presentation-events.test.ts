@@ -48,6 +48,15 @@ describe('presentation event policy', () => {
     ]);
   });
 
+  it('marks a reward cue as boss-grade when boss defeat contributed', () => {
+    const cue = toBattleRewardCue([
+      event('bossDefeated', { grantedRewards: [{ kind: 'currency', id: 'currency.gold', amount: 80 }] }),
+      event('stageCleared', { grantedRewards: [{ kind: 'token', id: 'token.material.life-water', amount: 1 }] }),
+    ]);
+    expect(cue?.importance).toBe('boss');
+    expect(cue?.items).toHaveLength(2);
+  });
+
   it('ignores malformed or unrelated event reward payloads', () => {
     expect(toBattleRewardCue([
       event('dispatchCompleted', { grantedRewards: [{ kind: 'currency', id: 'currency.gold', amount: 10 }] }),

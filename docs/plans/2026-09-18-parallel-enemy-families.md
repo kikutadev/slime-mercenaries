@@ -1098,3 +1098,25 @@ Visual acceptance:
 - mixed rewards remain compact without covering the party rail or battle-status strip
 - first QA 404 was isolated to the QA-only missing `/favicon.ico`; no game/GLB request failed
 - latest full gate: 112 / 112 tests PASS, typecheck PASS, 10 / 10 GLB validation PASS, production build PASS, diff-check PASS
+
+## 24. Boss arrival and authoritative boss rewards — 2026-09-18
+
+After authoritative battle rewards were connected, the Great Mushroom checkpoint received a distinct boss presentation pass.
+
+Implemented:
+
+- `BattleRewardCue` now classifies normal and boss-grade reward moments
+- boss reward particle density is stronger than a normal wave but remains hard-capped
+- boss reward receipt uses a separate `BOSS戦利品` treatment while keeping the actual Domain-granted quantities
+- Great Mushroom approach extends to 1.90 seconds versus the normal 1.55-second approach
+- boss starts further back with a longer camera lead-in
+- one landing window triggers squash, impact, and bounded camera shake
+- boss HP UI reveals during approach instead of appearing fully before the boss is readable
+- reduced-motion behavior covers boss HP reveal and existing stage/reward transitions
+
+Acceptance:
+
+- 430x932 six-frame boss approach capture completed at 0.18 / 0.72 / 1.02 / 1.34 / 1.88 / 2.18 seconds
+- 1.02-second frame is the authored heavy landing window
+- normal Gold, Gold+material, mixed-material, and boss-grade reward captures completed
+- no model/GLB changes are required by this pass

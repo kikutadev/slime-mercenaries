@@ -89,7 +89,7 @@ export function BattleScreen({
       </header>
 
       {hasBattleSlime && (
-        <div className={`battle-enemy-compact ${sceneModel.encounter?.boss ? 'is-boss' : ''}${battle.result === 'victory' ? ' is-cleared' : ''}`} aria-label="敵の体力">
+        <div className={`battle-enemy-compact ${sceneModel.encounter?.boss ? 'is-boss' : ''}${sceneModel.encounter?.boss && battle.phase === 'approach' ? ' is-entering' : ''}${battle.result === 'victory' ? ' is-cleared' : ''}`} aria-label="敵の体力">
           <div><strong>{sceneModel.encounter?.displayName ?? '敵部隊'}</strong><span>{sceneModel.encounter?.boss ? 'BOSS' : `残り${battle.enemyAlive}体`}</span></div>
           <div className="enemy-hp-track"><div className="enemy-hp-fill" style={{ transform: `scaleX(${enemyRatio})` }} /></div>
         </div>
@@ -101,8 +101,8 @@ export function BattleScreen({
       </div>
 
       {rewardCue !== null && (
-        <div className="battle-reward-receipt" key={rewardCue.id} aria-live="polite">
-          <span>戦利品</span>
+        <div className={'battle-reward-receipt' + (rewardCue.importance === 'boss' ? ' is-major' : '')} key={rewardCue.id} aria-live="polite">
+          <span>{rewardCue.importance === 'boss' ? 'BOSS戦利品' : '戦利品'}</span>
           <div>
             {rewardCue.items.map((item) => (
               <strong className={item.kind === 'gold' ? 'is-gold' : 'is-material'} key={item.kind + ':' + item.id}>
