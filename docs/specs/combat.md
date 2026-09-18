@@ -1,7 +1,7 @@
 # Combat Specification
 
 Status: Current
-Date: 2026-09-18
+Date: 2026-09-19
 
 ## 1. Combat goal
 
@@ -252,6 +252,46 @@ Battle reward presentation must use the same DomainEvent payload that granted th
 - particle count is bounded independently from the numeric reward amount
 - boss reward cues may be more emphatic than normal-wave cues, but must preserve mobile combat readability
 - if no authoritative reward event exists, no fake loot particles are emitted
+
+### 8.3 Runtime architecture and ownership
+
+Rendered combat is deliberately split from authoritative combat progression.
+
+~~~text
+src/domain/combat.ts
+  -> authoritative encounter result / rewards / retreat / retry / stage-wave progression
+
+src/application/selectors/battle-scene.ts
+  -> projects Domain state into one visual encounter
+
+BattleRuntime.ts
+  -> orchestration only: initialize, phase handoff, authoritative boundary, result/reset, snapshot
+
+battle-runtime/
+  scene-owner.ts          Three.js ownership and disposal
+  clock.ts                presentation clock and hit-stop
+  camera.ts               camera approach / victory / shake
+  unit-factory.ts         GLB loading and runtime unit construction
+  unit-presentation.ts    shared pose / targeting helpers
+  unit-visuals.ts         shadows, world HP and defeat eyes
+  projectile-system.ts    arrows, bullets, magic, enemy projectiles and impact VFX
+  enemy-combat-system.ts  enemy movement, target contact and attack presentation
+  ally-combat-system.ts   dispatches friendly behavior to one job-family controller
+  ally-*-combat.ts        Sword / Bow / Defense / Magic / Rogue / Gun presentation
+  authority.ts            visual-HP guard at Domain-authored result boundaries
+  snapshot.ts             presentation state projected to the React HUD
+~~~
+
+Hard boundaries:
+
+- BattleRuntime must not award resources, choose the next encounter, retreat a stage, increment a wave, or decide first-clear progression.
+- presentation HP may drive hit/death animation but is not saved game HP and must not resolve the last unit ahead of a Domain-authored result.
+- job-family combat modules own animation choreography only; they may request presentation damage, projectiles, hit-stop, or camera shake through runtime services.
+- enemy combat follows the same rule: visual movement and attacks are allowed, progression mutation is not.
+- Three.js objects created for one encounter are owned by that runtime's BattleSceneOwner; a runtime may not remove or dispose objects owned by another encounter.
+- the React Canvas stays mounted across encounter changes. Runtime replacement, not WebGL-context replacement, is the normal wave/stage transition.
+- new jobs should extend the appropriate ally-*-combat.ts family rather than adding another large branch to BattleRuntime.
+- new generic VFX/lifecycle behavior belongs in a focused subsystem rather than accumulating in the orchestrator.
 
 ## 9. Bosses
 

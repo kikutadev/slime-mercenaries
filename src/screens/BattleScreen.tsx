@@ -5,7 +5,7 @@ import { BATTLE_RESULT_HOLD_MS, canAdoptBattleSceneModel } from '../application/
 import { validationToolsVisible } from '../application/validation-mode';
 import { selectBattleSceneModel, type BattleSceneModel } from '../application/selectors/battle-scene';
 import { selectFormation, selectGlobalHud } from '../application/selectors/ui-selectors';
-import type { BattleSnapshot } from '../game/BattleRuntime';
+import type { BattleSnapshot } from '../game/battle-runtime/types';
 import type { SlimeInstanceId } from '../domain';
 import type { BattleRewardCue } from '../game/battle-reward';
 
