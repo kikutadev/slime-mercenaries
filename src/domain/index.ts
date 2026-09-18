@@ -6,4 +6,7 @@ export * from './combat';
 export * from './balance';
 export * from './commands';
 export * from './definitions';
+export * from './roster';
 export * from './state';
+
+export * from './mutation';

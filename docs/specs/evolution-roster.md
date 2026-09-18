@@ -5,11 +5,11 @@ Date: 2026-09-16
 
 ## 1. Roster model
 
-The roster is a collection of **slime types/forms**, not a warehouse of persistent individual bodies.
+The roster is a collection of **persistent slime instances**. A job type describes an instance's family/form, but does not uniquely identify the owned slime.
 
-For each discovered combat type, the player owns one canonical progression record. Plain Slime stock is the renewable untrained body source used to create normal jobs; it is not a set of individually managed character records. Recreating a job that is already discovered supplies fusion input to its canonical record rather than permanently increasing a population count.
+Each created combat slime receives a stable instance ID and owns its own level, promotion path, fusion rank/form, equipment loadout, and assignment. Plain Slime stock remains the renewable untrained body resource used to create normal jobs; stock itself is not individually managed.
 
-The active battlefield therefore shows at most one body of a given type.
+Multiple instances of the same job type may exist, fight in different formation slots, or split between battle, reserve, and Dispatch.
 
 ## 2. Growth axes
 
@@ -17,26 +17,28 @@ The core growth model uses three distinct concepts.
 
 ### Type level
 
-Frequent Gold-spend growth. Primarily increases combat stats and gives the player a regular upgrade action.
+Frequent Gold-spend growth on one selected slime instance. Primarily increases combat stats and gives the player a regular upgrade action.
 
 ### Fusion
 
-Creating an already-discovered job again converts the repeated creation into a type-specific fusion item such as `Sword Slime Core`; it does not create another persistent body.
+Repeated job creation adds another persistent slime instance. Fusion input is produced only when the player explicitly converts a spare **reserve** instance into that family's Slime Core.
 
-Fusion is the main answer to “what happens when I get this slime again?” and is recipe-based.
+Fusion remains recipe-based.
 
-- repeated creation of the same job becomes a Slime Core / equivalent branch item
+- same-job duplicates remain assignable bodies by default
+- a reserve duplicate may be explicitly converted into a Slime Core / equivalent branch item
+- the last owned instance of a type cannot be consumed this way
+- battle or Dispatch instances cannot be consumed
 - fusion recipes may combine Slime Core + weapon ingredient + ordinary material
-- duplicates are not extra battlefield bodies
 - exact recipe quantities and rank cap are balance data
 - fusion may unlock visible combat behavior or a linear upgraded form at milestones
-- the first Sword fusion milestone at Lv.10 unlocks the `Greatsword` fusion form while preserving the same canonical Sword roster record and the same promotion tier
+- the first Sword fusion milestone at Lv.10 unlocks the `Greatsword` fusion form on the selected Sword instance while preserving its promotion tier
 
 ### Promotion / evolution
 
 Changes the job form itself and therefore the attack identity.
 
-Promotion is not the same as fusion. Fusion strengthens the owned canonical branch and may change its fusion presentation/form, such as Sword Slime -> Greatsword fusion form, without consuming a promotion tier. Promotion changes the actual job tier and later specialization according to progression requirements.
+Promotion is not the same as fusion. Fusion strengthens the selected slime instance and may change its fusion presentation/form, such as Sword Slime -> Greatsword fusion form, without consuming a promotion tier. Promotion changes the actual job tier and later specialization according to progression requirements.
 
 Canonical state therefore keeps these axes separate: `jobTier/promotionPath` and `fusionRank/fusionForm`. Greatsword is not the Tier-2 job that competes with Fighter; Fighter remains the Tier-2 promotion of the Sword branch.
 
@@ -89,10 +91,10 @@ Plain Slime stock x1
 
 Resolution is state-dependent:
 
-- job not yet discovered -> unlock/create the canonical roster record and show NEW presentation
-- job already discovered -> do not create another persistent body; resolve into the type-specific Slime Core / fusion input
+- job not yet discovered -> create the first persistent instance and show NEW presentation
+- job already discovered -> create another persistent instance of the same type
 
-The temporary second slime may still be shown during the fusion presentation even though no second persistent character exists in save state.
+Extra same-type bodies remain usable in formation or Dispatch. If the player later wants Fusion input, one eligible reserve duplicate can be explicitly converted into the family Slime Core.
 
 ## 5. Evolution tree overview
 
@@ -222,20 +224,20 @@ When a normal job is created from Plain Slime + Job Gear:
 ### First creation
 
 - discover/unlock the type if not already owned
-- create its canonical roster progression state
+- create a persistent slime instance with its own progression state
 - show NEW presentation when appropriate
 
 ### Repeated creation
 
-- convert the repeated job creation into a type-specific Slime Core / fusion item immediately
-- show a compact item/progress result
-- do not create a second persistent character card by default
+- create another persistent slime instance
+- keep it assignable to formation, Dispatch, or reserve
+- never auto-merge or silently convert it into Fusion material
 
-Fusion is recipe-based. A recipe may consume the type-specific Slime Core together with a weapon ingredient and ordinary material, and may also require a level threshold. This is the canonical fusion acquisition model.
+Fusion is recipe-based. A recipe may consume the type-specific Slime Core together with a weapon ingredient and ordinary material, and may also require a level threshold. A Slime Core is obtained by an explicit conversion of an eligible spare reserve instance, never by automatic duplicate resolution.
 
 The first Sword milestone requires Lv.10 plus `Sword Slime Core x1 + Greatsword Blank x1 + Hardening Gel x2`. The fusion presentation still shows two Sword Slime models merging for readability and fantasy, but the durable inventory cost is the recipe items. The result unlocks the Greatsword fusion form on the Sword branch: same promotion tier, same slime-body scale, visibly broader greatsword, and a fast half-turn horizontal sweep that damages nearby enemies.
 
-Fusion preserves already-earned level and the canonical roster record. A milestone may replace the equipped weapon/form presentation as part of the upgrade; it is not a reset and does not create another persistent body.
+Fusion preserves the selected instance's already-earned level and identity. A milestone may replace the equipped weapon/form presentation as part of the upgrade; it is not a reset and does not create another persistent body.
 
 ## 10. Fusion milestone presentation
 
@@ -254,15 +256,15 @@ The first fusion tutorial uses two same-size Sword Slime models side by side, pu
 
 ## 11. Assignment states
 
-An owned type can be:
+Each owned slime instance can be:
 
 - in the active battle formation
 - dispatched on one contract
 - reserve
 
-The same type cannot occupy multiple battle slots and cannot battle while dispatched.
+Multiple instances of the same type may occupy different battle slots. A single instance cannot battle while it is dispatched, but another same-type instance may do so.
 
-A duplicate waiting to be fused is not an independently assignable body.
+A duplicate remains independently assignable until the player explicitly converts that reserve body into Fusion input.
 
 ## 12. Role interactions
 

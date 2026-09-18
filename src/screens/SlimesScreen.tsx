@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BottomSheet } from 'idle-game-kit/react';
 import { useGameController, useGameState } from '../app/GameProvider';
 import {
+  selectCampUpgradeOpportunities,
   selectCreateSlimePanel,
   selectEarlyGameCue,
   selectFormation,
@@ -11,12 +12,12 @@ import {
 } from '../application/selectors/ui-selectors';
 import { FusionWorkbench } from '../components/fusion/FusionWorkbench';
 import { CampSlimeStage, type CampSlimeReaction } from '../components/CampSlimeStage';
-import { ids, type JobSlimeId } from '../domain';
+import { ids, sameTypeCount, slimeInstanceIdForSerial, type JobSlimeId, type SlimeInstanceId } from '../domain';
 import { getSlimePresentation } from '../game/slimes';
 
 interface Props {
-  selectedId: JobSlimeId | null;
-  onSelect: (id: JobSlimeId) => void;
+  selectedId: SlimeInstanceId | null;
+  onSelect: (id: SlimeInstanceId) => void;
   onOpenBattle: () => void;
 }
 
@@ -33,6 +34,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   const state = useGameState();
   const controller = useGameController();
   const hud = selectGlobalHud(state);
+  const validationMode = controller.validationMode;
   const ownedIds = selectOwnedSlimeIds(state);
   const selected = selectedId !== null && state.gameData.roster.slimes[selectedId] !== undefined
     ? selectedId
@@ -40,6 +42,14 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   const detail = selected === null ? null : selectSlimeDetail(state, selected);
   const formation = selectFormation(state);
   const createPanel = selectCreateSlimePanel(state);
+  const upgradeOpportunities = selectCampUpgradeOpportunities(state);
+  const selectedUpgrades = selected === null
+    ? []
+    : upgradeOpportunities.filter((opportunity) => opportunity.slimeId === selected);
+  const primaryUpgrade = upgradeOpportunities[0] ?? null;
+  const primaryUpgradeName = primaryUpgrade === null
+    ? null
+    : getSlimePresentation(state.gameData.roster.slimes[primaryUpgrade.slimeId]!).name;
   const cue = selectEarlyGameCue(state);
   const [mode, setMode] = useState<CampMode>('none');
   const [createOpen, setCreateOpen] = useState(false);
@@ -56,21 +66,27 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   };
 
   const handleCreateJob = (jobId: JobSlimeId) => {
-    const alreadyOwned = state.gameData.roster.slimes[jobId] !== undefined;
+    const wasDiscovered = sameTypeCount(state, jobId) > 0;
     const result = controller.createJobSlime(jobId);
     if (!result.accepted) {
       setNotice(rejectionLabel(result.reason));
       return;
     }
-    onSelect(jobId);
-    if (!alreadyOwned) {
+    const createdId = slimeInstanceIdForSerial(result.state.gameData.roster.nextSlimeSerial - 1);
+    const created = result.state.gameData.roster.slimes[createdId];
+    if (created === undefined) {
+      setNotice('作成したスライムを確認できませんでした');
+      return;
+    }
+    onSelect(createdId);
+    const name = getSlimePresentation(created).name;
+    if (!wasDiscovered) {
       const open = result.state.gameData.roster.formationSlots.findIndex((slot) => slot === null);
-      if (open >= 0) controller.assignSlime(jobId, open);
-      const name = getSlimePresentation(result.state.gameData.roster.slimes[jobId]!).name;
+      if (open >= 0) controller.assignSlime(createdId, open);
       setNotice(null);
       triggerFeedback('recruit', `${name}が仲間になった！`, '出撃編成に自動で加わりました');
     } else {
-      setNotice(`${getSlimePresentation(result.state.gameData.roster.slimes[jobId]!).name} の核を獲得`);
+      setNotice(`${name}がもう1匹仲間になりました。編成・派遣・合成素材化を選べます`);
     }
     setCreateOpen(false);
   };
@@ -89,7 +105,21 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   return (
     <section className="screen screen--camp screen--active" aria-label="キャンプ">
       <header className="camp-topbar">
-        <div className="camp-resources"><span>G</span><strong>{hud.gold}</strong></div>
+        <div className="camp-resources"><span>G</span><strong>{validationMode ? '∞' : hud.gold}</strong></div>
+        {validationMode && (
+          <button
+            className="validation-mode-badge validation-mode-badge--action"
+            type="button"
+            onClick={() => {
+              const result = controller.validationPrepareRoster();
+              if (!result.accepted) { setNotice(rejectionLabel(result.reason)); return; }
+              const first = result.state.gameData.roster.formationSlots[0];
+              if (first !== null) onSelect(first);
+            }}
+          >
+            検証 · 全6職編成
+          </button>
+        )}
       </header>
 
       <div className="camp-roster" aria-label="仲間のスライム">
@@ -134,7 +164,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
 
             <div className="camp-slime-stage">
               <CampSlimeStage
-                slimeId={selected}
+                slimeId={detail.typeId}
                 fusionRank={detail.fusionRank}
                 reaction={feedback.reaction}
                 reactionKey={feedback.key}
@@ -150,8 +180,12 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
               </div>
             </div>
 
-            <button className={`camp-hotspot camp-hotspot--train ${mode === 'train' ? 'is-active' : ''}`} type="button" onClick={() => setMode(mode === 'train' ? 'none' : 'train')}>
-              <span>⚔</span><strong>訓練</strong><small>育成</small>
+            <button
+              className={`camp-hotspot camp-hotspot--train ${mode === 'train' ? 'is-active' : ''} ${selectedUpgrades.some((opportunity) => opportunity.kind === 'promotion') || (state.gameData.combat.retryFarmClearsRemaining > 0 && selectedUpgrades.some((opportunity) => opportunity.kind === 'level')) ? 'is-ready' : ''}`}
+              type="button"
+              onClick={() => setMode(mode === 'train' ? 'none' : 'train')}
+            >
+              <span>⚔</span><strong>訓練</strong><small>{selectedUpgrades.some((opportunity) => opportunity.kind === 'promotion') ? '昇格可能' : selectedUpgrades.some((opportunity) => opportunity.kind === 'level') ? '強化可能' : '育成'}</small>
             </button>
             <button className={`camp-hotspot camp-hotspot--fusion ${detail.fusion?.canFuse ? 'is-ready' : ''}`} type="button" onClick={() => setMode('fusion')}>
               <span>✦</span><strong>合成</strong><small>{detail.fusion?.canFuse ? '合成可能' : '合成台'}</small>
@@ -162,6 +196,21 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
             <button className={`camp-hotspot camp-hotspot--formation ${mode === 'formation' ? 'is-active' : ''}`} type="button" onClick={() => setMode(mode === 'formation' ? 'none' : 'formation')}>
               <span>⚑</span><strong>編成</strong><small>{detail.assignment === 'battle' ? '出撃中' : '控え'}</small>
             </button>
+
+            {mode === 'none' && state.gameData.combat.retryFarmClearsRemaining > 0 && primaryUpgrade !== null && primaryUpgradeName !== null && (
+              <button
+                className="camp-upgrade-alert"
+                type="button"
+                onClick={() => {
+                  onSelect(primaryUpgrade.slimeId);
+                  setMode(primaryUpgrade.kind === 'fusion' ? 'fusion' : 'train');
+                }}
+              >
+                <span>再出撃準備</span>
+                <strong>{primaryUpgradeName} · {primaryUpgrade.label}</strong>
+                <em>›</em>
+              </button>
+            )}
 
             {cue !== null && (
               <button className="camp-quest" type="button" onClick={() => {
@@ -196,6 +245,44 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                   </button>
                 ))}
               </div>
+              {validationMode && (
+                <div className="camp-validation-tools">
+                  <span>検証ツール</span>
+                  <button type="button" onClick={() => {
+                    const result = controller.validationSetSlimeLevel(selected, 40);
+                    setNotice(result.accepted ? 'Lv.40に設定しました' : rejectionLabel(result.reason));
+                  }}>Lv.40へ</button>
+                  <button type="button" onClick={() => {
+                    const result = controller.validationResetSlime(selected);
+                    if (!result.accepted) { setNotice(rejectionLabel(result.reason)); return; }
+                    setNotice('Tier1・合成ランク1へ戻しました');
+                    triggerFeedback('idle', '');
+                  }}>初期形態へ戻す</button>
+                </div>
+              )}
+
+              {detail.promotions.length > 0 && (
+                <div className={`camp-promotion-choices ${detail.promotions.length > 1 ? 'is-branching' : ''}`}>
+                  {detail.promotions.map((promotion) => (
+                    <button
+                      key={promotion.id}
+                      className={`camp-promotion-action ${promotion.canPromote ? 'is-ready' : ''}`}
+                      type="button"
+                      disabled={!promotion.canPromote}
+                      onClick={() => {
+                        const result = controller.promoteSlime(selected, promotion.id);
+                        if (!result.accepted) { setNotice(rejectionLabel(result.reason)); return; }
+                        setNotice(null);
+                        triggerFeedback('level-up', `${promotion.resultName}へ昇格`, `Tier ${detail.tier + 1}`);
+                      }}
+                    >
+                      <span>{detail.promotions.length > 1 ? '分岐昇格' : '昇格'}</span>
+                      <strong>{promotion.resultName}</strong>
+                      <small>Lv.{promotion.minLevel} · {promotion.goldCost} G · 素材 {promotion.requirements.every((item) => item.missing === 0) ? 'OK' : '不足'}</small>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -244,10 +331,10 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
           closeButtonClassName="sheet-close"
         >
           <div className="nursery-world">
-            <div className="nursery-vat"><div className="nursery-vat__bubble">●</div><span>プレーンスライム</span><strong>{createPanel.plainStock}</strong></div>
+            <div className="nursery-vat"><div className="nursery-vat__bubble">●</div><span>プレーンスライム</span><strong>{validationMode ? '∞' : createPanel.plainStock}</strong></div>
             <div className="nursery-actions">
               <button type="button" disabled={!createPanel.craft.canCraft} onClick={() => runAction('プレーンスライムが生まれました', () => controller.craftPlainSlime(1))}>
-                <span>♨</span><strong>素材から生み出す</strong><small>{createPanel.craft.requirements.map((item) => `${resourceLabel(item.tokenId)} ${item.owned}/${item.required}`).join(' · ')}</small>
+                <span>♨</span><strong>素材から生み出す</strong><small>{createPanel.craft.requirements.map((item) => `${resourceLabel(item.tokenId)} ${validationMode ? '∞' : item.owned}/${item.required}`).join(' · ')}</small>
               </button>
               <button type="button" disabled={!createPanel.purchase.canAfford} onClick={() => runAction('プレーンスライムを迎えました', () => controller.buyPlainSlime(1))}>
                 <span>G</span><strong>ショップから迎える</strong><small>{createPanel.purchase.cost} G</small>
@@ -258,7 +345,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
               {createPanel.jobs.map((job) => (
                 <button key={job.id} type="button" disabled={!job.canCreate} onClick={() => handleCreateJob(job.id)}>
                   <img src={`${import.meta.env.BASE_URL}${job.icon}`} alt="" />
-                  <span><strong>{job.name}</strong><small>{job.isNew ? '新しい職業' : '再生成 → 合成の核'}</small></span>
+                  <span><strong>{job.name}</strong><small>{job.isNew ? '新しい職業' : '同職の別個体として加入'}</small></span>
                   <em>{job.canCreate ? '作成' : '素材不足'}</em>
                 </button>
               ))}
@@ -277,6 +364,11 @@ function rejectionLabel(reason: string | undefined): string {
     case 'insufficient-gold': return 'ゴールドが足りません';
     case 'dispatched': return '派遣中です';
     case 'weapon-not-owned': return 'その武器を所持していません';
+    case 'promotion-choice-required': return '昇格先を選んでください';
+    case 'invalid-promotion': return 'その昇格先は選べません';
+    case 'validation-mode-disabled': return '検証モードでのみ使えます';
+    case 'job-create-failed': return '全職解放に失敗しました';
+    case 'formation-failed': return '派遣中のスライムがいるため6職編成できません';
     default: return reason === undefined ? '実行できませんでした' : `実行できません: ${reason}`;
   }
 }

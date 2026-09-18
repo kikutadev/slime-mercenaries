@@ -3,6 +3,7 @@ import {
   cloverRoadStageDefinitions,
   fusionStepDefinitions,
   jobCreationDefinitions,
+  NORMAL_JOB_SLIME_IDS,
 } from './definitions';
 
 /**
@@ -35,4 +36,10 @@ describe('released fusion content', () => {
 
     expect([...new Set(required)].filter((tokenId) => !obtainable.has(tokenId))).toEqual([]);
   });
+  it('gives every normal job family at least one authored Fusion sink', () => {
+    for (const slimeId of NORMAL_JOB_SLIME_IDS) {
+      expect(fusionStepDefinitions[slimeId].length, `${slimeId} Fusion steps`).toBeGreaterThan(0);
+    }
+  });
+
 });

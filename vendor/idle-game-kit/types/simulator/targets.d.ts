@@ -26,6 +26,15 @@ export type BalanceTargetDefinition = Readonly<{
     phaseId: string;
     maxProbability: number;
 }> | Readonly<{
+    /** Product-owned repeated action/event count, e.g. retries, farm clears, repeated upgrades. */
+    id: string;
+    kind: 'repetition-count';
+    profileId: string;
+    metricId: string;
+    percentile: BalancePercentile;
+    minCount?: number;
+    maxCount?: number;
+}> | Readonly<{
     id: string;
     kind: 'ad-dependency-ratio';
     baselineProfileId: string;
@@ -40,6 +49,8 @@ export interface BalanceTargetSource {
     maxNoActionWindowSec(profileId: string, percentile: BalancePercentile): number | null;
     wallP90WaitSec(profileId: string, phaseId: string): number | null;
     wallStuckProbability(profileId: string, phaseId: string): number | null;
+    /** Optional so existing products do not need to implement repetition metrics until they use them. */
+    repetitionCount?(profileId: string, metricId: string, percentile: BalancePercentile): number | null;
 }
 export type BalanceTargetEvaluation = Readonly<{
     target: BalanceTargetDefinition;

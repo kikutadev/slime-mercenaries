@@ -1,7 +1,7 @@
 # Progression, Loot, Dispatch & Economy
 
 Status: Current
-Date: 2026-09-16
+Date: 2026-09-17
 
 ## 1. Economy goal
 
@@ -19,14 +19,14 @@ Do not create currencies merely to add systems. Every resource must have an obvi
 | Slime-generation material | battle, chest, dispatch | Plain Slime crafting | renewable body supply |
 | Plain Slime stock | crafting, Gold shop | normal-job creation | untrained body source; no individual progression |
 | Job Gear | tutorial, area progression, chest/component crafting | normal-job creation | choose/discover a Tier-1 profession |
-| Type-specific Slime Core | repeated creation of an already-discovered job | fusion recipe | preserve duplicate value without extra bodies |
+| Type-specific Slime Core | explicit conversion of an eligible spare reserve slime | fusion recipe | let the player trade duplicate roster depth for Fusion progress |
 | Forge Key | boss, objectives, chest, dispatch | equipment forge draw | deliberate equipment pull |
 | Fusion weapon ingredient | chest/boss/forge/progression | fusion recipe | visible form/attack milestone |
 | Fusion material | battle/chest/dispatch | fusion recipe | shared upgrade ingredient |
 | Promotion Material | area/boss/dispatch | Tier promotion | deterministic evolution |
 | Mutation Fragments | mutation encounters | guaranteed mutation unlock | RNG backstop |
 
-A repeated job creation is immediately represented as a type-specific fusion item (for example `Sword Slime Core`), not a permanent population unit.
+A repeated job creation adds another persistent slime instance. It remains usable until the player explicitly converts an eligible spare reserve instance into a type-specific fusion item such as `Sword Slime Core`.
 
 Slime-generation material such as Gel is valid specifically as an input for **Plain Slime stock crafting**. It does not directly increase battlefield body count. Plain stock is consumed when creating jobs and carries no individual progression state.
 
@@ -98,16 +98,16 @@ Job Gear is a profession catalyst and is separate from persistent combat Equipme
 
 Resolution:
 
-- undiscovered job -> create the canonical roster record and mark it NEW
-- already-discovered job -> convert the repeated creation into that job's type-specific Slime Core / fusion input
+- undiscovered job -> create the first persistent instance and mark the type NEW
+- already-discovered job -> create another persistent instance of that job type
 
-No repeated job creation produces another assignable same-type body. This keeps duplicate value while preserving the one-type/one-body battlefield rule.
+Same-type bodies are independently assignable. Fusion input is produced later only through an explicit spare-body conversion.
 
 ## 6. Fusion economy
 
 Fusion is recipe-based. The canonical ingredient families are:
 
-- one type-specific Slime Core or branch item from repeated job creation
+- one type-specific Slime Core or branch item obtained from explicit conversion of an eligible spare reserve instance
 - zero or one weapon ingredient when the milestone changes the weapon/form silhouette
 - a small quantity of ordinary fusion material
 
@@ -194,12 +194,13 @@ Names are content-level and may change; behavioral differentiation is the import
 
 ## 11. Dispatch
 
-Dispatch gives reserve slime types productive work outside the main battlefield.
+Dispatch gives reserve slime instances productive work outside the main battlefield.
 
 ### Assignment rule
 
-- only owned, non-battle slime types can be dispatched
-- one type cannot be assigned to battle and dispatch simultaneously
+- only owned reserve slime instances can be dispatched
+- one instance cannot be assigned to battle and dispatch simultaneously
+- another instance of the same type may battle while its duplicate is dispatched
 - Plain stock and type-specific fusion inputs are resources, not dispatchable bodies
 
 ### Initial contract families
@@ -226,14 +227,21 @@ A simple `choose reserve slime -> choose job -> wait -> return with reward` loop
 
 ## 12. Stage growth and blockers
 
-Enemy power rises smoothly until a boss checkpoint.
+Enemy power rises smoothly toward frontier checks. A failed frontier is a growth-cycle transition, not a static blocker.
 
-If a boss is too strong:
+Frontier checks are not boss-only. A normal `StageDefinition` may author a `requiredPartyPower` survivability gate, while bosses retain their own stronger gate. Failing either route uses the same defeat -> retreat -> farm -> retry state machine; exact thresholds remain balance data.
 
-- return to the best cleared farming stage
-- Gold/chests/slime-generation materials/Job Gear components continue
-- UI surfaces a few concrete improvement opportunities such as level/fusion/equipment
-- offline progress stops at the blocking boss rather than faking a clear
+If the frontier is too strong:
+
+- record the authoritative party defeat
+- retreat one stage while preserving the highest cleared stage
+- Gold/chests/slime-generation materials/Job Gear/Fusion/Equipment/Promotion inputs continue to drop
+- after the authored farm-clear count, automatically retry the uncleared frontier
+- if the retry still fails, repeat retreat -> farm -> retry
+- Camp attention may surface actions that are currently executable (`level / fusion / promotion`) using the same production preview queries; it must not invent a recommended build or tell the player which strategic choice is correct
+- ordinary affordable level-ups alone do not keep Camp attention permanently active; the level-up attention is elevated during retreat farming, while rarer Fusion/Promotion opportunities may remain visible normally
+- no GAME OVER or blocking modal interrupts this loop
+- offline simulation continues farming; it defers the first clear of an uncleared major frontier until an active session
 
 ## 13. Offline progression
 

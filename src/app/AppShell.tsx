@@ -7,7 +7,7 @@ import { BattleScreen } from '../screens/BattleScreen';
 import { SlimesScreen } from '../screens/SlimesScreen';
 import { DispatchScreen } from '../screens/DispatchScreen';
 import { ForgeScreen } from '../screens/ForgeScreen';
-import type { JobSlimeId } from '../domain';
+import type { SlimeInstanceId } from '../domain';
 
 type ScreenId = 'battle' | 'slimes' | 'dispatch' | 'forge';
 
@@ -18,7 +18,7 @@ export function AppShell() {
   const ownedIds = selectOwnedSlimeIds(state);
   const attention = selectNavigationAttention(state);
   const [screen, setScreen] = useState<ScreenId>('slimes');
-  const [selectedSlimeId, setSelectedSlimeId] = useState<JobSlimeId | null>(null);
+  const [selectedSlimeId, setSelectedSlimeId] = useState<SlimeInstanceId | null>(null);
   const [offlineDismissed, setOfflineDismissed] = useState(false);
   const presentation = usePresentationQueue(presentationNoticeDurationMs);
 
@@ -66,7 +66,7 @@ export function AppShell() {
     );
   }
 
-  const openSlime = (slimeId: JobSlimeId) => {
+  const openSlime = (slimeId: SlimeInstanceId) => {
     setSelectedSlimeId(slimeId);
     setScreen('slimes');
   };
@@ -102,6 +102,9 @@ export function AppShell() {
                 <div><span>ボス撃破</span><strong>{offlineReturn.bossDefeatedCount}</strong></div>
                 <div><span>派遣帰還</span><strong>{offlineReturn.dispatchCompletedCount}</strong></div>
               </div>
+              {offlineReturn.frontierStageReached !== null && (
+                <div className="offline-summary__reward"><span>最前線</span><strong>ステージ {offlineReturn.frontierStageReached} 到達 · 周回継続中</strong></div>
+              )}
               {offlineReturn.materialDropCount > 0 && (
                 <div className="offline-summary__reward"><span>戦闘ドロップ</span><strong>素材 +{offlineReturn.materialDropCount}</strong></div>
               )}

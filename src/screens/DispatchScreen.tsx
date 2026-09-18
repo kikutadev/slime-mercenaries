@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useGameController, useGameState } from '../app/GameProvider';
 import { selectDispatchScreen, selectGlobalHud } from '../application/selectors/ui-selectors';
 import { getSlimePresentation } from '../game/slimes';
-import type { DispatchContractId, JobSlimeId } from '../domain';
+import type { DispatchContractId, SlimeInstanceId } from '../domain';
 
 const ROUTE_META: Readonly<Record<DispatchContractId, Readonly<{ x: number; y: number; icon: string; subtitle: string }>>> = {
   roadEscort: { x: 26, y: 34, icon: '⚑', subtitle: '街道の護衛' },
@@ -14,9 +14,10 @@ export function DispatchScreen() {
   const state = useGameState();
   const controller = useGameController();
   const view = selectDispatchScreen(state);
+  const validationMode = controller.validationMode;
   const hud = selectGlobalHud(state);
   const [selectedContract, setSelectedContract] = useState<DispatchContractId>('roadEscort');
-  const [selectedSlime, setSelectedSlime] = useState<JobSlimeId | null>(null);
+  const [selectedSlime, setSelectedSlime] = useState<SlimeInstanceId | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const contract = view.contracts.find((item) => item.id === selectedContract) ?? view.contracts[0]!;
@@ -49,7 +50,7 @@ export function DispatchScreen() {
     <section className="screen screen--dispatch-world screen--active" aria-label="派遣">
       <header className="dispatch-world__topbar">
         <div><p className="eyebrow">遠征地図</p><h1>派遣</h1></div>
-        <div className="dispatch-world__stats"><span>G {hud.gold}</span><strong>{activeCount} / 3</strong></div>
+        <div className="dispatch-world__stats"><span>G {validationMode ? '∞' : hud.gold}</span><strong>{activeCount} / 3</strong></div>
       </header>
 
       <div className="dispatch-map">

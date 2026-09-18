@@ -1,7 +1,7 @@
 # Combat Specification
 
 Status: Current
-Date: 2026-09-16
+Date: 2026-09-17
 
 ## 1. Combat goal
 
@@ -27,7 +27,7 @@ The battlefield internally uses soft navigation space rather than visible lanes.
 
 ## 3. Main formation
 
-The player assigns up to six unique slime types to the active battle formation.
+The player assigns up to six persistent slime instances to the active battle formation. Multiple instances may share the same job type.
 
 Each slot deploys **one visible slime**.
 
@@ -43,7 +43,7 @@ This is a starting/behavior preference, not a rigid tile board.
 - mobile types may cross the contact zone temporarily
 - after a wave, survivors converge into a short march formation
 
-Do not spawn additional same-type bodies because fusion rank increased. Repeated job creation feeds fusion progression, not battlefield population.
+Fusion rank never spawns extra bodies. Battlefield population comes only from owned slime instances assigned to formation slots; same-type owned instances are allowed in separate slots.
 
 ## 4. HP and defeat
 
@@ -93,6 +93,21 @@ Minimum feedback vocabulary:
 - damage numbers optional; battlefield must not depend on them for impact
 
 Routine attacks should not constantly shake the screen.
+
+### Enemy presentation and encounter content
+
+Enemy identity is data-driven rather than authored inside the battle renderer. Stage waves and bosses resolve a stable encounter ID, and each encounter resolves one or more enemy definitions containing the production GLB, behavior, combat values, presentation scale, and boss/fodder class. Offline/headless progression continues to use analytical `work` values and does not depend on rendered meshes.
+
+The first production enemy family is Mushroom:
+
+- `tiny-mushroom`: basic bouncing headbutt fodder
+- `plump-mushroom`: slower, heavier bump attacker
+- `spore-mushroom`: ranged spore projectile attacker
+- `great-mushroom`: first large boss with a clearly telegraphed heavy bounce
+
+Normal Mushroom enemies use a small shared visual grammar but must remain visually subordinate to friendly slimes. Normal encounters target 3–12 enemies. Bosses may be much larger, but their face and attack tell must remain visible in the actual portrait battle camera.
+
+Enemy defeat is comic rather than violent: the enemy is displaced slightly away from the contact pile, spreads/tilts into a soft collapsed pose, switches to readable `×` eyes, remains visible briefly, then clears. Production game and gallery use the same enemy GLBs and the same motion/projectile source.
 
 ## 7. Fusion readability in combat
 
@@ -167,14 +182,21 @@ Do not add multiple active skill buttons to compensate for weak auto combat.
 
 ## 11. Defeat and recovery
 
+A frontier defeat can occur on an authored normal stage power check as well as on a boss. Presentation and recovery rules are identical; Boss is not a special static-stop state.
+
 On party defeat:
 
 - do not show a punitive game-over flow
 - keep defeated slimes visible long enough for the `べちゃっ + ×目` reaction to read
-- show the blocking boss/stage and concise growth opportunities
-- return to the latest farmable stage automatically or offer a clear retry
+- emit the defeat as an authoritative Domain result rather than a renderer-only state
+- retreat one stage, preserving `highestStageCleared`
+- keep granting the existing Gold, material, chest, equipment, Fusion and Promotion economy while farming
+- after the authored farm-clear count, automatically return to the uncleared frontier and retry
+- if the retry still fails, repeat the same retreat/farm/retry cycle
 
-Do not trap idle simulation in endless failed boss attempts.
+Offline resume uses the same analytical transition engine. Farming continues while offline, but the first clear of an uncleared major frontier is deferred until an active session; offline time must never become a progression stop.
+
+Do not trap idle simulation in endless failed boss attempts or a static boss-blocked state.
 
 ## 12. Speed and idle controls
 

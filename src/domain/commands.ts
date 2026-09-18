@@ -24,7 +24,8 @@ import {
   type PromotionDefinition,
   type TokenRequirement,
 } from './definitions';
-import type { SlimeMercenariesState, SlimeProgress } from './state';
+import { createSlimeWeaponLoadout, slimeInstanceIdForSerial, type SlimeInstanceId, type SlimeMercenariesState, type SlimeProgress } from './state';
+import { isJobDiscovered, slimeIdsByType } from './roster';
 
 export type TokenRequirementPreview = Readonly<{
   tokenId: string;
@@ -50,7 +51,7 @@ export type PlainSlimePurchasePreview = Readonly<{
 export type JobCreationPreview = Readonly<{
   jobId: JobSlimeId;
   isNewDiscovery: boolean;
-  resultKind: 'discover-job' | 'fusion-core';
+  resultKind: 'discover-job' | 'recruit-duplicate';
   resultTokenId: string | null;
   requirements: readonly TokenRequirementPreview[];
   canCreate: boolean;
@@ -169,7 +170,7 @@ export function previewJobCreation(
   jobId: JobSlimeId,
 ): JobCreationPreview {
   const definition = jobCreationDefinitions[jobId];
-  const existing = state.gameData.roster.slimes[jobId];
+  const discovered = isJobDiscovered(state, jobId);
   const requirements: readonly TokenRequirement[] = [
     { tokenId: ids.token.plainSlime, count: definition.plainSlimeCount },
     { tokenId: definition.jobGearTokenId, count: definition.jobGearCount },
@@ -177,18 +178,15 @@ export function previewJobCreation(
   const preview = requirements.map((requirement) => previewRequirement(state, requirement));
   return {
     jobId,
-    isNewDiscovery: existing === undefined,
-    resultKind: existing === undefined ? 'discover-job' : 'fusion-core',
-    resultTokenId: existing === undefined ? null : definition.fusionCoreTokenId,
+    isNewDiscovery: !discovered,
+    resultKind: discovered ? 'recruit-duplicate' : 'discover-job',
+    resultTokenId: null,
     requirements: preview,
     canCreate: preview.every((requirement) => requirement.missing === 0),
   };
 }
 
-/**
- * Consume Plain Slime + Job Gear atomically.
- * First creation adds one canonical roster record; later creations become Fusion Core input.
- */
+/** Consume Plain Slime + Job Gear atomically and always create one persistent slime body. */
 export function createJobSlime(
   state: SlimeMercenariesState,
   jobId: JobSlimeId,
@@ -201,26 +199,19 @@ export function createJobSlime(
     { tokenId: ids.token.plainSlime, count: definition.plainSlimeCount },
     { tokenId: definition.jobGearTokenId, count: definition.jobGearCount },
   ];
-  let tokens = spendRequirements(state.tokens, requirements);
-  const existing = state.gameData.roster.slimes[jobId];
-
-  if (existing !== undefined) {
-    tokens = grantToken(tokens, definition.fusionCoreTokenId, 1);
-    const nextState: SlimeMercenariesState = { ...state, tokens };
-    return accept(nextState, [semanticEvent(nextState, 'slimeFusionCoreCreated', `${jobId}:${readToken(tokens, definition.fusionCoreTokenId)}`, {
-      jobId,
-      coreTokenId: definition.fusionCoreTokenId,
-      coreCount: 1,
-    })]);
-  }
-
+  const tokens = spendRequirements(state.tokens, requirements);
+  const serial = state.gameData.roster.nextSlimeSerial;
+  const slimeId = slimeInstanceIdForSerial(serial);
   const progress: SlimeProgress = {
+    id: slimeId,
+    serial,
     typeId: jobId,
     level: definition.startingLevel,
     jobTier: definition.startingJobTier,
     promotionPathId: null,
     fusionRank: 1,
     fusionFormId: 'base',
+    mutationId: null,
     assignment: 'reserve',
   };
   const nextState: SlimeMercenariesState = {
@@ -228,19 +219,54 @@ export function createJobSlime(
     tokens,
     gameData: {
       ...state.gameData,
+      equipment: {
+        ...state.gameData.equipment,
+        loadouts: { ...state.gameData.equipment.loadouts, [slimeId]: createSlimeWeaponLoadout(jobId) },
+      },
       roster: {
         ...state.gameData.roster,
-        slimes: {
-          ...state.gameData.roster.slimes,
-          [jobId]: progress,
-        },
+        slimes: { ...state.gameData.roster.slimes, [slimeId]: progress },
+        nextSlimeSerial: serial + 1,
       },
     },
   };
-  return accept(nextState, [semanticEvent(nextState, 'slimeJobDiscovered', jobId, {
+  const eventType = preview.isNewDiscovery ? 'slimeJobDiscovered' : 'slimeJobCreated';
+  return accept(nextState, [semanticEvent(nextState, eventType, slimeId, {
+    slimeId,
     jobId,
+    typeId: jobId,
     level: progress.level,
     jobTier: progress.jobTier,
+  })]);
+}
+
+/** Explicitly convert one spare reserve body into that family's Fusion Core. */
+export function convertDuplicateToFusionCore(
+  state: SlimeMercenariesState,
+  slimeId: SlimeInstanceId,
+): CommandResult<SlimeMercenariesState, 'not-owned' | 'not-reserve' | 'last-of-type'> {
+  const slime = state.gameData.roster.slimes[slimeId];
+  if (slime === undefined) return reject(state, 'not-owned');
+  if (slime.assignment !== 'reserve') return reject(state, 'not-reserve');
+  if (slimeIdsByType(state, slime.typeId).length <= 1) return reject(state, 'last-of-type');
+
+  const definition = jobCreationDefinitions[slime.typeId];
+  const slimes = { ...state.gameData.roster.slimes };
+  delete slimes[slimeId];
+  const loadouts = { ...state.gameData.equipment.loadouts };
+  delete loadouts[slimeId];
+  const tokens = grantToken(state.tokens, definition.fusionCoreTokenId, 1);
+  const nextState: SlimeMercenariesState = {
+    ...state,
+    tokens,
+    gameData: {
+      ...state.gameData,
+      equipment: { ...state.gameData.equipment, loadouts },
+      roster: { ...state.gameData.roster, slimes },
+    },
+  };
+  return accept(nextState, [semanticEvent(nextState, 'slimeConvertedToFusionCore', slimeId, {
+    slimeId, typeId: slime.typeId, coreTokenId: definition.fusionCoreTokenId, coreCount: 1,
   })]);
 }
 
@@ -326,7 +352,7 @@ function reject<TReason extends string>(
 }
 
 export type SlimeFusionPreview = Readonly<{
-  slimeId: JobSlimeId;
+  slimeId: SlimeInstanceId;
   step: FusionStepDefinition | null;
   levelMet: boolean;
   requirements: readonly TokenRequirementPreview[];
@@ -336,13 +362,13 @@ export type SlimeFusionPreview = Readonly<{
 /** Resolve the next authored Fusion step from the canonical rank without mutating state. */
 export function previewSlimeFusion(
   state: SlimeMercenariesState,
-  slimeId: JobSlimeId,
+  slimeId: SlimeInstanceId,
 ): SlimeFusionPreview {
   const slime = state.gameData.roster.slimes[slimeId];
   if (slime === undefined) {
     return { slimeId, step: null, levelMet: false, requirements: [], canFuse: false };
   }
-  const step = fusionStepDefinitions[slimeId].find((candidate) => candidate.fromRank === slime.fusionRank) ?? null;
+  const step = fusionStepDefinitions[slime.typeId].find((candidate) => candidate.fromRank === slime.fusionRank) ?? null;
   if (step === null) {
     return { slimeId, step: null, levelMet: true, requirements: [], canFuse: false };
   }
@@ -363,7 +389,7 @@ export function previewSlimeFusion(
  */
 export function fuseSlime(
   state: SlimeMercenariesState,
-  slimeId: JobSlimeId,
+  slimeId: SlimeInstanceId,
 ): CommandResult<SlimeMercenariesState, 'not-owned' | 'max-rank' | 'level-too-low' | 'insufficient-materials'> {
   const slime = state.gameData.roster.slimes[slimeId];
   if (slime === undefined) return reject(state, 'not-owned');
@@ -404,22 +430,22 @@ export function fuseSlime(
 /** Return the Kit Level preview that both UI and simulator should display/use. */
 export function previewSlimeLevelUp(
   state: SlimeMercenariesState,
-  slimeId: JobSlimeId,
+  slimeId: SlimeInstanceId,
   count = 1,
 ) {
   const slime = state.gameData.roster.slimes[slimeId];
   if (slime === undefined) return null;
   return previewLevelUp({
-    definition: typeLevelDefinitions[slimeId],
+    definition: typeLevelDefinitions[slime.typeId],
     currentLevel: slime.level,
     count,
   });
 }
 
-/** Spend Gold and update one canonical slime type level using the Kit-authored curve preview. */
+/** Spend Gold and update one slime instance level using the Kit-authored curve preview. */
 export function levelUpSlime(
   state: SlimeMercenariesState,
-  slimeId: JobSlimeId,
+  slimeId: SlimeInstanceId,
   count = 1,
 ): CommandResult<SlimeMercenariesState, 'invalid-count' | 'not-owned' | 'level-limit' | 'insufficient-gold'> {
   if (!isPositiveCount(count)) return reject(state, 'invalid-count');
@@ -427,7 +453,7 @@ export function levelUpSlime(
   if (slime === undefined) return reject(state, 'not-owned');
 
   const preview = previewLevelUp({
-    definition: typeLevelDefinitions[slimeId],
+    definition: typeLevelDefinitions[slime.typeId],
     currentLevel: slime.level,
     count,
   });
@@ -437,7 +463,7 @@ export function levelUpSlime(
     currencyId: ids.currency.gold,
     amount: preview.totalCost,
     kind: 'spend',
-    source: `level.${slimeId}`,
+    source: `level.${slime.typeId}`,
   }, resolveCurrencyDefinition(ids.currency.gold));
   if (!spend.accepted) return reject(state, 'insufficient-gold');
 
@@ -469,7 +495,7 @@ export function levelUpSlime(
 
 
 export type SlimePromotionPreview = Readonly<{
-  slimeId: JobSlimeId;
+  slimeId: SlimeInstanceId;
   step: PromotionDefinition | null;
   levelMet: boolean;
   goldCost: GameNumber;
@@ -478,95 +504,93 @@ export type SlimePromotionPreview = Readonly<{
   canPromote: boolean;
 }>;
 
-/** Promotion is a separate axis from Fusion and therefore never changes fusionRank/form. */
-export function previewSlimePromotion(
+function promotionPreviewForStep(
   state: SlimeMercenariesState,
-  slimeId: JobSlimeId,
+  slimeId: SlimeInstanceId,
+  step: PromotionDefinition,
 ): SlimePromotionPreview {
   const slime = state.gameData.roster.slimes[slimeId];
   if (slime === undefined) {
-    return {
-      slimeId,
-      step: null,
-      levelMet: false,
-      goldCost: GameNumber.zero(),
-      canAffordGold: false,
-      requirements: [],
-      canPromote: false,
-    };
-  }
-  const step = promotionDefinitions[slimeId].find((candidate) => candidate.fromTier === slime.jobTier) ?? null;
-  if (step === null) {
-    return {
-      slimeId,
-      step: null,
-      levelMet: true,
-      goldCost: GameNumber.zero(),
-      canAffordGold: true,
-      requirements: [],
-      canPromote: false,
-    };
+    return { slimeId, step: null, levelMet: false, goldCost: GameNumber.zero(), canAffordGold: false, requirements: [], canPromote: false };
   }
   const requirements = step.recipe.map((requirement) => previewRequirement(state, requirement));
   const goldCost = GameNumber.from(step.goldCost);
   const levelMet = slime.level >= step.minLevel;
   const canAffordGold = readCurrency(state.currencies, ids.currency.gold).compare(goldCost) >= 0;
   return {
-    slimeId,
-    step,
-    levelMet,
-    goldCost,
-    canAffordGold,
-    requirements,
+    slimeId, step, levelMet, goldCost, canAffordGold, requirements,
     canPromote: levelMet && canAffordGold && requirements.every((requirement) => requirement.missing === 0),
+  };
+}
+
+/** Return every authored branch available from the slime's current job tier. */
+export function previewSlimePromotions(
+  state: SlimeMercenariesState,
+  slimeId: SlimeInstanceId,
+): readonly SlimePromotionPreview[] {
+  const slime = state.gameData.roster.slimes[slimeId];
+  if (slime === undefined) return [];
+  return promotionDefinitions[slime.typeId]
+    .filter((candidate) => candidate.fromTier === slime.jobTier)
+    .map((step) => promotionPreviewForStep(state, slimeId, step));
+}
+
+/** Compatibility preview for tiers with exactly one next promotion. */
+export function previewSlimePromotion(
+  state: SlimeMercenariesState,
+  slimeId: SlimeInstanceId,
+  promotionId?: string,
+): SlimePromotionPreview {
+  const choices = previewSlimePromotions(state, slimeId);
+  const selected = promotionId === undefined
+    ? (choices.length === 1 ? choices[0] : undefined)
+    : choices.find((choice) => choice.step?.id === promotionId);
+  return selected ?? {
+    slimeId,
+    step: null,
+    levelMet: state.gameData.roster.slimes[slimeId] !== undefined,
+    goldCost: GameNumber.zero(),
+    canAffordGold: true,
+    requirements: [],
+    canPromote: false,
   };
 }
 
 export function promoteSlime(
   state: SlimeMercenariesState,
-  slimeId: JobSlimeId,
-): CommandResult<SlimeMercenariesState, 'not-owned' | 'max-tier' | 'level-too-low' | 'insufficient-materials' | 'insufficient-gold'> {
+  slimeId: SlimeInstanceId,
+  promotionId?: string,
+): CommandResult<SlimeMercenariesState, 'not-owned' | 'max-tier' | 'promotion-choice-required' | 'invalid-promotion' | 'level-too-low' | 'insufficient-materials' | 'insufficient-gold'> {
   const slime = state.gameData.roster.slimes[slimeId];
   if (slime === undefined) return reject(state, 'not-owned');
-  const preview = previewSlimePromotion(state, slimeId);
-  if (preview.step === null) return reject(state, 'max-tier');
+  const choices = previewSlimePromotions(state, slimeId);
+  if (choices.length === 0) return reject(state, 'max-tier');
+  if (promotionId === undefined && choices.length > 1) return reject(state, 'promotion-choice-required');
+  const preview = promotionId === undefined
+    ? choices[0]!
+    : choices.find((choice) => choice.step?.id === promotionId);
+  if (preview === undefined || preview.step === null) return reject(state, 'invalid-promotion');
   if (!preview.levelMet) return reject(state, 'level-too-low');
   if (preview.requirements.some((requirement) => requirement.missing > 0)) return reject(state, 'insufficient-materials');
   if (!preview.canAffordGold) return reject(state, 'insufficient-gold');
 
   const spend = applyCurrencyTransaction(state.currencies, {
-    currencyId: ids.currency.gold,
-    amount: preview.goldCost,
-    kind: 'spend',
-    source: preview.step.id,
+    currencyId: ids.currency.gold, amount: preview.goldCost, kind: 'spend', source: preview.step.id,
   }, resolveCurrencyDefinition(ids.currency.gold));
   if (!spend.accepted) return reject(state, 'insufficient-gold');
 
   const tokens = spendRequirements(state.tokens, preview.step.recipe);
-  const updated: SlimeProgress = {
-    ...slime,
-    jobTier: preview.step.toTier,
-    promotionPathId: preview.step.resultPathId,
-  };
+  const updated: SlimeProgress = { ...slime, jobTier: preview.step.toTier, promotionPathId: preview.step.resultPathId };
   let nextState: SlimeMercenariesState = {
-    ...state,
-    currencies: spend.balances,
-    tokens,
+    ...state, currencies: spend.balances, tokens,
     gameData: {
       ...state.gameData,
-      roster: {
-        ...state.gameData.roster,
-        slimes: { ...state.gameData.roster.slimes, [slimeId]: updated },
-      },
+      roster: { ...state.gameData.roster, slimes: { ...state.gameData.roster.slimes, [slimeId]: updated } },
     },
   };
   nextState = recordCurrencySpend(nextState, ids.currency.gold, spend.appliedAmount);
   return accept(nextState, [semanticEvent(nextState, 'slimePromoted', preview.step.id, {
-    slimeId,
-    promotionId: preview.step.id,
-    jobTier: preview.step.toTier,
-    promotionPathId: preview.step.resultPathId,
-    fusionRank: updated.fusionRank,
-    fusionFormId: updated.fusionFormId,
+    slimeId, promotionId: preview.step.id, jobTier: preview.step.toTier, promotionPathId: preview.step.resultPathId,
+    fusionRank: updated.fusionRank, fusionFormId: updated.fusionFormId,
   })]);
 }

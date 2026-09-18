@@ -2,6 +2,7 @@ import { ApplicationStore, type CommandResult, type DomainEvent } from 'idle-gam
 import {
   assignSlimeToFormation,
   buyPlainSlime,
+  convertDuplicateToFusionCore,
   craftPlainSlime,
   createJobSlime,
   equipWeapon,
@@ -15,6 +16,7 @@ import {
   createInitialSlimeMercenariesState,
   type DispatchContractId,
   type JobSlimeId,
+  type SlimeInstanceId,
   type SlimeMercenariesState,
 } from '../domain';
 import { createSlimeMercenariesBrowserRepository } from '../platform/web';
@@ -24,6 +26,7 @@ import {
   saveSlimeProfile,
   type LoadedSlimeProfile,
 } from './profile';
+import { applyValidationSandboxResources, prepareValidationRoster, PUBLIC_VALIDATION_MODE, resetValidationBattle, resetValidationSlimeProgress, setValidationSlimeLevel } from './validation-mode';
 
 export type SlimeGameEventListener = (events: readonly DomainEvent[]) => void;
 export type SlimeGameErrorListener = (error: Error) => void;
@@ -47,12 +50,15 @@ export class SlimeGameController {
 
   constructor(profileId = DEFAULT_PROFILE_ID) {
     this.#profileId = profileId;
-    // Temporary bootstrap state is never rendered as ready data. initialize() hydrates the durable profile.
     this.store = new ApplicationStore(createInitialSlimeMercenariesState(Date.now()));
   }
 
   get initialized(): boolean {
     return this.#initialized;
+  }
+
+  get validationMode(): boolean {
+    return PUBLIC_VALIDATION_MODE;
   }
 
   async initialize(nowMs = Date.now()): Promise<LoadedSlimeProfile> {
@@ -61,8 +67,10 @@ export class SlimeGameController {
       profileId: this.#profileId,
       nowMs,
     });
-    this.store.replaceState(loaded.state);
+    const hydrated = applyValidationSandboxResources(loaded.state);
+    this.store.replaceState(hydrated);
     this.#initialized = true;
+    if (hydrated !== loaded.state) this.queueCheckpoint(hydrated, nowMs);
     this.emitEvents(loaded.offlineEvents);
     return loaded;
   }
@@ -77,20 +85,19 @@ export class SlimeGameController {
     return () => this.#errorListeners.delete(listener);
   }
 
-  /** Advance online combat/dispatch using the same wall-clock path as offline resume. */
   advanceToWallClock(nowMs = Date.now()): readonly DomainEvent[] {
     if (!this.#initialized) return [];
     const current = this.store.getSnapshot();
     const advanced = advanceSlimeWorldFromWallClock(current, nowMs);
     if (advanced.appliedOfflineSec <= 0) return [];
 
-    this.store.replaceState(advanced.state);
+    const nextState = applyValidationSandboxResources(advanced.state);
+    this.store.replaceState(nextState);
     this.emitEvents(advanced.events);
 
-    // Continuous progression is coalesced; explicit player commands checkpoint immediately.
     if (nowMs - this.#lastBackgroundCheckpointMs >= 5_000) {
       this.#lastBackgroundCheckpointMs = nowMs;
-      this.queueCheckpoint(advanced.state, nowMs);
+      this.queueCheckpoint(nextState, nowMs);
     }
     return advanced.events;
   }
@@ -109,23 +116,43 @@ export class SlimeGameController {
     return this.execute((state) => buyPlainSlime(state, count));
   }
 
-  createJobSlime(slimeId: JobSlimeId) {
-    return this.execute((state) => createJobSlime(state, slimeId));
+  createJobSlime(typeId: JobSlimeId) {
+    return this.execute((state) => createJobSlime(state, typeId));
   }
 
-  levelUpSlime(slimeId: JobSlimeId, count = 1) {
+  levelUpSlime(slimeId: SlimeInstanceId, count = 1) {
     return this.execute((state) => levelUpSlime(state, slimeId, count));
   }
 
-  fuseSlime(slimeId: JobSlimeId) {
+  fuseSlime(slimeId: SlimeInstanceId) {
     return this.execute((state) => fuseSlime(state, slimeId));
   }
 
-  promoteSlime(slimeId: JobSlimeId) {
-    return this.execute((state) => promoteSlime(state, slimeId));
+  convertDuplicateToFusionCore(slimeId: SlimeInstanceId) {
+    return this.execute((state) => convertDuplicateToFusionCore(state, slimeId));
   }
 
-  assignSlime(slimeId: JobSlimeId, slotIndex: number) {
+  promoteSlime(slimeId: SlimeInstanceId, promotionId?: string) {
+    return this.execute((state) => promoteSlime(state, slimeId, promotionId));
+  }
+
+  validationSetSlimeLevel(slimeId: SlimeInstanceId, level = 40) {
+    return this.execute((state) => setValidationSlimeLevel(state, slimeId, level));
+  }
+
+  validationResetSlime(slimeId: SlimeInstanceId) {
+    return this.execute((state) => resetValidationSlimeProgress(state, slimeId));
+  }
+
+  validationResetBattle() {
+    return this.execute((state) => resetValidationBattle(state));
+  }
+
+  validationPrepareRoster() {
+    return this.execute((state) => prepareValidationRoster(state));
+  }
+
+  assignSlime(slimeId: SlimeInstanceId, slotIndex: number) {
     return this.execute((state) => assignSlimeToFormation(state, slimeId, slotIndex));
   }
 
@@ -133,7 +160,7 @@ export class SlimeGameController {
     return this.execute((state) => removeSlimeFromFormation(state, slotIndex));
   }
 
-  startDispatch(contractId: DispatchContractId, slimeId: JobSlimeId) {
+  startDispatch(contractId: DispatchContractId, slimeId: SlimeInstanceId) {
     return this.execute((state) => startDispatch(state, contractId, slimeId));
   }
 
@@ -141,7 +168,7 @@ export class SlimeGameController {
     return this.execute((state) => forgeEquipment(state, drawCount));
   }
 
-  equipWeapon(slimeId: JobSlimeId, weaponDefinitionId: string) {
+  equipWeapon(slimeId: SlimeInstanceId, weaponDefinitionId: string) {
     return this.execute((state) => equipWeapon(state, slimeId, weaponDefinitionId));
   }
 
@@ -152,10 +179,12 @@ export class SlimeGameController {
     const result = command(current);
     if (!result.accepted) return result;
 
-    this.store.replaceState(result.state);
+    const nextState = applyValidationSandboxResources(result.state);
+    const normalizedResult: ProductCommandResult<TReason> = { ...result, state: nextState };
+    this.store.replaceState(nextState);
     this.emitEvents(result.events);
-    this.queueCheckpoint(result.state, Date.now());
-    return result;
+    this.queueCheckpoint(nextState, Date.now());
+    return normalizedResult;
   }
 
   private emitEvents(events: readonly DomainEvent[]): void {

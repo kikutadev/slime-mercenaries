@@ -156,6 +156,7 @@ function u(e, t) {
 		case "max-no-action-window": return t.maxNoActionWindowSec(e.profileId, e.percentile);
 		case "wall-wait": return t.wallP90WaitSec(e.profileId, e.phaseId);
 		case "wall-stuck-probability": return t.wallStuckProbability(e.profileId, e.phaseId);
+		case "repetition-count": return t.repetitionCount?.(e.profileId, e.metricId, e.percentile) ?? null;
 		case "ad-dependency-ratio": {
 			let n = t.milestoneTimeSec(e.baselineProfileId, e.milestoneId, e.percentile), r = t.milestoneTimeSec(e.acceleratedProfileId, e.milestoneId, e.percentile);
 			return n === null || r === null || r <= 0 ? null : n / r;
@@ -176,6 +177,10 @@ function d(e) {
 		case "wall-stuck-probability": return {
 			expectedMin: null,
 			expectedMax: e.maxProbability
+		};
+		case "repetition-count": return {
+			expectedMin: e.minCount ?? null,
+			expectedMax: e.maxCount ?? null
 		};
 		case "ad-dependency-ratio": return {
 			expectedMin: e.minRatio ?? null,
