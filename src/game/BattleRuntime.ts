@@ -60,7 +60,7 @@ import {
 import type { EnemyBehaviorId, EnemyId, EnemyScaleClass } from './enemies';
 import type { EnemyFormationSlot } from './encounters';
 import { createBattleEnvironment } from './battle-environment';
-import { getApproachCameraRetreat, getEnemyApproachEntryPose, getRetreatCameraOffset, getRetreatSceneryOffset, getSceneryApproachOffset } from './battle-approach';
+import { BOSS_APPROACH_SECONDS, BOSS_LANDING_SECONDS, NORMAL_APPROACH_SECONDS, getApproachCameraRetreat, getBossApproachPresentation, getEnemyApproachEntryPose, getRetreatCameraOffset, getRetreatSceneryOffset, getSceneryApproachOffset } from './battle-approach';
 import { getBossRetreatEntrySlot, getVictoryMarchSlot, getVictoryTransitionPose, shouldUseMarchEntry, victoryStatusLabel } from './battle-transition';
 import { battleRewardParticleCount, battleRewardVisual, type BattleRewardCue } from './battle-reward';
 
@@ -332,6 +332,7 @@ export class BattleRuntime {
   private readonly allyConfigs: readonly BattleRuntimeAllyConfig[];
   private readonly enemyConfigs: readonly BattleRuntimeEnemyConfig[];
   private readonly onSnapshot: (snapshot: BattleSnapshot) => void;
+  private readonly bossEncounter: boolean;
   private readonly tempVector = new THREE.Vector3();
   private readonly tempVector2 = new THREE.Vector3();
   private readonly tempVector3 = new THREE.Vector3();
@@ -366,6 +367,7 @@ export class BattleRuntime {
   private lastSnapshotKey = '';
   private continuationEntryPending: boolean;
   private retreatEntryPending: boolean;
+  private bossLandingTriggered = false;
 
   constructor(options: BattleRuntimeOptions) {
     this.scene = options.scene;
@@ -376,6 +378,7 @@ export class BattleRuntime {
     this.allyConfigs = options.allies;
     this.enemyConfigs = options.enemies;
     this.onSnapshot = options.onSnapshot;
+    this.bossEncounter = options.enemies.some((enemy) => enemy.scaleClass === 'boss');
     this.continuationEntryPending = shouldUseMarchEntry(options.stageNumber, options.waveIndex);
     this.retreatEntryPending = options.retreatingFromBoss;
   }
@@ -623,7 +626,7 @@ export class BattleRuntime {
     let particleIndex = 0;
     for (const item of cue.items) {
       const visual = battleRewardVisual(item);
-      const count = battleRewardParticleCount(item);
+      const count = battleRewardParticleCount(item, cue.importance);
       for (let localIndex = 0; localIndex < count; localIndex += 1) {
         const geometry: THREE.BufferGeometry = visual.shape === 'coin'
           ? new THREE.CylinderGeometry(0.048, 0.048, 0.018, 10)
@@ -1139,6 +1142,7 @@ export class BattleRuntime {
   private startBattle(now: number): void {
     this.phase = 'approach';
     this.phaseStartedAt = now;
+    this.bossLandingTriggered = false;
     if (this.environmentSceneryRoot) {
       this.environmentSceneryRoot.position.z = this.retreatEntryPending
         ? getRetreatSceneryOffset(0)
@@ -1164,7 +1168,7 @@ export class BattleRuntime {
   }
 
   private updateApproach(now: number): void {
-    const duration = 1.55;
+    const duration = this.bossEncounter && !this.retreatEntryPending ? BOSS_APPROACH_SECONDS : NORMAL_APPROACH_SECONDS;
     const approachElapsed = now - this.phaseStartedAt;
     if (this.environmentSceneryRoot) {
       this.environmentSceneryRoot.position.z = this.retreatEntryPending
@@ -1186,6 +1190,16 @@ export class BattleRuntime {
       }
     });
     this.enemies.forEach((enemy) => this.updateEnemyApproachIdle(enemy, now));
+    if (this.bossEncounter && !this.retreatEntryPending && !this.bossLandingTriggered && approachElapsed >= BOSS_LANDING_SECONDS) {
+      const boss = this.enemies.find((enemy) => enemy.scaleClass === 'boss');
+      if (boss !== undefined) {
+        const impactPosition = boss.root.position.clone();
+        impactPosition.y += 0.16;
+        this.createImpact(impactPosition, '#ffd58a', 0.22, 0.38);
+        this.startCameraShake(0.22, 0.052);
+      }
+      this.bossLandingTriggered = true;
+    }
     if (now - this.phaseStartedAt >= duration) {
       this.allies.forEach((ally) => {
         ally.root.position.copy(this.isMeleeBehavior(ally) ? ally.combatAnchor : ally.home);
@@ -2167,10 +2181,14 @@ export class BattleRuntime {
     enemy.root.position.z += entry.zOffset;
     const pose = enemy.motionProfile.idle(now, enemy.index * 0.73);
     enemy.root.position.y = pose.jump + entry.yOffset;
+    const bossPresentation = enemy.scaleClass === 'boss'
+      ? getBossApproachPresentation(now - this.phaseStartedAt)
+      : null;
+    const bossSquash = bossPresentation?.squash ?? 0;
     enemy.root.scale.set(
-      enemy.baseScale * pose.scaleX * entry.scale,
-      enemy.baseScale * pose.scaleY * entry.scale,
-      enemy.baseScale * pose.scaleZ * entry.scale,
+      enemy.baseScale * pose.scaleX * entry.scale * (1 + bossSquash * 0.055),
+      enemy.baseScale * pose.scaleY * entry.scale * (1 - bossSquash * 0.12),
+      enemy.baseScale * pose.scaleZ * entry.scale * (1 + bossSquash * 0.055),
     );
     const target = this.findNearest(enemy, this.getLivingAllies());
     if (target) this.facePoint(enemy, this.getEnemyTargetPosition(target));
@@ -2439,9 +2457,12 @@ export class BattleRuntime {
   private updateCamera(now: number): void {
     this.camera.position.copy(CAMERA_BASE_POSITION);
     if (this.phase === 'approach') {
+      const approachElapsed = this.simulationNow - this.phaseStartedAt;
       this.camera.position.z += this.retreatEntryPending
-        ? getRetreatCameraOffset(this.simulationNow - this.phaseStartedAt)
-        : getApproachCameraRetreat(this.simulationNow - this.phaseStartedAt);
+        ? getRetreatCameraOffset(approachElapsed)
+        : this.bossEncounter
+          ? getBossApproachPresentation(approachElapsed).cameraRetreat
+          : getApproachCameraRetreat(approachElapsed);
     } else if (this.phase === 'result' && this.result === 'victory') {
       const transition = getVictoryTransitionPose(this.simulationNow - this.phaseStartedAt, 0);
       this.camera.position.z -= transition.cameraAdvance;
@@ -2465,7 +2486,7 @@ export class BattleRuntime {
     const label = this.phase === 'loading'
       ? '出撃準備中'
       : this.phase === 'approach'
-        ? this.retreatEntryPending ? '撤退中' : '接敵中'
+        ? this.retreatEntryPending ? '撤退中' : this.bossEncounter ? 'ボス接近' : '接敵中'
         : this.phase === 'combat'
           ? '交戦中'
           : this.result === 'victory'

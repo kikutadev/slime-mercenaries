@@ -17,6 +17,12 @@ describe('battle reward visuals', () => {
     expect(gel.color).not.toBe(water.color);
   });
 
+  it('gives boss rewards a stronger but still bounded particle treatment', () => {
+    const item: BattleRewardItem = { kind: 'gold', id: 'currency.gold', label: 'G', amount: 500 };
+    expect(battleRewardParticleCount(item, 'boss')).toBeGreaterThan(battleRewardParticleCount(item, 'normal'));
+    expect(battleRewardParticleCount(item, 'boss')).toBeLessThanOrEqual(9);
+  });
+
   it('keeps material particle counts bounded even for large rewards', () => {
     expect(battleRewardParticleCount({ kind: 'material', id: 'unknown', label: '素材', amount: 999 })).toBe(4);
   });

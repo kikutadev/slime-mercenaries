@@ -7,8 +7,11 @@ export type BattleRewardItem = Readonly<{
   amount: number;
 }>;
 
+export type BattleRewardImportance = 'normal' | 'boss';
+
 export type BattleRewardCue = Readonly<{
   id: string;
+  importance: BattleRewardImportance;
   items: readonly BattleRewardItem[];
 }>;
 
@@ -35,7 +38,14 @@ export function battleRewardVisual(item: BattleRewardItem): BattleRewardVisual {
   return MATERIAL_VISUALS[item.id] ?? { shape: 'shard', color: '#a9df9b' };
 }
 
-export function battleRewardParticleCount(item: BattleRewardItem): number {
-  if (item.kind === 'gold') return Math.max(3, Math.min(7, 3 + Math.floor(Math.log10(Math.max(1, item.amount)))));
-  return Math.max(1, Math.min(4, Math.ceil(item.amount)));
+export function battleRewardParticleCount(
+  item: BattleRewardItem,
+  importance: BattleRewardImportance = 'normal',
+): number {
+  const base = item.kind === 'gold'
+    ? Math.max(3, Math.min(7, 3 + Math.floor(Math.log10(Math.max(1, item.amount)))))
+    : Math.max(1, Math.min(4, Math.ceil(item.amount)));
+  return importance === 'boss'
+    ? Math.min(item.kind === 'gold' ? 9 : 6, base + 2)
+    : base;
 }

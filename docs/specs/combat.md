@@ -255,7 +255,27 @@ Stage 4  Critter spotlight -> Acorn Squirrel backline -> forest mix
 Stage 5  mixed frontline/backline gauntlet -> Great Mushroom checkpoint
 ```
 
+### 8.2 Authoritative battle rewards
+
+Battle reward presentation must use the same DomainEvent payload that granted the player resources.
+
+- `combatWaveCleared`, `bossDefeated`, and first-clear `stageCleared` events expose `grantedRewards`
+- the Battle layer may aggregate those events into one short reward cue, but must not infer reward quantities from stage IDs or presentation data
+- Gold uses a coin visual; materials use stable per-token visual families
+- particle count is bounded independently from the numeric reward amount
+- boss reward cues may be more emphatic than normal-wave cues, but must preserve mobile combat readability
+- if no authoritative reward event exists, no fake loot particles are emitted
+
 ## 9. Bosses
+
+Boss approach is intentionally distinct from a normal wave:
+
+- boss approach lasts longer than normal approach and begins further back
+- the camera gives a small lead-in so the boss reads before contact
+- one bounded landing squash, impact ring, and camera shake establish weight
+- boss HP UI reveals after the boss has entered rather than appearing before the subject
+- boss defeat rewards use the authoritative reward cue and may use a stronger bounded particle treatment
+- reduced-motion settings collapse these presentational timings without changing combat state
 
 Bosses are much larger than normal combatants and may have a small number of readable tells. The first implementation should not begin with a large library of complex encounter logic.
 
