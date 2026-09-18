@@ -113,12 +113,13 @@ Expand beyond Clover Road toward the authored eight-area world. Reuse the enemy 
 
 ## Phase 8 — Production release hardening
 
-Status: Planned
+Status: In Progress
 
 - validation sandbox becomes explicit opt-in when the validation build is no longer the intended public build
 - mobile performance/code splitting pass
 - production economy enabled
 - clean same-core simulator / typecheck / test / build gate using pnpm only
+- save/load boundary validates cross-reference invariants for roster, formation, dispatch, equipment, area progression, and Codex state
 
 ## Current implementation notes
 
