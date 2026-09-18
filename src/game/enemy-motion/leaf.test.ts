@@ -65,6 +65,43 @@ for (const id of BEHAVIORS) {
   });
 }
 
+describe('Leafling baseline grammar', () => {
+  it('keeps idle and travel quiet so the slap owns the silhouette change', () => {
+    const profile = getLeafMotionProfile('leaf-hop-slap');
+    const idle = Array.from({ length: 32 }, (_, index) => profile.idle(index * 0.11, 0.2));
+    const move = Array.from({ length: 32 }, (_, index) => profile.move(index * profile.moveDuration / 31, 0.15));
+
+    expect(Math.max(...idle.map((pose) => Math.abs(pose.wobbleZ)))).toBeLessThanOrEqual(0.010);
+    expect(Math.max(...idle.map((pose) => Math.abs(pose.secondary?.primaryBend ?? 0)))).toBeLessThanOrEqual(0.026);
+    expect(Math.max(...idle.map((pose) => Math.abs(pose.secondary?.twist ?? 0)))).toBe(0);
+    expect(Math.max(...move.map((pose) => Math.abs(pose.secondary?.primaryBend ?? 0)))).toBeLessThanOrEqual(0.121);
+    expect(Math.max(...move.map((pose) => Math.abs(pose.secondary?.twist ?? 0)))).toBe(0);
+  });
+});
+
+describe('leaf hit and defeat identities', () => {
+  it('keeps Leafling fold reactions distinct from Whirl Leaf twist reactions', () => {
+    const leafling = getLeafMotionProfile('leaf-hop-slap');
+    const whirl = getLeafMotionProfile('leaf-whirl');
+
+    const leafHit = leafling.hit(0.5, 1);
+    const whirlHit = whirl.hit(0.5, 1);
+    expect(Math.abs(leafHit.secondary?.twist ?? 0)).toBe(0);
+    expect(Math.abs(whirlHit.secondary?.twist ?? 0)).toBeGreaterThan(0.25);
+    expect(Math.abs(leafHit.secondary?.primaryBend ?? 0)).toBeGreaterThan(
+      Math.abs(whirlHit.secondary?.primaryBend ?? 0),
+    );
+
+    const leafDefeat = leafling.defeat(0.70, 1);
+    const whirlDefeat = whirl.defeat(0.70, 1);
+    expect(Math.abs(leafDefeat.secondary?.twist ?? 0)).toBe(0);
+    expect(Math.abs(whirlDefeat.secondary?.twist ?? 0)).toBeGreaterThan(0.15);
+    expect(leafDefeat.secondary?.primaryBend ?? 0).toBeGreaterThan(
+      whirlDefeat.secondary?.primaryBend ?? 0,
+    );
+  });
+});
+
 describe('Leafling attack grammar', () => {
   it('holds a strong anticipation, then releases faster into contact and recovers', () => {
     const anticipation = leafSlap(0.28);
@@ -87,18 +124,26 @@ describe('Leafling attack grammar', () => {
 });
 
 describe('Whirl Leaf attack grammar', () => {
-  it('uses a restrained idle and a crisp half-spin release with same-direction settle', () => {
+  it('uses a restrained idle and a crisp partial-spin release that returns to rest', () => {
     const idle = leafIdle(0.7, 0.2);
-    const anticipation = leafWhirl(0.32);
-    const contact = leafWhirl(0.50);
-    const recoil = leafWhirl(0.64);
+    const anticipation = leafWhirl(0.34);
+    const contact = leafWhirl(0.48);
+    const recoil = leafWhirl(0.60);
     const end = leafWhirl(1);
 
     expect(Math.abs(idle.secondary?.twist ?? 0)).toBeLessThan(0.05);
     expect(Math.abs(anticipation.secondary?.twist ?? 0)).toBeLessThan(0.10);
-    expect(contact.secondary?.twist ?? 0).toBeCloseTo(Math.PI, 1);
-    expect(recoil.secondary?.twist ?? 0).toBeGreaterThan(Math.PI);
-    expect(end.secondary?.twist ?? 0).toBeCloseTo(Math.PI * 2, 5);
+    expect(contact.secondary?.twist ?? 0).toBeGreaterThan(Math.PI * 0.40);
+    expect(contact.secondary?.twist ?? 0).toBeLessThan(Math.PI * 0.55);
+    expect(recoil.secondary?.twist ?? 0).toBeLessThan(Math.PI * 0.58);
+    expect(end.secondary?.twist ?? 1).toBeCloseTo(0, 5);
+  });
+
+  it('never turns the leaf through a full rotation during the attack', () => {
+    const maxTwist = Math.max(...Array.from({ length: 101 }, (_, index) => (
+      Math.abs(leafWhirl(index / 100).secondary?.twist ?? 0)
+    )));
+    expect(maxTwist).toBeLessThan(Math.PI * 0.60);
   });
 
   it('builds a small layered crescent gust rather than a single giant ring', () => {

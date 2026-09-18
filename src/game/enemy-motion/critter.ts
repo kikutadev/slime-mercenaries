@@ -42,61 +42,64 @@ function hedgehogIdle(now: number, phase = 0): EnemyPose {
 }
 
 function squirrelIdle(now: number, phase = 0): EnemyPose {
-  const breath = Math.sin(now * 1.65 + phase);
-  const tail = Math.sin(now * .92 + phase * .55);
-  const ear = Math.sin(now * 1.18 + phase * .31);
+  // One calm driver for the whole pose. The tail follows the body with a small delay;
+  // ears and head stay quiet instead of running independent perpetual loops.
+  const breath = Math.sin(now * 1.12 + phase);
+  const tailFollow = Math.sin(now * 1.12 + phase - 0.46);
   return {
-    scaleX: 1 + breath * .010,
-    scaleY: 1 - breath * .008,
-    scaleZ: 1 + breath * .010,
+    scaleX: 1 + breath * .006,
+    scaleY: 1 - breath * .005,
+    scaleZ: 1 + breath * .006,
     jump: 0,
-    wobbleZ: breath * .006,
+    wobbleZ: breath * .003,
     travel: 0,
     releaseProgress: -1,
     secondary: {
-      wag: tail * .095,
-      headNod: breath * .012,
-      earDrop: Math.max(0, ear) * .020,
+      wag: tailFollow * .035,
+      headNod: 0,
+      earDrop: 0,
     },
   };
 }
 
 function hedgehogMove(now: number, phase = 0): EnemyPose {
-  const cycle = ((now * 1.90 + phase) % 1 + 1) % 1;
-  const hop = Math.abs(Math.sin(cycle * TAU)) * .040;
+  const cycle = ((now * 1.72 + phase) % 1 + 1) % 1;
+  const hop = Math.abs(Math.sin(cycle * TAU)) * .032;
   const landing = Math.sin(cycle * TAU);
   return {
-    scaleX: 1 + hop * .55,
-    scaleY: 1 - hop * 1.25,
-    scaleZ: 1 + hop * .35,
+    scaleX: 1 + hop * .38,
+    scaleY: 1 - hop * .78,
+    scaleZ: 1 + hop * .24,
     jump: hop,
-    wobbleZ: landing * .018,
+    wobbleZ: landing * .012,
     travel: 0,
     releaseProgress: -1,
     secondary: {
-      shellCurl: hop * 2.0,
-      headNod: -hop * .22,
-      earDrop: hop * .18,
+      // Curling is reserved for the roll attack. Walking only gives the shell a tiny lag.
+      shellCurl: hop * .28,
+      headNod: -hop * .08,
+      earDrop: hop * .04,
     },
   };
 }
 
 function squirrelMove(now: number, phase = 0): EnemyPose {
-  const cycle = ((now * 2.25 + phase) % 1 + 1) % 1;
-  const primaryHop = Math.pow(Math.sin(cycle * Math.PI), 2) * .055;
+  const cycle = ((now * 1.82 + phase) % 1 + 1) % 1;
+  const primaryHop = Math.pow(Math.sin(cycle * Math.PI), 2) * .044;
   const bob = Math.sin(cycle * TAU);
   return {
-    scaleX: 1 - primaryHop * .65,
-    scaleY: 1 + primaryHop * 1.15,
-    scaleZ: 1 - primaryHop * .38,
+    scaleX: 1 - primaryHop * .42,
+    scaleY: 1 + primaryHop * .72,
+    scaleZ: 1 - primaryHop * .24,
     jump: primaryHop,
-    wobbleZ: bob * .022,
+    wobbleZ: bob * .012,
     travel: 0,
     releaseProgress: -1,
     secondary: {
-      wag: -bob * .18,
-      headNod: -primaryHop * .28,
-      earDrop: primaryHop * .16,
+      // Tail counterbalances the hop; head and ears merely follow the same impulse.
+      wag: -bob * .080,
+      headNod: -primaryHop * .10,
+      earDrop: primaryHop * .045,
     },
   };
 }

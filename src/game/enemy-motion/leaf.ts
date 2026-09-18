@@ -23,83 +23,122 @@ function lerp(a: number, b: number, t: number): number {
   return THREE.MathUtils.lerp(a, b, clampEnemy01(t));
 }
 
-function leafHit(u: number, side: number): EnemyHitPose {
+function leaflingHit(u: number, side: number): EnemyHitPose {
   const pulse = Math.sin(clampEnemy01(u) * Math.PI);
   return {
-    scaleX: 1 + pulse * 0.07,
-    scaleY: 1 - pulse * 0.14,
-    scaleZ: 1 + pulse * 0.04,
-    rotationZ: side * pulse * 0.15,
+    scaleX: 1 + pulse * 0.065,
+    scaleY: 1 - pulse * 0.125,
+    scaleZ: 1 + pulse * 0.035,
+    rotationZ: side * pulse * 0.10,
     secondary: {
-      primaryBend: pulse * 0.30,
-      secondaryBend: -pulse * 0.24,
-      twist: side * pulse * 0.16,
+      primaryBend: pulse * 0.34,
+      secondaryBend: -pulse * 0.28,
+      twist: 0,
     },
   };
 }
 
-function leafDefeat(u: number, side: number): EnemyDefeatPose {
-  const t = clampEnemy01(u);
-  const fall = easeOutCubic(t / 0.62);
-  const flutterEnvelope = 1 - easeOutCubic(t / 0.86);
-  const flutter = Math.sin(t * Math.PI * 2.35) * flutterEnvelope;
+function whirlLeafHit(u: number, side: number): EnemyHitPose {
+  const pulse = Math.sin(clampEnemy01(u) * Math.PI);
   return {
-    scaleX: 1 + fall * 0.13,
-    scaleY: 1 - fall * 0.22,
-    scaleZ: 1 + fall * 0.045,
-    // Keep the face close to the body: most of the flop belongs to the leaf itself,
-    // not to a large root roll that would separate the shared defeat-expression overlay.
-    rotationZ: side * (fall * 0.34 + flutter * 0.055),
-    yOffset: -0.022 * fall,
-    lateralDrift: side * 0.060 * fall,
-    backwardDrift: 0.030 * fall,
-    // Keep the fallen enemy readable instead of shrinking it to zero at clip end.
-    opacity: 1,
+    scaleX: 1 + pulse * 0.045,
+    scaleY: 1 - pulse * 0.090,
+    scaleZ: 1 + pulse * 0.025,
+    rotationZ: side * pulse * 0.070,
     secondary: {
-      primaryBend: 0.86 * fall + flutter * 0.20,
-      secondaryBend: -0.48 * fall - flutter * 0.16,
-      twist: side * flutter * 0.08,
+      primaryBend: pulse * 0.14,
+      secondaryBend: -pulse * 0.18,
+      twist: side * pulse * 0.30,
     },
   };
+}
+
+function leaflingDefeat(u: number, side: number): EnemyDefeatPose {
+  const t = clampEnemy01(u);
+  const fall = easeOutCubic(t / 0.66);
+  const settle = Math.sin(clampEnemy01((t - 0.42) / 0.58) * Math.PI) * (1 - t);
+  return {
+    scaleX: 1 + fall * 0.12,
+    scaleY: 1 - fall * 0.24,
+    scaleZ: 1 + fall * 0.040,
+    rotationZ: side * fall * 0.24,
+    yOffset: -0.024 * fall,
+    lateralDrift: side * 0.048 * fall,
+    backwardDrift: 0.025 * fall,
+    opacity: 1,
+    secondary: {
+      // The single leaf folds over the face/body rather than fluttering repeatedly.
+      primaryBend: 0.94 * fall - settle * 0.07,
+      secondaryBend: -0.56 * fall + settle * 0.05,
+      twist: 0,
+    },
+  };
+}
+
+function whirlLeafDefeat(u: number, side: number): EnemyDefeatPose {
+  const t = clampEnemy01(u);
+  const wilt = easeOutCubic(t / 0.72);
+  const untwist = smoothLeaf(clampEnemy01((t - 0.48) / 0.52));
+  return {
+    scaleX: 1 + wilt * 0.09,
+    scaleY: 1 - wilt * 0.20,
+    scaleZ: 1 + wilt * 0.030,
+    rotationZ: side * wilt * 0.18,
+    yOffset: -0.020 * wilt,
+    lateralDrift: side * 0.040 * wilt,
+    backwardDrift: 0.032 * wilt,
+    opacity: 1,
+    secondary: {
+      primaryBend: 0.42 * wilt,
+      secondaryBend: -0.34 * wilt,
+      // Short twist on collapse, then relax. Never becomes another full-spin gag.
+      twist: side * (0.52 * wilt * (1 - 0.55 * untwist)),
+    },
+  };
+}
+
+function smoothLeaf(value: number): number {
+  const t = clampEnemy01(value);
+  return t * t * (3 - 2 * t);
 }
 
 export function leafIdle(now: number, phase = 0): EnemyPose {
-  const sway = Math.sin(now * 1.95 + phase);
-  const delayedTip = Math.sin(now * 1.95 + phase - 0.52);
-  const breathe = Math.sin(now * 1.55 + phase * 0.7);
+  // One slow sway drives the whole plant. The tip follows a fraction later.
+  const sway = Math.sin(now * 1.28 + phase);
+  const delayedTip = Math.sin(now * 1.28 + phase - 0.46);
   return {
-    scaleX: 1 + breathe * 0.010,
-    scaleY: 1 - breathe * 0.008,
-    scaleZ: 1 + breathe * 0.009,
-    jump: Math.max(0, Math.sin(now * 1.7 + phase)) * 0.006,
-    wobbleZ: sway * 0.018,
+    scaleX: 1 + sway * 0.003,
+    scaleY: 1 - sway * 0.002,
+    scaleZ: 1 + sway * 0.003,
+    jump: 0,
+    wobbleZ: sway * 0.009,
     travel: 0,
     releaseProgress: -1,
     secondary: {
-      primaryBend: sway * 0.050,
-      secondaryBend: delayedTip * 0.085,
-      twist: sway * 0.018,
+      primaryBend: sway * 0.025,
+      secondaryBend: delayedTip * 0.042,
+      twist: 0,
     },
   };
 }
 
 export function leafMove(now: number, phase = 0): EnemyPose {
-  const cycle = (now * 1.72 + phase) % 1;
+  const cycle = (now * 1.52 + phase) % 1;
   const lift = Math.sin(cycle * Math.PI) ** 2;
   const follow = Math.sin(cycle * Math.PI * 2);
-  const jump = lift * 0.060;
+  const jump = lift * 0.048;
   return {
-    scaleX: 1 - lift * 0.055,
-    scaleY: 1 + lift * 0.090,
-    scaleZ: 1 - lift * 0.030,
+    scaleX: 1 - lift * 0.032,
+    scaleY: 1 + lift * 0.052,
+    scaleZ: 1 - lift * 0.018,
     jump,
-    wobbleZ: follow * 0.034,
+    wobbleZ: follow * 0.018,
     travel: 0,
     releaseProgress: -1,
     secondary: {
-      primaryBend: -lift * 0.22 + follow * 0.045,
-      secondaryBend: lift * 0.28 - follow * 0.075,
-      twist: follow * 0.028,
+      primaryBend: -lift * 0.12,
+      secondaryBend: lift * 0.14 - follow * 0.035,
+      twist: 0,
     },
   };
 }
@@ -160,7 +199,7 @@ export function leafSlap(u: number): EnemyPose {
   };
 }
 
-/** Two-leaf gust release: close, snap through a half-spin, then coast to rest. */
+/** Two-leaf gust release: hold still, snap through a partial turn, then let the tip settle. */
 export function leafWhirl(u: number): EnemyPose {
   const t = clampEnemy01(u);
   let primaryBend = 0;
@@ -170,45 +209,46 @@ export function leafWhirl(u: number): EnemyPose {
   let jump = 0;
   let travel = 0;
 
-  if (t < 0.34) {
-    const p = easeInOutCubic(t / 0.34);
-    primaryBend = -0.18 * p;
-    secondaryBend = 0.22 * p;
-    twist = -0.07 * p;
+  if (t < 0.36) {
+    const p = easeInOutCubic(t / 0.36);
+    primaryBend = -0.12 * p;
+    secondaryBend = 0.14 * p;
+    twist = -0.05 * p;
     compression = p;
-  } else if (t < 0.50) {
-    const p = easeOutCubic((t - 0.34) / 0.16);
-    primaryBend = lerp(-0.18, 0.10, p);
-    secondaryBend = lerp(0.22, -0.08, p);
-    twist = lerp(-0.07, Math.PI, p);
-    jump = Math.sin(p * Math.PI) * 0.050;
-    travel = p * 0.10;
+  } else if (t < 0.48) {
+    const p = easeOutCubic((t - 0.36) / 0.12);
+    primaryBend = lerp(-0.12, 0.06, p);
+    // The tip trails the main leaf instead of corkscrewing with the whole body.
+    secondaryBend = lerp(0.14, -0.04, p ** 1.35);
+    twist = lerp(-0.05, Math.PI * 0.48, p);
+    jump = Math.sin(p * Math.PI) * 0.032;
+    travel = p * 0.070;
     compression = 1 - p;
-  } else if (t < 0.68) {
-    const p = easeOutCubic((t - 0.50) / 0.18);
-    primaryBend = lerp(0.10, -0.035, p);
-    secondaryBend = lerp(-0.08, 0.12, p);
-    twist = lerp(Math.PI, Math.PI * 1.28, p);
-    jump = (1 - p) * 0.012;
-    travel = lerp(0.10, -0.025, p);
+  } else if (t < 0.62) {
+    const p = easeOutCubic((t - 0.48) / 0.14);
+    primaryBend = lerp(0.06, 0.01, p);
+    secondaryBend = lerp(-0.04, 0.10, p);
+    twist = lerp(Math.PI * 0.48, Math.PI * 0.54, p);
+    jump = (1 - p) * 0.008;
+    travel = lerp(0.070, -0.015, p);
   } else {
-    const p = easeInOutCubic((t - 0.68) / 0.32);
-    const settle = Math.sin(p * Math.PI * 2) * (1 - p);
-    primaryBend = settle * 0.045;
-    secondaryBend = -settle * 0.075;
-    // Continue in the same rotational direction; 2π is the authored rest orientation.
-    twist = lerp(Math.PI * 1.28, Math.PI * 2, p);
-    travel = lerp(-0.025, 0, p);
+    const p = easeInOutCubic((t - 0.62) / 0.38);
+    // One soft leaf-tip follow-through. The body itself does not keep spinning.
+    const tipSettle = Math.sin(p * Math.PI) * (1 - p);
+    primaryBend = tipSettle * 0.018;
+    secondaryBend = 0.10 * (1 - p) - tipSettle * 0.050;
+    twist = lerp(Math.PI * 0.54, 0, p);
+    travel = lerp(-0.015, 0, p);
   }
 
   return {
-    scaleX: 1 + compression * 0.045,
-    scaleY: 1 - compression * 0.075,
-    scaleZ: 1 + compression * 0.030,
+    scaleX: 1 + compression * 0.035,
+    scaleY: 1 - compression * 0.060,
+    scaleZ: 1 + compression * 0.024,
     jump,
     wobbleZ: 0,
     travel,
-    releaseProgress: t >= 0.34 ? clampEnemy01((t - 0.34) / 0.66) : -1,
+    releaseProgress: t >= 0.36 ? clampEnemy01((t - 0.36) / 0.64) : -1,
     secondary: { primaryBend, secondaryBend, twist },
   };
 }
@@ -256,8 +296,8 @@ const profiles: Record<LeafBehaviorId, EnemyMotionProfile> = {
     idle: leafIdle,
     move: leafMove,
     attack: leafSlap,
-    hit: leafHit,
-    defeat: leafDefeat,
+    hit: leaflingHit,
+    defeat: leaflingDefeat,
     moveDuration: 1.30,
     moveDistance: 0.80,
     attackDuration: 0.62,
@@ -270,8 +310,8 @@ const profiles: Record<LeafBehaviorId, EnemyMotionProfile> = {
     idle: leafIdle,
     move: leafMove,
     attack: leafWhirl,
-    hit: leafHit,
-    defeat: leafDefeat,
+    hit: whirlLeafHit,
+    defeat: whirlLeafDefeat,
     moveDuration: 1.18,
     moveDistance: 0.90,
     attackDuration: 0.70,

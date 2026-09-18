@@ -37,9 +37,9 @@ LEGACY_MUSHROOM_PROFILES: dict[str, EnemyValidationProfile] = {
         description="wide dumpling mushroom",
     ),
     "spore-mushroom": EnemyValidationProfile(
-        required_nodes=COMMON_REQUIRED_NODES + ("Stem", "Cap", "Mouth"),
+        required_nodes=COMMON_REQUIRED_NODES + ("Stem", "Cap", "Mouth", "SporePouchRoot"),
         silhouette_rule=lambda size: size.z / size.x >= 1.02,
-        description="tall lantern mushroom",
+        description="tall lantern mushroom with semantic spore pouch root",
     ),
     "great-mushroom": EnemyValidationProfile(
         required_nodes=COMMON_REQUIRED_NODES + ("Stem", "Cap", "Mouth"),

@@ -65,6 +65,29 @@ describe('Forest Critter production motion profiles', () => {
     });
   }
 
+  it('keeps squirrel idle and travel motion quiet instead of independently wiggling every part', () => {
+    const profile = getCritterMotionProfile('critter-acorn');
+    const idleSamples = Array.from({ length: 24 }, (_, index) => profile.idle(index * 0.11, 0.17));
+    const moveSamples = Array.from({ length: 24 }, (_, index) => profile.move(index * profile.moveDuration / 23, 0.11));
+
+    expect(Math.max(...idleSamples.map((pose) => Math.abs(pose.secondary?.wag ?? 0)))).toBeLessThanOrEqual(0.036);
+    expect(Math.max(...idleSamples.map((pose) => Math.abs(pose.secondary?.headNod ?? 0)))).toBe(0);
+    expect(Math.max(...idleSamples.map((pose) => Math.abs(pose.secondary?.earDrop ?? 0)))).toBe(0);
+    expect(Math.max(...moveSamples.map((pose) => Math.abs(pose.secondary?.wag ?? 0)))).toBeLessThanOrEqual(0.081);
+  });
+
+  it('reserves hedgehog shell curl for the roll attack instead of normal travel', () => {
+    const profile = getCritterMotionProfile('critter-roll');
+    const moveCurl = Math.max(...Array.from({ length: 32 }, (_, index) => (
+      Math.abs(profile.move(index * profile.moveDuration / 31, 0.11).secondary?.shellCurl ?? 0)
+    )));
+    const attackCurl = Math.max(...Array.from({ length: 32 }, (_, index) => (
+      Math.abs(profile.attack(index / 31).secondary?.shellCurl ?? 0)
+    )));
+    expect(moveCurl).toBeLessThan(0.012);
+    expect(attackCurl).toBeGreaterThan(0.25);
+  });
+
   it('roll attack has a readable crouch, fast release, contact and settle', () => {
     const anticipation = rollAttack(0.25);
     const releaseStart = rollAttack(0.43);
