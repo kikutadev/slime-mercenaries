@@ -153,15 +153,15 @@ export function AppShell() {
         )}
 
         {presentation.current !== null && (
-          <button
+          <div
             className={`global-event-notice global-event-notice--${presentation.current.tone}`}
-            type="button"
-            onClick={presentation.dismissCurrent}
+            role="status"
+            aria-live="polite"
           >
             <span>{presentation.current.tone === 'milestone' ? '達成' : presentation.current.tone === 'warning' ? '注意' : '更新'}</span>
             <strong>{presentation.current.title}</strong>
             {presentation.current.body !== undefined && <small>{presentation.current.body}</small>}
-          </button>
+          </div>
         )}
 
         <nav className="bottom-nav bottom-nav--four" aria-label="メインメニュー">

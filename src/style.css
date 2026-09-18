@@ -532,7 +532,7 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .global-event-notice {
   position: absolute; z-index: 90; left: 50%; top: max(76px,calc(env(safe-area-inset-top) + 62px)); width: min(330px,calc(100% - 36px));
   display: grid; gap: 2px; transform: translateX(-50%); padding: 10px 13px; border: 1px solid rgba(255,255,255,.58); border-radius: 15px;
-  background: rgba(31,61,58,.93); color: #fff; text-align: left; box-shadow: 0 14px 34px rgba(25,55,45,.23); backdrop-filter: blur(12px); cursor: pointer;
+  background: rgba(31,61,58,.93); color: #fff; text-align: left; box-shadow: 0 14px 34px rgba(25,55,45,.23); backdrop-filter: blur(12px); pointer-events: none;
   animation: toast-in 180ms ease-out both;
 }
 .global-event-notice > span { color: #bee7a1; font-size: 7px; font-weight: 900; letter-spacing: .14em; }
@@ -1446,7 +1446,7 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .camp-validation-tools { display:grid; grid-template-columns:auto 1fr 1fr; gap:6px; align-items:center; margin-top:8px; padding:6px; border:1px dashed rgba(103,102,52,.24); border-radius:12px; background:rgba(255,252,224,.58); }
 .camp-validation-tools > span { padding:0 4px; color:#79713c; font-size:6px; font-weight:900; letter-spacing:.08em; }
 .camp-validation-tools button { min-height:31px; border:1px solid rgba(111,105,58,.14); border-radius:9px; background:rgba(255,255,255,.72); color:#655e37; font-size:7px; font-weight:850; }
-.battle-validation-restart { position:absolute; z-index:34; left:50%; bottom:118px; transform:translateX(-50%); min-width:178px; padding:7px 12px; border:1px solid rgba(255,255,255,.62); border-radius:999px; background:rgba(255,250,213,.92); color:#625f34; box-shadow:0 8px 22px rgba(55,70,42,.12); backdrop-filter:blur(9px); }
+.battle-validation-restart { position:absolute; z-index:34; top:max(124px, calc(env(safe-area-inset-top) + 112px)); left:50%; transform:translateX(-50%); min-width:178px; padding:7px 12px; border:1px solid rgba(255,255,255,.62); border-radius:999px; background:rgba(255,250,213,.92); color:#625f34; box-shadow:0 8px 22px rgba(55,70,42,.12); backdrop-filter:blur(9px); }
 .battle-validation-restart span,.battle-validation-restart strong { display:block; }
 .battle-validation-restart span { font-size:6px; font-weight:900; letter-spacing:.11em; }
 .battle-validation-restart strong { margin-top:1px; font-size:8px; }
