@@ -1240,3 +1240,165 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .dispatch-running-panel__time span { font-size: 9px; }
 .dispatch-running-panel > small { font-size: 9px; }
 .dispatch-send-button { font-size: 11px; }
+
+
+/* Forge production pass — real machine and weapon models */
+.forge-room {
+  background: #172c31;
+}
+.forge-stage {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+}
+.forge-stage canvas {
+  position: absolute !important;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+.forge-world__keys {
+  min-width: 72px;
+  padding: 7px 10px;
+}
+.forge-world__keys > span {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  font-size: 0;
+}
+.forge-key-icon {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.forge-world__keys small {
+  font-size: 9px;
+}
+.forge-room__prompt {
+  z-index: 12;
+  bottom: 18px;
+  width: 260px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 16px;
+  background: rgba(12,30,34,.62);
+  backdrop-filter: blur(9px);
+}
+.forge-room__prompt span {
+  color: #efc968;
+  font-size: 9px;
+  letter-spacing: .08em;
+}
+.forge-room__prompt strong {
+  margin-top: 2px;
+  font-size: 17px;
+}
+.forge-room__prompt small {
+  margin-top: 3px;
+  color: rgba(255,255,255,.62);
+  font-size: 9px;
+}
+.forge-weapon-reveal-copy {
+  position: absolute;
+  z-index: 16;
+  left: 50%;
+  bottom: 18px;
+  width: 260px;
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 16px;
+  background: rgba(12,30,34,.68);
+  box-shadow: 0 10px 28px rgba(0,0,0,.18);
+  backdrop-filter: blur(10px);
+  text-align: center;
+  animation: weapon-reveal .42s cubic-bezier(.15,.75,.3,1.2) both;
+}
+.forge-weapon-reveal-copy span,
+.forge-weapon-reveal-copy strong,
+.forge-weapon-reveal-copy small {
+  display: block;
+}
+.forge-weapon-reveal-copy span {
+  color: #f1ce78;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+.forge-weapon-reveal-copy.rarity-rare span { color: #9fe2ff; }
+.forge-weapon-reveal-copy.rarity-mythic span { color: #f4d77d; }
+.forge-weapon-reveal-copy strong {
+  margin-top: 2px;
+  font-size: 17px;
+}
+.forge-weapon-reveal-copy small {
+  margin-top: 2px;
+  color: rgba(255,255,255,.68);
+  font-size: 9px;
+  font-weight: 800;
+}
+.forge-pity span,
+.forge-pity strong {
+  font-size: 9px;
+}
+.forge-console__actions span {
+  font-size: 9px;
+  letter-spacing: .06em;
+}
+.forge-console__actions strong {
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  margin-top: 2px;
+  font-size: 12px;
+}
+.forge-console__actions strong .forge-key-icon {
+  width: 14px;
+  height: 14px;
+  color: #f0cb67;
+}
+.forge-console__actions small {
+  margin-top: 2px;
+  font-size: 9px;
+}
+.forge-result-rack {
+  gap: 4px;
+}
+.forge-result-rack > div {
+  height: 38px;
+}
+.weapon-family-icon {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.forge-result-rack > div.rarity-rare .weapon-family-icon { color: #a6dcff; }
+.forge-result-rack > div.rarity-mythic .weapon-family-icon { color: #f3d47d; }
+.forge-collection summary {
+  font-size: 9px;
+}
+.forge-collection__empty {
+  font-size: 9px;
+  line-height: 1.45;
+}
+.forge-collection__list strong {
+  font-size: 10px;
+}
+.forge-collection__list small {
+  font-size: 9px;
+}
+.forge-collection__list em {
+  font-size: 10px;
+}

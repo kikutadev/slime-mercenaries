@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useGameController, useGameState } from '../app/GameProvider';
 import { selectForgeScreen } from '../application/selectors/ui-selectors';
-import { equipmentForgeDefinition, weaponDefinitions, weaponDefinitionsByDefinitionId } from '../domain';
+import { ForgeStage, type ForgeVisualPhase } from '../components/ForgeStage';
+import { ForgeKeyIcon, WeaponFamilyIcon } from '../components/WeaponFamilyIcon';
+import {
+  equipmentForgeDefinition,
+  weaponDefinitions,
+  weaponDefinitionsByDefinitionId,
+  type WeaponRarity,
+} from '../domain';
+import { getForgeWeaponPresentation } from '../game/forge-presentation';
 
 interface ForgeResultView {
   weaponDefinitionId: string;
@@ -9,7 +17,7 @@ interface ForgeResultView {
   rarity: string;
 }
 
-type ForgePhase = 'idle' | 'charging' | 'impact' | 'reveal';
+type ForgePhase = ForgeVisualPhase;
 
 export function ForgeScreen() {
   const state = useGameState();
@@ -18,14 +26,20 @@ export function ForgeScreen() {
   const validationMode = controller.validationMode;
   const [results, setResults] = useState<readonly ForgeResultView[]>([]);
   const [phase, setPhase] = useState<ForgePhase>('idle');
+  const [sequenceKey, setSequenceKey] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
+  const impactTimer = useRef<number | null>(null);
   const revealTimer = useRef<number | null>(null);
 
   useEffect(() => () => {
+    if (impactTimer.current !== null) window.clearTimeout(impactTimer.current);
     if (revealTimer.current !== null) window.clearTimeout(revealTimer.current);
   }, []);
 
-  const bestResult = useMemo(() => [...results].sort((left, right) => rarityRank(right.rarity) - rarityRank(left.rarity))[0] ?? null, [results]);
+  const bestResult = useMemo(
+    () => [...results].sort((left, right) => rarityRank(right.rarity) - rarityRank(left.rarity))[0] ?? null,
+    [results],
+  );
 
   const draw = (count: 1 | 10) => {
     if (phase !== 'idle' && phase !== 'reveal') return;
@@ -34,6 +48,7 @@ export function ForgeScreen() {
       setNotice(result.reason === 'insufficient-token' ? '鍛造キーが足りません' : `鍛造できません: ${result.reason}`);
       return;
     }
+
     const nextResults = result.events.flatMap((event) => {
       if (event.type !== 'gachaDrawn' || event.payload === undefined) return [];
       const entryId = typeof event.payload.entryId === 'string' ? event.payload.entryId : null;
@@ -45,15 +60,21 @@ export function ForgeScreen() {
       if (weapon === undefined) return [];
       return [{ weaponDefinitionId: weapon.id, duplicate, rarity: weapon.rarity } satisfies ForgeResultView];
     });
+
+    if (impactTimer.current !== null) window.clearTimeout(impactTimer.current);
+    if (revealTimer.current !== null) window.clearTimeout(revealTimer.current);
+    setNotice(null);
     setResults(nextResults);
+    setSequenceKey((current) => current + 1);
     setPhase('charging');
-    window.setTimeout(() => setPhase('impact'), 360);
+
+    impactTimer.current = window.setTimeout(() => setPhase('impact'), 360);
     revealTimer.current = window.setTimeout(() => {
       setPhase('reveal');
       const best = [...nextResults].sort((left, right) => rarityRank(right.rarity) - rarityRank(left.rarity))[0];
       if (best !== undefined) {
         const weapon = weaponDefinitionsByDefinitionId[best.weaponDefinitionId];
-        setNotice(best.duplicate ? `${weapon.displayName}  · 精錬 +1` : `${weapon.displayName} を獲得`);
+        setNotice(best.duplicate ? `${weapon.displayName} · 精錬 +1` : `${weapon.displayName} を獲得`);
       }
     }, 760);
   };
@@ -65,35 +86,30 @@ export function ForgeScreen() {
   });
 
   const bestWeapon = bestResult === null ? null : weaponDefinitionsByDefinitionId[bestResult.weaponDefinitionId];
+  const bestPresentation = bestWeapon === null ? null : getForgeWeaponPresentation(bestWeapon.id);
 
   return (
     <section className={`screen screen--forge-world screen--active forge-phase--${phase}`} aria-label="鍛造">
       <header className="forge-world__topbar">
         <div><p className="eyebrow">魔導工房</p><h1>鍛造</h1></div>
-        <div className="forge-world__keys"><span>◆</span><strong>{validationMode ? '∞' : view.keys}</strong><small>キー</small></div>
+        <div className="forge-world__keys">
+          <span><ForgeKeyIcon /></span>
+          <strong>{validationMode ? '∞' : view.keys}</strong>
+          <small>キー</small>
+        </div>
       </header>
 
       <div className="forge-room">
-        <div className="forge-room__wall" />
-        <div className="forge-room__window forge-room__window--left" />
-        <div className="forge-room__window forge-room__window--right" />
-        <div className="forge-room__floor" />
-        <div className="forge-pipe forge-pipe--left" />
-        <div className="forge-pipe forge-pipe--right" />
-
-        <div className="forge-machine" aria-hidden="true">
-          <div className="forge-machine__halo" />
-          <div className="forge-machine__hammer"><span>▰</span></div>
-          <div className="forge-machine__anvil"><span>◆</span></div>
-          <div className="forge-machine__core"><i /><i /><i /></div>
-          <div className="forge-machine__sparks"><b /><b /><b /><b /><b /><b /></div>
-        </div>
+        <ForgeStage
+          phase={phase}
+          sequenceKey={sequenceKey}
+          weaponAsset={bestPresentation?.asset ?? null}
+          weaponRarity={(bestWeapon?.rarity as WeaponRarity | undefined) ?? null}
+        />
 
         {phase === 'reveal' && bestWeapon !== null && (
-          <div className={`forge-weapon-reveal rarity-${bestWeapon.rarity}`}>
-            <div className="forge-weapon-reveal__burst" />
+          <div className={`forge-weapon-reveal-copy rarity-${bestWeapon.rarity}`}>
             <span>{rarityLabel(bestWeapon.rarity)}</span>
-            <div className="forge-weapon-reveal__silhouette">{bestWeapon.family === 'sword' ? '⚔' : '➶'}</div>
             <strong>{bestWeapon.displayName}</strong>
             <small>{bestResult?.duplicate ? '精錬 +1' : '新武器'}</small>
           </div>
@@ -101,9 +117,9 @@ export function ForgeScreen() {
 
         {phase === 'idle' && (
           <div className="forge-room__prompt">
-            <span>鍛造キーを炉へ投入</span>
+            <span>鍛造キーを炉へ</span>
             <strong>武器を鋳造する</strong>
-            <small>重複武器は精錬値へ変換</small>
+            <small>重複した武器は精錬へ変わります</small>
           </div>
         )}
       </div>
@@ -116,20 +132,24 @@ export function ForgeScreen() {
 
         <div className="forge-console__actions">
           <button type="button" disabled={!view.canSingle || phase === 'charging' || phase === 'impact'} onClick={() => draw(1)}>
-            <span>1回鍛造</span><strong>◆ {view.singleCost}</strong><small>武器1個</small>
+            <span>1回鍛造</span>
+            <strong><ForgeKeyIcon />{view.singleCost}</strong>
+            <small>武器1個</small>
           </button>
           <button className="is-ten" type="button" disabled={!view.canTen || phase === 'charging' || phase === 'impact'} onClick={() => draw(10)}>
-            <span>10回鍛造</span><strong>◆ {view.tenCost}</strong><small>武器10個</small>
+            <span>10回鍛造</span>
+            <strong><ForgeKeyIcon />{view.tenCost}</strong>
+            <small>武器10個</small>
           </button>
         </div>
 
         {phase === 'reveal' && results.length > 1 && (
-          <div className="forge-result-rack">
+          <div className="forge-result-rack" aria-label="10回鍛造の結果">
             {results.map((result, index) => {
               const weapon = weaponDefinitionsByDefinitionId[result.weaponDefinitionId];
               return (
                 <div className={`rarity-${weapon.rarity}`} key={`${result.weaponDefinitionId}-${index}`}>
-                  <span>{weapon.family === 'sword' ? '⚔' : '➶'}</span>
+                  <WeaponFamilyIcon family={weapon.family} />
                   <small>{result.duplicate ? '+1' : '新規'}</small>
                 </div>
               );
@@ -143,13 +163,19 @@ export function ForgeScreen() {
             <div className="forge-collection__empty">まだ武器はありません。戦闘や派遣で鍛造キーを集めます。</div>
           ) : (
             <div className="forge-collection__list">
-              {ownedWeapons.map((weapon) => (
-                <div key={weapon.id}>
-                  <span className={`weapon-rarity weapon-rarity--${weapon.rarity}`}>{rarityLabel(weapon.rarity)}</span>
-                  <span><strong>{weapon.displayName}</strong><small>{weapon.family === 'sword' ? '剣' : '弓'} · 攻撃倍率 ×{weapon.dpsMultiplier.toFixed(2)}</small></span>
-                  <em>+{weapon.refinementRank}</em>
-                </div>
-              ))}
+              {ownedWeapons.map((weapon) => {
+                const presentation = getForgeWeaponPresentation(weapon.id);
+                return (
+                  <div key={weapon.id}>
+                    <span className={`weapon-rarity weapon-rarity--${weapon.rarity}`}>{rarityLabel(weapon.rarity)}</span>
+                    <span>
+                      <strong>{weapon.displayName}</strong>
+                      <small>{presentation.familyLabel} · 攻撃倍率 ×{weapon.dpsMultiplier.toFixed(2)}</small>
+                    </span>
+                    <em>+{weapon.refinementRank}</em>
+                  </div>
+                );
+              })}
             </div>
           )}
         </details>
