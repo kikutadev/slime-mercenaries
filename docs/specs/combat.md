@@ -25,6 +25,28 @@ Contact zone: center.
 
 The battlefield internally uses soft navigation space rather than visible lanes. Units may move laterally enough to avoid exact stacking, but should not wander so far that attack relationships become unreadable.
 
+### 2.1 Clover Road visual progression
+
+The first five stages share one geographic route but must not look like one static arena with different enemies. Environment presentation advances independently from combat balance:
+
+```text
+Stage 1  Clover Road       open roadside / full fence / bright grass
+Stage 2  Leaf Windway      broken fence / leaf tufts / greener wind corridor
+Stage 3  Bloom Verge       flower-lined verge / warmer road / pastel accents
+Stage 4  Critter Grove     fence disappears / logs + stones / denser trees
+Stage 5  Deep Clover Hollow darker canopy / narrow road / hollow mushrooms
+```
+
+Rules:
+
+- stage identity must read from geometry and silhouette before a HUD label
+- decorative props stay outside the main contact corridor so enemies and friendly jobs remain the focal point
+- the route may darken and narrow toward Stage 5, but faces, weapons, enemy tells, HP, and projectiles must stay readable at portrait mobile size
+- environment differences are presentation only; they do not alter navigation, HP, damage, work, rewards, or offline simulation
+- each wave applies a deterministic roadside scenery phase so consecutive waves do not present the exact same prop layout
+- the 1.55-second approach phase may add subtle scenery/camera travel and enemy entry motion, but all units must settle onto their authored combat coordinates before combat starts
+- enemy entry depth follows the encounter formation (`front -> mid -> back -> rear`) with a small bounded stagger rather than spawning every enemy on the same frame
+
 ## 3. Main formation
 
 The player assigns up to six unique slime types to the active battle formation.

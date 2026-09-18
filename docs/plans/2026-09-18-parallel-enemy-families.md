@@ -997,3 +997,26 @@ Acceptance:
 - portrait 430x932 runtime captures completed for Stage 2, 3, 4, Stage 5 gauntlet, and the 10-enemy finale
 - fresh-browser QA reproduced zero failed requests after the initial dev-server warmup
 - latest full gate: 87 / 87 tests PASS, typecheck PASS, 10 / 10 GLB validation PASS, production build PASS
+
+## 22. Clover Road environment progression round — 2026-09-18
+
+The combat arena was then rebuilt so Stage 1–5 communicate route progression without relying on HUD text or changing combat balance.
+
+Implemented:
+
+- extracted the hard-coded `BattleRuntime` roadside into `src/game/battle-environment.ts`
+- added five authored environment themes: Clover Road, Leaf Windway, Bloom Verge, Critter Grove, and Deep Clover Hollow
+- stage progression changes ground/road value, road width/angle, fence continuity, roadside prop grammar, tree density, fog, and lighting
+- same-stage waves apply deterministic roadside scenery phase offsets so repeated waves do not show the exact same prop arrangement
+- extracted pure approach presentation into `src/game/battle-approach.ts`
+- approach now gives enemies a bounded depth-aware entry from behind their authored formation slots
+- scenery and camera make a short forward-travel cue during approach and settle completely before combat
+- no HP, damage, target selection, attack cadence, stage work, rewards, or offline simulation values were changed
+
+Visual acceptance:
+
+- 430x932 comparison captures completed for Stage 1–5 under the same camera and party
+- Stage 1 remains the brightest/openest; Stage 4 removes the fence and becomes visibly wooded; Stage 5 is the narrowest/darkest route while character faces and weapons remain readable
+- Stage 3 flowers remain outside the combat corridor and do not compete with Flower-family enemy silhouettes
+- Stage 5 entry / mid-approach / combat contact strip confirms enemies settle to existing authored combat positions before combat starts
+- latest full gate: 94 / 94 tests PASS, typecheck PASS, 10 / 10 GLB validation PASS, production build PASS

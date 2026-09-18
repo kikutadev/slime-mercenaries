@@ -59,6 +59,8 @@ import {
 } from './enemy-motion';
 import type { EnemyBehaviorId, EnemyId, EnemyScaleClass } from './enemies';
 import type { EnemyFormationSlot } from './encounters';
+import { createBattleEnvironment } from './battle-environment';
+import { getApproachCameraRetreat, getEnemyApproachEntryPose, getSceneryApproachOffset } from './battle-approach';
 
 export interface BattleSnapshotAlly {
   hp: number;
@@ -140,6 +142,7 @@ interface EnemyUnit {
   name: string;
   behaviorId: EnemyBehaviorId;
   scaleClass: EnemyScaleClass;
+  formationSlot: EnemyFormationSlot;
   index: number;
   root: THREE.Group;
   bodyRoot: THREE.Object3D;
@@ -257,6 +260,8 @@ export interface BattleRuntimeOptions {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   baseUrl: string;
+  stageNumber: number;
+  waveIndex: number;
   allies: readonly BattleRuntimeAllyConfig[];
   enemies: readonly BattleRuntimeEnemyConfig[];
   onSnapshot: (snapshot: BattleSnapshot) => void;
@@ -302,16 +307,14 @@ const RESULT_HOLD_SECONDS = 1.85;
 const CAMERA_BASE_POSITION = new THREE.Vector3(2.8, 5.35, 8.9);
 const CAMERA_LOOK_AT = new THREE.Vector3(0, 0.38, -1.05);
 
-function createMaterial(color: string, roughness = 0.8): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, roughness, metalness: 0 });
-}
-
 export class BattleRuntime {
   private readonly scene: THREE.Scene;
   private readonly camera: THREE.PerspectiveCamera;
   private readonly loader = new GLTFLoader();
   private readonly enemyTemplatePromises = new Map<string, Promise<THREE.Group>>();
   private readonly baseUrl: string;
+  private readonly stageNumber: number;
+  private readonly waveIndex: number;
   private readonly allyConfigs: readonly BattleRuntimeAllyConfig[];
   private readonly enemyConfigs: readonly BattleRuntimeEnemyConfig[];
   private readonly onSnapshot: (snapshot: BattleSnapshot) => void;
@@ -328,6 +331,7 @@ export class BattleRuntime {
   private readonly impacts: ImpactRuntime[] = [];
   private slashArc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null = null;
   private spinArc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null = null;
+  private environmentSceneryRoot: THREE.Group | null = null;
   private disposed = false;
   private initialized = false;
   private rawNow = 0;
@@ -347,6 +351,8 @@ export class BattleRuntime {
     this.scene = options.scene;
     this.camera = options.camera;
     this.baseUrl = options.baseUrl;
+    this.stageNumber = options.stageNumber;
+    this.waveIndex = options.waveIndex;
     this.allyConfigs = options.allies;
     this.enemyConfigs = options.enemies;
     this.onSnapshot = options.onSnapshot;
@@ -356,13 +362,11 @@ export class BattleRuntime {
     if (this.initialized || this.disposed) return;
     this.initialized = true;
 
-    this.scene.background = new THREE.Color('#b7e8fa');
-    this.scene.fog = new THREE.Fog('#ccecca', 9, 22);
     this.camera.position.copy(CAMERA_BASE_POSITION);
     this.camera.lookAt(CAMERA_LOOK_AT);
 
-    this.createEnvironment();
-    this.createLighting();
+    const environment = createBattleEnvironment(this.scene, this.stageNumber, this.waveIndex);
+    this.environmentSceneryRoot = environment.sceneryRoot;
     this.createSlashArc();
 
     const [loadedAllies, loadedEnemies] = await Promise.all([
@@ -430,100 +434,6 @@ export class BattleRuntime {
     this.disposed = true;
   }
 
-  private createEnvironment(): void {
-    const grass = new THREE.Mesh(new THREE.PlaneGeometry(16, 22), createMaterial('#8bd266', 0.94));
-    grass.rotation.x = -Math.PI / 2;
-    grass.position.set(0, -0.045, -3.2);
-    grass.receiveShadow = true;
-    this.scene.add(grass);
-
-    const road = new THREE.Mesh(new THREE.PlaneGeometry(4.8, 20), createMaterial('#e7cd92', 0.98));
-    road.rotation.x = -Math.PI / 2;
-    road.rotation.z = THREE.MathUtils.degToRad(-4);
-    road.position.set(0.08, -0.032, -3.75);
-    road.receiveShadow = true;
-    this.scene.add(road);
-
-    const roadEdgeMaterial = createMaterial('#c3ae75', 1);
-    for (const side of [-1, 1]) {
-      const edge = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 20), roadEdgeMaterial);
-      edge.rotation.x = -Math.PI / 2;
-      edge.rotation.z = THREE.MathUtils.degToRad(-4);
-      edge.position.set(side * 2.38 + 0.08, -0.02, -3.75);
-      this.scene.add(edge);
-    }
-
-    const fenceMaterial = createMaterial('#9c6b43', 0.93);
-    const railMaterial = createMaterial('#b98558', 0.9);
-    const postGeometry = new THREE.BoxGeometry(0.12, 0.64, 0.12);
-    const railGeometry = new THREE.BoxGeometry(0.08, 0.095, 1.9);
-    for (const side of [-1, 1]) {
-      const x = side * 3.2;
-      for (let z = -9; z <= 3; z += 1.9) {
-        const post = new THREE.Mesh(postGeometry, fenceMaterial);
-        post.position.set(x, 0.31, z);
-        post.castShadow = true;
-        this.scene.add(post);
-        if (z < 3) {
-          for (const y of [0.24, 0.43]) {
-            const rail = new THREE.Mesh(railGeometry, railMaterial);
-            rail.position.set(x, y, z + 0.92);
-            rail.castShadow = true;
-            this.scene.add(rail);
-          }
-        }
-      }
-    }
-
-    const flowerColors = ['#fff6a8', '#ffffff', '#f6a3bd', '#b89cff'];
-    const flowerMaterials = flowerColors.map((color) => createMaterial(color, 0.72));
-    const stemMaterial = createMaterial('#4e9f52', 0.95);
-    const stemGeometry = new THREE.CylinderGeometry(0.012, 0.016, 0.18, 6);
-    const bloomGeometry = new THREE.SphereGeometry(0.052, 8, 6);
-    const flowerSeeds: Array<[number, number, number]> = [
-      [-3.7, 1.3, 0], [-3.45, 0.5, 2], [-3.8, -1.2, 1], [3.55, 1.6, 3],
-      [3.7, -0.2, 1], [3.4, -2.1, 2], [-3.55, -3.2, 3], [3.6, -4.2, 0],
-    ];
-    for (const [x, z, colorIndex] of flowerSeeds) {
-      const stem = new THREE.Mesh(stemGeometry, stemMaterial);
-      stem.position.set(x, 0.09, z);
-      this.scene.add(stem);
-      const bloom = new THREE.Mesh(bloomGeometry, flowerMaterials[colorIndex]);
-      bloom.scale.set(1, 0.55, 1);
-      bloom.position.set(x, 0.21, z);
-      this.scene.add(bloom);
-    }
-
-    const trunkMaterial = createMaterial('#8b6547', 0.95);
-    const canopyMaterial = createMaterial('#5ebc60', 0.88);
-    for (const [x, z, size] of [[-4.8, -4.2, 1], [4.65, -6.4, 1.25], [-4.4, -8, 1.35]] as Array<[number, number, number]>) {
-      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.14 * size, 0.18 * size, 1.2 * size, 7), trunkMaterial);
-      trunk.position.set(x, 0.6 * size, z);
-      trunk.castShadow = true;
-      this.scene.add(trunk);
-      const canopy = new THREE.Mesh(new THREE.IcosahedronGeometry(0.85 * size, 2), canopyMaterial);
-      canopy.scale.set(1.1, 0.92, 1);
-      canopy.position.set(x, 1.55 * size, z);
-      canopy.castShadow = true;
-      this.scene.add(canopy);
-    }
-  }
-
-  private createLighting(): void {
-    this.scene.add(new THREE.HemisphereLight('#eaf9ff', '#709d4e', 2));
-    const sun = new THREE.DirectionalLight('#fff5d7', 4);
-    sun.position.set(-4.5, 7.5, 5.5);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(1024, 1024);
-    sun.shadow.camera.near = 0.5;
-    sun.shadow.camera.far = 18;
-    sun.shadow.camera.left = -5;
-    sun.shadow.camera.right = 5;
-    sun.shadow.camera.top = 5;
-    sun.shadow.camera.bottom = -5;
-    this.scene.add(sun);
-  }
-
   private makeShadow(radius = 0.3): THREE.Mesh<THREE.CircleGeometry, BasicMaterial> {
     const material = new THREE.MeshBasicMaterial({
       color: '#25462e',
@@ -586,7 +496,7 @@ export class BattleRuntime {
     return {
       id: `enemy-${config.enemyId}-${config.instanceIndex + 1}`,
       side: 'enemy', enemyId: config.enemyId, name: config.name, behaviorId: config.behaviorId,
-      scaleClass: config.scaleClass, index: config.instanceIndex, root, bodyRoot,
+      scaleClass: config.scaleClass, formationSlot: config.formationSlot, index: config.instanceIndex, root, bodyRoot,
       bodyBaseScale: bodyRoot.scale.clone(), faceRoot,
       faceBasePosition: faceRoot?.position.clone() ?? new THREE.Vector3(),
       faceBaseScale: faceRoot?.scale.clone() ?? new THREE.Vector3(1, 1, 1),
@@ -1082,6 +992,7 @@ export class BattleRuntime {
   private startBattle(now: number): void {
     this.phase = 'approach';
     this.phaseStartedAt = now;
+    if (this.environmentSceneryRoot) this.environmentSceneryRoot.position.z = getSceneryApproachOffset(0);
     this.result = null;
     this.allies.forEach((ally) => {
       ally.attackStartedAt = -Infinity;
@@ -1101,6 +1012,8 @@ export class BattleRuntime {
 
   private updateApproach(now: number): void {
     const duration = 1.55;
+    const approachElapsed = now - this.phaseStartedAt;
+    if (this.environmentSceneryRoot) this.environmentSceneryRoot.position.z = getSceneryApproachOffset(approachElapsed);
     this.allies.forEach((ally) => {
       if (!ally.alive) return;
       if (this.isMeleeBehavior(ally)) {
@@ -1118,6 +1031,7 @@ export class BattleRuntime {
         ally.root.position.copy(this.isMeleeBehavior(ally) ? ally.combatAnchor : ally.home);
         ally.nextAttackAt = now + (this.isMeleeBehavior(ally) ? 0.12 : 0.2 + ally.slotIndex * 0.06);
       });
+      if (this.environmentSceneryRoot) this.environmentSceneryRoot.position.z = 0;
       this.phase = 'combat';
       this.phaseStartedAt = now;
       this.enemies.forEach((enemy) => {
@@ -2081,21 +1995,28 @@ export class BattleRuntime {
 
   private updateEnemyApproachIdle(enemy: EnemyUnit, now: number): void {
     if (!enemy.alive || enemy.state === 'defeat' || enemy.state === 'dead') return;
+    const entry = getEnemyApproachEntryPose(
+      now - this.phaseStartedAt,
+      enemy.index,
+      enemy.formationSlot,
+      enemy.scaleClass,
+    );
     enemy.root.position.copy(enemy.home);
+    enemy.root.position.z += entry.zOffset;
     const pose = enemy.motionProfile.idle(now, enemy.index * 0.73);
-    enemy.root.position.y = pose.jump;
+    enemy.root.position.y = pose.jump + entry.yOffset;
     enemy.root.scale.set(
-      enemy.baseScale * pose.scaleX,
-      enemy.baseScale * pose.scaleY,
-      enemy.baseScale * pose.scaleZ,
+      enemy.baseScale * pose.scaleX * entry.scale,
+      enemy.baseScale * pose.scaleY * entry.scale,
+      enemy.baseScale * pose.scaleZ * entry.scale,
     );
     const target = this.findNearest(enemy, this.getLivingAllies());
     if (target) this.facePoint(enemy, this.getEnemyTargetPosition(target));
     enemy.root.rotation.z = pose.wobbleZ;
     applyEnemySecondaryPose(enemy.rigParts, enemy.rigRest, pose.secondary);
-    enemy.shadow.position.set(enemy.home.x, 0.011, enemy.home.z);
-    enemy.shadow.scale.set(1.35, 0.68, 1);
-    enemy.shadow.material.opacity = 0.22;
+    enemy.shadow.position.set(enemy.root.position.x, 0.011, enemy.root.position.z);
+    enemy.shadow.scale.set(1.35 * entry.shadowScale, 0.68 * entry.shadowScale, 1);
+    enemy.shadow.material.opacity = entry.shadowOpacity;
   }
 
   private updateEnemyUnit(enemy: EnemyUnit, now: number): void {
@@ -2330,6 +2251,9 @@ export class BattleRuntime {
 
   private updateCamera(now: number): void {
     this.camera.position.copy(CAMERA_BASE_POSITION);
+    if (this.phase === 'approach') {
+      this.camera.position.z += getApproachCameraRetreat(this.simulationNow - this.phaseStartedAt);
+    }
     if (now < this.cameraShakeEndsAt) {
       const duration = Math.max(0.001, this.cameraShakeEndsAt - this.cameraShakeStartedAt);
       const u = clamp01((now - this.cameraShakeStartedAt) / duration);
