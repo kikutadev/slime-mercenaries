@@ -38,7 +38,9 @@ describe('equipment forge and loadout', () => {
     if (!result.accepted) return;
 
     expect(result.state.tokens[ids.token.forgeKey]).toBe(0);
-    expect(Object.values(result.state.gameData.equipment.inventory)).toHaveLength(1);
+    const forged = Object.values(result.state.gameData.equipment.inventory);
+    expect(forged).toHaveLength(1);
+    expect(result.state.gameData.codex.weapons[forged[0]!.definitionId]).toMatchObject({ viewedAtSimTimeSec: null });
     expect(result.state.gachaStates[ids.gacha.forge]?.totalDrawCount).toBe(1);
   });
 

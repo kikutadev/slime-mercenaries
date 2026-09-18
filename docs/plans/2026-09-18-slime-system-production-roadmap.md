@@ -122,7 +122,8 @@ Status: Planned
 
 ## Current implementation notes
 
-- Save schema v5 stores `progression.areas[areaId].highestStageCleared`; schema v4 per-instance saves migrate without changing roster/loadout identity.
+- Save schema v6 stores `progression.areas[areaId].highestStageCleared` plus durable Codex discoveries/NEW state. Schema v4/v5 saves migrate without changing roster/loadout identity; inferred legacy Codex entries are marked viewed to avoid false NEW spam.
+- Codex discovery is independent of current ownership: Tier-1 jobs, Promotion forms, Rare Mutation forms, and weapon definitions persist once discovered. Fusion rank/form remains progression rather than a separate Codex entry.
 - Every normal family now has a usable Fusion Core sink. Sword/Bow keep their deeper authored trees; Shield/Wand/Dagger/Gun currently have the first system-completeness milestone only.
 - Temporary combat-effect primitives cover damage reduction, movement slow, execute thresholds and line-pierce distance.
 - All 12 Tier-3 specializations now expose distinct battle behavior IDs and distinct runtime mechanics. Animation/VFX review at 1x mobile speed is still required before Phase 4 is complete.

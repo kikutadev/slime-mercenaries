@@ -1,11 +1,25 @@
 import { GameNumber, createLoadoutState, createRngStreams, createTimedActivityState, type GameNumberSerialized, type GameState, type InventoryState, type LoadoutState, type TimedActivityState } from 'idle-game-kit';
 import { dispatchContractDefinitions, ids, initialEconomyBalance, slimeWeaponLoadoutDefinitions, type DispatchContractId, type JobSlimeId } from './definitions';
 
-export const SLIME_MERCENARIES_SCHEMA_VERSION = 5;
-export const SLIME_MERCENARIES_DEFINITION_VERSION = '2026-09-18.4';
+export const SLIME_MERCENARIES_SCHEMA_VERSION = 6;
+export const SLIME_MERCENARIES_DEFINITION_VERSION = '2026-09-18.5';
 
 export type SlimeInstanceId = string;
 export type SlimeAssignment = 'battle' | 'reserve' | 'dispatch';
+
+export type CodexDiscoveryState = Readonly<{
+  discoveredAtSimTimeSec: number;
+  viewedAtSimTimeSec: number | null;
+}>;
+
+export type CodexState = Readonly<{
+  slimeForms: Readonly<Record<string, CodexDiscoveryState>>;
+  weapons: Readonly<Record<string, CodexDiscoveryState>>;
+}>;
+
+export function createInitialCodexState(): CodexState {
+  return { slimeForms: {}, weapons: {} };
+}
 export type SlimeMutationId = 'king' | 'golden' | 'dragon' | 'prism';
 
 export type MutationProgressEntry = Readonly<{
@@ -115,6 +129,7 @@ export type SlimeMercenariesData = Readonly<{
     contracts: Readonly<Record<DispatchContractId, Readonly<{ slimeId: SlimeInstanceId | null; activity: TimedActivityState }>>>;
   }>;
   mutationProgress: MutationProgressState;
+  codex: CodexState;
   equipment: EquipmentState;
   economy: Readonly<{
     /** Index into the Plain Slime shop price curve. */
@@ -179,6 +194,7 @@ export function createInitialSlimeMercenariesState(
         contentBoundaryReached: false,
       },
       mutationProgress: createInitialMutationProgressState(),
+      codex: createInitialCodexState(),
       dispatch: {
         contracts: Object.fromEntries(
           Object.entries(dispatchContractDefinitions).map(([contractId, definition]) => [

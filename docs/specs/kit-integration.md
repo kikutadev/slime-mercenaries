@@ -147,6 +147,7 @@ Kit GameState
    ├─ formation slots storing instance IDs
    ├─ per-instance loadout references
    ├─ active dispatch assignment metadata
+   ├─ Codex discoveries + viewed/NEW state for slime forms and weapons
    ├─ boss/checkpoint state
    └─ combat/offline model state needed for deterministic progression
 ```
@@ -216,6 +217,8 @@ else:
 ```
 
 Duplicate creation never auto-merges. A separate product command may explicitly convert an eligible reserve duplicate into the family Slime Core; that conversion is product gameplay and should not be represented as a generic Kit gacha duplicate policy.
+
+Codex state is also product-owned. First discovery of a Tier-1 job, Promotion form, Rare Mutation form, or weapon definition records one durable Codex entry. `viewedAtSimTimeSec = null` is the NEW badge state. Fusion rank/form progression and repeated acquisition do not create additional Codex rows.
 
 ### 4.4 Fuse Slime
 

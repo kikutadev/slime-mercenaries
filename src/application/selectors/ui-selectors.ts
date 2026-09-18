@@ -18,6 +18,7 @@ import {
   WORLD_AREA_IDS,
   mutationDefinitions,
   maxSelectableStageForArea,
+  isCodexDiscoveryNew,
   firstSlimeByType,
   ownedSlimes,
   sameTypeCount,
@@ -30,6 +31,27 @@ import {
 import { FUSION_ITEMS, getSlimePresentation, getSlimePresentationForRank } from '../../game/slimes';
 
 const JOB_IDS = Object.keys(jobCreationDefinitions) as JobSlimeId[];
+
+export function selectCodexSummary(state: SlimeMercenariesState) {
+  const projectBucket = (bucket: SlimeMercenariesState['gameData']['codex']['slimeForms']) =>
+    Object.entries(bucket)
+      .map(([id, entry]) => ({
+        id,
+        discoveredAtSimTimeSec: entry.discoveredAtSimTimeSec,
+        viewedAtSimTimeSec: entry.viewedAtSimTimeSec,
+        isNew: isCodexDiscoveryNew(entry),
+      }))
+      .sort((left, right) => left.discoveredAtSimTimeSec - right.discoveredAtSimTimeSec || left.id.localeCompare(right.id));
+  const slimeForms = projectBucket(state.gameData.codex.slimeForms);
+  const weapons = projectBucket(state.gameData.codex.weapons);
+  return {
+    slimeForms,
+    weapons,
+    newSlimeFormCount: slimeForms.filter((entry) => entry.isNew).length,
+    newWeaponCount: weapons.filter((entry) => entry.isNew).length,
+    newCount: [...slimeForms, ...weapons].filter((entry) => entry.isNew).length,
+  } as const;
+}
 
 export function selectWorldAreas(state: SlimeMercenariesState) {
   return WORLD_AREA_IDS.map((areaId) => {
@@ -337,7 +359,9 @@ export function selectCampUpgradeOpportunities(state: SlimeMercenariesState): re
 
 export function selectNavigationAttention(state: SlimeMercenariesState) {
   const upgrades = selectCampUpgradeOpportunities(state);
-  const slimesReady = upgrades.some((opportunity) => opportunity.kind !== 'level')
+  const codex = selectCodexSummary(state);
+  const slimesReady = codex.newCount > 0
+    || upgrades.some((opportunity) => opportunity.kind !== 'level')
     || (state.gameData.combat.retryFarmClearsRemaining > 0 && upgrades.some((opportunity) => opportunity.kind === 'level'));
   const dispatchReady = Object.values(state.gameData.dispatch.contracts).some((contract) => contract.activity.status === 'completed-unclaimed');
   const forgeReady = readToken(state.tokens, ids.token.forgeKey) > 0;

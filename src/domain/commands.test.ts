@@ -229,6 +229,7 @@ describe('individual growth', () => {
     const preview = previewSlimeFusion(prepared, swordId);
     expect(preview.canFuse).toBe(true);
 
+    const codexCountBeforeFusion = Object.keys(prepared.gameData.codex.slimeForms).length;
     const fused = fuseSlime(prepared, swordId);
     expect(fused.accepted).toBe(true);
     if (!fused.accepted) return;
@@ -239,6 +240,7 @@ describe('individual growth', () => {
       fusionRank: firstStep.toRank,
       fusionFormId: firstStep.resultFusionFormId,
     });
+    expect(Object.keys(fused.state.gameData.codex.slimeForms)).toHaveLength(codexCountBeforeFusion);
   });
 });
 
@@ -271,6 +273,7 @@ describe('promotion', () => {
       fusionRank: 2,
       fusionFormId: 'greatsword',
     });
+    expect(promoted.state.gameData.codex.slimeForms['slime.fighter']).toMatchObject({ viewedAtSimTimeSec: null });
   });
 
   it('rejects Promotion atomically when materials are missing', () => {

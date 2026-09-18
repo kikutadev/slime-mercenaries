@@ -57,6 +57,7 @@ describe('rare mutation domain foundation', () => {
     if (!result.accepted) return;
     expect(result.state.gameData.roster.slimes[setup.slimeId]?.mutationId).toBe('golden');
     expect(result.state.gameData.mutationProgress.golden.catalysts).toBe(0);
+    expect(result.state.gameData.codex.slimeForms['slime.mutation.golden']).toMatchObject({ viewedAtSimTimeSec: null });
   });
 
   it('keeps King Tier-3-only and Prism restricted to magic/ranged Tier-3 families', () => {

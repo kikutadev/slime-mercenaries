@@ -38,7 +38,7 @@ describe('profile persistence boundary', () => {
     const loaded = await loadOrCreateSlimeProfile({ repository, nowMs: 1_000, seed: 7 });
     expect(loaded.created).toBe(true);
     expect(loaded.appliedOfflineSec).toBe(0);
-    expect(loaded.state.schemaVersion).toBe(5);
+    expect(loaded.state.schemaVersion).toBe(6);
     expect(repository.profiles.get('default')?.state).toEqual(loaded.state);
   });
 
@@ -137,14 +137,14 @@ it('migrates a schema-v3 canonical roster into stable slime instances without lo
   await repository.save({ profileId: 'default', savedAtMs: 1_000, state: legacy });
 
   const loaded = await loadOrCreateSlimeProfile({ repository, nowMs: 1_000 });
-  expect(loaded.state.schemaVersion).toBe(5);
+  expect(loaded.state.schemaVersion).toBe(6);
   expect(loaded.state.gameData.roster.nextSlimeSerial).toBe(2);
   expect(loaded.state.gameData.roster.slimes['slime.1']).toMatchObject({
     id: 'slime.1', serial: 1, typeId: 'sword', level: 12, jobTier: 2, promotionPathId: 'fighter', fusionRank: 2,
   });
   expect(loaded.state.gameData.roster.formationSlots[0]).toBe('slime.1');
   expect(loaded.state.gameData.equipment.loadouts['slime.1']).toEqual(swordLoadout);
-  expect(repository.profiles.get('default')?.state.schemaVersion).toBe(5);
+  expect(repository.profiles.get('default')?.state.schemaVersion).toBe(6);
 });
 
 it('migrates schema-v0 profiles to the current empty instance roster', async () => {
@@ -162,10 +162,30 @@ it('migrates schema-v0 profiles to the current empty instance roster', async () 
   await repository.save({ profileId: 'default', savedAtMs: 1_000, state: legacy });
 
   const loaded = await loadOrCreateSlimeProfile({ repository, nowMs: 1_000 });
-  expect(loaded.state.schemaVersion).toBe(5);
+  expect(loaded.state.schemaVersion).toBe(6);
   expect(loaded.state.gameData.equipment.inventory).toEqual({});
   expect(loaded.state.gameData.equipment.loadouts).toEqual({});
   expect(loaded.state.gameData.roster.slimes).toEqual({});
+});
+
+it('migrates schema-v5 ownership into viewed Codex discoveries without creating false NEW badges', async () => {
+  const repository = new MemoryProfileRepository();
+  const current = createSwordParty(1_000);
+  const { codex: _codex, ...legacyGameData } = current.gameData;
+  const legacy = {
+    ...current,
+    schemaVersion: 5,
+    definitionVersion: '2026-09-18.4',
+    gameData: legacyGameData,
+  } as unknown as SlimeMercenariesState;
+  await repository.save({ profileId: 'default', savedAtMs: 1_000, state: legacy });
+
+  const loaded = await loadOrCreateSlimeProfile({ repository, nowMs: 1_000 });
+  expect(loaded.state.schemaVersion).toBe(6);
+  expect(loaded.state.gameData.codex.slimeForms['slime.sword']).toMatchObject({
+    discoveredAtSimTimeSec: current.simTimeSec,
+    viewedAtSimTimeSec: current.simTimeSec,
+  });
 });
 
 it('migrates schema-v4 per-instance saves into per-area progression without touching roster identity', async () => {
@@ -177,7 +197,7 @@ it('migrates schema-v4 per-instance saves into per-area progression without touc
       return [slimeId, legacySlime];
     }),
   );
-  const { mutationProgress: _mutationProgress, ...legacyGameData } = current.gameData;
+  const { mutationProgress: _mutationProgress, codex: _codex, ...legacyGameData } = current.gameData;
   const legacy = {
     ...current,
     schemaVersion: 4,
@@ -191,7 +211,7 @@ it('migrates schema-v4 per-instance saves into per-area progression without touc
   await repository.save({ profileId: 'default', savedAtMs: 1_000, state: legacy });
 
   const loaded = await loadOrCreateSlimeProfile({ repository, nowMs: 1_000 });
-  expect(loaded.state.schemaVersion).toBe(5);
+  expect(loaded.state.schemaVersion).toBe(6);
   expect(loaded.state.gameData.progression.currentAreaId).toBe('area.clover-road');
   expect(loaded.state.gameData.progression.currentStage).toBe(5);
   expect(highestStageClearedForArea(loaded.state.gameData.progression)).toBe(4);
@@ -216,7 +236,7 @@ it('migrates schema-v1 boss blocks into an active retreat-farm cycle', async () 
   await repository.save({ profileId: 'default', savedAtMs: 1_000, state: legacy });
 
   const loaded = await loadOrCreateSlimeProfile({ repository, nowMs: 1_000 });
-  expect(loaded.state.schemaVersion).toBe(5);
+  expect(loaded.state.schemaVersion).toBe(6);
   expect(loaded.state.gameData.progression.currentStage).toBe(4);
   expect(highestStageClearedForArea(loaded.state.gameData.progression)).toBe(4);
   expect(loaded.state.gameData.combat.currentWaveIndex).toBe(0);

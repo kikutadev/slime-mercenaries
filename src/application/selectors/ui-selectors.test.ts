@@ -8,9 +8,10 @@ import {
   firstSlimeIdByType,
   ids,
   grantMutationCatalyst,
+  markCodexEntriesViewed,
   resolveCurrencyDefinition,
 } from '../../domain';
-import { selectCampUpgradeOpportunities, selectCreateSlimePanel, selectDispatchScreen, selectEarlyGameCue, selectNavigationAttention, selectSlimeDetail, selectWorldAreas } from './ui-selectors';
+import { selectCampUpgradeOpportunities, selectCreateSlimePanel, selectDispatchScreen, selectEarlyGameCue, selectCodexSummary, selectNavigationAttention, selectSlimeDetail, selectWorldAreas } from './ui-selectors';
 
 function createSwordState() {
   let state = createInitialSlimeMercenariesState(0, 11);
@@ -50,7 +51,9 @@ describe('UI selectors', () => {
 
   it('derives retreat strengthening attention from production upgrade previews', () => {
     const setup = createSwordState();
-    let state = applyRewards(setup.state, [
+    const viewed = markCodexEntriesViewed(setup.state, 'slime-form', ['slime.sword']);
+    if (!viewed.accepted) throw new Error('setup Codex view failed');
+    let state = applyRewards(viewed.state, [
       { type: 'currency', currencyId: ids.currency.gold, amount: 100, source: 'test' },
     ], { resolveCurrencyDefinition }) as typeof setup.state;
 
@@ -98,6 +101,15 @@ describe('UI selectors', () => {
     expect(areas[0]).toMatchObject({ id: 'area.clover-road', current: true, unlocked: true, contentAvailable: true });
     expect(areas[1]).toMatchObject({ id: 'area.mushroom-forest', current: false, unlocked: false, contentAvailable: false });
     expect(areas.at(-1)?.id).toBe('area.dragon-crater');
+  });
+
+  it('surfaces unviewed Codex discoveries as Slimes attention and clears them when viewed', () => {
+    const setup = createSwordState();
+    expect(selectCodexSummary(setup.state)).toMatchObject({ newSlimeFormCount: 1, newWeaponCount: 0, newCount: 1 });
+    expect(selectNavigationAttention(setup.state).has('slimes')).toBe(true);
+    const viewed = markCodexEntriesViewed(setup.state, 'slime-form', ['slime.sword']);
+    if (!viewed.accepted) throw new Error('Codex view failed');
+    expect(selectCodexSummary(viewed.state).newCount).toBe(0);
   });
 
 });
