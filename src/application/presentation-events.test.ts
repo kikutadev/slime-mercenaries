@@ -46,6 +46,18 @@ describe('presentation event policy', () => {
     expect(notice?.body).toContain('再編成');
   });
 
+  it('presents explicit spare-body Core conversion using the current event contract', () => {
+    const [notice] = toPresentationNotices([event('slimeConvertedToFusionCore', { typeId: 'sword', slimeId: 'slime.2' })]);
+    expect(notice?.title).toBe('剣士スライムの核');
+    expect(notice?.body).toContain('控え');
+  });
+
+  it('presents mutation reveal as a high-priority milestone', () => {
+    const [notice] = toPresentationNotices([event('slimeMutated', { mutationId: 'golden', slimeId: 'slime.1' })]);
+    expect(notice?.title).toBe('変異発生 · ゴールデンスライム');
+    expect(notice?.presentationPriority).toBe(95);
+  });
+
   it('turns dispatch completion into a non-blocking reward notice', () => {
     const [notice] = toPresentationNotices([event('dispatchCompleted', { contractId: 'roadEscort' })]);
     expect(notice?.title).toBe('派遣帰還');
@@ -64,6 +76,12 @@ describe('presentation event policy', () => {
     expect(summary.materialDropCount).toBe(2);
     expect(summary.furthestStage).toBe(2);
     expect(summary.frontierStageReached).toBe(5);
+  });
+
+  it('presents sequential area unlock as a milestone', () => {
+    const [notice] = toPresentationNotices([event('areaUnlocked', { areaId: 'area.mushroom-forest', areaOrder: 2 })]);
+    expect(notice?.title).toBe('新エリア解放');
+    expect(notice?.presentationPriority).toBe(88);
   });
 
 });

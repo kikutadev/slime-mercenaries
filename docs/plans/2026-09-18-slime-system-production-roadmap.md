@@ -101,13 +101,13 @@ Loadout infrastructure supports all six families, but authored weapon content is
 
 ## Phase 6 — Rare mutations
 
-Status: In Progress — Domain foundation implemented
+Status: In Progress — Domain + Application foundation implemented
 
 Implement King / Golden / Dragon / Prism / Mimic as horizontal special forms with deterministic backstops. Do not require indefinite RNG for Codex completion.
 
 ## Phase 7 — World/content expansion
 
-Status: In Progress — area registry + per-area save progression implemented
+Status: In Progress — eight-area registry + per-area save/navigation implemented
 
 Expand beyond Clover Road toward the authored eight-area world. Reuse the enemy family production pipeline rather than creating area-specific one-off runtime logic.
 
@@ -127,8 +127,8 @@ Status: Planned
 - Temporary combat-effect primitives cover damage reduction, movement slow, execute thresholds and line-pierce distance.
 - All 12 Tier-3 specializations now expose distinct battle behavior IDs and distinct runtime mechanics. Animation/VFX review at 1x mobile speed is still required before Phase 4 is complete.
 - Forge now contains one Common/Rare/Mythic weapon for all six families using the same per-family 55/18/2 weight pattern, preserving the prior aggregate rarity ratio.
-- Existing-body Rare Mutation state exists for King/Golden/Dragon/Prism. Fragment thresholds are intentionally not invented. Dragon selected origins remain closed until authored; Mimic remains a separate special-capture problem.
-- Areas are definition-driven instead of Clover-Road hardcoded. Areas 2-8 still need stage content; only the persistence/runtime structure is complete.
+- Existing-body Rare Mutation state exists for King/Golden/Dragon/Prism, with Controller/selector/presentation integration. Fragment thresholds are intentionally not invented. Dragon selected origins remain closed until authored; Mimic remains a separate special-capture problem.
+- The authored eight-area horizon is registered in sequence. Stage progression is definition-driven, per-area highest progress is durable, and unlocked stages can be revisited through one Domain command. Areas 2-8 still need actual stage/enemy/reward content; empty future areas are not treated as playable.
 
 ## Verification contract
 

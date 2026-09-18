@@ -10,10 +10,14 @@ import {
   previewPlainSlimePurchase,
   previewSlimeFusion,
   previewSlimeLevelUp,
+  previewSlimeMutation,
   previewSlimePromotion,
   previewSlimePromotions,
   slimeCombatPower,
   resolveAreaDefinition,
+  WORLD_AREA_IDS,
+  mutationDefinitions,
+  maxSelectableStageForArea,
   firstSlimeByType,
   ownedSlimes,
   sameTypeCount,
@@ -21,10 +25,29 @@ import {
   type JobSlimeId,
   type SlimeInstanceId,
   type SlimeMercenariesState,
+  type SlimeMutationId,
 } from '../../domain';
 import { FUSION_ITEMS, getSlimePresentation, getSlimePresentationForRank } from '../../game/slimes';
 
 const JOB_IDS = Object.keys(jobCreationDefinitions) as JobSlimeId[];
+
+export function selectWorldAreas(state: SlimeMercenariesState) {
+  return WORLD_AREA_IDS.map((areaId) => {
+    const definition = resolveAreaDefinition(areaId)!;
+    const progress = state.gameData.progression.areas[areaId];
+    return {
+      id: areaId,
+      order: definition.order,
+      name: definition.displayName,
+      current: state.gameData.progression.currentAreaId === areaId,
+      unlocked: progress !== undefined,
+      contentAvailable: definition.stages.length > 0,
+      highestStageCleared: progress?.highestStageCleared ?? 0,
+      stageCount: definition.stages.length,
+      maxSelectableStage: maxSelectableStageForArea(state, areaId),
+    } as const;
+  });
+}
 
 export function selectGlobalHud(state: SlimeMercenariesState) {
   return {
@@ -104,6 +127,20 @@ export function selectSlimeDetail(state: SlimeMercenariesState, slimeId: SlimeIn
   const maxAffordableCount = findMaxAffordableLevelCount(state, slimeId);
   const levelMax = maxAffordableCount > 0 ? previewSlimeLevelUp(state, slimeId, maxAffordableCount) : null;
   const weapon = equippedWeaponDefinition(state, slimeId);
+  const mutationIds = Object.keys(mutationDefinitions) as SlimeMutationId[];
+  const mutations = mutationIds.map((mutationId) => {
+    const definition = mutationDefinitions[mutationId];
+    const preview = previewSlimeMutation(state, slimeId, mutationId);
+    return {
+      id: mutationId,
+      name: definition.displayName,
+      eligibility: definition.eligibility,
+      eligible: preview.eligible,
+      canMutate: preview.canMutate,
+      fragments: preview.fragments,
+      catalysts: preview.catalysts,
+    } as const;
+  });
   const gold = readCurrency(state.currencies, ids.currency.gold);
   const toLevelAction = (preview: ReturnType<typeof previewSlimeLevelUp>, count: number) => {
     if (preview === null || !preview.available) return null;
@@ -127,6 +164,9 @@ export function selectSlimeDetail(state: SlimeMercenariesState, slimeId: SlimeIn
     level: slime.level,
     fusionRank: slime.fusionRank,
     fusionFormId: slime.fusionFormId,
+    mutationId: slime.mutationId,
+    mutationName: slime.mutationId === null ? null : mutationDefinitions[slime.mutationId].displayName,
+    mutations,
     assignment: slime.assignment,
     weaponName: weapon?.displayName ?? '未装備',
     levelActions: {

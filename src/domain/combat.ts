@@ -13,6 +13,7 @@ import {
 import { balance } from './balance';
 import { equippedWeaponCombatMultiplier } from './equipment';
 import {
+  resolveAreaAdvance,
   resolveStageDefinition,
   ids,
   resolveCurrencyDefinition,
@@ -21,7 +22,7 @@ import {
   type StageDefinition,
   type StageWaveDefinition,
 } from './definitions';
-import { highestStageClearedForArea, withHighestStageClearedForArea, type SlimeInstanceId, type SlimeMercenariesState, type SlimeProgress } from './state';
+import { highestStageClearedForArea, withAreaUnlocked, withHighestStageClearedForArea, type SlimeInstanceId, type SlimeMercenariesState, type SlimeProgress } from './state';
 
 export type CombatEncounter = Readonly<{
   kind: 'wave' | 'boss';
@@ -393,13 +394,20 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
   }
 
   const nextHighestStageCleared = Math.max(highestStageCleared, stage.stageNumber);
-  const nextStage = resolveStageDefinition(stage.areaId, stage.stageNumber + 1);
-  if (nextStage === null) {
+  const advance = resolveAreaAdvance(stage.areaId, stage.stageNumber);
+  const clearedProgression = withHighestStageClearedForArea(
+    nextState.gameData.progression,
+    stage.areaId,
+    nextHighestStageCleared,
+  );
+  const events: DomainEvent[] = [];
+
+  if (advance.kind === 'boundary') {
     nextState = {
       ...nextState,
       gameData: {
         ...nextState.gameData,
-        progression: withHighestStageClearedForArea(nextState.gameData.progression, stage.areaId, nextHighestStageCleared),
+        progression: clearedProgression,
         combat: {
           currentWaveIndex: 0,
           waveWorkRemaining: null,
@@ -409,14 +417,31 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
         },
       },
     };
+  } else if (advance.kind === 'stage') {
+    nextState = {
+      ...nextState,
+      gameData: {
+        ...nextState.gameData,
+        progression: { ...clearedProgression, currentStage: advance.stage.stageNumber },
+        combat: {
+          currentWaveIndex: 0,
+          waveWorkRemaining: null,
+          retryFarmClearsRemaining: 0,
+          frontierDefeatTimeRemainingSec: null,
+          contentBoundaryReached: false,
+        },
+      },
+    };
   } else {
+    const unlocked = withAreaUnlocked(clearedProgression, advance.area.id);
     nextState = {
       ...nextState,
       gameData: {
         ...nextState.gameData,
         progression: {
-          ...withHighestStageClearedForArea(nextState.gameData.progression, stage.areaId, nextHighestStageCleared),
-          currentStage: nextStage.stageNumber,
+          ...unlocked,
+          currentAreaId: advance.area.id,
+          currentStage: advance.stage.stageNumber,
         },
         combat: {
           currentWaveIndex: 0,
@@ -427,16 +452,22 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
         },
       },
     };
+    events.push(semanticEvent(nextState, 'areaUnlocked', advance.area.id, {
+      areaId: advance.area.id,
+      areaOrder: advance.area.order,
+      stageNumber: advance.stage.stageNumber,
+    }));
   }
-  return {
-    state: nextState,
-    events: [semanticEvent(nextState, 'stageCleared', stage.id, {
-      stageId: stage.id,
-      stageNumber: stage.stageNumber,
-      nextStageNumber: nextStage?.stageNumber ?? null,
-      farming: false,
-    })],
-  };
+
+  events.unshift(semanticEvent(nextState, 'stageCleared', stage.id, {
+    areaId: stage.areaId,
+    stageId: stage.id,
+    stageNumber: stage.stageNumber,
+    nextAreaId: advance.kind === 'area' ? advance.area.id : stage.areaId,
+    nextStageNumber: advance.kind === 'boundary' ? null : advance.stage.stageNumber,
+    farming: false,
+  }));
+  return { state: nextState, events };
 }
 
 function resolveFrontierBreakthroughDeferred(

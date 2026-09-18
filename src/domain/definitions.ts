@@ -736,20 +736,70 @@ export const cloverRoadStageDefinitions: readonly StageDefinition[] = balance.co
 
 export type AreaDefinition = Readonly<{
   id: string;
+  order: number;
   displayName: string;
+  nextAreaId: string | null;
   stages: readonly StageDefinition[];
 }>;
 
-export const areaDefinitions: Readonly<Record<string, AreaDefinition>> = {
-  'area.clover-road': {
-    id: 'area.clover-road',
-    displayName: 'クローバー街道',
-    stages: cloverRoadStageDefinitions,
-  },
+export const WORLD_AREA_IDS = [
+  'area.clover-road',
+  'area.mushroom-forest',
+  'area.amber-mine',
+  'area.sunken-marsh',
+  'area.frost-ruins',
+  'area.ember-canyon',
+  'area.moonlit-castle',
+  'area.dragon-crater',
+] as const;
+
+export type WorldAreaId = typeof WORLD_AREA_IDS[number];
+
+export const areaDefinitions: Readonly<Record<WorldAreaId, AreaDefinition>> = {
+  'area.clover-road': { id: 'area.clover-road', order: 1, displayName: 'クローバー街道', nextAreaId: 'area.mushroom-forest', stages: cloverRoadStageDefinitions },
+  'area.mushroom-forest': { id: 'area.mushroom-forest', order: 2, displayName: 'キノコの森', nextAreaId: 'area.amber-mine', stages: [] },
+  'area.amber-mine': { id: 'area.amber-mine', order: 3, displayName: '琥珀鉱山', nextAreaId: 'area.sunken-marsh', stages: [] },
+  'area.sunken-marsh': { id: 'area.sunken-marsh', order: 4, displayName: '沈み沼', nextAreaId: 'area.frost-ruins', stages: [] },
+  'area.frost-ruins': { id: 'area.frost-ruins', order: 5, displayName: '氷霜遺跡', nextAreaId: 'area.ember-canyon', stages: [] },
+  'area.ember-canyon': { id: 'area.ember-canyon', order: 6, displayName: '熾火峡谷', nextAreaId: 'area.moonlit-castle', stages: [] },
+  'area.moonlit-castle': { id: 'area.moonlit-castle', order: 7, displayName: '月夜城', nextAreaId: 'area.dragon-crater', stages: [] },
+  'area.dragon-crater': { id: 'area.dragon-crater', order: 8, displayName: '竜星火口', nextAreaId: null, stages: [] },
 };
 
 export function resolveAreaDefinition(areaId: string): AreaDefinition | undefined {
-  return areaDefinitions[areaId];
+  return areaDefinitions[areaId as WorldAreaId];
+}
+
+export function resolveNextAreaDefinition(areaId: string): AreaDefinition | null {
+  const nextAreaId = resolveAreaDefinition(areaId)?.nextAreaId ?? null;
+  return nextAreaId === null ? null : resolveAreaDefinition(nextAreaId) ?? null;
+}
+
+/** Sequential-world rule: never skip an authored area merely because a later area already has content. */
+export function resolveNextPlayableAreaDefinition(areaId: string): AreaDefinition | null {
+  const next = resolveNextAreaDefinition(areaId);
+  return next !== null && next.stages.length > 0 ? next : null;
+}
+
+export type AreaAdvanceResolution =
+  | Readonly<{ kind: 'stage'; area: AreaDefinition; stage: StageDefinition }>
+  | Readonly<{ kind: 'area'; area: AreaDefinition; stage: StageDefinition }>
+  | Readonly<{ kind: 'boundary' }>;
+
+export function resolveAreaAdvance(
+  areaId: string,
+  currentStageNumber: number,
+  catalog: Readonly<Record<string, AreaDefinition>> = areaDefinitions,
+): AreaAdvanceResolution {
+  const area = catalog[areaId];
+  if (area === undefined) return { kind: 'boundary' };
+  const sameAreaStage = area.stages[currentStageNumber] ?? null;
+  if (sameAreaStage !== null) return { kind: 'stage', area, stage: sameAreaStage };
+  if (area.nextAreaId === null) return { kind: 'boundary' };
+  const nextArea = catalog[area.nextAreaId];
+  const firstNextStage = nextArea?.stages[0] ?? null;
+  if (nextArea === undefined || firstNextStage === null) return { kind: 'boundary' };
+  return { kind: 'area', area: nextArea, stage: firstNextStage };
 }
 
 export function resolveStageDefinition(areaId: string, stageNumber: number): StageDefinition | null {

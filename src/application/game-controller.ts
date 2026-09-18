@@ -6,9 +6,11 @@ import {
   craftPlainSlime,
   createJobSlime,
   equipWeapon,
+  enterAreaStage,
   forgeEquipment,
   fuseSlime,
   levelUpSlime,
+  mutateSlime,
   promoteSlime,
   removeSlimeFromFormation,
   startDispatch,
@@ -18,6 +20,7 @@ import {
   type JobSlimeId,
   type SlimeInstanceId,
   type SlimeMercenariesState,
+  type SlimeMutationId,
 } from '../domain';
 import { createSlimeMercenariesBrowserRepository } from '../platform/web';
 import {
@@ -136,6 +139,10 @@ export class SlimeGameController {
     return this.execute((state) => promoteSlime(state, slimeId, promotionId));
   }
 
+  mutateSlime(slimeId: SlimeInstanceId, mutationId: SlimeMutationId) {
+    return this.execute((state) => mutateSlime(state, slimeId, mutationId));
+  }
+
   validationSetSlimeLevel(slimeId: SlimeInstanceId, level = 40) {
     return this.execute((state) => setValidationSlimeLevel(state, slimeId, level));
   }
@@ -170,6 +177,10 @@ export class SlimeGameController {
 
   equipWeapon(slimeId: SlimeInstanceId, weaponDefinitionId: string) {
     return this.execute((state) => equipWeapon(state, slimeId, weaponDefinitionId));
+  }
+
+  enterAreaStage(areaId: string, stageNumber: number) {
+    return this.execute((state) => enterAreaStage(state, areaId, stageNumber));
   }
 
   private execute<TReason extends string>(

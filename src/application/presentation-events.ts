@@ -1,5 +1,5 @@
 import type { DomainEvent, PresentationQueueItem } from 'idle-game-kit';
-import { jobCreationDefinitions, type JobSlimeId } from '../domain';
+import { jobCreationDefinitions, mutationDefinitions, type JobSlimeId, type SlimeMutationId } from '../domain';
 
 export type PresentationTone = 'reward' | 'milestone' | 'warning' | 'system';
 
@@ -33,6 +33,13 @@ export function toPresentationNotices(events: readonly DomainEvent[]): readonly 
       }
       case 'bossDefeated':
         return [notice(event, 'ボス撃破', '大きな報酬を獲得', 'milestone', 65, 'boss-state')];
+      case 'areaUnlocked':
+        return [{
+          ...notice(event, '新エリア解放', '次のエリアへ進みます', 'milestone', 88, 'area-progress'),
+          presentationPreemption: 'resume-current' as const,
+        }];
+      case 'areaStageEntered':
+        return [notice(event, `ステージ ${numberPayload(event, 'stageNumber') ?? ''} へ移動`, '解放済みの戦場へ戻りました', 'system', 20, 'area-navigation')];
       case 'partyDefeated':
         return [{
           ...notice(event, '敗北 · 撤退', 'ひとつ前のステージで戦力を立て直します', 'warning', 72, 'frontier-state'),
@@ -60,10 +67,10 @@ export function toPresentationNotices(events: readonly DomainEvent[]): readonly 
           presentationPreemption: 'resume-current' as const,
         }];
       }
-      case 'slimeFusionCoreCreated': {
-        const jobId = stringPayload(event, 'jobId') as JobSlimeId | null;
-        const name = jobId === null ? 'スライム' : jobCreationDefinitions[jobId]?.displayName ?? 'スライム';
-        return [notice(event, `${name}の核`, '同じ職業を再生成し、合成素材へ変換', 'reward', 30, `fusion-core:${jobId ?? 'unknown'}`)];
+      case 'slimeConvertedToFusionCore': {
+        const typeId = stringPayload(event, 'typeId') as JobSlimeId | null;
+        const name = typeId === null ? 'スライム' : jobCreationDefinitions[typeId]?.displayName ?? 'スライム';
+        return [notice(event, `${name}の核`, '控えの同職個体を合成素材へ変換しました', 'reward', 30, `fusion-core:${typeId ?? 'unknown'}`)];
       }
       case 'slimeFused':
         return [{
@@ -75,6 +82,14 @@ export function toPresentationNotices(events: readonly DomainEvent[]): readonly 
           ...notice(event, '昇格完了', '職業ランクが上昇しました', 'milestone', 85),
           presentationPreemption: 'resume-current' as const,
         }];
+      case 'slimeMutated': {
+        const mutationId = stringPayload(event, 'mutationId') as SlimeMutationId | null;
+        const mutationName = mutationId === null ? 'レア変異' : mutationDefinitions[mutationId]?.displayName ?? 'レア変異';
+        return [{
+          ...notice(event, `変異発生 · ${mutationName}`, '特殊な形態へ変異しました', 'milestone', 95),
+          presentationPreemption: 'resume-current' as const,
+        }];
+      }
       case 'dispatchCompleted':
         return [notice(event, '派遣帰還', '派遣報酬は自動で反映済みです', 'reward', 42, 'dispatch-return')];
       case 'weaponEquipped':

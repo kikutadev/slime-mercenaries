@@ -7,9 +7,10 @@ import {
   createJobSlime,
   firstSlimeIdByType,
   ids,
+  grantMutationCatalyst,
   resolveCurrencyDefinition,
 } from '../../domain';
-import { selectCampUpgradeOpportunities, selectCreateSlimePanel, selectDispatchScreen, selectEarlyGameCue, selectNavigationAttention } from './ui-selectors';
+import { selectCampUpgradeOpportunities, selectCreateSlimePanel, selectDispatchScreen, selectEarlyGameCue, selectNavigationAttention, selectSlimeDetail, selectWorldAreas } from './ui-selectors';
 
 function createSwordState() {
   let state = createInitialSlimeMercenariesState(0, 11);
@@ -69,4 +70,34 @@ describe('UI selectors', () => {
     if (!created.accepted) throw new Error('setup sword failed');
     expect(selectEarlyGameCue(created.state)?.action).toBe('Battle');
   });
+  it('projects per-instance mutation eligibility and catalyst readiness for presentation', () => {
+    const setup = createSwordState();
+    const sword = setup.state.gameData.roster.slimes[setup.swordId]!;
+    const tier2State = {
+      ...setup.state,
+      gameData: {
+        ...setup.state.gameData,
+        roster: {
+          ...setup.state.gameData.roster,
+          slimes: { ...setup.state.gameData.roster.slimes, [setup.swordId]: { ...sword, jobTier: 2 } },
+        },
+      },
+    };
+    const ready = grantMutationCatalyst(tier2State, 'golden');
+    const detail = selectSlimeDetail(ready, setup.swordId);
+    expect(detail?.mutationId).toBeNull();
+    expect(detail?.mutations.find((mutation) => mutation.id === 'golden')).toMatchObject({
+      name: 'ゴールデンスライム', eligible: true, canMutate: true, catalysts: 1,
+    });
+    expect(detail?.mutations.find((mutation) => mutation.id === 'king')?.eligible).toBe(false);
+  });
+
+  it('projects the eight-area catalog without treating future content as unlocked', () => {
+    const areas = selectWorldAreas(createInitialSlimeMercenariesState(0, 5));
+    expect(areas).toHaveLength(8);
+    expect(areas[0]).toMatchObject({ id: 'area.clover-road', current: true, unlocked: true, contentAvailable: true });
+    expect(areas[1]).toMatchObject({ id: 'area.mushroom-forest', current: false, unlocked: false, contentAvailable: false });
+    expect(areas.at(-1)?.id).toBe('area.dragon-crater');
+  });
+
 });
