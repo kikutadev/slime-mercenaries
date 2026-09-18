@@ -40,7 +40,7 @@ export function resolveEnemyRigParts(root: THREE.Object3D): EnemyRigParts {
     earL: first(root, ['Ear_L']),
     earR: first(root, ['Ear_R']),
     shell: first(root, ['ShellRoot']),
-    openRoot: first(root, ['PetalRoot', 'PuffRoot']),
+    openRoot: first(root, ['PetalRoot', 'PuffRoot', 'SporePouchRoot']),
   };
 }
 

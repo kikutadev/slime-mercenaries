@@ -363,13 +363,16 @@ def _create_cap(
 
     if definition.spore_pouches:
         # Paired bulbs make the ranged enemy recognizable before its purple palette is visible.
+        # Runtime scales only this semantic root during the charge/release, so the whole
+        # mushroom does not have to inflate like a balloon.
+        spore_root = create_empty("SporePouchRoot", body_root, (0.0, 0.0, 0.0))
         for index, side in enumerate((-1, 1), start=1):
             pouch = create_ellipsoid(
                 f"SporePouch_{index:02d}",
                 (side * cap_x * 0.78, cap_center_y - cap_y * 0.02, cap_center_z - cap_z * 0.47),
                 (0.115, 0.10, 0.15),
                 accent_material,
-                body_root,
+                spore_root,
                 segments=18,
                 rings=12,
             )
@@ -379,7 +382,7 @@ def _create_cap(
                 (side * cap_x * 0.88, cap_center_y - cap_y * 0.04, cap_center_z - cap_z * 0.28),
                 (0.045, 0.038, 0.052),
                 spot_material,
-                body_root,
+                spore_root,
                 segments=12,
                 rings=8,
             )
