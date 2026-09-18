@@ -1,14 +1,11 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useGameController, useGameState } from '../app/GameProvider';
 import { selectDispatchScreen, selectGlobalHud } from '../application/selectors/ui-selectors';
+import { DispatchHomeIcon, DispatchLandmarkIcon } from '../components/DispatchLandmarkIcon';
+import { DispatchMapStage, type DispatchTraveler } from '../components/DispatchMapStage';
+import { dispatchRoutePresentation } from '../game/dispatch-presentation';
 import { getSlimePresentation } from '../game/slimes';
 import type { DispatchContractId, SlimeInstanceId } from '../domain';
-
-const ROUTE_META: Readonly<Record<DispatchContractId, Readonly<{ x: number; y: number; icon: string; subtitle: string }>>> = {
-  roadEscort: { x: 26, y: 34, icon: '⚑', subtitle: '街道の護衛' },
-  forestExploration: { x: 72, y: 28, icon: '♧', subtitle: '森の探索' },
-  materialGathering: { x: 59, y: 69, icon: '◆', subtitle: '素材採集' },
-};
 
 export function DispatchScreen() {
   const state = useGameState();
@@ -37,14 +34,17 @@ export function DispatchScreen() {
   const selectedPower = contract.eligibleSlimes.find((slime) => slime.id === selectedSlime)?.power ?? 0;
   const canSend = selectedSlime !== null && selectedPower >= contract.requiredPower && contract.status !== 'running';
 
-  const runningPresentations = useMemo(() => Object.fromEntries(
-    view.contracts.flatMap((item) => {
-      if (item.slimeId === null) return [];
-      const slime = state.gameData.roster.slimes[item.slimeId];
-      if (slime === undefined) return [];
-      return [[item.id, getSlimePresentation(slime)] as const];
-    }),
-  ), [state.gameData.roster.slimes, view.contracts]);
+  const travelers = useMemo<readonly DispatchTraveler[]>(() => view.contracts.flatMap((item) => {
+    if (item.status !== 'running' || item.slimeId === null || item.durationSec <= 0) return [];
+    const slime = state.gameData.roster.slimes[item.slimeId];
+    if (slime === undefined) return [];
+    const presentation = getSlimePresentation(slime);
+    return [{
+      contractId: item.id,
+      asset: presentation.asset,
+      progress: Math.max(0, Math.min(1, 1 - item.remainingSec / item.durationSec)),
+    }];
+  }), [state.gameData.roster.slimes, view.contracts]);
 
   return (
     <section className="screen screen--dispatch-world screen--active" aria-label="派遣">
@@ -54,21 +54,14 @@ export function DispatchScreen() {
       </header>
 
       <div className="dispatch-map">
-        <div className="dispatch-map__sky" />
-        <div className="dispatch-map__land dispatch-map__land--left" />
-        <div className="dispatch-map__land dispatch-map__land--right" />
-        <div className="dispatch-map__river" />
-        <div className="dispatch-map__road dispatch-map__road--a" />
-        <div className="dispatch-map__road dispatch-map__road--b" />
-        <div className="dispatch-map__road dispatch-map__road--c" />
-        <div className="dispatch-map__home"><span>⌂</span><small>キャンプ</small></div>
+        <DispatchMapStage travelers={travelers} />
+        <div className="dispatch-map__home">
+          <span><DispatchHomeIcon /></span>
+          <small>キャンプ</small>
+        </div>
 
         {view.contracts.map((item) => {
-          const meta = ROUTE_META[item.id];
-          const progress = item.status !== 'running' || item.durationSec <= 0
-            ? 0
-            : Math.max(0, Math.min(1, 1 - item.remainingSec / item.durationSec));
-          const running = runningPresentations[item.id];
+          const meta = dispatchRoutePresentation[item.id];
           return (
             <button
               key={item.id}
@@ -77,13 +70,11 @@ export function DispatchScreen() {
               style={{ left: `${meta.x}%`, top: `${meta.y}%` }}
               onClick={() => setSelectedContract(item.id)}
             >
-              <span className="dispatch-map-node__marker">{meta.icon}</span>
-              <span className="dispatch-map-node__copy"><strong>{item.name}</strong><small>{item.status === 'running' ? formatDuration(item.remainingSec) : item.rewardLabel}</small></span>
-              {item.status === 'running' && running !== undefined && (
-                <span className="dispatch-map-node__traveler" style={{ '--route-progress': progress } as CSSProperties}>
-                  <img src={`${import.meta.env.BASE_URL}${running.icon}`} alt="" />
-                </span>
-              )}
+              <span className="dispatch-map-node__marker"><DispatchLandmarkIcon kind={meta.landmark} /></span>
+              <span className="dispatch-map-node__copy">
+                <strong>{item.name}</strong>
+                <small>{item.status === 'running' ? formatDuration(item.remainingSec) : item.rewardLabel}</small>
+              </span>
             </button>
           );
         })}
@@ -91,7 +82,7 @@ export function DispatchScreen() {
 
       <div className={`dispatch-console ${contract.status === 'running' ? 'is-running' : ''}`}>
         <div className="dispatch-console__head">
-          <div><span>{ROUTE_META[contract.id].subtitle}</span><strong>{contract.name}</strong></div>
+          <div><span>{dispatchRoutePresentation[contract.id].subtitle}</span><strong>{contract.name}</strong></div>
           <div className="dispatch-console__reward"><span>報酬</span><strong>{contract.rewardLabel}</strong></div>
         </div>
 
@@ -128,7 +119,7 @@ export function DispatchScreen() {
                 setNotice(result.accepted ? `${contract.name}へ出発しました` : rejectionLabel(result.reason));
               }}
             >
-              <span>▶</span><strong>出発させる</strong>
+              <strong>出発させる</strong>
             </button>
           </>
         )}

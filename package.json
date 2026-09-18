@@ -21,6 +21,7 @@
     "generate:tier1": "tools/blender/generate_tier1_parallel.sh",
     "generate:environment:clover": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/build_clover_road_environment.py -- --output public/assets/environments/clover-road-battlefield.glb",
     "generate:environment:camp": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/build_camp_environment.py -- --output public/assets/environments/camp.glb",
+    "generate:environment:dispatch": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/build_dispatch_map.py -- --output public/assets/environments/dispatch-map.glb",
     "generate:reward:chest": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/build_reward_chest.py -- --output public/assets/rewards/battle-chest.glb",
     "generate:enemy:tiny": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/build.py -- --slug tiny-mushroom --output public/assets/enemies/tiny-mushroom.glb",
     "generate:enemy:plump": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/build.py -- --slug plump-mushroom --output public/assets/enemies/plump-mushroom.glb",
