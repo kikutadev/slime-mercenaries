@@ -96,6 +96,8 @@ Plain Slime stock x1 + Job Gear x1 -> resolve job creation
 
 Job Gear is a profession catalyst and is separate from persistent combat Equipment. The first Sword/Bow Job Gear is tutorial-guaranteed; later normal Job Gear families unlock deterministically with area progression. Random drops may accelerate acquisition but cannot be the only route.
 
+The area gate is authoritative in the job-creation command, not merely UI hiding: Sword/Bow require Clover Road, Wand/Dagger require Mushroom Forest, and Shield/Gun require Amber Mine. Owning the Job Gear early does not bypass the gate. The public validation sandbox may explicitly unlock those authored areas at the Application boundary so all six normal families remain testable without weakening the production command.
+
 Resolution:
 
 - undiscovered job -> create the first persistent instance and mark the type NEW

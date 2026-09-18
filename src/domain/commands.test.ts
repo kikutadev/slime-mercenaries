@@ -14,6 +14,7 @@ import {
   fuseSlime,
   levelUpSlime,
   plainSlimePurchaseCost,
+  previewJobCreation,
   previewPlainSlimeCraft,
   previewSlimeFusion,
   previewSlimeLevelUp,
@@ -27,7 +28,7 @@ import {
   resolveCurrencyDefinition,
 } from './definitions';
 import { firstSlimeIdByType, slimeIdsByType } from './roster';
-import { createInitialSlimeMercenariesState, type SlimeMercenariesState } from './state';
+import { createInitialSlimeMercenariesState, withAreaUnlocked, type SlimeMercenariesState } from './state';
 
 function createSword(state = createInitialSlimeMercenariesState(1_000, 1)) {
   const crafted = craftPlainSlime(state);
@@ -110,6 +111,34 @@ describe('Plain Slime economy', () => {
 });
 
 describe('normal job creation', () => {
+  it('gates normal families by authored area unlock even when their materials are already owned', () => {
+    const definition = jobCreationDefinitions.wand;
+    const initial = createInitialSlimeMercenariesState(1_000, 13);
+    const funded: SlimeMercenariesState = {
+      ...initial,
+      tokens: grantToken(
+        grantToken(initial.tokens, ids.token.plainSlime, definition.plainSlimeCount),
+        definition.jobGearTokenId,
+        definition.jobGearCount,
+      ),
+    };
+    expect(previewJobCreation(funded, 'wand')).toMatchObject({
+      unlockAreaId: 'area.mushroom-forest',
+      unlocked: false,
+      canCreate: false,
+    });
+    expect(createJobSlime(funded, 'wand')).toMatchObject({ accepted: false, reason: 'job-locked' });
+
+    const unlocked: SlimeMercenariesState = {
+      ...funded,
+      gameData: {
+        ...funded.gameData,
+        progression: withAreaUnlocked(funded.gameData.progression, definition.unlockAreaId),
+      },
+    };
+    expect(previewJobCreation(unlocked, 'wand')).toMatchObject({ unlocked: true, canCreate: true });
+    expect(createJobSlime(unlocked, 'wand').accepted).toBe(true);
+  });
   it('discovers one persistent Sword Slime from Plain Slime + Job Gear', () => {
     const { state, swordId } = createSword();
     const definition = jobCreationDefinitions.sword;

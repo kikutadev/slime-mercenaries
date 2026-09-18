@@ -242,6 +242,8 @@ export function selectCreateSlimePanel(state: SlimeMercenariesState) {
         canCreate: preview.canCreate,
         isNew: preview.isNewDiscovery,
         resultKind: preview.resultKind,
+        unlockAreaId: preview.unlockAreaId,
+        unlocked: preview.unlocked,
         requirements: preview.requirements,
         icon: getSlimePresentationForRank(jobId, 1).icon,
       };

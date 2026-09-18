@@ -4,7 +4,7 @@ import { assignSlimeToFormation, partyCombatDps } from './combat';
 import { convertDuplicateToFusionCore, craftPlainSlime, createJobSlime, fuseSlime, levelUpSlime } from './commands';
 import { fusionStepDefinitions, ids, jobCreationDefinitions, NORMAL_JOB_SLIME_IDS, resolveCurrencyDefinition } from './definitions';
 import { slimeIdsByType } from './roster';
-import { createInitialSlimeMercenariesState, type SlimeMercenariesState } from './state';
+import { createInitialSlimeMercenariesState, withAreaUnlocked, type SlimeMercenariesState } from './state';
 import { applyRewards } from 'idle-game-kit';
 
 function createTwoSwords(): Readonly<{ state: SlimeMercenariesState; ids: readonly string[] }> {
@@ -66,6 +66,10 @@ describe('multi-slime roster', () => {
           definition.jobGearTokenId,
           definition.jobGearCount * 2,
         ),
+        gameData: {
+          ...state.gameData,
+          progression: withAreaUnlocked(state.gameData.progression, definition.unlockAreaId),
+        },
       };
       const first = createJobSlime(state, typeId);
       if (!first.accepted) throw new Error(`${typeId} first creation failed`);

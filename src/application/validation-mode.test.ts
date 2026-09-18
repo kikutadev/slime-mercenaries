@@ -15,18 +15,9 @@ import { selectBattleSceneModel } from './selectors/battle-scene';
 import { applyValidationSandboxResources, prepareValidationRoster } from './validation-mode';
 
 function createAllFamilies() {
-  let state = applyValidationSandboxResources(createInitialSlimeMercenariesState(0, 41));
-  for (const [slotIndex, typeId] of NORMAL_JOB_SLIME_IDS.entries()) {
-    const created = createJobSlime(state, typeId);
-    if (!created.accepted) throw new Error(`create ${typeId} rejected: ${created.reason}`);
-    state = applyValidationSandboxResources(created.state);
-    const slimeId = firstSlimeIdByType(state, typeId);
-    if (slimeId === null) throw new Error(`created ${typeId} missing`);
-    const assigned = assignSlimeToFormation(state, slimeId, slotIndex);
-    if (!assigned.accepted) throw new Error(`assign ${typeId} rejected: ${assigned.reason}`);
-    state = applyValidationSandboxResources(assigned.state);
-  }
-  return state;
+  const prepared = prepareValidationRoster(createInitialSlimeMercenariesState(0, 41));
+  if (!prepared.accepted) throw new Error(`prepare validation roster rejected: ${prepared.reason}`);
+  return prepared.state;
 }
 
 describe('public validation sandbox', () => {
@@ -50,10 +41,9 @@ describe('public validation sandbox', () => {
   });
 
   it('uses explicit production promotion commands for Tier-3 branches per instance', () => {
-    let state = applyValidationSandboxResources(createInitialSlimeMercenariesState(0, 51));
-    const created = createJobSlime(state, 'shield');
-    if (!created.accepted) throw new Error(`create shield rejected: ${created.reason}`);
-    state = applyValidationSandboxResources(created.state);
+    const prepared = prepareValidationRoster(createInitialSlimeMercenariesState(0, 51));
+    if (!prepared.accepted) throw new Error(`prepare validation roster rejected: ${prepared.reason}`);
+    let state = prepared.state;
     const shieldId = firstSlimeIdByType(state, 'shield');
     if (shieldId === null) throw new Error('shield missing');
 

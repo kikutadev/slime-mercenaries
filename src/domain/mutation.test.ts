@@ -4,7 +4,7 @@ import { createJobSlime } from './commands';
 import { ids, jobCreationDefinitions, type JobSlimeId } from './definitions';
 import { grantMutationCatalyst, grantMutationFragments, mutateSlime, previewSlimeMutation } from './mutation';
 import { firstSlimeIdByType } from './roster';
-import { createInitialSlimeMercenariesState, type SlimeMercenariesState } from './state';
+import { createInitialSlimeMercenariesState, withAreaUnlocked, type SlimeMercenariesState } from './state';
 
 function createOwned(typeId: JobSlimeId, jobTier: number): Readonly<{ state: SlimeMercenariesState; slimeId: string }> {
   const definition = jobCreationDefinitions[typeId];
@@ -16,6 +16,10 @@ function createOwned(typeId: JobSlimeId, jobTier: number): Readonly<{ state: Sli
       definition.jobGearTokenId,
       definition.jobGearCount,
     ),
+    gameData: {
+      ...state.gameData,
+      progression: withAreaUnlocked(state.gameData.progression, definition.unlockAreaId),
+    },
   };
   const created = createJobSlime(state, typeId);
   if (!created.accepted) throw new Error(`setup ${typeId} creation failed`);

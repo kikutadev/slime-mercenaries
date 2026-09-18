@@ -131,6 +131,7 @@ Status: In Progress
 - Forge now contains one Common/Rare/Mythic weapon for all six families using the same per-family 55/18/2 weight pattern, preserving the prior aggregate rarity ratio.
 - Existing-body Rare Mutation state exists for King/Golden/Dragon/Prism, with Controller/selector/presentation integration. Fragment thresholds are intentionally not invented. Dragon selected origins remain closed until authored; Mimic remains a separate special-capture problem.
 - The authored eight-area horizon is registered in sequence. Stage progression is definition-driven, per-area highest progress is durable, and unlocked stages can be revisited through one Domain command. Areas 2-8 still need actual stage/enemy/reward content; empty future areas are not treated as playable.
+- Normal job creation enforces the authored area gates: Sword/Bow at Clover Road, Wand/Dagger at Mushroom Forest, Shield/Gun at Amber Mine. Validation mode explicitly unlocks those area definitions only for sandbox testing.
 
 ## Verification contract
 

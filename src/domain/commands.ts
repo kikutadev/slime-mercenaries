@@ -54,6 +54,8 @@ export type JobCreationPreview = Readonly<{
   isNewDiscovery: boolean;
   resultKind: 'discover-job' | 'recruit-duplicate';
   resultTokenId: string | null;
+  unlockAreaId: string;
+  unlocked: boolean;
   requirements: readonly TokenRequirementPreview[];
   canCreate: boolean;
 }>;
@@ -165,6 +167,11 @@ export function buyPlainSlime(
   })]);
 }
 
+export function isJobCreationUnlocked(state: SlimeMercenariesState, jobId: JobSlimeId): boolean {
+  const unlockAreaId = jobCreationDefinitions[jobId].unlockAreaId;
+  return state.gameData.progression.areas[unlockAreaId] !== undefined;
+}
+
 /** Preview normal-job creation without mutating roster or inventory. */
 export function previewJobCreation(
   state: SlimeMercenariesState,
@@ -172,6 +179,7 @@ export function previewJobCreation(
 ): JobCreationPreview {
   const definition = jobCreationDefinitions[jobId];
   const discovered = isJobDiscovered(state, jobId);
+  const unlocked = isJobCreationUnlocked(state, jobId);
   const requirements: readonly TokenRequirement[] = [
     { tokenId: ids.token.plainSlime, count: definition.plainSlimeCount },
     { tokenId: definition.jobGearTokenId, count: definition.jobGearCount },
@@ -182,8 +190,10 @@ export function previewJobCreation(
     isNewDiscovery: !discovered,
     resultKind: discovered ? 'recruit-duplicate' : 'discover-job',
     resultTokenId: null,
+    unlockAreaId: definition.unlockAreaId,
+    unlocked,
     requirements: preview,
-    canCreate: preview.every((requirement) => requirement.missing === 0),
+    canCreate: unlocked && preview.every((requirement) => requirement.missing === 0),
   };
 }
 
@@ -191,9 +201,10 @@ export function previewJobCreation(
 export function createJobSlime(
   state: SlimeMercenariesState,
   jobId: JobSlimeId,
-): CommandResult<SlimeMercenariesState, 'insufficient-inputs'> {
+): CommandResult<SlimeMercenariesState, 'job-locked' | 'insufficient-inputs'> {
   const definition = jobCreationDefinitions[jobId];
   const preview = previewJobCreation(state, jobId);
+  if (!preview.unlocked) return reject(state, 'job-locked');
   if (!preview.canCreate) return reject(state, 'insufficient-inputs');
 
   const requirements: readonly TokenRequirement[] = [
