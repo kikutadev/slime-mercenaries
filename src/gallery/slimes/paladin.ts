@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#d8c77c',
   inspectionFacingYawDegrees: 90,
   inspectionSideDistance: 1.34,
-  equipmentAnchor: null,
-  weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. Platinum aegis and halo establish the sacred sustain-tank silhouette; barrier pulse remains production-runtime work.',
+  equipmentAnchor: 'PaladinShieldAnchor',
+  weaponTipName: 'PaladinShieldAnchor',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production holy signature: white-gold shield consecration, heavy sacred strike, then sanctuary barrier.',
 };
 
 export default definition;

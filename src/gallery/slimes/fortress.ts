@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#8b8174',
   inspectionFacingYawDegrees: 90,
   inspectionSideDistance: 1.46,
-  equipmentAnchor: null,
-  weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. Wide planted pavise establishes the pure-tank silhouette; plant-and-lock behavior remains production-runtime work.',
+  equipmentAnchor: 'FortressShieldAnchor',
+  weaponTipName: 'FortressShieldAnchor',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production fortress signature: deep brace, pavise plant, ground wave and persistent fortify lock.',
 };
 
 export default definition;

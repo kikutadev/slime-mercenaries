@@ -13,9 +13,9 @@ const definition: SlimeGalleryDefinition = {
   inspectionSideDistance: 1.48,
   equipmentAnchor: 'StormBowAnchor',
   weaponTipName: null,
-  availableMotions: ['idle', 'attack', 'defeat'],
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
   implementationStatus: 'implemented',
-  notes: 'Production storm signature: charged jump into three-way electric fan volley with chain-lightning aftermath.',
+  notes: 'Production storm signature: charged jump into three explicit electric fan trajectories with chain-lightning aftermath.',
 };
 
 export default definition;

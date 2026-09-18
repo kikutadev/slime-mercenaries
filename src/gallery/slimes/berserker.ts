@@ -15,7 +15,7 @@ const definition: SlimeGalleryDefinition = {
   weaponTipName: 'WeaponTip',
   availableMotions: ['idle', 'move', 'attack', 'defeat'],
   implementationStatus: 'implemented',
-  notes: 'Production heavy signature: deep coil, explosive release, impact shards/ring, strong hit-stop and camera impulse.',
+  notes: 'Production heavy signature: deep compression, committed release, ground impact/debris and long violent recoil.',
 };
 
 export default definition;

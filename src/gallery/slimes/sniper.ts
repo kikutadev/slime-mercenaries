@@ -13,7 +13,7 @@ const definition: SlimeGalleryDefinition = {
   inspectionSideDistance: 1.58,
   equipmentAnchor: 'SniperBowAnchor',
   weaponTipName: null,
-  availableMotions: ['idle', 'attack', 'defeat'],
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
   implementationStatus: 'implemented',
   notes: 'Production precision signature: still aim, sight lock, instantaneous piercing-line release and heavy recoil.',
 };

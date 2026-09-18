@@ -19,16 +19,37 @@ function initialSlimeId(): string {
   return slimeGalleryCatalog[0]?.id ?? '';
 }
 
+function initialMotion(): GalleryMotionId {
+  const requested = new URLSearchParams(window.location.search).get('motion');
+  if (requested && ['idle', 'move', 'attack', 'hit', 'defeat'].includes(requested)) {
+    return requested as GalleryMotionId;
+  }
+  return 'idle';
+}
+
+function initialSpeed(): (typeof SPEEDS)[number] {
+  const requested = Number(new URLSearchParams(window.location.search).get('speed'));
+  return SPEEDS.includes(requested as (typeof SPEEDS)[number])
+    ? requested as (typeof SPEEDS)[number]
+    : 1;
+}
+
+function initialCameraMode(): GalleryCameraId {
+  const requested = new URLSearchParams(window.location.search).get('camera');
+  if (requested === 'inspection' || requested === 'gameplay' || requested === 'front') return requested;
+  return 'inspection';
+}
+
 export default function GalleryApp() {
   const [selectedId, setSelectedId] = useState(initialSlimeId);
   const selected = useMemo(
     () => slimeGalleryCatalog.find((item) => item.id === selectedId) ?? slimeGalleryCatalog[0],
     [selectedId],
   );
-  const [motion, setMotion] = useState<GalleryMotionId>('idle');
-  const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
+  const [motion, setMotion] = useState<GalleryMotionId>(initialMotion);
+  const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(initialSpeed);
   const [loop, setLoop] = useState(true);
-  const [cameraMode, setCameraMode] = useState<GalleryCameraId>('inspection');
+  const [cameraMode, setCameraMode] = useState<GalleryCameraId>(initialCameraMode);
   const [showDummy, setShowDummy] = useState(true);
   const [replayKey, setReplayKey] = useState(0);
 
@@ -36,10 +57,13 @@ export default function GalleryApp() {
     if (!selected) return;
     const params = new URLSearchParams(window.location.search);
     params.set('slime', selected.id);
-    window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+    params.set('motion', motion);
+    params.set('speed', String(speed));
+    params.set('camera', cameraMode);
+    window.history.replaceState(null, '', window.location.pathname + '?' + params.toString());
     if (!selected.availableMotions.includes(motion)) setMotion('idle');
     setReplayKey((value) => value + 1);
-  }, [selected, motion]);
+  }, [cameraMode, motion, selected, speed]);
 
   if (!selected) {
     return <main className="gallery-empty">No gallery definitions are registered.</main>;

@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#6954c5',
   inspectionFacingYawDegrees: 90,
   inspectionSideDistance: 1.4,
-  equipmentAnchor: null,
+  equipmentAnchor: 'WandAnchor',
   weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. Tall star hat and orbiting-mote vocabulary establish Archmage; meteor/rune burst remains production-runtime work.',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production grand-spell signature: rune convergence, giant ritual circle, meteor descent and screen-dominant impact.',
 };
 
 export default definition;

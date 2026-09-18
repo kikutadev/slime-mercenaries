@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#45455d',
   inspectionFacingYawDegrees: 90,
   inspectionSideDistance: 1.28,
-  equipmentAnchor: null,
-  weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. Scarf, forehead plate and shuriken vocabulary establish Ninja; vanish-through multi-hit remains production-runtime work.',
+  equipmentAnchor: 'WeaponAnchor',
+  weaponTipName: 'WeaponTip',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production ninja signature: smoke vanish, repeated afterimage passes, reappearance and clustered delayed slash lines.',
 };
 
 export default definition;

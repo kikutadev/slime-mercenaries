@@ -15,7 +15,7 @@ const definition: SlimeGalleryDefinition = {
   weaponTipName: 'WeaponTip',
   availableMotions: ['idle', 'move', 'attack', 'defeat'],
   implementationStatus: 'implemented',
-  notes: 'Production dash-through signature: near-instant pass-through, delayed cyan cut line and real line damage in BattleRuntime.',
+  notes: 'Production iaijutsu signature: near-invisible pass-through, behind-target stillness and delayed oversized cut.',
 };
 
 export default definition;

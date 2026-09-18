@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#a06938',
   inspectionFacingYawDegrees: 90,
   inspectionSideDistance: 1.5,
-  equipmentAnchor: null,
+  equipmentAnchor: 'EngineerWrenchAnchor',
   weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. Goggles, wrench and independent turret establish Engineer; deployable turret behavior remains production-runtime work.',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production engineer signature: loose-part gathering, jelly-assisted assembly, real model turret deployment, activation and short burst.',
 };
 
 export default definition;
