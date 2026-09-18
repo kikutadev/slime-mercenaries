@@ -13,6 +13,7 @@ import { balance } from './balance';
 import { equippedWeaponCombatMultiplier } from './equipment';
 import {
   resolveStageDefinition,
+  resolveNextWorldStageDefinition,
   ids,
   typeLevelDefinitions,
   type StageBossDefinition,
@@ -125,6 +126,34 @@ export function currentStageDefinition(state: SlimeMercenariesState): StageDefin
   return resolveStageDefinition(state.gameData.progression.currentAreaId, state.gameData.progression.currentStage);
 }
 
+export function resumeAvailableCombatContent(state: SlimeMercenariesState): SlimeMercenariesState {
+  if (!state.gameData.combat.contentBoundaryReached) return state;
+  const nextStage = resolveNextWorldStageDefinition(
+    state.gameData.progression.currentAreaId,
+    state.gameData.progression.currentStage,
+  );
+  if (nextStage === null) return state;
+
+  return {
+    ...state,
+    gameData: {
+      ...state.gameData,
+      progression: {
+        ...state.gameData.progression,
+        currentAreaId: nextStage.areaId,
+        currentStage: nextStage.stageNumber,
+      },
+      combat: {
+        currentWaveIndex: 0,
+        waveWorkRemaining: null,
+        retryFarmClearsRemaining: 0,
+        frontierDefeatTimeRemainingSec: null,
+        contentBoundaryReached: false,
+      },
+    },
+  };
+}
+
 export function currentCombatEncounter(state: SlimeMercenariesState): CombatEncounter | null {
   const stage = currentStageDefinition(state);
   if (stage === null || state.gameData.combat.contentBoundaryReached) return null;
@@ -184,9 +213,10 @@ export function advanceCombatTo(
   if (!Number.isSafeInteger(targetSimTimeSec) || targetSimTimeSec < state.simTimeSec) {
     throw new RangeError('targetSimTimeSec must be a safe integer at or after current sim time.');
   }
-  if (targetSimTimeSec === state.simTimeSec) return { state, events: [] };
+  const resumedState = resumeAvailableCombatContent(state);
+  if (targetSimTimeSec === state.simTimeSec) return { state: resumedState, events: [] };
 
-  let nextState = state;
+  let nextState = resumedState;
   const events: DomainEvent[] = [];
   let guard = 0;
 
@@ -392,7 +422,7 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
   }
 
   const nextHighestStageCleared = Math.max(highestStageCleared, stage.stageNumber);
-  const nextStage = resolveStageDefinition(stage.areaId, stage.stageNumber + 1);
+  const nextStage = resolveNextWorldStageDefinition(stage.areaId, stage.stageNumber);
   if (nextStage === null) {
     nextState = {
       ...nextState,
@@ -415,6 +445,7 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
         ...nextState.gameData,
         progression: {
           ...withHighestStageClearedForArea(nextState.gameData.progression, stage.areaId, nextHighestStageCleared),
+          currentAreaId: nextStage.areaId,
           currentStage: nextStage.stageNumber,
         },
         combat: {
@@ -432,6 +463,7 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
     events: [semanticEvent(nextState, 'stageCleared', stage.id, {
       stageId: stage.id,
       stageNumber: stage.stageNumber,
+      nextAreaId: nextStage?.areaId ?? null,
       nextStageNumber: nextStage?.stageNumber ?? null,
       farming: false,
     })],

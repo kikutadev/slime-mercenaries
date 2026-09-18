@@ -5,6 +5,7 @@ import { NORMAL_JOB_SLIME_IDS, type DispatchContractId, type JobSlimeId } from '
 import {
   SLIME_MERCENARIES_DEFINITION_VERSION,
   SLIME_MERCENARIES_SCHEMA_VERSION,
+  createInitialAreaProgressState,
   createInitialEquipmentState,
   createInitialMutationProgressState,
   createSlimeWeaponLoadout,
@@ -130,8 +131,25 @@ type SchemaV4State = Omit<SlimeMercenariesState, 'gameData'> & {
   gameData: Omit<SlimeMercenariesState['gameData'], 'progression'> & { progression: LegacyProgressionState };
 };
 
+function normalizeCurrentState(state: SlimeMercenariesState): SlimeMercenariesState {
+  const defaults = createInitialAreaProgressState();
+  const hasAllKnownAreas = Object.keys(defaults).every((areaId) => state.gameData.progression.areas[areaId] !== undefined);
+  if (hasAllKnownAreas) return state;
+
+  return {
+    ...state,
+    gameData: {
+      ...state.gameData,
+      progression: {
+        ...state.gameData.progression,
+        areas: { ...defaults, ...state.gameData.progression.areas },
+      },
+    },
+  };
+}
+
 function migrateStoredState(state: SlimeMercenariesState): SlimeMercenariesState {
-  if (state.schemaVersion === SLIME_MERCENARIES_SCHEMA_VERSION) return state;
+  if (state.schemaVersion === SLIME_MERCENARIES_SCHEMA_VERSION) return normalizeCurrentState(state);
   if (state.schemaVersion === 4) return migrateSchemaV4State(state as unknown as SchemaV4State);
   if (![0, 1, 2, 3].includes(state.schemaVersion)) {
     throw new Error(`Unsupported Slime Mercenaries schemaVersion: ${state.schemaVersion}`);
@@ -194,6 +212,7 @@ function migrateLegacyProgression(progression: LegacyProgressionState): SlimePro
     currentAreaId: progression.currentAreaId,
     currentStage: progression.currentStage,
     areas: {
+      ...createInitialAreaProgressState(),
       [progression.currentAreaId]: { highestStageCleared: progression.highestStageCleared },
     },
   };

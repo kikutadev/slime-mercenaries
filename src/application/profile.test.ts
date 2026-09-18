@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ProfileRepository, StoredProfile } from 'idle-game-kit';
 import { craftPlainSlime, createJobSlime } from '../domain/commands';
 import { assignSlimeToFormation } from '../domain/combat';
+import { AREA_IDS } from '../domain/definitions';
 import { firstSlimeIdByType } from '../domain/roster';
 import {
   createInitialSlimeMercenariesState,
@@ -112,6 +113,29 @@ it('preserves a partially elapsed frontier defeat across reloads without restart
   expect(resolved.state.gameData.combat.frontierDefeatTimeRemainingSec).toBeNull();
   expect(resolved.state.gameData.combat.retryFarmClearsRemaining).toBe(3);
   expect(resolved.offlineEvents.some((event) => event.type === 'partyDefeated')).toBe(true);
+});
+
+it('normalizes current schema saves with sparse area progress without losing cleared stages', async () => {
+  const repository = new MemoryProfileRepository();
+  const current = createInitialSlimeMercenariesState(1_000, 19);
+  const sparse: SlimeMercenariesState = {
+    ...current,
+    gameData: {
+      ...current.gameData,
+      progression: {
+        ...current.gameData.progression,
+        currentStage: 4,
+        areas: { 'area.clover-road': { highestStageCleared: 3 } },
+      },
+    },
+  };
+  await repository.save({ profileId: 'default', savedAtMs: 1_000, state: sparse });
+
+  const loaded = await loadOrCreateSlimeProfile({ repository, nowMs: 1_000 });
+  expect(Object.keys(loaded.state.gameData.progression.areas)).toEqual([...AREA_IDS]);
+  expect(loaded.state.gameData.progression.areas['area.clover-road']?.highestStageCleared).toBe(3);
+  expect(loaded.state.gameData.progression.currentStage).toBe(4);
+  expect(repository.profiles.get('default')?.state.gameData.progression.areas).toEqual(loaded.state.gameData.progression.areas);
 });
 
 it('migrates a schema-v3 canonical roster into stable slime instances without losing formation/loadout', async () => {

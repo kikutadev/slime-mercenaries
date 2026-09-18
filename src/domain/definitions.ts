@@ -61,6 +61,18 @@ export const ids = {
 export const NORMAL_JOB_SLIME_IDS = ['sword', 'shield', 'bow', 'wand', 'dagger', 'gun'] as const;
 export type JobSlimeId = typeof NORMAL_JOB_SLIME_IDS[number];
 
+export const AREA_IDS = [
+  'area.clover-road',
+  'area.mushroom-forest',
+  'area.amber-mine',
+  'area.sunken-marsh',
+  'area.frost-ruins',
+  'area.ember-canyon',
+  'area.moonlit-castle',
+  'area.dragon-crater',
+] as const;
+export type AreaId = typeof AREA_IDS[number];
+
 export type TokenRequirement = Readonly<{
   tokenId: string;
   count: number;
@@ -736,26 +748,48 @@ export const cloverRoadStageDefinitions: readonly StageDefinition[] = balance.co
 }));
 
 export type AreaDefinition = Readonly<{
-  id: string;
+  id: AreaId;
   displayName: string;
   stages: readonly StageDefinition[];
 }>;
 
-export const areaDefinitions: Readonly<Record<string, AreaDefinition>> = {
-  'area.clover-road': {
-    id: 'area.clover-road',
-    displayName: 'クローバー街道',
-    stages: cloverRoadStageDefinitions,
-  },
+/**
+ * Stable first-world area manifest. Planned areas are registered before their combat content so
+ * save/progression code never needs area-specific branches when later stages are authored.
+ */
+export const areaDefinitions: Readonly<Record<AreaId, AreaDefinition>> = {
+  'area.clover-road': { id: 'area.clover-road', displayName: 'クローバー街道', stages: cloverRoadStageDefinitions },
+  'area.mushroom-forest': { id: 'area.mushroom-forest', displayName: 'Mushroom Forest', stages: [] },
+  'area.amber-mine': { id: 'area.amber-mine', displayName: 'Amber Mine', stages: [] },
+  'area.sunken-marsh': { id: 'area.sunken-marsh', displayName: 'Sunken Marsh', stages: [] },
+  'area.frost-ruins': { id: 'area.frost-ruins', displayName: 'Frost Ruins', stages: [] },
+  'area.ember-canyon': { id: 'area.ember-canyon', displayName: 'Ember Canyon', stages: [] },
+  'area.moonlit-castle': { id: 'area.moonlit-castle', displayName: 'Moonlit Castle', stages: [] },
+  'area.dragon-crater': { id: 'area.dragon-crater', displayName: 'Dragon Crater', stages: [] },
 };
 
 export function resolveAreaDefinition(areaId: string): AreaDefinition | undefined {
-  return areaDefinitions[areaId];
+  return areaDefinitions[areaId as AreaId];
+}
+
+export function resolveNextAreaDefinition(areaId: string): AreaDefinition | null {
+  const index = AREA_IDS.indexOf(areaId as AreaId);
+  if (index < 0) return null;
+  const nextAreaId = AREA_IDS[index + 1];
+  return nextAreaId === undefined ? null : areaDefinitions[nextAreaId];
 }
 
 export function resolveStageDefinition(areaId: string, stageNumber: number): StageDefinition | null {
   if (!Number.isSafeInteger(stageNumber) || stageNumber <= 0) return null;
   return resolveAreaDefinition(areaId)?.stages[stageNumber - 1] ?? null;
+}
+
+/** Resolve the next sequential stage without skipping an unauthored area. */
+export function resolveNextWorldStageDefinition(areaId: string, stageNumber: number): StageDefinition | null {
+  const sameArea = resolveStageDefinition(areaId, stageNumber + 1);
+  if (sameArea !== null) return sameArea;
+  const nextArea = resolveNextAreaDefinition(areaId);
+  return nextArea?.stages[0] ?? null;
 }
 
 export const stageDefinitionsById = new Map(

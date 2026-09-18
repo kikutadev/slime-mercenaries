@@ -107,7 +107,7 @@ Implement King / Golden / Dragon / Prism / Mimic as horizontal special forms wit
 
 ## Phase 7 — World/content expansion
 
-Status: In Progress — area registry + per-area save progression implemented
+Status: In Progress — eight-area manifest, per-area save progression, and sequential resolver implemented
 
 Expand beyond Clover Road toward the authored eight-area world. Reuse the enemy family production pipeline rather than creating area-specific one-off runtime logic.
 
@@ -128,7 +128,7 @@ Status: Planned
 - All 12 Tier-3 specializations now expose distinct battle behavior IDs, dedicated production motion contracts, and shared Gallery/BattleRuntime VFX. Tier-2 prototype fallbacks and the fake Engineer turret runtime were removed; Engineer uses the actual model turret root.
 - Forge now contains one Common/Rare/Mythic weapon for all six families using the same per-family 55/18/2 weight pattern, preserving the prior aggregate rarity ratio.
 - Existing-body Rare Mutation state exists for King/Golden/Dragon/Prism. The Application controller now exposes the authoritative mutate command, headless selectors expose per-instance eligibility/readiness, and combat rewards can carry product-owned mutation Fragment/Catalyst rewards without leaking mutation concepts into Kit Core. Fragment conversion thresholds are intentionally not invented. Dragon selected origins remain closed until authored; Mimic remains a separate special-capture problem.
-- Areas are definition-driven instead of Clover-Road hardcoded. Areas 2-8 still need stage content; only the persistence/runtime structure is complete.
+- The first-world manifest now registers all eight canonical area IDs in stable sequence. Per-area save progress is initialized/normalized for all known areas, and combat resolves the next world stage generically without skipping an unauthored area. Areas 2-8 still need authored stage/enemy/balance content.
 
 ## Verification contract
 

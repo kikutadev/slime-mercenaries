@@ -1,5 +1,5 @@
 import { GameNumber, createLoadoutState, createRngStreams, createTimedActivityState, type GameNumberSerialized, type GameState, type InventoryState, type LoadoutState, type TimedActivityState } from 'idle-game-kit';
-import { dispatchContractDefinitions, ids, initialEconomyBalance, slimeWeaponLoadoutDefinitions, type DispatchContractId, type JobSlimeId } from './definitions';
+import { AREA_IDS, dispatchContractDefinitions, ids, initialEconomyBalance, slimeWeaponLoadoutDefinitions, type DispatchContractId, type JobSlimeId } from './definitions';
 
 export const SLIME_MERCENARIES_SCHEMA_VERSION = 5;
 export const SLIME_MERCENARIES_DEFINITION_VERSION = '2026-09-18.4';
@@ -61,6 +61,10 @@ export function slimeInstanceIdForSerial(serial: number): SlimeInstanceId {
 export type AreaProgressState = Readonly<{
   highestStageCleared: number;
 }>;
+
+export function createInitialAreaProgressState(): Readonly<Record<string, AreaProgressState>> {
+  return Object.fromEntries(AREA_IDS.map((areaId) => [areaId, { highestStageCleared: 0 }])) as Readonly<Record<string, AreaProgressState>>;
+}
 
 export type SlimeProgressionState = Readonly<{
   currentAreaId: string;
@@ -156,9 +160,7 @@ export function createInitialSlimeMercenariesState(
       progression: {
         currentAreaId: 'area.clover-road',
         currentStage: 1,
-        areas: {
-          'area.clover-road': { highestStageCleared: 0 },
-        },
+        areas: createInitialAreaProgressState(),
       },
       combat: {
         currentWaveIndex: 0,
