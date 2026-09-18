@@ -11,6 +11,8 @@ import {
   selectSlimeDetail,
 } from '../application/selectors/ui-selectors';
 import type { CampSlimeReaction } from '../components/CampSlimeStage';
+import { CampEnvironmentStage } from '../components/CampEnvironmentStage';
+import { CampStationIcon } from '../components/CampStationIcon';
 import { ids, sameTypeCount, slimeInstanceIdForSerial, type JobSlimeId, type SlimeInstanceId } from '../domain';
 import { getSlimePresentation } from '../game/slimes';
 
@@ -157,10 +159,11 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
       ) : (
         <>
           <div className={`camp-world camp-world--${feedback.reaction}`}>
-            <div className="camp-world__sky" />
-            <div className="camp-world__hills camp-world__hills--far" />
-            <div className="camp-world__hills camp-world__hills--near" />
-            <div className="camp-world__ground" />
+            <CampEnvironmentStage
+              reaction={feedback.reaction}
+              reactionKey={feedback.key}
+              fusionReady={detail.fusion?.canFuse ?? false}
+            />
             {feedback.reaction === 'level-up' && feedback.title !== '' && (
               <div className="camp-gold-flight" key={`gold-${feedback.key}`} aria-hidden="true">
                 <i /><i /><i /><i /><i /><i />
@@ -169,10 +172,6 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
             {(feedback.reaction === 'level-up' || feedback.reaction === 'recruit') && feedback.title !== '' && (
               <div className="camp-reward-ring" key={`ring-${feedback.key}`} aria-hidden="true" />
             )}
-            <div className="camp-prop camp-prop--tent"><span>▲</span></div>
-            <div className="camp-prop camp-prop--dummy"><span>＋</span></div>
-            <div className="camp-prop camp-prop--flag"><span>⚑</span></div>
-
             <div className="camp-slime-stage">
               <Suspense fallback={<div className="camp-resident-stage" aria-hidden="true" />}>
                 <CampSlimeStage
@@ -198,16 +197,16 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
               type="button"
               onClick={() => setMode(mode === 'train' ? 'none' : 'train')}
             >
-              <span>⚔</span><strong>訓練</strong><small>{selectedUpgrades.some((opportunity) => opportunity.kind === 'promotion') ? '昇格可能' : selectedUpgrades.some((opportunity) => opportunity.kind === 'level') ? '強化可能' : '育成'}</small>
+              <span><CampStationIcon kind="train" /></span><strong>訓練</strong><small>{selectedUpgrades.some((opportunity) => opportunity.kind === 'promotion') ? '昇格可能' : selectedUpgrades.some((opportunity) => opportunity.kind === 'level') ? '強化可能' : '育成'}</small>
             </button>
             <button className={`camp-hotspot camp-hotspot--fusion ${detail.fusion?.canFuse ? 'is-ready' : ''}`} type="button" onClick={() => setMode('fusion')}>
-              <span>✦</span><strong>合成</strong><small>{detail.fusion?.canFuse ? '合成可能' : '合成台'}</small>
+              <span><CampStationIcon kind="fusion" /></span><strong>合成</strong><small>{detail.fusion?.canFuse ? '合成可能' : '合成台'}</small>
             </button>
             <button className="camp-hotspot camp-hotspot--nursery" type="button" onClick={() => setCreateOpen(true)}>
-              <span>●</span><strong>育成所</strong><small>仲間を増やす</small>
+              <span><CampStationIcon kind="nursery" /></span><strong>育成所</strong><small>仲間を増やす</small>
             </button>
             <button className={`camp-hotspot camp-hotspot--formation ${mode === 'formation' ? 'is-active' : ''}`} type="button" onClick={() => setMode(mode === 'formation' ? 'none' : 'formation')}>
-              <span>⚑</span><strong>編成</strong><small>{detail.assignment === 'battle' ? '出撃中' : '控え'}</small>
+              <span><CampStationIcon kind="formation" /></span><strong>編成</strong><small>{detail.assignment === 'battle' ? '出撃中' : '控え'}</small>
             </button>
 
             {mode === 'none' && state.gameData.combat.retryFarmClearsRemaining > 0 && primaryUpgrade !== null && primaryUpgradeName !== null && (

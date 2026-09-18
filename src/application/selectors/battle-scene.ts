@@ -25,6 +25,7 @@ export type BattleSceneAlly = Readonly<{
 }>;
 
 export type BattleSceneModel = Readonly<{
+  areaId: string;
   encounterKey: string;
   visualKey: string;
   stageNumber: number;
@@ -98,5 +99,5 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
     .join('|');
   const runtimeVisualKey = `${visualKey}|result:${authoritativeResult ?? '-'}`;
 
-  return { encounterKey, visualKey: runtimeVisualKey, stageNumber, waveIndex, encounter, authoritativeResult, authoritativeResultDelaySec, allies };
+  return { areaId: state.gameData.progression.currentAreaId, encounterKey, visualKey: runtimeVisualKey, stageNumber, waveIndex, encounter, authoritativeResult, authoritativeResultDelaySec, allies };
 }

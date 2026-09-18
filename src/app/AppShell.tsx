@@ -8,6 +8,7 @@ import { SlimesScreen } from '../screens/SlimesScreen';
 import { DispatchScreen } from '../screens/DispatchScreen';
 import { ForgeScreen } from '../screens/ForgeScreen';
 import type { SlimeInstanceId } from '../domain';
+import { NavIcon, type NavIconKind } from '../components/navigation/NavIcon';
 
 const BattleScreen = lazy(async () => {
   const module = await import('../screens/BattleScreen');
@@ -155,10 +156,10 @@ export function AppShell() {
         )}
 
         <nav className="bottom-nav bottom-nav--four" aria-label="メインメニュー">
-          <NavButton id="battle" label="戦闘" icon="⚔" active={activeScreen === 'battle'} attention={false} onClick={setScreen} />
-          <NavButton id="slimes" label="キャンプ" icon="⌂" active={activeScreen === 'slimes'} attention={attention.has('slimes')} onClick={setScreen} />
-          <NavButton id="dispatch" label="派遣" icon="↗" active={activeScreen === 'dispatch'} attention={attention.has('dispatch')} onClick={setScreen} />
-          <NavButton id="forge" label="鍛造" icon="◆" active={activeScreen === 'forge'} attention={attention.has('forge')} onClick={setScreen} />
+          <NavButton id="battle" label="戦闘" icon="battle" active={activeScreen === 'battle'} attention={false} onClick={setScreen} />
+          <NavButton id="slimes" label="キャンプ" icon="camp" active={activeScreen === 'slimes'} attention={attention.has('slimes')} onClick={setScreen} />
+          <NavButton id="dispatch" label="派遣" icon="dispatch" active={activeScreen === 'dispatch'} attention={attention.has('dispatch')} onClick={setScreen} />
+          <NavButton id="forge" label="鍛造" icon="forge" active={activeScreen === 'forge'} attention={attention.has('forge')} onClick={setScreen} />
         </nav>
       </section>
     </main>
@@ -175,14 +176,14 @@ function NavButton({
 }: {
   id: ScreenId;
   label: string;
-  icon: string;
+  icon: NavIconKind;
   active: boolean;
   attention: boolean;
   onClick: (screen: ScreenId) => void;
 }) {
   return (
     <button className={active ? 'is-active' : ''} type="button" onClick={() => onClick(id)}>
-      <span className="nav-icon">{icon}</span>
+      <span className="nav-icon"><NavIcon kind={icon} /></span>
       <span>{label}</span>
       {attention && <span className="nav-notice" aria-label="実行できる項目があります" />}
     </button>
