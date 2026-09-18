@@ -52,6 +52,22 @@ export interface EnemyProjectileProfile {
   arcHeight: (u: number) => number;
 }
 
+export interface EnemyAttackVfxPose {
+  telegraphOpacity: number;
+  telegraphScale: number;
+  impactStrength: number;
+}
+
+export interface EnemyAttackVfxProfile {
+  color: string;
+  radius: number;
+  pose: (u: number) => EnemyAttackVfxPose;
+  impactColor: string;
+  impactSize: number;
+  cameraShakeDuration: number;
+  cameraShakeAmplitude: number;
+}
+
 export interface EnemyMotionProfile {
   familyId: EnemyFamilyId;
   idle: (now: number, phaseOffset?: number) => EnemyPose;
@@ -66,6 +82,7 @@ export interface EnemyMotionProfile {
   contactU: number;
   defeatDuration: number;
   projectile?: EnemyProjectileProfile;
+  attackVfx?: EnemyAttackVfxProfile;
 }
 
 export function clampEnemy01(value: number): number {

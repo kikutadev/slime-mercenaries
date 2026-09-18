@@ -77,6 +77,8 @@ function EnemyModel({ definition, motion, speed, loop, showDummy, replayKey }: E
   const projectile = useMemo(() => profile.projectile?.createMesh() ?? new THREE.Group(), [profile]);
   const rootRef = useRef<THREE.Group>(null);
   const dummyRef = useRef<THREE.Group>(null);
+  const attackTelegraphRef = useRef<THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>>(null);
+  const attackImpactRef = useRef<THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>>(null);
   const startedAt = useRef(0);
   const previousReplayKey = useRef(replayKey);
   const scale = definition.productionScale ?? 0.31;
@@ -96,6 +98,8 @@ function EnemyModel({ definition, motion, speed, loop, showDummy, replayKey }: E
     if (faceRoot) { faceRoot.position.copy(faceBasePosition); faceRoot.scale.copy(faceBaseScale); }
     eyes.normalEyes.forEach((eye) => { eye.visible = true; }); eyes.xEyes.forEach((eye) => { eye.visible = false; });
     projectile.visible = false;
+    if (attackTelegraphRef.current) attackTelegraphRef.current.visible = false;
+    if (attackImpactRef.current) attackImpactRef.current.visible = false;
 
     const duration = motion === 'move' ? profile.moveDuration : motion === 'hit' ? 0.22 : motion === 'defeat' ? profile.defeatDuration : motion === 'attack' ? (profile.attackDuration + (profile.projectile?.flightSeconds ?? 0)) : 2.4;
     const elapsed = Math.max(0, (clock.elapsedTime - startedAt.current) * speed);
@@ -120,6 +124,22 @@ function EnemyModel({ definition, motion, speed, loop, showDummy, replayKey }: E
 
     const attackU = THREE.MathUtils.clamp(local / profile.attackDuration, 0, 1);
     const pose = profile.attack(attackU); root.position.addScaledVector(FORWARD, profile.attackTravelDistance * pose.travel); root.position.y += pose.jump; root.scale.set(scale * pose.scaleX, scale * pose.scaleY, scale * pose.scaleZ); root.rotation.z = pose.wobbleZ; applyEnemySecondaryPose(rigParts, rigRest, pose.secondary);
+    if (profile.attackVfx) {
+      const vfx = profile.attackVfx.pose(attackU);
+      if (attackTelegraphRef.current) {
+        attackTelegraphRef.current.visible = vfx.telegraphOpacity > 0.001;
+        attackTelegraphRef.current.position.copy(dummyHome).setY(0.014);
+        attackTelegraphRef.current.scale.setScalar(vfx.telegraphScale);
+        attackTelegraphRef.current.material.opacity = vfx.telegraphOpacity;
+        attackTelegraphRef.current.rotation.z = local * 0.22;
+      }
+      if (attackImpactRef.current) {
+        attackImpactRef.current.visible = vfx.impactStrength > 0.01;
+        attackImpactRef.current.position.copy(dummyHome).setY(0.018);
+        attackImpactRef.current.scale.setScalar(0.7 + vfx.impactStrength * 0.8);
+        attackImpactRef.current.material.opacity = vfx.impactStrength * 0.82;
+      }
+    }
     if (profile.projectile) {
       const releaseAt = profile.attackDuration * profile.contactU;
       if (local >= releaseAt) {
@@ -128,7 +148,7 @@ function EnemyModel({ definition, motion, speed, loop, showDummy, replayKey }: E
     }
   });
 
-  return <><group ref={rootRef}><primitive object={model} /></group><primitive object={projectile} /><group ref={dummyRef} visible={false}><mesh castShadow position={[0, 0.18, 0]} scale={[0.24, 0.2, 0.23]}><sphereGeometry args={[1, 28, 20]} /><meshStandardMaterial color="#61cde0" roughness={0.52} /></mesh><mesh position={[-0.06, 0.22, 0.2]}><sphereGeometry args={[0.026, 12, 8]} /><meshBasicMaterial color="#20314c" /></mesh><mesh position={[0.06, 0.22, 0.2]}><sphereGeometry args={[0.026, 12, 8]} /><meshBasicMaterial color="#20314c" /></mesh></group></>;
+  return <><group ref={rootRef}><primitive object={model} /></group><primitive object={projectile} />{profile.attackVfx && <><mesh ref={attackTelegraphRef} rotation={[-Math.PI / 2, 0, 0]} visible={false}><ringGeometry args={[profile.attackVfx.radius * 0.66, profile.attackVfx.radius, 40]} /><meshBasicMaterial color={profile.attackVfx.color} transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} /></mesh><mesh ref={attackImpactRef} rotation={[-Math.PI / 2, 0, 0]} visible={false}><ringGeometry args={[profile.attackVfx.radius * 0.72, profile.attackVfx.radius * 1.15, 40]} /><meshBasicMaterial color={profile.attackVfx.impactColor} transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} /></mesh></>}<group ref={dummyRef} visible={false}><mesh castShadow position={[0, 0.18, 0]} scale={[0.24, 0.2, 0.23]}><sphereGeometry args={[1, 28, 20]} /><meshStandardMaterial color="#61cde0" roughness={0.52} /></mesh><mesh position={[-0.06, 0.22, 0.2]}><sphereGeometry args={[0.026, 12, 8]} /><meshBasicMaterial color="#20314c" /></mesh><mesh position={[0.06, 0.22, 0.2]}><sphereGeometry args={[0.026, 12, 8]} /><meshBasicMaterial color="#20314c" /></mesh></group></>;
 }
 
 export function EnemyGalleryStage(props: EnemyGalleryStageProps) {

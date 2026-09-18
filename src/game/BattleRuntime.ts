@@ -240,6 +240,8 @@ interface EnemyUnit {
   faceBaseScale: THREE.Vector3;
   effectOrigin: THREE.Object3D | null;
   motionProfile: EnemyMotionProfile;
+  attackTelegraph: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial> | null;
+  attackTelegraphPosition: THREE.Vector3;
   rigParts: EnemyRigParts;
   rigRest: EnemyRigRestPose;
   shadow: THREE.Mesh<THREE.CircleGeometry, BasicMaterial>;
@@ -584,6 +586,29 @@ export class BattleRuntime {
     return ENEMY_FORMATION_POSITIONS[formationSlot].clone();
   }
 
+  private makeEnemyAttackTelegraph(
+    motionProfile: EnemyMotionProfile,
+  ): THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial> | null {
+    const vfx = motionProfile.attackVfx;
+    if (vfx === undefined) return null;
+    const material = new THREE.MeshBasicMaterial({
+      color: vfx.color,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(
+      new THREE.RingGeometry(vfx.radius * 0.66, vfx.radius, 40),
+      material,
+    );
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = 0.014;
+    mesh.visible = false;
+    this.scene.add(mesh);
+    return mesh;
+  }
+
   /** Load each authored enemy GLB once per battle runtime, then clone its scene for each unit. */
   private loadEnemyTemplate(asset: string): Promise<THREE.Group> {
     const cached = this.enemyTemplatePromises.get(asset);
@@ -613,6 +638,7 @@ export class BattleRuntime {
     const faceRoot = root.getObjectByName('FaceRoot') ?? null;
     const effectOrigin = root.getObjectByName('EffectOrigin') ?? null;
     const motionProfile = getEnemyMotionProfile(config.behaviorId);
+    const attackTelegraph = this.makeEnemyAttackTelegraph(motionProfile);
     const rigParts = resolveEnemyRigParts(root);
     const rigRest = captureEnemyRigRestPose(rigParts);
     const normalEyes = ['Eye_L', 'Eye_R']
@@ -631,7 +657,14 @@ export class BattleRuntime {
       bodyBaseScale: bodyRoot.scale.clone(), faceRoot,
       faceBasePosition: faceRoot?.position.clone() ?? new THREE.Vector3(),
       faceBaseScale: faceRoot?.scale.clone() ?? new THREE.Vector3(1, 1, 1),
-      effectOrigin, motionProfile, rigParts, rigRest, shadow, home,
+      effectOrigin,
+      motionProfile,
+      attackTelegraph,
+      attackTelegraphPosition: home.clone(),
+      rigParts,
+      rigRest,
+      shadow,
+      home,
       baseScale: config.renderScale, maxHp: config.maxHp, hp: config.maxHp, moveSpeed: config.moveSpeed,
       attackRange: config.attackRange, attackInterval: config.attackInterval, attackDamage: config.attackDamage,
       initialAttackDelay: config.initialAttackDelay,
@@ -1259,6 +1292,7 @@ export class BattleRuntime {
     enemy.attackOrigin.copy(enemy.root.position);
     enemy.attackStartedAt = -Infinity;
     enemy.attackTarget = null;
+    if (enemy.attackTelegraph) enemy.attackTelegraph.visible = false;
     this.setEnemyDefeatEyes(enemy.normalEyes, enemy.xEyes, true);
   }
 
@@ -3358,6 +3392,8 @@ export class BattleRuntime {
         enemy.attackOrigin.copy(enemy.root.position);
         enemy.attackTarget = target;
         enemy.attackHitApplied = false;
+        enemy.attackTelegraphPosition.copy(target.root.position);
+        enemy.attackTelegraphPosition.y = 0.014;
         enemy.nextAttackAt = now + enemy.attackInterval + enemy.index * 0.07;
       }
     }
@@ -3373,6 +3409,7 @@ export class BattleRuntime {
       enemy.attackStartedAt = -Infinity;
       enemy.attackTarget = null;
       enemy.root.position.copy(enemy.attackOrigin);
+      if (enemy.attackTelegraph) enemy.attackTelegraph.visible = false;
       return;
     }
     const duration = enemy.motionProfile.attackDuration;
@@ -3397,8 +3434,25 @@ export class BattleRuntime {
     enemy.root.rotation.z = pose.wobbleZ;
     applyEnemySecondaryPose(enemy.rigParts, enemy.rigRest, pose.secondary);
 
+    const attackVfx = enemy.motionProfile.attackVfx;
+    if (attackVfx !== undefined && enemy.attackTelegraph !== null) {
+      const vfxPose = attackVfx.pose(u);
+      enemy.attackTelegraph.visible = vfxPose.telegraphOpacity > 0.001 && u < 1;
+      enemy.attackTelegraph.position.copy(enemy.attackTelegraphPosition);
+      enemy.attackTelegraph.position.y = 0.014;
+      enemy.attackTelegraph.scale.setScalar(vfxPose.telegraphScale);
+      enemy.attackTelegraph.material.opacity = vfxPose.telegraphOpacity;
+      enemy.attackTelegraph.rotation.z = now * 0.22;
+    }
+
     if (!enemy.attackHitApplied && u >= enemy.motionProfile.contactU) {
       enemy.attackHitApplied = true;
+      if (attackVfx !== undefined) {
+        const impactPosition = enemy.attackTelegraphPosition.clone();
+        impactPosition.y = 0.10;
+        this.createImpact(impactPosition, attackVfx.impactColor, attackVfx.impactSize, 0.34);
+        this.startCameraShake(attackVfx.cameraShakeDuration, attackVfx.cameraShakeAmplitude);
+      }
       if (enemy.motionProfile.projectile) this.fireEnemyProjectile(enemy, target);
       else this.applyDamage(target, enemy.attackDamage, 'enemy', enemy.root.position);
     }
@@ -3406,6 +3460,7 @@ export class BattleRuntime {
       enemy.attackStartedAt = -Infinity;
       enemy.attackTarget = null;
       enemy.attackHitApplied = false;
+      if (enemy.attackTelegraph) enemy.attackTelegraph.visible = false;
       enemy.root.position.copy(enemy.attackOrigin);
       enemy.root.position.y = 0;
       enemy.root.rotation.z = 0;
@@ -3542,6 +3597,7 @@ export class BattleRuntime {
     enemy.attackStartedAt = -Infinity;
     enemy.attackTarget = null;
     enemy.attackHitApplied = false;
+    if (enemy.attackTelegraph) enemy.attackTelegraph.visible = false;
     enemy.nextAttackAt = now + enemy.initialAttackDelay;
     enemy.lastUpdateAt = now;
     enemy.root.visible = true;
@@ -3570,6 +3626,9 @@ export class BattleRuntime {
       tracer.mesh.material.dispose();
     });
     this.enemyProjectiles.splice(0).forEach((spore) => this.scene.remove(spore.root));
+    this.enemies.forEach((enemy) => {
+      if (enemy.attackTelegraph) enemy.attackTelegraph.visible = false;
+    });
     this.resetSlash();
     this.resetSpinArc();
   }

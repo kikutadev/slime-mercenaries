@@ -255,6 +255,19 @@ Battle reward presentation must use the same DomainEvent payload that granted th
 
 ## 9. Bosses
 
+### 9.1 Great Mushroom combat cadence
+
+The first boss must remain visually distinct after its entrance. Its repeated combat attack is not a scaled normal mushroom bump.
+
+- attack duration: 1.36 seconds; combat damage, HP, and attack interval remain owned by the enemy definition
+- beats: crouch/compress -> heavy lift -> short hang -> fast drop -> slam contact -> rebound -> recovery
+- authored contact stays at normalized `u=0.64`
+- a ground telegraph ring appears before contact, grows toward the impact footprint, and disappears immediately after the slam
+- contact may trigger one bounded impact ring and camera shake; these are presentation only
+- generic `EnemyMotionProfile.attackVfx` owns telegraph/impact data so BattleRuntime and Gallery consume the same contract
+- Gallery must render the same attack VFX contract as the production battle runtime
+- the boss attack must remain readable at the 430x932 production battle camera and must not obscure the friendly slime
+
 Boss approach is intentionally distinct from a normal wave:
 
 - boss approach lasts longer than normal approach and begins further back

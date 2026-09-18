@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { clampEnemy01, type EnemyDefeatPose, type EnemyHitPose, type EnemyMotionProfile, type EnemyPose } from './shared';
+import { clampEnemy01, type EnemyAttackVfxPose, type EnemyDefeatPose, type EnemyHitPose, type EnemyMotionProfile, type EnemyPose } from './shared';
 
 export type MushroomBehaviorId = 'mushroom-bump' | 'mushroom-heavy-bump' | 'mushroom-spore' | 'mushroom-boss';
 
@@ -7,7 +7,7 @@ export const ENEMY_MOTION_TIMING = {
   bumpAttack: 0.5,
   heavyAttack: 0.72,
   sporeAttack: 0.78,
-  bossAttack: 0.92,
+  bossAttack: 1.36,
   defeat: 1.05,
 } as const;
 
@@ -15,7 +15,7 @@ export const ENEMY_MOTION_THRESHOLDS = {
   bumpContactU: 0.57,
   heavyContactU: 0.6,
   sporeReleaseU: 0.48,
-  bossContactU: 0.61,
+  bossContactU: 0.64,
 } as const;
 
 export function getMushroomIdleMotion(now: number, phaseOffset = 0): EnemyPose {
@@ -53,11 +53,72 @@ export function getMushroomSporeAttackMotion(u: number): EnemyPose {
   return { scaleX: 1 + puff * 0.08 - recoil * 0.04, scaleY: 1 + puff * 0.12 - recoil * 0.08, scaleZ: 1 + puff * 0.08, jump: recoil * 0.025, wobbleZ: Math.sin(t * Math.PI * 2) * 0.025, travel: -recoil * 0.08, releaseProgress: t >= 0.48 ? clampEnemy01((t - 0.48) / 0.52) : -1 };
 }
 
+const GREAT_MUSHROOM_CROUCH_END_U = 0.22;
+const GREAT_MUSHROOM_LIFT_END_U = 0.48;
+const GREAT_MUSHROOM_HANG_END_U = 0.54;
+const GREAT_MUSHROOM_CONTACT_U = ENEMY_MOTION_THRESHOLDS.bossContactU;
+const GREAT_MUSHROOM_REBOUND_END_U = 0.79;
+
+function smoothEnemy01(value: number): number {
+  const t = clampEnemy01(value);
+  return t * t * (3 - 2 * t);
+}
+
 export function getGreatMushroomAttackMotion(u: number): EnemyPose {
   const t = clampEnemy01(u);
-  const anticipation = t < 0.42 ? Math.sin((t / 0.42) * Math.PI * 0.5) : 1 - clampEnemy01((t - 0.42) / 0.22);
-  const slam = t >= 0.42 ? Math.sin(clampEnemy01((t - 0.42) / 0.36) * Math.PI) : 0;
-  return { scaleX: 1 + anticipation * 0.14 + slam * 0.12, scaleY: 1 - anticipation * 0.22 - slam * 0.16, scaleZ: 1 + anticipation * 0.14, jump: slam * 0.13, wobbleZ: Math.sin(t * Math.PI * 4) * (1 - t) * 0.045, travel: t < 0.42 ? 0 : Math.sin(clampEnemy01((t - 0.42) / 0.58) * Math.PI) * 0.72, releaseProgress: t >= 0.42 ? clampEnemy01((t - 0.42) / 0.58) : -1 };
+  const crouch = t < GREAT_MUSHROOM_CROUCH_END_U
+    ? Math.sin((t / GREAT_MUSHROOM_CROUCH_END_U) * Math.PI * 0.5)
+    : t < 0.34
+      ? 1 - smoothEnemy01((t - GREAT_MUSHROOM_CROUCH_END_U) / 0.12)
+      : 0;
+
+  let jump = 0;
+  if (t >= GREAT_MUSHROOM_CROUCH_END_U && t < GREAT_MUSHROOM_LIFT_END_U) {
+    jump = smoothEnemy01((t - GREAT_MUSHROOM_CROUCH_END_U) / (GREAT_MUSHROOM_LIFT_END_U - GREAT_MUSHROOM_CROUCH_END_U)) * 0.30;
+  } else if (t >= GREAT_MUSHROOM_LIFT_END_U && t < GREAT_MUSHROOM_HANG_END_U) {
+    jump = 0.30;
+  } else if (t >= GREAT_MUSHROOM_HANG_END_U && t < GREAT_MUSHROOM_CONTACT_U) {
+    const drop = smoothEnemy01((t - GREAT_MUSHROOM_HANG_END_U) / (GREAT_MUSHROOM_CONTACT_U - GREAT_MUSHROOM_HANG_END_U));
+    jump = (1 - drop) * 0.30;
+  } else if (t >= GREAT_MUSHROOM_CONTACT_U && t < GREAT_MUSHROOM_REBOUND_END_U) {
+    jump = Math.sin(((t - GREAT_MUSHROOM_CONTACT_U) / (GREAT_MUSHROOM_REBOUND_END_U - GREAT_MUSHROOM_CONTACT_U)) * Math.PI) * 0.065;
+  }
+
+  const air = clampEnemy01(jump / 0.30);
+  const impact = Math.exp(-Math.pow((t - GREAT_MUSHROOM_CONTACT_U) / 0.052, 2));
+  const rebound = t >= GREAT_MUSHROOM_CONTACT_U && t < GREAT_MUSHROOM_REBOUND_END_U
+    ? Math.sin(((t - GREAT_MUSHROOM_CONTACT_U) / (GREAT_MUSHROOM_REBOUND_END_U - GREAT_MUSHROOM_CONTACT_U)) * Math.PI)
+    : 0;
+
+  let travel = 0;
+  if (t >= 0.46 && t < GREAT_MUSHROOM_CONTACT_U) travel = smoothEnemy01((t - 0.46) / (GREAT_MUSHROOM_CONTACT_U - 0.46));
+  else if (t >= GREAT_MUSHROOM_CONTACT_U && t < 0.84) travel = 1 - smoothEnemy01((t - GREAT_MUSHROOM_CONTACT_U) / 0.20);
+
+  const landingShake = t >= GREAT_MUSHROOM_CONTACT_U
+    ? Math.sin((t - GREAT_MUSHROOM_CONTACT_U) * Math.PI * 18) * Math.exp(-(t - GREAT_MUSHROOM_CONTACT_U) * 9)
+    : 0;
+
+  return {
+    scaleX: 1 + crouch * 0.18 - air * 0.035 + impact * 0.26 + rebound * 0.035,
+    scaleY: 1 - crouch * 0.27 + air * 0.11 - impact * 0.32 + rebound * 0.07,
+    scaleZ: 1 + crouch * 0.18 - air * 0.035 + impact * 0.22 + rebound * 0.035,
+    jump,
+    wobbleZ: t < GREAT_MUSHROOM_CONTACT_U ? Math.sin(t * Math.PI * 2.2) * 0.018 * (1 - air * 0.5) : landingShake * 0.04,
+    travel,
+    releaseProgress: t >= 0.16 ? clampEnemy01((t - 0.16) / 0.84) : -1,
+  };
+}
+
+export function getGreatMushroomSlamVfxPose(u: number): EnemyAttackVfxPose {
+  const t = clampEnemy01(u);
+  const telegraphStart = 0.14;
+  const telegraphU = clampEnemy01((t - telegraphStart) / (GREAT_MUSHROOM_CONTACT_U - telegraphStart));
+  const postContactFade = 1 - clampEnemy01((t - GREAT_MUSHROOM_CONTACT_U) / 0.12);
+  return {
+    telegraphOpacity: t < telegraphStart ? 0 : (0.18 + telegraphU * 0.54) * postContactFade,
+    telegraphScale: 0.54 + telegraphU * 0.84,
+    impactStrength: Math.exp(-Math.pow((t - GREAT_MUSHROOM_CONTACT_U) / 0.048, 2)),
+  };
 }
 
 export function getMushroomHitMotion(u: number, side: number): EnemyHitPose {
@@ -92,7 +153,7 @@ const PROFILES: Record<MushroomBehaviorId, EnemyMotionProfile> = {
   'mushroom-bump': { familyId: 'mushroom', idle: getMushroomIdleMotion, move: getMushroomMoveMotion, attack: getMushroomBumpAttackMotion, hit: getMushroomHitMotion, defeat: getMushroomDefeatMotion, moveDuration: 1.55, moveDistance: 0.7, attackDuration: ENEMY_MOTION_TIMING.bumpAttack, contactU: ENEMY_MOTION_THRESHOLDS.bumpContactU, attackTravelDistance: 0.4, defeatDuration: ENEMY_MOTION_TIMING.defeat },
   'mushroom-heavy-bump': { familyId: 'mushroom', idle: getMushroomIdleMotion, move: getMushroomMoveMotion, attack: getMushroomHeavyAttackMotion, hit: getMushroomHitMotion, defeat: getMushroomDefeatMotion, moveDuration: 1.55, moveDistance: 0.7, attackDuration: ENEMY_MOTION_TIMING.heavyAttack, contactU: ENEMY_MOTION_THRESHOLDS.heavyContactU, attackTravelDistance: 0.4, defeatDuration: ENEMY_MOTION_TIMING.defeat },
   'mushroom-spore': { familyId: 'mushroom', idle: getMushroomIdleMotion, move: getMushroomMoveMotion, attack: getMushroomSporeAttackMotion, hit: getMushroomHitMotion, defeat: getMushroomDefeatMotion, moveDuration: 1.55, moveDistance: 0.7, attackDuration: ENEMY_MOTION_TIMING.sporeAttack, contactU: ENEMY_MOTION_THRESHOLDS.sporeReleaseU, attackTravelDistance: 0.16, defeatDuration: ENEMY_MOTION_TIMING.defeat, projectile: SPORE_PROJECTILE },
-  'mushroom-boss': { familyId: 'mushroom', idle: getMushroomIdleMotion, move: getMushroomMoveMotion, attack: getGreatMushroomAttackMotion, hit: getMushroomHitMotion, defeat: getMushroomDefeatMotion, moveDuration: 1.55, moveDistance: 0.7, attackDuration: ENEMY_MOTION_TIMING.bossAttack, contactU: ENEMY_MOTION_THRESHOLDS.bossContactU, attackTravelDistance: 0.5, defeatDuration: ENEMY_MOTION_TIMING.defeat },
+  'mushroom-boss': { familyId: 'mushroom', idle: getMushroomIdleMotion, move: getMushroomMoveMotion, attack: getGreatMushroomAttackMotion, hit: getMushroomHitMotion, defeat: getMushroomDefeatMotion, moveDuration: 1.55, moveDistance: 0.7, attackDuration: ENEMY_MOTION_TIMING.bossAttack, contactU: ENEMY_MOTION_THRESHOLDS.bossContactU, attackTravelDistance: 0.5, defeatDuration: ENEMY_MOTION_TIMING.defeat, attackVfx: { color: '#f3b95f', radius: 0.52, pose: getGreatMushroomSlamVfxPose, impactColor: '#ffd58a', impactSize: 0.28, cameraShakeDuration: 0.20, cameraShakeAmplitude: 0.045 } },
 };
 
 export function getMushroomMotionProfile(behaviorId: MushroomBehaviorId): EnemyMotionProfile { return PROFILES[behaviorId]; }

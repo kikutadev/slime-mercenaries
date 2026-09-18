@@ -1120,3 +1120,26 @@ Acceptance:
 - 1.02-second frame is the authored heavy landing window
 - normal Gold, Gold+material, mixed-material, and boss-grade reward captures completed
 - no model/GLB changes are required by this pass
+
+## 25. Great Mushroom combat motion round — 2026-09-19
+
+The Great Mushroom's repeated combat attack was rebuilt after the boss entrance/reward pass so the fight itself does not fall back to an enlarged normal mushroom bump.
+
+Implemented:
+
+- replaced the 0.92-second boss bump with a 1.36-second multi-beat slam
+- authored crouch, lift, hang, drop, contact squash, rebound, and recovery beats
+- added generic `EnemyMotionProfile.attackVfx` telegraph/impact contract
+- BattleRuntime renders the ground warning ring at the locked target position and emits one bounded contact impact/camera shake
+- EnemyGalleryStage now consumes the same generic attack VFX contract; no gallery-only boss animation branch
+- expanded the warning footprint toward contact rather than adding extra particle systems
+- HP, damage, attack interval, rewards, navigation, and Domain combat values remain unchanged
+
+Acceptance:
+
+- enemy motion/type checks pass
+- 430x932 BattleRuntime seven-frame capture: windup / warning / apex / pre-contact / contact / rebound / recovery
+- damage applies once at the authored contact beat
+- Gallery Great Mushroom Attack captured in gameplay camera with zero browser/runtime errors
+- production build passes with the shared Battle/Gallery VFX contract
+- latest full gate: 217 / 217 tests PASS, typecheck PASS, 10 / 10 GLB validation PASS, production build PASS, initial bundle gate PASS, three 20-seed simulation profiles PASS
