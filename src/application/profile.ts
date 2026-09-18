@@ -1,5 +1,6 @@
 import type { LoadoutState, ProfileRepository, StoredProfile } from 'idle-game-kit';
 import { advanceSlimeWorldFromWallClock } from '../domain/world';
+import { assertSlimeStateInvariants } from '../domain/state-invariants';
 import { balance } from '../domain/balance';
 import { NORMAL_JOB_SLIME_IDS, type DispatchContractId, type JobSlimeId } from '../domain/definitions';
 import { fusionSlimeCodexId, mutationSlimeCodexId, tier1SlimeCodexId, withLegacyViewedCodexDiscovery } from '../domain/codex';
@@ -80,6 +81,7 @@ function validateStoredState(state: SlimeMercenariesState): void {
   if (state.schemaVersion !== SLIME_MERCENARIES_SCHEMA_VERSION) {
     throw new Error(`Unsupported Slime Mercenaries schemaVersion: ${state.schemaVersion}`);
   }
+  assertSlimeStateInvariants(state);
 }
 
 type LegacySlimeProgress = Readonly<{

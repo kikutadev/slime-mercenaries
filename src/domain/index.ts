@@ -14,3 +14,4 @@ export * from './rewards';
 
 export * from './world-navigation';
 export * from './codex';
+export * from './state-invariants';
