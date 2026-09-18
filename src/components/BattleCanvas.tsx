@@ -2,7 +2,8 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import type { BattleSceneModel } from '../application/selectors/battle-scene';
-import { BattleRuntime, type BattleSnapshot } from '../game/BattleRuntime';
+import { BattleRuntime } from '../game/BattleRuntime';
+import type { BattleSnapshot } from '../game/battle-runtime/types';
 import type { BattleRewardCue } from '../game/battle-reward';
 
 interface BattleCanvasProps {
