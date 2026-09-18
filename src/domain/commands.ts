@@ -24,6 +24,7 @@ import {
 } from './definitions';
 import { createSlimeWeaponLoadout, slimeInstanceIdForSerial, type SlimeInstanceId, type SlimeMercenariesState, type SlimeProgress } from './state';
 import { isJobDiscovered, slimeIdsByType } from './roster';
+import { fusionSlimeCodexId, markCodexDiscovery, tier1SlimeCodexId } from './codex';
 
 export type TokenRequirementPreview = Readonly<{
   tokenId: string;
@@ -211,7 +212,7 @@ export function createJobSlime(
     mutationId: null,
     assignment: 'reserve',
   };
-  const nextState: SlimeMercenariesState = {
+  let nextState: SlimeMercenariesState = {
     ...state,
     tokens,
     gameData: {
@@ -227,6 +228,7 @@ export function createJobSlime(
       },
     },
   };
+  nextState = markCodexDiscovery(nextState, 'slime-form', tier1SlimeCodexId(jobId));
   const eventType = preview.isNewDiscovery ? 'slimeJobDiscovered' : 'slimeJobCreated';
   return accept(nextState, [semanticEvent(nextState, eventType, slimeId, {
     slimeId,
@@ -435,7 +437,7 @@ export function fuseSlime(
     fusionFormId: preview.step.resultFusionFormId,
     jobTier: preview.step.resultJobTier,
   };
-  const nextState: SlimeMercenariesState = {
+  let nextState: SlimeMercenariesState = {
     ...state,
     tokens,
     gameData: {
@@ -449,6 +451,11 @@ export function fuseSlime(
       },
     },
   };
+  nextState = markCodexDiscovery(
+    nextState,
+    'slime-form',
+    fusionSlimeCodexId(updated.typeId, updated.fusionFormId),
+  );
   return accept(nextState, [semanticEvent(nextState, 'slimeFused', preview.step.id, {
     slimeId,
     fusionStepId: preview.step.id,

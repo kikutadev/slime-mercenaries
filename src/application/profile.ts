@@ -2,15 +2,18 @@ import type { LoadoutState, ProfileRepository, StoredProfile } from 'idle-game-k
 import { advanceSlimeWorldFromWallClock } from '../domain/world';
 import { balance } from '../domain/balance';
 import { NORMAL_JOB_SLIME_IDS, type DispatchContractId, type JobSlimeId } from '../domain/definitions';
+import { fusionSlimeCodexId, mutationSlimeCodexId, tier1SlimeCodexId, withLegacyViewedCodexDiscovery } from '../domain/codex';
 import {
   SLIME_MERCENARIES_DEFINITION_VERSION,
   SLIME_MERCENARIES_SCHEMA_VERSION,
   createInitialAreaProgressState,
+  createInitialCodexState,
   createInitialEquipmentState,
   createInitialMutationProgressState,
   createSlimeWeaponLoadout,
   createInitialSlimeMercenariesState,
   slimeInstanceIdForSerial,
+  type CodexState,
   type EquipmentState,
   type SlimeMercenariesState,
   type SlimeProgress,
@@ -108,7 +111,7 @@ type LegacyCombatState = Readonly<{
   contentBoundaryReached: boolean;
 }>;
 
-type LegacyGameData = Omit<SlimeMercenariesState['gameData'], 'equipment' | 'combat' | 'roster' | 'dispatch' | 'progression'> & Readonly<{
+type LegacyGameData = Omit<SlimeMercenariesState['gameData'], 'equipment' | 'combat' | 'roster' | 'dispatch' | 'progression' | 'mutationProgress' | 'codex'> & Readonly<{
   progression: LegacyProgressionState;
   equipment?: LegacyEquipment;
   combat: LegacyCombatState;
@@ -127,7 +130,13 @@ type LegacyGameData = Omit<SlimeMercenariesState['gameData'], 'equipment' | 'com
 type LegacyState = Omit<SlimeMercenariesState, 'gameData'> & { gameData: LegacyGameData };
 
 type SchemaV4State = Omit<SlimeMercenariesState, 'gameData'> & {
-  gameData: Omit<SlimeMercenariesState['gameData'], 'progression'> & { progression: LegacyProgressionState };
+  gameData: Omit<SlimeMercenariesState['gameData'], 'progression' | 'mutationProgress' | 'codex'> & {
+    progression: LegacyProgressionState;
+  };
+};
+
+type SchemaV5State = Omit<SlimeMercenariesState, 'gameData'> & {
+  gameData: Omit<SlimeMercenariesState['gameData'], 'codex'>;
 };
 
 function normalizeCurrentState(state: SlimeMercenariesState): SlimeMercenariesState {
@@ -149,6 +158,7 @@ function normalizeCurrentState(state: SlimeMercenariesState): SlimeMercenariesSt
 
 function migrateStoredState(state: SlimeMercenariesState): SlimeMercenariesState {
   if (state.schemaVersion === SLIME_MERCENARIES_SCHEMA_VERSION) return normalizeCurrentState(state);
+  if (state.schemaVersion === 5) return migrateSchemaV5State(state as unknown as SchemaV5State);
   if (state.schemaVersion === 4) return migrateSchemaV4State(state as unknown as SchemaV4State);
   if (![0, 1, 2, 3].includes(state.schemaVersion)) {
     throw new Error(`Unsupported Slime Mercenaries schemaVersion: ${state.schemaVersion}`);
@@ -168,24 +178,47 @@ function migrateStoredState(state: SlimeMercenariesState): SlimeMercenariesState
     ]),
   ) as SlimeMercenariesState['gameData']['dispatch']['contracts'];
 
-  return {
+  const gameData: SlimeMercenariesState['gameData'] = {
+    ...legacy.gameData,
+    progression: normalizedCombat.progression,
+    mutationProgress: createInitialMutationProgressState(),
+    combat: normalizedCombat.combat,
+    dispatch: { contracts },
+    equipment: migratedRoster.equipment,
+    roster: migratedRoster.roster,
+    codex: inferLegacyViewedCodex(migratedRoster.roster, migratedRoster.equipment, legacy.simTimeSec),
+  };
+  return normalizeCurrentState({
     ...legacy,
     schemaVersion: SLIME_MERCENARIES_SCHEMA_VERSION,
     definitionVersion: SLIME_MERCENARIES_DEFINITION_VERSION,
+    gameData,
+  } as SlimeMercenariesState);
+}
+
+function migrateSchemaV5State(state: SchemaV5State): SlimeMercenariesState {
+  return normalizeCurrentState({
+    ...state,
+    schemaVersion: SLIME_MERCENARIES_SCHEMA_VERSION,
+    definitionVersion: SLIME_MERCENARIES_DEFINITION_VERSION,
     gameData: {
-      ...legacy.gameData,
-      progression: normalizedCombat.progression,
-      mutationProgress: createInitialMutationProgressState(),
-      combat: normalizedCombat.combat,
-      dispatch: { contracts },
-      equipment: migratedRoster.equipment,
-      roster: migratedRoster.roster,
+      ...state.gameData,
+      codex: inferLegacyViewedCodex(state.gameData.roster, state.gameData.equipment, state.simTimeSec),
     },
-  } as SlimeMercenariesState;
+  } as SlimeMercenariesState);
 }
 
 function migrateSchemaV4State(state: SchemaV4State): SlimeMercenariesState {
-  return {
+  const roster = {
+    ...state.gameData.roster,
+    slimes: Object.fromEntries(
+      Object.entries(state.gameData.roster.slimes).map(([slimeId, slime]) => [
+        slimeId,
+        { ...slime, mutationId: (slime as SlimeProgress & { mutationId?: SlimeProgress['mutationId'] }).mutationId ?? null },
+      ]),
+    ) as SlimeMercenariesState['gameData']['roster']['slimes'],
+  };
+  return normalizeCurrentState({
     ...state,
     schemaVersion: SLIME_MERCENARIES_SCHEMA_VERSION,
     definitionVersion: SLIME_MERCENARIES_DEFINITION_VERSION,
@@ -193,17 +226,36 @@ function migrateSchemaV4State(state: SchemaV4State): SlimeMercenariesState {
       ...state.gameData,
       progression: migrateLegacyProgression(state.gameData.progression),
       mutationProgress: createInitialMutationProgressState(),
-      roster: {
-        ...state.gameData.roster,
-        slimes: Object.fromEntries(
-          Object.entries(state.gameData.roster.slimes).map(([slimeId, slime]) => [
-            slimeId,
-            { ...slime, mutationId: (slime as SlimeProgress & { mutationId?: SlimeProgress['mutationId'] }).mutationId ?? null },
-          ]),
-        ) as SlimeMercenariesState['gameData']['roster']['slimes'],
-      },
+      codex: inferLegacyViewedCodex(roster, state.gameData.equipment, state.simTimeSec),
+      roster,
     },
-  } as SlimeMercenariesState;
+  } as SlimeMercenariesState);
+}
+
+function inferLegacyViewedCodex(
+  roster: SlimeMercenariesState['gameData']['roster'],
+  equipment: SlimeMercenariesState['gameData']['equipment'],
+  simTimeSec: number,
+): CodexState {
+  let codex = createInitialCodexState();
+  for (const slime of Object.values(roster.slimes)) {
+    codex = withLegacyViewedCodexDiscovery(codex, 'slime-form', tier1SlimeCodexId(slime.typeId), simTimeSec);
+    if (slime.fusionFormId !== 'base') {
+      codex = withLegacyViewedCodexDiscovery(
+        codex,
+        'slime-form',
+        fusionSlimeCodexId(slime.typeId, slime.fusionFormId),
+        simTimeSec,
+      );
+    }
+    if (slime.mutationId !== null) {
+      codex = withLegacyViewedCodexDiscovery(codex, 'slime-form', mutationSlimeCodexId(slime.mutationId), simTimeSec);
+    }
+  }
+  for (const instance of Object.values(equipment.inventory)) {
+    codex = withLegacyViewedCodexDiscovery(codex, 'weapon', instance.definitionId, simTimeSec);
+  }
+  return codex;
 }
 
 function migrateLegacyProgression(progression: LegacyProgressionState): SlimeProgressionState {

@@ -10,11 +10,13 @@ import {
   forgeEquipment,
   fuseSlime,
   levelUpSlime,
+  markCodexEntriesViewed,
   mutateSlime,
   removeSlimeFromFormation,
   startDispatch,
   advanceSlimeWorldFromWallClock,
   createInitialSlimeMercenariesState,
+  type CodexCategory,
   type DispatchContractId,
   type JobSlimeId,
   type SlimeInstanceId,
@@ -177,6 +179,10 @@ export class SlimeGameController {
 
   enterAreaStage(areaId: string, stageNumber: number) {
     return this.execute((state) => enterAreaStage(state, areaId, stageNumber));
+  }
+
+  markCodexViewed(category: CodexCategory, entryIds: readonly string[]) {
+    return this.execute((state) => markCodexEntriesViewed(state, category, entryIds));
   }
 
   private execute<TReason extends string>(

@@ -8,6 +8,7 @@ import {
   firstSlimeIdByType,
   grantMutationCatalyst,
   ids,
+  markCodexEntriesViewed,
   resolveCurrencyDefinition,
 } from '../../domain';
 import { selectCampUpgradeOpportunities, selectCreateSlimePanel, selectDispatchScreen, selectEarlyGameCue, selectNavigationAttention, selectSlimeDetail, selectSlimeMutationOptions } from './ui-selectors';
@@ -53,6 +54,9 @@ describe('UI selectors', () => {
     let state = applyRewards(setup.state, [
       { type: 'currency', currencyId: ids.currency.gold, amount: 100, source: 'test' },
     ], { resolveCurrencyDefinition }) as typeof setup.state;
+    const viewed = markCodexEntriesViewed(state, 'slime-form', Object.keys(state.gameData.codex.slimeForms));
+    if (!viewed.accepted) throw new Error('setup codex view failed');
+    state = viewed.state;
 
     expect(selectCampUpgradeOpportunities(state).some((opportunity) => opportunity.kind === 'level')).toBe(true);
     expect(selectNavigationAttention(state).has('slimes')).toBe(false);

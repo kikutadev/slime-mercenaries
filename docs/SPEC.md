@@ -42,12 +42,11 @@ The durable player state must conceptually contain:
 Progression
 - currentAreaId
 - currentStage
-- highestStageCleared
+- areas[areaId].highestStageCleared
 - unlockedSystems
 
 Roster
 - plainSlimeStock
-- discoveredSlimeTypeIds
 - slimeInstancesById
     - stable instance ID / serial / job type
     - level
@@ -75,7 +74,16 @@ Dispatch
 Equipment
 - Kit Inventory-backed owned equipment instances / product refinement state
 - one family-restricted Kit Loadout weapon slot per slime instance
-- equipment codex discovery
+
+Codex
+- slimeForms[formId]
+    - discoveredAtSimTimeSec
+    - viewedAtSimTimeSec / NEW state
+- weapons[weaponDefinitionId]
+    - discoveredAtSimTimeSec
+    - viewedAtSimTimeSec / NEW state
+- Fusion rank/form is progression and does not create separate Codex entries
+- repeated acquisition of an already discovered form/weapon does not create duplicate Codex rows
 
 Economy
 - gold
@@ -85,7 +93,7 @@ Economy
 - mutationFragmentsByFamily
 
 Meta
-- codex completion
+- codex completion derived from durable Codex discoveries
 - area/boss discoveries
 - settings
 - timestamps required for offline progress

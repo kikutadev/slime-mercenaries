@@ -19,6 +19,7 @@ import {
   type WeaponDefinition,
 } from './definitions';
 import { ownedSlimes } from './roster';
+import { markCodexDiscovery } from './codex';
 import { createSlimeWeaponLoadout, type SlimeInstanceId, type SlimeMercenariesData, type SlimeMercenariesState, type WeaponInstanceData } from './state';
 
 export type ForgeRejectReason = 'invalid-draw-count' | 'insufficient-currency' | 'insufficient-token' | 'missing-rng-stream';
@@ -140,6 +141,7 @@ function grantNewWeapon(state: SlimeMercenariesState, reward: ForgeReward): Game
       equipment: { ...state.gameData.equipment, inventory: added.inventory },
     },
   };
+  nextState = markCodexDiscovery(nextState, 'weapon', definition.id);
 
   const target = ownedSlimes(nextState)
     .find((slime) => slime.typeId === definition.family

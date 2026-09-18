@@ -1,5 +1,6 @@
 import type { CommandResult, DomainEvent } from 'idle-game-kit';
 import type { JobSlimeId } from './definitions';
+import { markCodexDiscovery, mutationSlimeCodexId } from './codex';
 import type { SlimeInstanceId, SlimeMercenariesState, SlimeMutationId, SlimeProgress } from './state';
 
 export type MutationEligibility = 'tier3' | 'tier2-plus' | 'magic-ranged-tier3' | 'selected-tier3';
@@ -106,7 +107,7 @@ export function mutateSlime(
   const progress = state.gameData.mutationProgress[mutationId];
   if (progress.catalysts <= 0) return reject(state, 'missing-catalyst');
 
-  const nextState: SlimeMercenariesState = {
+  let nextState: SlimeMercenariesState = {
     ...state,
     gameData: {
       ...state.gameData,
@@ -123,6 +124,7 @@ export function mutateSlime(
       },
     },
   };
+  nextState = markCodexDiscovery(nextState, 'slime-form', mutationSlimeCodexId(mutationId));
   return {
     accepted: true,
     state: nextState,

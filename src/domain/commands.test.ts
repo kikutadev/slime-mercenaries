@@ -227,6 +227,7 @@ describe('individual growth', () => {
     const preview = previewSlimeFusion(prepared, swordId);
     expect(preview.canFuse).toBe(true);
 
+    const codexCountBeforeFusion = Object.keys(prepared.gameData.codex.slimeForms).length;
     const fused = fuseSlime(prepared, swordId);
     expect(fused.accepted).toBe(true);
     if (!fused.accepted) return;
@@ -236,6 +237,10 @@ describe('individual growth', () => {
       jobTier: jobCreationDefinitions.sword.startingJobTier,
       fusionRank: firstStep.toRank,
       fusionFormId: firstStep.resultFusionFormId,
+    });
+    expect(Object.keys(fused.state.gameData.codex.slimeForms)).toHaveLength(codexCountBeforeFusion + 1);
+    expect(fused.state.gameData.codex.slimeForms[`slime.sword.${firstStep.resultFusionFormId}`]).toMatchObject({
+      viewedAtSimTimeSec: null,
     });
   });
 });
@@ -276,6 +281,7 @@ describe('advanced Fusion progression', () => {
       fusionRank: 3,
       fusionFormId: 'fighter',
     });
+    expect(fighter.state.gameData.codex.slimeForms['slime.sword.fighter']).toMatchObject({ viewedAtSimTimeSec: null });
   });
 
   it('requires an explicit Tier-3 Fusion branch and applies the selected form', () => {

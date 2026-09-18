@@ -13,3 +13,4 @@ export * from './mutation';
 export * from './rewards';
 
 export * from './world-navigation';
+export * from './codex';
