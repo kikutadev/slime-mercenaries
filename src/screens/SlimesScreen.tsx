@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { BottomSheet } from 'idle-game-kit/react';
 import { useGameController, useGameState } from '../app/GameProvider';
 import {
@@ -10,10 +10,19 @@ import {
   selectOwnedSlimeIds,
   selectSlimeDetail,
 } from '../application/selectors/ui-selectors';
-import { FusionWorkbench } from '../components/fusion/FusionWorkbench';
-import { CampSlimeStage, type CampSlimeReaction } from '../components/CampSlimeStage';
+import type { CampSlimeReaction } from '../components/CampSlimeStage';
 import { ids, sameTypeCount, slimeInstanceIdForSerial, type JobSlimeId, type SlimeInstanceId } from '../domain';
 import { getSlimePresentation } from '../game/slimes';
+
+const CampSlimeStage = lazy(async () => {
+  const module = await import('../components/CampSlimeStage');
+  return { default: module.CampSlimeStage };
+});
+
+const FusionWorkbench = lazy(async () => {
+  const module = await import('../components/fusion/FusionWorkbench');
+  return { default: module.FusionWorkbench };
+});
 
 interface Props {
   selectedId: SlimeInstanceId | null;
@@ -93,12 +102,14 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
 
   if (mode === 'fusion' && selected !== null) {
     return (
-      <FusionWorkbench
-        slimeId={selected}
-        onClose={() => setMode('none')}
-        onBattle={onOpenBattle}
-        onRecruit={() => { setMode('none'); setCreateOpen(true); }}
-      />
+      <Suspense fallback={<div className="fusion-workbench fusion-workbench--empty" aria-label="合成画面を読み込み中" />}>
+        <FusionWorkbench
+          slimeId={selected}
+          onClose={() => setMode('none')}
+          onBattle={onOpenBattle}
+          onRecruit={() => { setMode('none'); setCreateOpen(true); }}
+        />
+      </Suspense>
     );
   }
 
@@ -163,12 +174,14 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
             <div className="camp-prop camp-prop--flag"><span>⚑</span></div>
 
             <div className="camp-slime-stage">
-              <CampSlimeStage
-                slimeId={detail.typeId}
-                fusionRank={detail.fusionRank}
-                reaction={feedback.reaction}
-                reactionKey={feedback.key}
-              />
+              <Suspense fallback={<div className="camp-resident-stage" aria-hidden="true" />}>
+                <CampSlimeStage
+                  slimeId={detail.typeId}
+                  fusionRank={detail.fusionRank}
+                  reaction={feedback.reaction}
+                  reactionKey={feedback.key}
+                />
+              </Suspense>
               {feedback.title !== '' && (
                 <div className={`camp-action-feedback camp-action-feedback--${feedback.reaction}`} key={feedback.key}>
                   <strong>{feedback.title}</strong>

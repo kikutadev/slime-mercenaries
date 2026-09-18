@@ -113,7 +113,7 @@ Expand beyond Clover Road toward the authored eight-area world. Reuse the enemy 
 
 ## Phase 8 — Production release hardening
 
-Status: Planned
+Status: In Progress — 3D route splitting + initial bundle guard implemented
 
 - validation sandbox becomes explicit opt-in when the validation build is no longer the intended public build
 - mobile performance/code splitting pass
@@ -129,6 +129,7 @@ Status: Planned
 - Forge now contains one Common/Rare/Mythic weapon for all six families using the same per-family 55/18/2 weight pattern, preserving the prior aggregate rarity ratio.
 - Existing-body Rare Mutation state exists for King/Golden/Dragon/Prism. The Application controller now exposes the authoritative mutate command, headless selectors expose per-instance eligibility/readiness, and combat rewards can carry product-owned mutation Fragment/Catalyst rewards without leaking mutation concepts into Kit Core. Fragment conversion thresholds are intentionally not invented. Dragon selected origins remain closed until authored; Mimic remains a separate special-capture problem.
 - The first-world manifest now registers all eight canonical area IDs in stable sequence. Per-area save progress is initialized/normalized for all known areas, and combat resolves the next world stage generically without skipping an unauthored area. Areas 2-8 still need authored stage/enemy/balance content.
+- Battle, Camp resident 3D, and Fusion 3D are lazy boundaries. The production entry no longer statically preloads Three/R3F; current initial static JS is 372.1 KiB raw / 108.8 KiB gzip. `pnpm run check:bundle` enforces a 160 KiB gzip budget and rejects WebGL/3D-only chunks in the initial static graph.
 
 ## Verification contract
 
@@ -138,6 +139,7 @@ Use pnpm exclusively for this repo:
 pnpm run typecheck
 pnpm test
 pnpm run build
+pnpm run check:bundle
 pnpm run simulate:balance
 pnpm run simulate:check
 pnpm run simulate:paced

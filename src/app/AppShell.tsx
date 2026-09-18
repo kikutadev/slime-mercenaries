@@ -1,13 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { BottomSheet, usePresentationQueue } from 'idle-game-kit/react';
 import { useGameBootstrap, useGameController, useGameState } from './GameProvider';
 import { selectNavigationAttention, selectOwnedSlimeIds } from '../application/selectors/ui-selectors';
 import { buildOfflineReturnView, presentationNoticeDurationMs, toPresentationNotices } from '../application/presentation-events';
-import { BattleScreen } from '../screens/BattleScreen';
 import { SlimesScreen } from '../screens/SlimesScreen';
 import { DispatchScreen } from '../screens/DispatchScreen';
 import { ForgeScreen } from '../screens/ForgeScreen';
 import type { SlimeInstanceId } from '../domain';
+
+const BattleScreen = lazy(async () => {
+  const module = await import('../screens/BattleScreen');
+  return { default: module.BattleScreen };
+});
 
 type ScreenId = 'battle' | 'slimes' | 'dispatch' | 'forge';
 
@@ -17,7 +21,7 @@ export function AppShell() {
   const state = useGameState();
   const ownedIds = selectOwnedSlimeIds(state);
   const attention = selectNavigationAttention(state);
-  const [screen, setScreen] = useState<ScreenId>('slimes');
+  const [screen, setScreen] = useState<ScreenId | null>(null);
   const [selectedSlimeId, setSelectedSlimeId] = useState<SlimeInstanceId | null>(null);
   const [offlineDismissed, setOfflineDismissed] = useState(false);
   const presentation = usePresentationQueue(presentationNoticeDurationMs);
@@ -27,10 +31,10 @@ export function AppShell() {
   }), [controller, presentation.enqueue]);
 
   useEffect(() => {
-    if (bootstrap.status !== 'ready') return;
+    if (bootstrap.status !== 'ready' || screen !== null) return;
     const firstOwned = ownedIds[0] ?? null;
     if (selectedSlimeId === null && firstOwned !== null) setSelectedSlimeId(firstOwned);
-    if (firstOwned !== null && state.gameData.roster.formationSlots.some((slot) => slot !== null)) setScreen('battle');
+    setScreen(firstOwned !== null && state.gameData.roster.formationSlots.some((slot) => slot !== null) ? 'battle' : 'slimes');
   }, [bootstrap.status]); // Initial routing only; later state changes must not steal navigation.
 
   const offlineReturn = useMemo(() => {
@@ -70,15 +74,21 @@ export function AppShell() {
     setSelectedSlimeId(slimeId);
     setScreen('slimes');
   };
+  const initialScreen: ScreenId = ownedIds.length > 0 && state.gameData.roster.formationSlots.some((slot) => slot !== null)
+    ? 'battle'
+    : 'slimes';
+  const activeScreen = screen ?? initialScreen;
 
   return (
     <main className="page">
       <section className="game-shell" aria-label="ゲーム画面">
         <div className="app-content">
-          {screen === 'battle' && <BattleScreen onOpenSlime={openSlime} />}
-          {screen === 'slimes' && <SlimesScreen selectedId={selectedSlimeId} onSelect={setSelectedSlimeId} onOpenBattle={() => setScreen('battle')} />}
-          {screen === 'dispatch' && <DispatchScreen />}
-          {screen === 'forge' && <ForgeScreen />}
+          <Suspense fallback={<section className="screen screen--active" aria-label="画面を読み込み中" />}>
+            {activeScreen === 'battle' && <BattleScreen onOpenSlime={openSlime} />}
+            {activeScreen === 'slimes' && <SlimesScreen selectedId={selectedSlimeId} onSelect={setSelectedSlimeId} onOpenBattle={() => setScreen('battle')} />}
+            {activeScreen === 'dispatch' && <DispatchScreen />}
+            {activeScreen === 'forge' && <ForgeScreen />}
+          </Suspense>
         </div>
 
         {!offlineDismissed && offlineReturn !== null && (
@@ -130,10 +140,10 @@ export function AppShell() {
         )}
 
         <nav className="bottom-nav bottom-nav--four" aria-label="メインメニュー">
-          <NavButton id="battle" label="戦闘" icon="⚔" active={screen === 'battle'} attention={false} onClick={setScreen} />
-          <NavButton id="slimes" label="キャンプ" icon="⌂" active={screen === 'slimes'} attention={attention.has('slimes')} onClick={setScreen} />
-          <NavButton id="dispatch" label="派遣" icon="↗" active={screen === 'dispatch'} attention={attention.has('dispatch')} onClick={setScreen} />
-          <NavButton id="forge" label="鍛造" icon="◆" active={screen === 'forge'} attention={attention.has('forge')} onClick={setScreen} />
+          <NavButton id="battle" label="戦闘" icon="⚔" active={activeScreen === 'battle'} attention={false} onClick={setScreen} />
+          <NavButton id="slimes" label="キャンプ" icon="⌂" active={activeScreen === 'slimes'} attention={attention.has('slimes')} onClick={setScreen} />
+          <NavButton id="dispatch" label="派遣" icon="↗" active={activeScreen === 'dispatch'} attention={attention.has('dispatch')} onClick={setScreen} />
+          <NavButton id="forge" label="鍛造" icon="◆" active={activeScreen === 'forge'} attention={attention.has('forge')} onClick={setScreen} />
         </nav>
       </section>
     </main>

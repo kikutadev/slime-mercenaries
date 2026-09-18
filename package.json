@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "check:bundle": "node scripts/check-initial-bundle.mjs",
     "preview": "vite preview",
     "generate:model": "pnpm run generate:sword && pnpm run generate:greatsword && pnpm run generate:archer",
     "generate:sword": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant sword --output public/assets/sword-slime.glb",
