@@ -41,6 +41,8 @@ function BattleRuntimeScene({ model, onSnapshot }: BattleCanvasProps) {
         maxHp: ally.maxHp,
         formationRole: ally.formationRole,
       })),
+      authoritativeResult: model.authoritativeResult,
+      authoritativeResultDelaySec: model.authoritativeResultDelaySec,
       enemies: model.encounter?.enemies.map((enemy) => ({
         enemyId: enemy.id,
         name: enemy.name,

@@ -11,9 +11,15 @@ import {
   previewSlimeFusion,
   previewSlimeLevelUp,
   previewSlimePromotion,
+  previewSlimePromotions,
   slimeCombatPower,
+  resolveAreaDefinition,
+  firstSlimeByType,
+  ownedSlimes,
+  sameTypeCount,
   type DispatchContractId,
   type JobSlimeId,
+  type SlimeInstanceId,
   type SlimeMercenariesState,
 } from '../../domain';
 import { FUSION_ITEMS, getSlimePresentation, getSlimePresentationForRank } from '../../game/slimes';
@@ -24,15 +30,15 @@ export function selectGlobalHud(state: SlimeMercenariesState) {
   return {
     gold: formatGameNumber(readCurrency(state.currencies, ids.currency.gold)),
     forgeKeys: readToken(state.tokens, ids.token.forgeKey),
-    areaLabel: 'クローバー街道',
+    areaLabel: resolveAreaDefinition(state.gameData.progression.currentAreaId)?.displayName ?? state.gameData.progression.currentAreaId,
     stageLabel: `${state.gameData.progression.currentStage}`,
   } as const;
 }
 
 export function selectEarlyGameCue(state: SlimeMercenariesState) {
-  const sword = state.gameData.roster.slimes.sword;
+  const sword = firstSlimeByType(state, 'sword');
   const plainStock = readToken(state.tokens, ids.token.plainSlime);
-  if (sword === undefined) {
+  if (sword === null) {
     if (plainStock === 0) {
       return {
         title: 'プレーンスライムを1匹作る',
@@ -48,7 +54,7 @@ export function selectEarlyGameCue(state: SlimeMercenariesState) {
   }
   if (sword.fusionRank >= 2) return null;
 
-  const fusion = previewSlimeFusion(state, 'sword');
+  const fusion = previewSlimeFusion(state, sword.id);
   if (fusion.canFuse) {
     return {
       title: '大剣士スライムへ合成',
@@ -57,13 +63,15 @@ export function selectEarlyGameCue(state: SlimeMercenariesState) {
     } as const;
   }
 
-  const duplicate = previewJobCreation(state, 'sword');
-  if (!duplicate.isNewDiscovery && duplicate.canCreate && readToken(state.tokens, ids.token.swordCore) === 0) {
-    return {
-      title: '剣士スライムをもう一度作る',
-      body: '発見済み職をもう一度作ると、同型を増やさず剣士の核へ変換されます。',
-      action: 'Create Core',
-    } as const;
+  if (sameTypeCount(state, 'sword') < 2) {
+    const duplicate = previewJobCreation(state, 'sword');
+    if (duplicate.canCreate) {
+      return {
+        title: '剣士スライムをもう1匹作る',
+        body: '同じ職でも別個体として残ります。編成・派遣に使うか、あとで合成素材にするか選べます。',
+        action: 'Create Job',
+      } as const;
+    }
   }
 
   if (sword.level < 10) {
@@ -76,21 +84,21 @@ export function selectEarlyGameCue(state: SlimeMercenariesState) {
 
   return {
     title: '合成素材を集める',
-    body: 'クローバー街道を進めて、大剣の原型と硬化ジェルを揃えます。',
-    action: 'Battle',
+    body: '余剰の同職スライムは控えとして残し、必要な時だけ合成の核へ変換できます。',
+    action: 'Fuse',
   } as const;
 }
 
-export function selectOwnedSlimeIds(state: SlimeMercenariesState): readonly JobSlimeId[] {
-  return JOB_IDS.filter((id) => state.gameData.roster.slimes[id] !== undefined);
+export function selectOwnedSlimeIds(state: SlimeMercenariesState): readonly SlimeInstanceId[] {
+  return ownedSlimes(state).map((slime) => slime.id);
 }
 
-export function selectSlimeDetail(state: SlimeMercenariesState, slimeId: JobSlimeId) {
+export function selectSlimeDetail(state: SlimeMercenariesState, slimeId: SlimeInstanceId) {
   const slime = state.gameData.roster.slimes[slimeId];
   if (slime === undefined) return null;
   const presentation = getSlimePresentation(slime);
   const fusion = previewSlimeFusion(state, slimeId);
-  const promotion = previewSlimePromotion(state, slimeId);
+  const promotions = previewSlimePromotions(state, slimeId);
   const levelOne = previewSlimeLevelUp(state, slimeId, 1);
   const levelTen = previewSlimeLevelUp(state, slimeId, 10);
   const maxAffordableCount = findMaxAffordableLevelCount(state, slimeId);
@@ -109,7 +117,9 @@ export function selectSlimeDetail(state: SlimeMercenariesState, slimeId: JobSlim
 
   return {
     id: slimeId,
-    name: presentation.name,
+    typeId: slime.typeId,
+    serial: slime.serial,
+    name: sameTypeCount(state, slime.typeId) > 1 ? `${presentation.name} #${slime.serial}` : presentation.name,
     role: presentation.role,
     asset: presentation.asset,
     icon: presentation.icon,
@@ -135,15 +145,17 @@ export function selectSlimeDetail(state: SlimeMercenariesState, slimeId: JobSlim
         label: FUSION_ITEMS[requirement.tokenId as keyof typeof FUSION_ITEMS]?.shortName ?? requirement.tokenId,
       })),
     },
-    promotion: promotion.step === null ? null : {
+    promotions: promotions.flatMap((promotion) => promotion.step === null ? [] : [{
+      id: promotion.step.id,
       canPromote: promotion.canPromote,
       levelMet: promotion.levelMet,
       minLevel: promotion.step.minLevel,
       resultName: promotion.step.resultDisplayName,
+      resultPathId: promotion.step.resultPathId,
       goldCost: formatGameNumber(promotion.goldCost),
       canAffordGold: promotion.canAffordGold,
       requirements: promotion.requirements,
-    },
+    }]),
   } as const;
 }
 
@@ -179,13 +191,14 @@ export function selectFormation(state: SlimeMercenariesState) {
   return state.gameData.roster.formationSlots.map((slimeId, slotIndex) => {
     if (slimeId === null) return { slotIndex, slimeId: null, name: null, icon: null, assignment: null } as const;
     const slime = state.gameData.roster.slimes[slimeId];
-    const presentation = slime === undefined ? getSlimePresentationForRank(slimeId, 1) : getSlimePresentation(slime);
+    if (slime === undefined) return { slotIndex, slimeId: null, name: null, icon: null, assignment: null } as const;
+    const presentation = getSlimePresentation(slime);
     return {
       slotIndex,
       slimeId,
-      name: presentation.name,
+      name: sameTypeCount(state, slime.typeId) > 1 ? `${presentation.name} #${slime.serial}` : presentation.name,
       icon: presentation.icon,
-      assignment: slime?.assignment ?? null,
+      assignment: slime.assignment,
     } as const;
   });
 }
@@ -198,7 +211,7 @@ export function selectDispatchScreen(state: SlimeMercenariesState) {
       const presentation = getSlimePresentation(slime);
       return {
         id: slimeId,
-        name: presentation.name,
+        name: sameTypeCount(state, slime.typeId) > 1 ? `${presentation.name} #${slime.serial}` : presentation.name,
         icon: presentation.icon,
         power: slimeCombatPower(state, slimeId).toNumber(),
       };
@@ -251,9 +264,41 @@ export function selectForgeScreen(state: SlimeMercenariesState) {
   } as const;
 }
 
+
+export type CampUpgradeOpportunity = Readonly<{
+  slimeId: SlimeInstanceId;
+  kind: 'level' | 'fusion' | 'promotion';
+  label: string;
+  priority: number;
+}>;
+
+/**
+ * Headless camp-upgrade opportunities. UI/navigation consume this instead of repeating affordability rules.
+ */
+export function selectCampUpgradeOpportunities(state: SlimeMercenariesState): readonly CampUpgradeOpportunity[] {
+  const gold = readCurrency(state.currencies, ids.currency.gold);
+  return selectOwnedSlimeIds(state).flatMap((slimeId) => {
+    const opportunities: CampUpgradeOpportunity[] = [];
+    const promotions = previewSlimePromotions(state, slimeId);
+    if (promotions.some((promotion) => promotion.canPromote)) {
+      opportunities.push({ slimeId, kind: 'promotion', label: '昇格可能', priority: 30 });
+    }
+    const fusion = previewSlimeFusion(state, slimeId);
+    if (fusion.canFuse) {
+      opportunities.push({ slimeId, kind: 'fusion', label: '合成可能', priority: 20 });
+    }
+    const level = previewSlimeLevelUp(state, slimeId, 1);
+    if (level?.available === true && gold.compare(level.totalCost) >= 0) {
+      opportunities.push({ slimeId, kind: 'level', label: 'レベルアップ可能', priority: 10 });
+    }
+    return opportunities;
+  }).sort((left, right) => right.priority - left.priority || left.slimeId.localeCompare(right.slimeId));
+}
+
 export function selectNavigationAttention(state: SlimeMercenariesState) {
-  const owned = selectOwnedSlimeIds(state);
-  const slimesReady = owned.some((slimeId) => previewSlimeFusion(state, slimeId).canFuse || previewSlimePromotion(state, slimeId).canPromote);
+  const upgrades = selectCampUpgradeOpportunities(state);
+  const slimesReady = upgrades.some((opportunity) => opportunity.kind !== 'level')
+    || (state.gameData.combat.retryFarmClearsRemaining > 0 && upgrades.some((opportunity) => opportunity.kind === 'level'));
   const dispatchReady = Object.values(state.gameData.dispatch.contracts).some((contract) => contract.activity.status === 'completed-unclaimed');
   const forgeReady = readToken(state.tokens, ids.token.forgeKey) > 0;
   const summary = selectAttentionSummary([
@@ -264,7 +309,7 @@ export function selectNavigationAttention(state: SlimeMercenariesState) {
   return new Set(summary.items.map((item) => item.kind));
 }
 
-function findMaxAffordableLevelCount(state: SlimeMercenariesState, slimeId: JobSlimeId): number {
+function findMaxAffordableLevelCount(state: SlimeMercenariesState, slimeId: SlimeInstanceId): number {
   const slime = state.gameData.roster.slimes[slimeId];
   if (slime === undefined) return 0;
   const gold = readCurrency(state.currencies, ids.currency.gold);

@@ -1,11 +1,11 @@
 # ADR 0003 — Plain Slime supply and job creation
 
-Status: Accepted
+Status: Accepted — roster duplicate semantics superseded 2026-09-18
 Date: 2026-09-16
 
 ## Context
 
-The product already treats discovered combat slimes as canonical type records rather than persistent individual characters. Repeated ownership strengthens a type through Fusion instead of placing duplicate bodies on the battlefield.
+This ADR originally assumed canonical type records. That roster assumption was superseded on 2026-09-18 by the persistent individual-roster implementation in `docs/plans/2026-09-18-multi-slime-roster.md`. The Plain-stock and Job-Gear supply decisions in this ADR remain accepted; repeated job creation now creates another persistent body, which may later be explicitly converted into Fusion input.
 
 However, the acquisition source remained ambiguous: specifications referenced slime acquisition from chests/recruitment while the product fantasy also said that giving equipment to a Plain Slime creates a job. This left several competing models:
 

@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { BattleCanvas } from '../components/BattleCanvas';
-import { useGameState } from '../app/GameProvider';
+import { useGameController, useGameState } from '../app/GameProvider';
 import { selectBattleSceneModel } from '../application/selectors/battle-scene';
 import { selectFormation, selectGlobalHud } from '../application/selectors/ui-selectors';
 import type { BattleSnapshot } from '../game/BattleRuntime';
-import type { JobSlimeId } from '../domain';
+import type { SlimeInstanceId } from '../domain';
 
 const INITIAL_BATTLE: BattleSnapshot = {
   phase: 'loading',
@@ -16,8 +16,10 @@ const INITIAL_BATTLE: BattleSnapshot = {
   allies: {},
 };
 
-export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeId) => void }) {
+export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInstanceId) => void }) {
   const state = useGameState();
+  const controller = useGameController();
+  const validationMode = controller.validationMode;
   const [battle, setBattle] = useState<BattleSnapshot>(INITIAL_BATTLE);
   const hud = selectGlobalHud(state);
   const formation = selectFormation(state);
@@ -28,10 +30,18 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeI
 
   const battleStatus = useMemo(() => {
     if (state.gameData.combat.contentBoundaryReached) return '現在のエリアを踏破しました';
-    if (state.gameData.combat.blockedBossStage !== null) return 'ボスで進行停止 · キャンプで強化';
+    if (state.gameData.combat.retryFarmClearsRemaining > 0) {
+      return `再編成中 · ステージ${state.gameData.progression.currentStage} · 再出撃まであと${state.gameData.combat.retryFarmClearsRemaining}周`;
+    }
     if (activeCount === 0) return '傭兵を編成すると自動戦闘が始まります';
     return battle.label;
-  }, [activeCount, battle.label, state.gameData.combat.blockedBossStage, state.gameData.combat.contentBoundaryReached]);
+  }, [
+    activeCount,
+    battle.label,
+    state.gameData.combat.contentBoundaryReached,
+    state.gameData.combat.retryFarmClearsRemaining,
+    state.gameData.progression.currentStage,
+  ]);
 
   return (
     <section className="screen screen--battle screen--active" aria-label="戦闘">
@@ -48,7 +58,7 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeI
         <div>
           <p className="eyebrow">{hud.areaLabel} · ステージ {hud.stageLabel}</p>
         </div>
-        <div className="resource-pill"><span className="resource-pill__coin">G</span><strong>{hud.gold}</strong></div>
+        <div className="resource-pill"><span className="resource-pill__coin">G</span><strong>{validationMode ? '∞' : hud.gold}</strong></div>
       </header>
 
       {hasBattleSlime && (
@@ -58,10 +68,16 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeI
         </div>
       )}
 
-      <div className={`battle-status-strip ${state.gameData.combat.blockedBossStage !== null ? 'is-warning' : ''}`}>
+      <div className={`battle-status-strip ${state.gameData.combat.retryFarmClearsRemaining > 0 ? 'is-warning' : ''}`}>
         <span className="status-dot" />
         {battleStatus}
       </div>
+
+      {validationMode && state.gameData.combat.contentBoundaryReached && (
+        <button className="battle-validation-restart" type="button" onClick={() => controller.validationResetBattle()}>
+          <span>検証</span><strong>戦闘を最初から再開</strong>
+        </button>
+      )}
 
       <div className="battle-party-rail" aria-label="出撃編成">
         {formation.map((slot) => {

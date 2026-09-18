@@ -1,5 +1,5 @@
 import { resolveOfflineElapsed, type DomainEvent, type OfflineTimePolicy } from 'idle-game-kit';
-import { advanceCombatTo } from './combat';
+import { advanceCombatTo, type CombatAdvancePolicy } from './combat';
 import { advanceDispatchTo } from './dispatch';
 import type { SlimeMercenariesState } from './state';
 
@@ -7,8 +7,9 @@ import type { SlimeMercenariesState } from './state';
 export function advanceSlimeWorldTo(
   state: SlimeMercenariesState,
   targetSimTimeSec: number,
+  combatPolicy: CombatAdvancePolicy = {},
 ): Readonly<{ state: SlimeMercenariesState; events: readonly DomainEvent[] }> {
-  const combat = advanceCombatTo(state, targetSimTimeSec);
+  const combat = advanceCombatTo(state, targetSimTimeSec, combatPolicy);
   const dispatch = advanceDispatchTo(combat.state, targetSimTimeSec);
   return { state: dispatch.state, events: [...combat.events, ...dispatch.events] };
 }
@@ -18,10 +19,11 @@ export function advanceSlimeWorldFromWallClock(
   state: SlimeMercenariesState,
   currentWallClockMs: number,
   offlinePolicy: OfflineTimePolicy = {},
+  combatPolicy: CombatAdvancePolicy = {},
 ): Readonly<{ state: SlimeMercenariesState; events: readonly DomainEvent[]; appliedOfflineSec: number }> {
   const elapsed = resolveOfflineElapsed(state.lastWallClockMs, currentWallClockMs, offlinePolicy);
   if (elapsed.observedElapsedSec === 0) return { state, events: [], appliedOfflineSec: 0 };
-  const advanced = advanceSlimeWorldTo(state, state.simTimeSec + elapsed.appliedElapsedSec);
+  const advanced = advanceSlimeWorldTo(state, state.simTimeSec + elapsed.appliedElapsedSec, combatPolicy);
   return {
     state: { ...advanced.state, lastWallClockMs: elapsed.nextWallClockMs },
     events: advanced.events,

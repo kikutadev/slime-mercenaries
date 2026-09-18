@@ -1,7 +1,7 @@
 # Slime Mercenaries — Current Specification
 
 Status: Current
-Date: 2026-09-16
+Date: 2026-09-18
 
 ## 1. Product form
 
@@ -14,6 +14,12 @@ Date: 2026-09-16
 - Secondary idle use: main formation外のowned slime typesをdispatchへ割り当てる
 
 `6 slots × 5 bodies = 30 friendly bodies` は現行仕様ではない。30体密度検証で小画面可読性とcharacter identityを損なうことを確認したため、メイン画面は少数表示へ変更した。
+
+## 1.1 Public validation mode
+
+The current public build is a validation build, not the final economy. Gold and authored resource tokens are replenished by the Application-layer validation policy and displayed as `∞`, allowing repeated creation, Fusion, Promotion, Forge, formation, and live-battle checks. The production Domain commands and authored requirements remain authoritative and are not replaced by zero-cost validation recipes.
+
+The validation switch is `VITE_VALIDATION_MODE`. Production economy builds must set it to `false`.
 
 ## 2. Canonical systems
 
@@ -41,12 +47,14 @@ Progression
 Roster
 - plainSlimeStock
 - discoveredSlimeTypeIds
-- slimeProgressByType
+- slimeInstancesById
+    - stable instance ID / serial / job type
     - level
     - fusionRank
     - fusionForm / fusion milestone state
     - promotion state
-    - equipped weapon
+    - equipped weapon/loadout
+    - assignment
 - fusionInventory
     - type-specific Slime Core items
     - weapon ingredients
@@ -55,7 +63,7 @@ Roster
 
 Formation
 - up to six active slots
-- assigned slime type per slot
+- assigned slime instance ID per slot
 
 Dispatch
 - unlocked contract families
@@ -65,7 +73,7 @@ Dispatch
 
 Equipment
 - Kit Inventory-backed owned equipment instances / product refinement state
-- one family-restricted Kit Loadout weapon slot per slime type
+- one family-restricted Kit Loadout weapon slot per slime instance
 - equipment codex discovery
 
 Economy
@@ -87,25 +95,25 @@ Exact runtime schema may differ, but implementation must preserve these product 
 
 ## 4. Roster model
 
-A slime type is not a collection of persistent individual bodies.
+The combat roster is a collection of persistent slime instances. Multiple instances may share the same job type and progress independently.
 
-Each discovered type owns one canonical progression state:
+Each owned slime instance has:
 
 - `type level`: frequent Gold-based growth
-- `fusion rank / form`: repeated creation of an already-discovered job produces type-specific fusion input; fusion strengthens that canonical type without changing its promotion tier
+- `fusion rank / form`: explicit Fusion strengthens that individual slime without changing its promotion tier
 - `promotion`: branch-specific evolution Tier
-- `equipped weapon`: one family-compatible weapon state
-- `assignment`: battle / dispatch / reserve
+- `equipped weapon`: one family-compatible weapon loadout
+- `assignment`: battle / dispatch / reserve, tracked per instance
 
 Plain Slime is a renewable untrained body source. Plain stock is obtained by material crafting or deterministic Gold purchase and is consumed when creating normal job slimes. Plain stock is not a set of individually leveled characters.
 
-Normal jobs are created from `Plain Slime + Job Gear`. The first creation unlocks the canonical roster type. Repeating the same job creation resolves immediately into that type's fusion input rather than creating a persistent second character. It does not permanently increase a population counter and does not add another same-type body to the battlefield.
+Normal jobs are created from `Plain Slime + Job Gear`. Every successful creation adds one persistent Tier-1 slime instance. The first instance also discovers the type; later instances remain fully usable bodies. A spare reserve instance may be explicitly converted into that family's Slime Core when the player wants Fusion input.
 
 ## 5. Main formation
 
-Normal combat uses up to six unique slime types.
+Normal combat uses up to six slime instances.
 
-Each occupied slot deploys exactly one visible slime body. Duplicate slime types cannot occupy several slots simultaneously; repeated job creation strengthens the existing type through fusion instead.
+Each occupied slot deploys exactly one visible slime body. Multiple instances of the same job type may occupy different slots simultaneously.
 
 Formation is a small-party composition decision, not a squad-size management system.
 
@@ -115,9 +123,9 @@ Initial product may unlock fewer than six slots during onboarding, but six is th
 
 Fusion is a core growth path.
 
-- repeating creation of an already-discovered job grants a type-specific Slime Core / equivalent fusion input
+- a spare reserve slime may be explicitly converted into its type-specific Slime Core / equivalent fusion input
 - fusion recipes may combine that type-specific input with weapon components and ordinary materials
-- fusion raises that type's persistent fusion rank / fusion-form progression without changing promotion tier by itself
+- fusion raises the selected instance's persistent fusion rank / fusion-form progression without changing promotion tier by itself
 - fusion must produce meaningful combat growth
 - exact rank count, recipe requirements, and coefficients are balance data
 - reload must not duplicate or reroll a resolved fusion/acquisition result
@@ -157,13 +165,13 @@ Core normal jobs are never locked solely behind premium acquisition or extremely
 
 ## 8. Assignment contract
 
-An owned slime type is conceptually in one of three states:
+Each owned slime instance is conceptually in one of three states:
 
 - `battle`: occupies one main formation slot
 - `dispatch`: assigned to one active external contract
 - `reserve`: owned but currently unassigned
 
-A type cannot be in battle and dispatch at the same time.
+One instance cannot be in battle and dispatch at the same time. Other same-type instances remain independently assignable.
 
 Fusion input is not an independent deployable character and therefore has no assignment state.
 

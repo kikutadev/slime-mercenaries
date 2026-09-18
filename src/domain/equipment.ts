@@ -6,6 +6,7 @@ import {
   type CommandResult,
   type DomainEvent,
   type GameState,
+  type LoadoutState,
 } from 'idle-game-kit';
 import { balance } from './balance';
 import {
@@ -15,10 +16,10 @@ import {
   slimeWeaponLoadoutDefinitions,
   weaponDefinitionsByDefinitionId,
   type ForgeReward,
-  type JobSlimeId,
   type WeaponDefinition,
 } from './definitions';
-import type { SlimeMercenariesData, SlimeMercenariesState, WeaponInstanceData } from './state';
+import { ownedSlimes } from './roster';
+import { createSlimeWeaponLoadout, type SlimeInstanceId, type SlimeMercenariesData, type SlimeMercenariesState, type WeaponInstanceData } from './state';
 
 export type ForgeRejectReason = 'invalid-draw-count' | 'insufficient-currency' | 'insufficient-token' | 'missing-rng-stream';
 
@@ -53,50 +54,64 @@ export function forgeEquipment(
 
 export function equipWeapon(
   state: SlimeMercenariesState,
-  slimeId: JobSlimeId,
+  slimeId: SlimeInstanceId,
   weaponDefinitionId: string,
 ): CommandResult<SlimeMercenariesState, 'not-owned-slime' | 'weapon-not-owned' | 'wrong-family'> {
-  if (state.gameData.roster.slimes[slimeId] === undefined) return reject(state, 'not-owned-slime');
+  const slime = state.gameData.roster.slimes[slimeId];
+  if (slime === undefined) return reject(state, 'not-owned-slime');
   const instance = findWeaponInstance(state, weaponDefinitionId);
   if (instance === null) return reject(state, 'weapon-not-owned');
 
+  const currentLoadout = state.gameData.equipment.loadouts[slimeId] ?? createSlimeWeaponLoadout(slime.typeId);
   const result = equipItem({
     inventory: state.gameData.equipment.inventory,
     itemDefinitions: itemDefinitionsById,
-    loadoutDefinition: slimeWeaponLoadoutDefinitions[slimeId],
-    loadout: state.gameData.equipment.loadouts[slimeId],
+    loadoutDefinition: slimeWeaponLoadoutDefinitions[slime.typeId],
+    loadout: currentLoadout,
     slotId: 'weapon',
     itemInstanceId: instance.instanceId,
   });
   if (!result.accepted) return reject(state, result.reason === 'slot-restriction' ? 'wrong-family' : 'weapon-not-owned');
 
+  // A concrete inventory instance belongs to at most one slime. Equipping transfers it from any previous holder.
+  const loadouts: Record<string, LoadoutState> = { ...state.gameData.equipment.loadouts };
+  for (const [otherSlimeId, loadout] of Object.entries(loadouts)) {
+    if (otherSlimeId === slimeId || loadout.equipped.weapon !== instance.instanceId) continue;
+    loadouts[otherSlimeId] = {
+      ...loadout,
+      equipped: { ...loadout.equipped, weapon: null },
+    };
+  }
+  loadouts[slimeId] = result.loadout;
+
   const nextState: SlimeMercenariesState = {
     ...state,
     gameData: {
       ...state.gameData,
-      equipment: {
-        ...state.gameData.equipment,
-        loadouts: { ...state.gameData.equipment.loadouts, [slimeId]: result.loadout },
-      },
+      equipment: { ...state.gameData.equipment, loadouts },
     },
   };
-  return accept(nextState, [semanticEvent(nextState, 'weaponEquipped', `${slimeId}:${weaponDefinitionId}`, { slimeId, weaponDefinitionId })]);
+  return accept(nextState, [semanticEvent(nextState, 'weaponEquipped', `${slimeId}:${weaponDefinitionId}`, {
+    slimeId,
+    typeId: slime.typeId,
+    weaponDefinitionId,
+  })]);
 }
 
 export function equippedWeaponDefinition(
   state: SlimeMercenariesState,
-  slimeId: JobSlimeId,
+  slimeId: SlimeInstanceId,
 ): WeaponDefinition | null {
-  const instanceId = state.gameData.equipment.loadouts[slimeId].equipped.weapon ?? null;
+  const instanceId = state.gameData.equipment.loadouts[slimeId]?.equipped.weapon ?? null;
   if (instanceId === null) return null;
   const instance = state.gameData.equipment.inventory[instanceId];
   if (instance === undefined) return null;
   return weaponDefinitionsByDefinitionId[instance.definitionId] ?? null;
 }
 
-export function equippedWeaponCombatMultiplier(state: SlimeMercenariesState, slimeId: JobSlimeId): number {
+export function equippedWeaponCombatMultiplier(state: SlimeMercenariesState, slimeId: SlimeInstanceId): number {
   const loadout = state.gameData.equipment.loadouts[slimeId];
-  const instanceId = loadout.equipped.weapon ?? null;
+  const instanceId = loadout?.equipped.weapon ?? null;
   if (instanceId === null) return 1;
   const instance = state.gameData.equipment.inventory[instanceId];
   if (instance === undefined) return 1;
@@ -126,10 +141,11 @@ function grantNewWeapon(state: SlimeMercenariesState, reward: ForgeReward): Game
     },
   };
 
-  const slime = nextState.gameData.roster.slimes[definition.family];
-  const loadout = nextState.gameData.equipment.loadouts[definition.family];
-  if (slime !== undefined && (loadout.equipped.weapon ?? null) === null) {
-    const equipped = equipWeapon(nextState, definition.family, definition.id);
+  const target = ownedSlimes(nextState)
+    .find((slime) => slime.typeId === definition.family
+      && (nextState.gameData.equipment.loadouts[slime.id]?.equipped.weapon ?? null) === null);
+  if (target !== undefined) {
+    const equipped = equipWeapon(nextState, target.id, definition.id);
     if (equipped.accepted) nextState = equipped.state;
   }
   return nextState;
@@ -143,7 +159,14 @@ function refineWeapon(state: SlimeMercenariesState, reward: ForgeReward): GameSt
   const currentRank = (instance.data as WeaponInstanceData | undefined)?.refinementRank ?? 0;
 
   if (currentRank >= balance.equipment.refinementCap) {
-    const materialTokenId = definition.family === 'sword' ? ids.token.swordWeaponMaterial : ids.token.bowWeaponMaterial;
+    const materialTokenId = {
+      sword: ids.token.swordWeaponMaterial,
+      shield: ids.token.shieldWeaponMaterial,
+      bow: ids.token.bowWeaponMaterial,
+      wand: ids.token.wandWeaponMaterial,
+      dagger: ids.token.daggerWeaponMaterial,
+      gun: ids.token.gunWeaponMaterial,
+    }[definition.family];
     return { ...state, tokens: grantToken(state.tokens, materialTokenId, 1) };
   }
 

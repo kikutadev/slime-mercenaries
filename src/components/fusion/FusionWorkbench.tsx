@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react';
 import { useGameController, useGameState } from '../../app/GameProvider';
 import { selectSlimeDetail } from '../../application/selectors/ui-selectors';
-import type { JobSlimeId } from '../../domain';
-import { getSlimePresentationForRank } from '../../game/slimes';
+import { jobCreationDefinitions, type SlimeInstanceId } from '../../domain';
+import { getSlimePresentation, getSlimePresentationForRank } from '../../game/slimes';
 import { getNextFusionStep } from '../../game/fusion';
 import { getFusionIngredientPresentation } from '../../game/fusion-presentation';
 import { SlimePreview } from '../SlimePreview';
 
 interface FusionWorkbenchProps {
-  slimeId: JobSlimeId;
+  slimeId: SlimeInstanceId;
   onClose: () => void;
   onBattle: () => void;
   onRecruit: () => void;
@@ -27,7 +27,12 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
   const state = useGameState();
   const controller = useGameController();
   const detail = selectSlimeDetail(state, slimeId);
+  const validationMode = controller.validationMode;
   const progress = state.gameData.roster.slimes[slimeId] ?? null;
+  const spareDuplicates = progress === null ? [] : Object.values(state.gameData.roster.slimes)
+    .filter((candidate) => candidate.id !== slimeId && candidate.typeId === progress.typeId && candidate.assignment === 'reserve')
+    .sort((left, right) => left.serial - right.serial);
+  const fusionCoreTokenId = progress === null ? null : jobCreationDefinitions[progress.typeId].fusionCoreTokenId;
   const [run, setRun] = useState<FusionRun | null>(null);
   const [sequenceKey, setSequenceKey] = useState(0);
   const [completed, setCompleted] = useState(false);
@@ -40,8 +45,8 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
   const next = progress === null ? null : getNextFusionStep({ ...progress, fusionRank: displayFromRank });
   const resultPresentation = useMemo(() => {
     if (progress === null) return null;
-    return getSlimePresentationForRank(slimeId, displayFromRank + 1);
-  }, [displayFromRank, progress, slimeId]);
+    return getSlimePresentationForRank(progress.typeId, displayFromRank + 1);
+  }, [displayFromRank, progress]);
 
   if (detail === null || progress === null) return null;
 
@@ -103,7 +108,7 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
           </div>
         )}
         <SlimePreview
-          slimeId={slimeId}
+          slimeId={progress.typeId}
           fusionRank={run?.fromRank ?? progress.fusionRank}
           fusionReady={!completed}
           isFusing={run !== null && !completed}
@@ -141,12 +146,36 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
                   }}
                 >
                   <span className={`fusion-ingredient__icon fusion-ingredient__icon--${meta.kind}`} aria-hidden="true"><img src={`${import.meta.env.BASE_URL}${meta.asset}`} alt="" /></span>
-                  <span><strong>{requirement.label}</strong><small>{requirement.owned} / {requirement.required}</small></span>
+                  <span><strong>{requirement.label}</strong><small>{validationMode ? '∞' : requirement.owned} / {requirement.required}</small></span>
                   {requirement.missing > 0 && <em>{meta.sourceLabel} ›</em>}
                 </button>
               );
             })}
           </div>
+
+          {fusionCoreTokenId !== null && detail.fusion.requirements.some((requirement) => requirement.tokenId === fusionCoreTokenId && requirement.missing > 0) && spareDuplicates.length > 0 && (
+            <div className="fusion-spare-list" aria-label="合成の核に変換する控えスライム">
+              {spareDuplicates.map((candidate) => {
+                const candidatePresentation = getSlimePresentation(candidate);
+                return (
+                  <button
+                    className="fusion-trigger"
+                    type="button"
+                    key={candidate.id}
+                    onClick={() => {
+                      const result = controller.convertDuplicateToFusionCore(candidate.id);
+                      setNotice(result.accepted
+                        ? `${candidatePresentation.name} #${candidate.serial} を合成の核に変換しました`
+                        : rejectionLabel(result.reason));
+                    }}
+                  >
+                    <span>余剰個体 · Lv.{candidate.level}</span>
+                    <strong>{candidatePresentation.name} #{candidate.serial} を核にする</strong>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {!detail.fusion.levelMet && (
             <div className="fusion-level-lock">Lv.{detail.fusion.minLevel}で合成陣が安定します。現在 Lv.{detail.level}</div>
@@ -187,6 +216,10 @@ function behaviorLabel(id: string): string {
   if (id.includes('follow-up')) return '追撃射撃';
   if (id.includes('pierce')) return '貫通射撃';
   if (id.includes('triple')) return '三連射';
+  if (id.includes('fortified-guard')) return '堅守強化';
+  if (id.includes('arcane-focus')) return '魔力収束';
+  if (id.includes('afterimage-edge')) return '残影強化';
+  if (id.includes('overpressure')) return '高圧射撃';
   return '新しい戦闘挙動';
 }
 
@@ -194,6 +227,8 @@ function rejectionLabel(reason: string | undefined): string {
   switch (reason) {
     case 'insufficient-materials': return '合成素材が足りません';
     case 'level-too-low': return 'レベルが足りません';
+    case 'not-reserve': return '控えのスライムだけ合成素材にできます';
+    case 'last-of-type': return '最後の1匹は合成素材にできません';
     default: return reason === undefined ? '合成できませんでした' : `合成できません: ${reason}`;
   }
 }

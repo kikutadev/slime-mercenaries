@@ -15,6 +15,7 @@ export function ForgeScreen() {
   const state = useGameState();
   const controller = useGameController();
   const view = selectForgeScreen(state);
+  const validationMode = controller.validationMode;
   const [results, setResults] = useState<readonly ForgeResultView[]>([]);
   const [phase, setPhase] = useState<ForgePhase>('idle');
   const [notice, setNotice] = useState<string | null>(null);
@@ -69,7 +70,7 @@ export function ForgeScreen() {
     <section className={`screen screen--forge-world screen--active forge-phase--${phase}`} aria-label="鍛造">
       <header className="forge-world__topbar">
         <div><p className="eyebrow">魔導工房</p><h1>鍛造</h1></div>
-        <div className="forge-world__keys"><span>◆</span><strong>{view.keys}</strong><small>キー</small></div>
+        <div className="forge-world__keys"><span>◆</span><strong>{validationMode ? '∞' : view.keys}</strong><small>キー</small></div>
       </header>
 
       <div className="forge-room">

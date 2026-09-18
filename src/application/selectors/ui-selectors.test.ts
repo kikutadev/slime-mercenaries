@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { grantToken } from 'idle-game-kit';
-import { assignSlimeToFormation, craftPlainSlime, createInitialSlimeMercenariesState, createJobSlime, ids } from '../../domain';
-import { selectCreateSlimePanel, selectDispatchScreen, selectEarlyGameCue, selectNavigationAttention } from './ui-selectors';
+import { applyRewards, grantToken } from 'idle-game-kit';
+import {
+  assignSlimeToFormation,
+  craftPlainSlime,
+  createInitialSlimeMercenariesState,
+  createJobSlime,
+  firstSlimeIdByType,
+  ids,
+  resolveCurrencyDefinition,
+} from '../../domain';
+import { selectCampUpgradeOpportunities, selectCreateSlimePanel, selectDispatchScreen, selectEarlyGameCue, selectNavigationAttention } from './ui-selectors';
 
 function createSwordState() {
   let state = createInitialSlimeMercenariesState(0, 11);
@@ -10,7 +18,9 @@ function createSwordState() {
   state = crafted.state;
   const created = createJobSlime(state, 'sword');
   if (!created.accepted) throw new Error('setup sword failed');
-  return created.state;
+  const swordId = firstSlimeIdByType(created.state, 'sword');
+  if (swordId === null) throw new Error('setup sword missing');
+  return { state: created.state, swordId };
 }
 
 describe('UI selectors', () => {
@@ -21,33 +31,42 @@ describe('UI selectors', () => {
     expect(view.jobs.find((job) => job.id === 'sword')?.canCreate).toBe(false);
   });
 
-  it('only exposes reserve slimes to dispatch selection', () => {
-    const reserve = createSwordState();
-    expect(selectDispatchScreen(reserve).reserve.map((slime) => slime.id)).toContain('sword');
+  it('only exposes reserve slime instances to dispatch selection', () => {
+    const setup = createSwordState();
+    expect(selectDispatchScreen(setup.state).reserve.map((slime) => slime.id)).toContain(setup.swordId);
 
-    const assigned = assignSlimeToFormation(reserve, 'sword', 0);
+    const assigned = assignSlimeToFormation(setup.state, setup.swordId, 0);
     if (!assigned.accepted) throw new Error('setup formation failed');
-    expect(selectDispatchScreen(assigned.state).reserve.map((slime) => slime.id)).not.toContain('sword');
+    expect(selectDispatchScreen(assigned.state).reserve.map((slime) => slime.id)).not.toContain(setup.swordId);
   });
 
   it('derives Forge attention from earned Forge Keys without React-local state', () => {
     const initial = createInitialSlimeMercenariesState(0, 5);
     expect(selectNavigationAttention(initial).has('forge')).toBe(false);
-
     const withKey = { ...initial, tokens: grantToken(initial.tokens, ids.token.forgeKey, 1) };
     expect(selectNavigationAttention(withKey).has('forge')).toBe(true);
   });
+
+  it('derives retreat strengthening attention from production upgrade previews', () => {
+    const setup = createSwordState();
+    let state = applyRewards(setup.state, [
+      { type: 'currency', currencyId: ids.currency.gold, amount: 100, source: 'test' },
+    ], { resolveCurrencyDefinition }) as typeof setup.state;
+
+    expect(selectCampUpgradeOpportunities(state).some((opportunity) => opportunity.kind === 'level')).toBe(true);
+    expect(selectNavigationAttention(state).has('slimes')).toBe(false);
+    state = { ...state, gameData: { ...state.gameData, combat: { ...state.gameData.combat, retryFarmClearsRemaining: 3 } } };
+    expect(selectNavigationAttention(state).has('slimes')).toBe(true);
+  });
+
   it('guides first-use progression from Plain creation into battle without storing tutorial state', () => {
     const initial = createInitialSlimeMercenariesState(0, 7);
     expect(selectEarlyGameCue(initial)?.title).toContain('プレーンスライム');
-
     const crafted = craftPlainSlime(initial);
     if (!crafted.accepted) throw new Error('setup craft failed');
     expect(selectEarlyGameCue(crafted.state)?.title).toContain('剣');
-
     const created = createJobSlime(crafted.state, 'sword');
     if (!created.accepted) throw new Error('setup sword failed');
     expect(selectEarlyGameCue(created.state)?.action).toBe('Battle');
   });
-
 });

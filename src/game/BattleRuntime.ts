@@ -47,6 +47,7 @@ import {
   type SlimeEquipmentMotionKind,
 } from './slime-motion';
 import type { BattleBehaviorId } from './slimes';
+import { applyTimedMultiplier, distanceSqToSegment2D, isExecuteThreshold, resolveTimedMultiplier, type TimedMultiplierEffect } from './combat-effects';
 import {
   applyEnemySecondaryPose,
   captureEnemyRigRestPose,
@@ -136,6 +137,7 @@ interface AllyUnit {
   shotApplied: boolean;
   normalEyes: THREE.Object3D[];
   xEyes: THREE.Object3D[];
+  damageTakenEffect: TimedMultiplierEffect | null;
 }
 
 interface EnemyUnit {
@@ -179,6 +181,7 @@ interface EnemyUnit {
   lastUpdateAt: number;
   normalEyes: THREE.Object3D[];
   xEyes: THREE.Object3D[];
+  moveSpeedEffect: TimedMultiplierEffect | null;
 }
 
 interface ProjectileRuntime {
@@ -195,6 +198,16 @@ interface ProjectileRuntime {
   arcHeightScale: number;
   orientToTravel: boolean;
   hitU: number;
+  slowEffect?: Readonly<{ durationSec: number; multiplier: number; radius: number }>;
+  pierceDamage?: number;
+  pierceWidth?: number;
+}
+
+interface TurretRuntime {
+  ownerSlimeId: string;
+  root: THREE.Group;
+  expiresAt: number;
+  nextShotAt: number;
 }
 
 interface TracerRuntime {
@@ -274,6 +287,9 @@ export interface BattleRuntimeOptions {
   waveIndex: number;
   allies: readonly BattleRuntimeAllyConfig[];
   enemies: readonly BattleRuntimeEnemyConfig[];
+  /** Domain-authored encounter result. Runtime presents it but never owns progression. */
+  authoritativeResult: 'victory' | 'defeat' | null;
+  authoritativeResultDelaySec: number | null;
   onSnapshot: (snapshot: BattleSnapshot) => void;
 }
 
@@ -314,6 +330,8 @@ const ENEMY_ATTACK_RANGE = 0.72;
 const ENEMY_MOVE_SPEED = 0.74;
 const MELEE_BODY_GAP = 0.58;
 const RESULT_HOLD_SECONDS = 1.85;
+const AUTHORITATIVE_DEFEAT_LEAD_SECONDS = 2.2;
+const AUTHORITATIVE_VICTORY_LEAD_SECONDS = 1.0;
 const CAMERA_BASE_POSITION = new THREE.Vector3(2.8, 5.35, 8.9);
 const CAMERA_LOOK_AT = new THREE.Vector3(0, 0.38, -1.05);
 
@@ -327,6 +345,8 @@ export class BattleRuntime {
   private readonly waveIndex: number;
   private readonly allyConfigs: readonly BattleRuntimeAllyConfig[];
   private readonly enemyConfigs: readonly BattleRuntimeEnemyConfig[];
+  private readonly authoritativeResult: 'victory' | 'defeat' | null;
+  private readonly authoritativeResultDelaySec: number | null;
   private readonly onSnapshot: (snapshot: BattleSnapshot) => void;
   private readonly tempVector = new THREE.Vector3();
   private readonly tempVector2 = new THREE.Vector3();
@@ -340,6 +360,7 @@ export class BattleRuntime {
   private readonly tracers: TracerRuntime[] = [];
   private readonly impacts: ImpactRuntime[] = [];
   private readonly victoryLootMotes: VictoryLootMoteRuntime[] = [];
+  private readonly turrets: TurretRuntime[] = [];
   private slashArc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null = null;
   private spinArc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null = null;
   private environmentSceneryRoot: THREE.Group | null = null;
@@ -353,6 +374,7 @@ export class BattleRuntime {
   private hitStopEndsAt = -Infinity;
   private phase: BattleSnapshot['phase'] = 'loading';
   private phaseStartedAt = 0;
+  private battleStartedAt = 0;
   private result: BattleSnapshot['result'] = null;
   private cameraShakeStartedAt = -Infinity;
   private cameraShakeEndsAt = -Infinity;
@@ -368,6 +390,8 @@ export class BattleRuntime {
     this.waveIndex = options.waveIndex;
     this.allyConfigs = options.allies;
     this.enemyConfigs = options.enemies;
+    this.authoritativeResult = options.authoritativeResult;
+    this.authoritativeResultDelaySec = options.authoritativeResultDelaySec;
     this.onSnapshot = options.onSnapshot;
     this.continuationEntryPending = shouldUseMarchEntry(options.stageNumber, options.waveIndex);
   }
@@ -410,11 +434,13 @@ export class BattleRuntime {
       else if (this.phase === 'combat') this.updateCombat(simulationNow);
       else if (this.phase === 'result') this.updateResult(simulationNow);
 
+      this.enforceAuthoritativeResult(simulationNow);
       this.allies.forEach((ally) => this.updateAllyDefeat(ally, simulationNow));
       this.updateProjectiles(simulationNow);
       this.updateEnemyProjectiles(simulationNow);
       this.updateMuzzleFlashes(simulationNow);
       this.updateTracers(simulationNow);
+      this.updateTurrets(simulationNow);
       this.updateImpacts(simulationNow);
       this.evaluateBattleOutcome(simulationNow);
     }
@@ -521,7 +547,7 @@ export class BattleRuntime {
       initialAttackDelay: config.initialAttackDelay,
       alive: true, state: 'idle', defeatStartedAt: -Infinity, hitStartedAt: -Infinity,
       attackStartedAt: -Infinity, attackOrigin: home.clone(), attackTarget: null, attackHitApplied: false,
-      nextAttackAt: 0, lastUpdateAt: 0, normalEyes, xEyes,
+      nextAttackAt: 0, lastUpdateAt: 0, normalEyes, xEyes, moveSpeedEffect: null,
     };
   }
 
@@ -708,11 +734,11 @@ export class BattleRuntime {
     const shadow = this.makeShadow(0.24);
     shadow.position.set(approachOrigin.x, 0.011, approachOrigin.z);
     const healthBar = this.createWorldHealthBar();
-    const guardPulseVfx = config.behaviorId === 'guardian-guard' ? createGuardPulseVfx() : null;
+    const guardPulseVfx = (config.behaviorId === 'guardian-guard' || config.behaviorId === 'paladin-barrier' || config.behaviorId === 'fortress-plant') ? createGuardPulseVfx() : null;
     if (guardPulseVfx) this.scene.add(guardPulseVfx);
-    const mageCastSigil = config.behaviorId === 'mage-aoe' ? createMageCastSigil() : null;
+    const mageCastSigil = (config.behaviorId === 'mage-aoe' || config.behaviorId === 'archmage-burst' || config.behaviorId === 'frost-mage-control') ? createMageCastSigil() : null;
     if (mageCastSigil) this.scene.add(mageCastSigil);
-    const rogueSlashArc = config.behaviorId === 'rogue-twin-strike' ? createRogueSlashArc() : null;
+    const rogueSlashArc = (config.behaviorId === 'rogue-twin-strike' || config.behaviorId === 'ninja-vanish' || config.behaviorId === 'assassin-execute') ? createRogueSlashArc() : null;
     if (rogueSlashArc) this.scene.add(rogueSlashArc);
     const unit: AllyUnit = {
       id: `ally-${config.slimeId}-${config.slotIndex}`,
@@ -760,6 +786,7 @@ export class BattleRuntime {
       shotApplied: false,
       normalEyes: [],
       xEyes: [],
+      damageTakenEffect: null,
     };
     const eyes = this.createDefeatEyes(unit);
     unit.normalEyes = eyes.normalEyes;
@@ -805,22 +832,34 @@ export class BattleRuntime {
   private equipmentKindFor(unit: AllyUnit): SlimeEquipmentMotionKind {
     switch (unit.behaviorId) {
       case 'bow-ranged':
-      case 'ranger-double-shot': return 'bow';
-      case 'fighter-combo': return 'sword';
+      case 'ranger-double-shot':
+      case 'sniper-pierce':
+      case 'storm-archer-volley': return 'bow';
+      case 'fighter-combo':
+      case 'blademaster-dash':
+      case 'berserker-heavy': return 'sword';
       case 'shield-defender':
-      case 'guardian-guard': return 'shield';
+      case 'guardian-guard':
+      case 'paladin-barrier':
+      case 'fortress-plant': return 'shield';
       case 'wand-magic':
-      case 'mage-aoe': return 'wand';
+      case 'mage-aoe':
+      case 'archmage-burst':
+      case 'frost-mage-control': return 'wand';
       case 'dagger-skirmisher':
-      case 'rogue-twin-strike': return 'dagger';
+      case 'rogue-twin-strike':
+      case 'ninja-vanish':
+      case 'assassin-execute': return 'dagger';
       case 'gun-ranged':
-      case 'gunner-burst': return 'gun';
+      case 'gunner-burst':
+      case 'cannoneer-shell':
+      case 'engineer-turret': return 'gun';
       default: return 'sword';
     }
   }
 
   private isMeleeBehavior(unit: AllyUnit): boolean {
-    return unit.behaviorId === 'sword-melee' || unit.behaviorId === 'fighter-combo' || unit.behaviorId === 'shield-defender' || unit.behaviorId === 'guardian-guard' || unit.behaviorId === 'dagger-skirmisher' || unit.behaviorId === 'rogue-twin-strike';
+    return unit.behaviorId === 'sword-melee' || unit.behaviorId === 'fighter-combo' || unit.behaviorId === 'blademaster-dash' || unit.behaviorId === 'berserker-heavy' || unit.behaviorId === 'shield-defender' || unit.behaviorId === 'guardian-guard' || unit.behaviorId === 'paladin-barrier' || unit.behaviorId === 'fortress-plant' || unit.behaviorId === 'dagger-skirmisher' || unit.behaviorId === 'rogue-twin-strike' || unit.behaviorId === 'ninja-vanish' || unit.behaviorId === 'assassin-execute';
   }
 
   private setEquipmentSwing(unit: AllyUnit, angle: number, lift = 0, sweep = 0): void {
@@ -905,6 +944,14 @@ export class BattleRuntime {
     // stable combat anchor so repeated attacks cannot drag both sides into the same point.
     if (this.isMeleeBehavior(target) && this.phase === 'combat') return target.combatAnchor;
     return target.root.position;
+  }
+
+  private findLowestHpEnemy(): EnemyUnit | null {
+    return [...this.getLivingEnemies()].sort((left, right) => {
+      const leftRatio = left.hp / Math.max(1, left.maxHp);
+      const rightRatio = right.hp / Math.max(1, right.maxHp);
+      return leftRatio - rightRatio || left.hp - right.hp;
+    })[0] ?? null;
   }
 
   private findNearest<T extends AllyUnit | EnemyUnit>(source: AllyUnit | EnemyUnit, candidates: T[]): T | null {
@@ -996,7 +1043,18 @@ export class BattleRuntime {
     sourcePosition: THREE.Vector3,
   ): void {
     if (!target.alive) return;
-    target.hp = Math.max(0, target.hp - amount);
+    const effectiveAmount = target.side === 'ally'
+      ? amount * resolveTimedMultiplier(target.damageTakenEffect, this.simulationNow)
+      : amount;
+    let nextHp = Math.max(0, target.hp - effectiveAmount);
+    // A Domain-owned encounter must not resolve locally before its authored boundary.
+    if (this.authoritativeResult !== null && nextHp <= 0) {
+      const isLast = target.side === 'enemy'
+        ? this.getLivingEnemies().length === 1
+        : this.getLivingAllies().length === 1;
+      if (isLast) nextHp = 1;
+    }
+    target.hp = nextHp;
     target.hitStartedAt = this.simulationNow;
     this.tempVector.copy(target.root.position);
     this.tempVector.y += target.side === 'enemy' ? 0.28 : 0.22;
@@ -1096,13 +1154,14 @@ export class BattleRuntime {
     if (this.environmentSceneryRoot) this.environmentSceneryRoot.position.z = getSceneryApproachOffset(0);
     this.environmentTravel?.(0);
     this.clearVictoryLootMotes();
+    this.battleStartedAt = now;
     this.result = null;
     this.allies.forEach((ally) => {
       ally.attackStartedAt = -Infinity;
       ally.attackTarget = null;
       ally.hitsApplied = 0;
       ally.shotApplied = false;
-      ally.nextAttackAt = now + ((ally.behaviorId === 'bow-ranged' || ally.behaviorId === 'ranger-double-shot' || ally.behaviorId === 'mage-aoe' || ally.behaviorId === 'gunner-burst') ? 0.65 : 1.7) + ally.slotIndex * 0.05;
+      ally.nextAttackAt = now + ((ally.behaviorId === 'bow-ranged' || ally.behaviorId === 'ranger-double-shot' || ally.behaviorId === 'sniper-pierce' || ally.behaviorId === 'storm-archer-volley' || ally.behaviorId === 'mage-aoe' || ally.behaviorId === 'archmage-burst' || ally.behaviorId === 'frost-mage-control' || ally.behaviorId === 'gunner-burst' || ally.behaviorId === 'cannoneer-shell' || ally.behaviorId === 'engineer-turret') ? 0.65 : 1.7) + ally.slotIndex * 0.05;
       const firstEnemy = this.findNearest(ally, this.getLivingEnemies());
       if (firstEnemy) this.facePoint(ally, firstEnemy.root.position);
     });
@@ -1155,17 +1214,29 @@ export class BattleRuntime {
   private updateCombat(now: number): void {
     this.allies.forEach((ally) => {
       if (ally.behaviorId === 'sword-melee') this.updateSword(now, ally);
-      else if (ally.behaviorId === 'fighter-combo') this.updateFighter(now, ally);
+      else if (ally.behaviorId === 'fighter-combo') this.updateFighter(now, ally, 'fighter');
+      else if (ally.behaviorId === 'blademaster-dash') this.updateFighter(now, ally, 'blademaster');
+      else if (ally.behaviorId === 'berserker-heavy') this.updateFighter(now, ally, 'berserker');
       else if (ally.behaviorId === 'bow-ranged') this.updateBow(now, ally);
-      else if (ally.behaviorId === 'ranger-double-shot') this.updateRanger(now, ally);
+      else if (ally.behaviorId === 'ranger-double-shot') this.updateRanger(now, ally, 'ranger');
+      else if (ally.behaviorId === 'sniper-pierce') this.updateRanger(now, ally, 'sniper');
+      else if (ally.behaviorId === 'storm-archer-volley') this.updateRanger(now, ally, 'storm');
       else if (ally.behaviorId === 'shield-defender') this.updateShield(now, ally);
-      else if (ally.behaviorId === 'guardian-guard') this.updateGuardian(now, ally);
+      else if (ally.behaviorId === 'guardian-guard') this.updateGuardian(now, ally, 'guardian');
+      else if (ally.behaviorId === 'paladin-barrier') this.updateGuardian(now, ally, 'paladin');
+      else if (ally.behaviorId === 'fortress-plant') this.updateGuardian(now, ally, 'fortress');
       else if (ally.behaviorId === 'wand-magic') this.updateWand(now, ally);
-      else if (ally.behaviorId === 'mage-aoe') this.updateMage(now, ally);
+      else if (ally.behaviorId === 'mage-aoe') this.updateMage(now, ally, 'mage');
+      else if (ally.behaviorId === 'archmage-burst') this.updateMage(now, ally, 'archmage');
+      else if (ally.behaviorId === 'frost-mage-control') this.updateMage(now, ally, 'frost');
       else if (ally.behaviorId === 'dagger-skirmisher') this.updateDagger(now, ally);
-      else if (ally.behaviorId === 'rogue-twin-strike') this.updateRogue(now, ally);
+      else if (ally.behaviorId === 'rogue-twin-strike') this.updateRogue(now, ally, 'rogue');
+      else if (ally.behaviorId === 'ninja-vanish') this.updateRogue(now, ally, 'ninja');
+      else if (ally.behaviorId === 'assassin-execute') this.updateRogue(now, ally, 'assassin');
       else if (ally.behaviorId === 'gun-ranged') this.updateGun(now, ally);
-      else if (ally.behaviorId === 'gunner-burst') this.updateGunner(now, ally);
+      else if (ally.behaviorId === 'gunner-burst') this.updateGunner(now, ally, 'gunner');
+      else if (ally.behaviorId === 'cannoneer-shell') this.updateGunner(now, ally, 'cannoneer');
+      else if (ally.behaviorId === 'engineer-turret') this.updateGunner(now, ally, 'engineer');
     });
     this.enemies.forEach((enemy) => this.updateEnemyUnit(enemy, now));
   }
@@ -1257,7 +1328,7 @@ export class BattleRuntime {
     if (u >= 1 || !target.alive) this.finishSwordAttack(now, sword, target);
   }
 
-  private updateFighter(now: number, fighter: AllyUnit): void {
+  private updateFighter(now: number, fighter: AllyUnit, mode: 'fighter' | 'blademaster' | 'berserker' = 'fighter'): void {
     if (!fighter.alive) return;
     if (fighter.attackStartedAt !== -Infinity && !fighter.attackTarget?.alive) {
       fighter.attackStartedAt = -Infinity;
@@ -1290,7 +1361,7 @@ export class BattleRuntime {
     this.tempVector.copy(target.root.position).sub(fighter.combatAnchor).setY(0);
     const distance = this.tempVector.length();
     if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
-    let offset = pose.bodyOffset;
+    let offset = pose.bodyOffset * (mode === 'blademaster' ? 1.35 : mode === 'berserker' ? 0.82 : 1);
     if (offset > 0) {
       offset = Math.min(offset, Math.max(0, distance - MELEE_BODY_GAP));
       offset = this.getSafeMeleeForwardOffset(fighter.combatAnchor, this.tempVector, offset);
@@ -1314,9 +1385,21 @@ export class BattleRuntime {
         this.slashArc.material.opacity = slashVfx.opacity;
       }
       if (pose.releaseProgress >= SLIME_MOTION_THRESHOLDS.fighterHitReleaseProgress && fighter.hitsApplied === pose.comboHit && target.alive) {
-        const damage = pose.comboHit === 0 ? 1 : 2;
+        const damage = mode === 'berserker'
+          ? (pose.comboHit === 0 ? 2 : 4)
+          : (pose.comboHit === 0 ? 1 : 2);
         fighter.hitsApplied += 1;
         this.applyDamage(target, damage, 'melee', fighter.root.position);
+        if (mode === 'blademaster' && pose.comboHit === 1) {
+          const cleaveRadiusSq = 0.72 ** 2;
+          for (const enemy of this.getLivingEnemies()) {
+            if (enemy === target) continue;
+            this.tempVector2.copy(enemy.root.position).sub(target.root.position).setY(0);
+            if (this.tempVector2.lengthSq() <= cleaveRadiusSq) this.applyDamage(enemy, 1, 'melee', target.root.position);
+          }
+          this.createImpact(target.root.position.clone().add(new THREE.Vector3(0, 0.18, 0)), '#dff7ff', 0.09);
+        }
+        if (mode === 'berserker') this.startCameraShake(0.08, pose.comboHit === 1 ? 0.042 : 0.026);
       }
     } else {
       this.resetSlash();
@@ -1329,7 +1412,7 @@ export class BattleRuntime {
       fighter.root.position.copy(fighter.combatAnchor);
       this.setEquipmentSwing(fighter, 0);
       this.resetSlash();
-      fighter.nextAttackAt = now + 0.46;
+      fighter.nextAttackAt = now + (mode === 'blademaster' ? 0.24 : mode === 'berserker' ? (fighter.hp / fighter.maxHp <= 0.45 ? 0.28 : 0.76) : 0.46);
     }
   }
 
@@ -1405,8 +1488,11 @@ export class BattleRuntime {
   }
 
 
-  private updateGuardian(now: number, guardian: AllyUnit): void {
+  private updateGuardian(now: number, guardian: AllyUnit, mode: 'guardian' | 'paladin' | 'fortress' = 'guardian'): void {
     if (!guardian.alive) return;
+    if (mode === 'fortress') {
+      guardian.damageTakenEffect = applyTimedMultiplier(guardian.damageTakenEffect, now, 0.35, 0.38);
+    }
     if (guardian.attackStartedAt !== -Infinity && !guardian.attackTarget?.alive) {
       guardian.attackStartedAt = -Infinity;
       guardian.attackTarget = null;
@@ -1433,7 +1519,7 @@ export class BattleRuntime {
     this.tempVector.copy(target.root.position).sub(guardian.combatAnchor).setY(0);
     const distance = this.tempVector.length();
     if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
-    let offset = pose.bodyOffset;
+    let offset = pose.bodyOffset * (mode === 'fortress' ? 0.22 : 1);
     if (offset > 0) {
       offset = Math.min(offset, Math.max(0, distance - MELEE_BODY_GAP));
       offset = this.getSafeMeleeForwardOffset(guardian.combatAnchor, this.tempVector, offset);
@@ -1450,7 +1536,13 @@ export class BattleRuntime {
     if (u >= SLIME_MOTION_THRESHOLDS.guardianContactU && guardian.hitsApplied === 0 && target.alive) {
       guardian.hitsApplied = 1;
       this.applyDamage(target, 2, 'melee', guardian.root.position);
-      this.startCameraShake(0.08, 0.022);
+      if (mode === 'paladin') {
+        for (const ally of this.getLivingAllies()) {
+          ally.damageTakenEffect = applyTimedMultiplier(ally.damageTakenEffect, now, 2.8, 0.58);
+          this.createImpact(ally.root.position.clone().add(new THREE.Vector3(0, 0.18, 0)), '#fff1a8', 0.065);
+        }
+      }
+      this.startCameraShake(0.08, mode === 'paladin' ? 0.03 : mode === 'fortress' ? 0.028 : 0.022);
     }
     if (u >= 1 || !target.alive) {
       guardian.attackStartedAt = -Infinity;
@@ -1459,11 +1551,11 @@ export class BattleRuntime {
       guardian.root.position.copy(guardian.combatAnchor);
       this.setEquipmentSwing(guardian, 0);
       this.resetBranchAccents(guardian);
-      guardian.nextAttackAt = now + 0.72;
+      guardian.nextAttackAt = now + (mode === 'fortress' ? 0.98 : mode === 'paladin' ? 0.78 : 0.72);
     }
   }
 
-  private updateMage(now: number, mage: AllyUnit): void {
+  private updateMage(now: number, mage: AllyUnit, mode: 'mage' | 'archmage' | 'frost' = 'mage'): void {
     if (!mage.alive) return;
     if (mage.attackStartedAt !== -Infinity && !mage.attackTarget?.alive) {
       mage.attackStartedAt = -Infinity;
@@ -1504,19 +1596,27 @@ export class BattleRuntime {
     }
     if (!mage.shotApplied && u >= SLIME_MOTION_THRESHOLDS.mageReleaseU) {
       mage.shotApplied = true;
-      this.fireMagicOrb(mage, target, 0.58, true);
+      if (mode === 'archmage') {
+        this.fireMagicOrb(mage, target, 0.92, true, undefined, 2, 2);
+        this.startCameraShake(0.10, 0.032);
+      } else {
+        this.fireMagicOrb(
+          mage, target, 0.58, true,
+          mode === 'frost' ? { durationSec: 3.0, multiplier: 0.45, radius: 0.72 } : undefined,
+        );
+      }
     }
     if (u >= 1) {
       mage.attackStartedAt = -Infinity;
       mage.attackTarget = null;
       mage.root.position.copy(mage.home);
-      mage.nextAttackAt = now + 1.05;
+      mage.nextAttackAt = now + (mode === 'archmage' ? 1.36 : mode === 'frost' ? 1.12 : 1.05);
       this.setEquipmentSwing(mage, 0);
       this.resetBranchAccents(mage);
     }
   }
 
-  private updateRogue(now: number, rogue: AllyUnit): void {
+  private updateRogue(now: number, rogue: AllyUnit, mode: 'rogue' | 'ninja' | 'assassin' = 'rogue'): void {
     if (!rogue.alive) return;
     if (rogue.attackStartedAt !== -Infinity && !rogue.attackTarget?.alive) {
       rogue.attackStartedAt = -Infinity;
@@ -1524,7 +1624,7 @@ export class BattleRuntime {
       rogue.hitsApplied = 0;
     }
     if (rogue.attackStartedAt === -Infinity && now >= rogue.nextAttackAt) {
-      const target = this.findNearest(rogue, this.getLivingEnemies());
+      const target = mode === 'assassin' ? this.findLowestHpEnemy() : this.findNearest(rogue, this.getLivingEnemies());
       if (target) {
         rogue.attackStartedAt = now;
         rogue.attackTarget = target;
@@ -1534,7 +1634,7 @@ export class BattleRuntime {
     if (rogue.attackStartedAt === -Infinity || !rogue.attackTarget) {
       rogue.root.position.copy(rogue.combatAnchor);
       this.updateIdle(rogue, now, 1.85 + rogue.slotIndex * 0.21);
-      const target = this.findNearest(rogue, this.getLivingEnemies());
+      const target = mode === 'assassin' ? this.findLowestHpEnemy() : this.findNearest(rogue, this.getLivingEnemies());
       if (target) this.facePoint(rogue, target.root.position);
       return;
     }
@@ -1565,7 +1665,20 @@ export class BattleRuntime {
     const hitMask = 1 << pose.comboHit;
     if (pose.hitProgress >= SLIME_MOTION_THRESHOLDS.rogueHitProgress && (rogue.hitsApplied & hitMask) === 0 && target.alive) {
       rogue.hitsApplied |= hitMask;
-      this.applyDamage(target, pose.comboHit === 0 ? 1 : 2, 'melee', rogue.root.position);
+      const execute = mode === 'assassin' && isExecuteThreshold(target.hp, target.maxHp, 0.30);
+      const damage = mode === 'ninja'
+        ? 1
+        : mode === 'assassin' && pose.comboHit === 1
+          ? (execute ? 5 : 2)
+          : (pose.comboHit === 0 ? 1 : 2);
+      this.applyDamage(target, damage, 'melee', rogue.root.position);
+      if (mode === 'ninja' && pose.comboHit === 1) {
+        const echo = this.getLivingEnemies().find((enemy) => enemy !== target);
+        if (echo !== undefined) {
+          this.applyDamage(echo, 1, 'melee', rogue.root.position);
+          this.createImpact(echo.root.position.clone().add(new THREE.Vector3(0, 0.16, 0)), '#d6c5ff', 0.06);
+        }
+      }
     }
     if (u >= 1 || !target.alive) {
       rogue.attackStartedAt = -Infinity;
@@ -1574,11 +1687,11 @@ export class BattleRuntime {
       rogue.root.position.copy(rogue.combatAnchor);
       this.setEquipmentSwing(rogue, 0);
       this.setSecondaryEquipmentSwing(rogue, 0);
-      rogue.nextAttackAt = now + 0.30;
+      rogue.nextAttackAt = now + (mode === 'ninja' ? 0.16 : mode === 'assassin' ? 0.38 : 0.30);
     }
   }
 
-  private updateGunner(now: number, gunner: AllyUnit): void {
+  private updateGunner(now: number, gunner: AllyUnit, mode: 'gunner' | 'cannoneer' | 'engineer' = 'gunner'): void {
     if (!gunner.alive) return;
     if (gunner.attackStartedAt !== -Infinity && !gunner.attackTarget?.alive) {
       gunner.attackStartedAt = -Infinity;
@@ -1613,7 +1726,17 @@ export class BattleRuntime {
       const mask = 1 << shotIndex;
       if (u >= getGunnerShotReleaseU(shotIndex) && (gunner.hitsApplied & mask) === 0) {
         gunner.hitsApplied |= mask;
-        this.fireBullet(gunner, target, true);
+        if (mode === 'cannoneer') {
+          if (shotIndex === 0) {
+            this.fireBullet(gunner, target, true, { damage: 3, splashRadius: 0.82, splashDamage: 2, arcHeightScale: 0.86, durationScale: 1.65 });
+            this.startCameraShake(0.10, 0.038);
+          }
+        } else if (mode === 'engineer') {
+          if (shotIndex === 0) this.fireBullet(gunner, target, true);
+          if (shotIndex === 1) this.deployEngineerTurret(gunner, now);
+        } else {
+          this.fireBullet(gunner, target, true);
+        }
       }
     }
     if (u >= 1) {
@@ -1621,7 +1744,7 @@ export class BattleRuntime {
       gunner.attackTarget = null;
       gunner.hitsApplied = 0;
       gunner.root.position.copy(gunner.home);
-      gunner.nextAttackAt = now + 0.56;
+      gunner.nextAttackAt = now + (mode === 'cannoneer' ? 0.94 : mode === 'engineer' ? 1.08 : 0.56);
       this.setEquipmentSwing(gunner, 0);
     }
   }
@@ -1816,7 +1939,15 @@ export class BattleRuntime {
     }
   }
 
-  private fireMagicOrb(wand: AllyUnit, target: EnemyUnit, splashRadius = 0, enhanced = false): void {
+  private fireMagicOrb(
+    wand: AllyUnit,
+    target: EnemyUnit,
+    splashRadius = 0,
+    enhanced = false,
+    slowEffect?: Readonly<{ durationSec: number; multiplier: number; radius: number }>,
+    damage = 1,
+    splashDamage = splashRadius > 0 ? 1 : 0,
+  ): void {
     const root = enhanced ? createMageOrbVfx() : createMagicOrbMesh();
     (wand.spellOrigin ?? wand.equipmentAnchor).getWorldPosition(this.tempVector);
     const start = this.tempVector.clone();
@@ -1827,11 +1958,17 @@ export class BattleRuntime {
     this.projectiles.push({
       root, start, end, target, startedAt: this.simulationNow,
       duration: SLIME_MOTION_TIMING.magicOrbFlight, hitApplied: false,
-      damage: 1, splashRadius, splashDamage: splashRadius > 0 ? 1 : 0, arcHeightScale: 0.45, orientToTravel: false, hitU: 0.92,
+      damage, splashRadius, splashDamage, arcHeightScale: enhanced ? 0.58 : 0.45, orientToTravel: false, hitU: 0.92,
+      ...(slowEffect === undefined ? {} : { slowEffect }),
     });
   }
 
-  private fireBullet(gun: AllyUnit, target: EnemyUnit, enhanced = false): void {
+  private fireBullet(
+    gun: AllyUnit,
+    target: EnemyUnit,
+    enhanced = false,
+    options: Readonly<{ damage?: number; splashRadius?: number; splashDamage?: number; arcHeightScale?: number; durationScale?: number }> = {},
+  ): void {
     const root = createGunBulletMesh();
     (gun.projectileOrigin ?? gun.equipmentAnchor).getWorldPosition(this.tempVector);
     const start = this.tempVector.clone();
@@ -1841,8 +1978,11 @@ export class BattleRuntime {
     this.scene.add(root);
     this.projectiles.push({
       root, start, end, target, startedAt: this.simulationNow,
-      duration: SLIME_MOTION_TIMING.bulletFlight, hitApplied: false,
-      damage: 1, splashRadius: 0, splashDamage: 0, arcHeightScale: 0, orientToTravel: false, hitU: 0.88,
+      duration: SLIME_MOTION_TIMING.bulletFlight * (options.durationScale ?? 1), hitApplied: false,
+      damage: options.damage ?? 1,
+      splashRadius: options.splashRadius ?? 0,
+      splashDamage: options.splashDamage ?? 0,
+      arcHeightScale: options.arcHeightScale ?? 0, orientToTravel: false, hitU: 0.88,
     });
 
     const flash = createMuzzleFlashMesh();
@@ -1914,7 +2054,7 @@ export class BattleRuntime {
     }
   }
 
-  private updateRanger(now: number, ranger: AllyUnit): void {
+  private updateRanger(now: number, ranger: AllyUnit, mode: 'ranger' | 'sniper' | 'storm' = 'ranger'): void {
     if (!ranger.alive) return;
     if (ranger.attackStartedAt !== -Infinity && !ranger.attackTarget?.alive) {
       ranger.attackStartedAt = -Infinity;
@@ -1950,7 +2090,17 @@ export class BattleRuntime {
     if (pose.shotProgress >= SLIME_MOTION_THRESHOLDS.bowReleaseU && ranger.hitsApplied === pose.shotIndex && target.alive) {
       ranger.hitsApplied += 1;
       ranger.root.updateMatrixWorld(true);
-      this.fireArrow(ranger, target);
+      if (mode === 'sniper') {
+        if (pose.shotIndex === 0) {
+          this.fireArrow(ranger, target, { damage: 3, durationScale: 0.62, arcHeightScale: 0.18, pierceDamage: 2, pierceWidth: 0.30 });
+          this.startCameraShake(0.06, 0.018);
+        }
+      } else if (mode === 'storm') {
+        const volleyTargets = [target, ...this.getLivingEnemies().filter((enemy) => enemy !== target)].slice(0, 3);
+        for (const volleyTarget of volleyTargets) this.fireArrow(ranger, volleyTarget, { damage: 1, durationScale: 0.86, arcHeightScale: 0.72 });
+      } else {
+        this.fireArrow(ranger, target);
+      }
     }
     if (u >= 1) {
       ranger.attackStartedAt = -Infinity;
@@ -1958,18 +2108,35 @@ export class BattleRuntime {
       ranger.hitsApplied = 0;
       ranger.root.position.copy(ranger.home);
       this.setEquipmentSwing(ranger, 0);
-      ranger.nextAttackAt = now + 0.68;
+      ranger.nextAttackAt = now + (mode === 'sniper' ? 1.08 : mode === 'storm' ? 0.82 : 0.68);
     }
   }
 
-  private fireArrow(bow: AllyUnit, target: EnemyUnit): void {
+  private fireArrow(
+    bow: AllyUnit,
+    target: EnemyUnit,
+    options: Readonly<{
+      damage?: number;
+      durationScale?: number;
+      arcHeightScale?: number;
+      pierceDamage?: number;
+      pierceWidth?: number;
+    }> = {},
+  ): void {
     const root = this.createArrowMesh();
     (bow.projectileOrigin ?? bow.equipmentAnchor).getWorldPosition(this.tempVector);
     const start = this.tempVector.clone();
     const end = target.root.position.clone().add(new THREE.Vector3(0, 0.28, 0));
     root.position.copy(start);
     this.scene.add(root);
-    this.projectiles.push({ root, start, end, target, startedAt: this.simulationNow, duration: SLIME_MOTION_TIMING.arrowFlight, hitApplied: false, damage: 1, splashRadius: 0, splashDamage: 0, arcHeightScale: 1, orientToTravel: true, hitU: SLIME_MOTION_THRESHOLDS.arrowHitU });
+    this.projectiles.push({
+      root, start, end, target, startedAt: this.simulationNow,
+      duration: SLIME_MOTION_TIMING.arrowFlight * (options.durationScale ?? 1),
+      hitApplied: false, damage: options.damage ?? 1, splashRadius: 0, splashDamage: 0,
+      arcHeightScale: options.arcHeightScale ?? 1, orientToTravel: true, hitU: SLIME_MOTION_THRESHOLDS.arrowHitU,
+      ...(options.pierceDamage === undefined ? {} : { pierceDamage: options.pierceDamage }),
+      ...(options.pierceWidth === undefined ? {} : { pierceWidth: options.pierceWidth }),
+    });
   }
 
   private updateProjectiles(now: number): void {
@@ -1988,6 +2155,33 @@ export class BattleRuntime {
         projectile.hitApplied = true;
         if (projectile.target.alive) {
           this.applyDamage(projectile.target, projectile.damage, 'projectile', projectile.start);
+          if (projectile.pierceDamage !== undefined && projectile.pierceWidth !== undefined) {
+            const widthSq = projectile.pierceWidth ** 2;
+            for (const enemy of this.getLivingEnemies()) {
+              if (enemy === projectile.target) continue;
+              const distanceSq = distanceSqToSegment2D(
+                enemy.root.position.x, enemy.root.position.z,
+                projectile.start.x, projectile.start.z,
+                projectile.end.x, projectile.end.z,
+              );
+              if (distanceSq <= widthSq) this.applyDamage(enemy, projectile.pierceDamage, 'projectile', projectile.start);
+            }
+            this.createImpact(projectile.target.root.position.clone().add(new THREE.Vector3(0, 0.22, 0)), '#e8fbff', 0.10);
+          }
+          if (projectile.slowEffect !== undefined) {
+            const radiusSq = projectile.slowEffect.radius ** 2;
+            for (const enemy of this.getLivingEnemies()) {
+              this.tempVector.copy(enemy.root.position).sub(projectile.target.root.position).setY(0);
+              if (this.tempVector.lengthSq() > radiusSq) continue;
+              enemy.moveSpeedEffect = applyTimedMultiplier(
+                enemy.moveSpeedEffect,
+                now,
+                projectile.slowEffect.durationSec,
+                projectile.slowEffect.multiplier,
+              );
+            }
+            this.createImpact(projectile.target.root.position.clone().add(new THREE.Vector3(0, 0.16, 0)), '#9cecff', 0.16);
+          }
           if ((projectile.splashRadius ?? 0) > 0) {
             const splashRadiusSq = (projectile.splashRadius ?? 0) ** 2;
             for (const enemy of this.getLivingEnemies()) {
@@ -2005,6 +2199,83 @@ export class BattleRuntime {
         this.scene.remove(projectile.root);
         this.projectiles.splice(i, 1);
       }
+    }
+  }
+
+  private deployEngineerTurret(engineer: AllyUnit, now: number): void {
+    const existing = this.turrets.find((turret) => turret.ownerSlimeId === engineer.slimeId);
+    if (existing !== undefined) {
+      existing.expiresAt = now + 5.2;
+      existing.nextShotAt = Math.min(existing.nextShotAt, now + 0.24);
+      return;
+    }
+
+    const root = new THREE.Group();
+    const baseMaterial = createMaterial('#d69a52', 0.62);
+    const metalMaterial = createMaterial('#6f7e83', 0.42);
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.12, 10), baseMaterial);
+    base.position.y = 0.06;
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.13, 0.18), metalMaterial);
+    head.position.y = 0.18;
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.30, 8), metalMaterial);
+    barrel.rotation.x = Math.PI / 2;
+    barrel.position.set(0, 0.20, -0.17);
+    root.add(base, head, barrel);
+    root.position.copy(engineer.home).add(new THREE.Vector3(engineer.slotIndex % 2 === 0 ? 0.30 : -0.30, 0, -0.18));
+    root.scale.setScalar(0.86);
+    this.scene.add(root);
+    this.turrets.push({ ownerSlimeId: engineer.slimeId, root, expiresAt: now + 5.2, nextShotAt: now + 0.32 });
+    this.createImpact(root.position.clone().add(new THREE.Vector3(0, 0.12, 0)), '#ffd38a', 0.07);
+  }
+
+  private fireTurretBullet(turret: TurretRuntime, target: EnemyUnit): void {
+    const root = createGunBulletMesh();
+    const start = turret.root.position.clone().add(new THREE.Vector3(0, 0.22, -0.08));
+    const end = target.root.position.clone().add(new THREE.Vector3(0, 0.24, 0));
+    root.position.copy(start);
+    root.visible = true;
+    this.scene.add(root);
+    this.projectiles.push({
+      root, start, end, target, startedAt: this.simulationNow,
+      duration: SLIME_MOTION_TIMING.bulletFlight * 0.82, hitApplied: false,
+      damage: 1, splashRadius: 0, splashDamage: 0, arcHeightScale: 0, orientToTravel: false, hitU: 0.86,
+    });
+    const flash = createMuzzleFlashMesh();
+    flash.visible = true;
+    flash.position.copy(start);
+    this.scene.add(flash);
+    this.muzzleFlashes.push({ mesh: flash, startedAt: this.simulationNow, duration: 0.09 });
+  }
+
+  private updateTurrets(now: number): void {
+    for (let i = this.turrets.length - 1; i >= 0; i -= 1) {
+      const turret = this.turrets[i]!;
+      const owner = this.allies.find((ally) => ally.slimeId === turret.ownerSlimeId);
+      if (owner === undefined || !owner.alive || now >= turret.expiresAt || this.phase !== 'combat') {
+        this.scene.remove(turret.root);
+        turret.root.traverse((object) => {
+          if (!(object instanceof THREE.Mesh)) return;
+          object.geometry.dispose();
+          const material = object.material;
+          if (Array.isArray(material)) material.forEach((entry) => entry.dispose());
+          else material.dispose();
+        });
+        this.turrets.splice(i, 1);
+        continue;
+      }
+      if (now < turret.nextShotAt) continue;
+      const living = this.getLivingEnemies();
+      if (living.length === 0) continue;
+      let target = living[0]!;
+      let bestDistance = turret.root.position.distanceToSquared(target.root.position);
+      for (const candidate of living.slice(1)) {
+        const distance = turret.root.position.distanceToSquared(candidate.root.position);
+        if (distance < bestDistance) { target = candidate; bestDistance = distance; }
+      }
+      this.tempVector.copy(target.root.position).sub(turret.root.position).setY(0);
+      if (this.tempVector.lengthSq() > 0.0001) turret.root.rotation.y = Math.atan2(this.tempVector.x, this.tempVector.z);
+      this.fireTurretBullet(turret, target);
+      turret.nextShotAt = now + 0.62;
     }
   }
 
@@ -2147,7 +2418,8 @@ export class BattleRuntime {
     const distance = this.tempVector.length();
     if (distance > enemy.attackRange) {
       this.tempVector.normalize();
-      let step = Math.min(distance - enemy.attackRange, enemy.moveSpeed * dt);
+      const moveMultiplier = resolveTimedMultiplier(enemy.moveSpeedEffect, now);
+      let step = Math.min(distance - enemy.attackRange, enemy.moveSpeed * moveMultiplier * dt);
       if (target.behaviorId === 'sword-melee' && this.phase === 'combat') {
         const actualDistance = Math.hypot(
           target.root.position.x - enemy.root.position.x,
@@ -2237,6 +2509,35 @@ export class BattleRuntime {
     }
   }
 
+  private enforceAuthoritativeResult(now: number): void {
+    if (this.authoritativeResult === null || this.authoritativeResultDelaySec === null) return;
+    if (this.phase === 'loading' || this.phase === 'result') return;
+    const leadSeconds = this.authoritativeResult === 'defeat'
+      ? AUTHORITATIVE_DEFEAT_LEAD_SECONDS
+      : AUTHORITATIVE_VICTORY_LEAD_SECONDS;
+    const triggerDelay = Math.max(0.8, this.authoritativeResultDelaySec - leadSeconds);
+    if (now - this.battleStartedAt < triggerDelay) return;
+
+    if (this.authoritativeResult === 'defeat') {
+      const livingAllies = this.getLivingAllies();
+      if (livingAllies.length === 0) return;
+      livingAllies.forEach((ally) => {
+        ally.hp = 0;
+        this.beginAllyDefeat(ally);
+      });
+      this.enterResult('defeat', now);
+      return;
+    }
+
+    const livingEnemies = this.getLivingEnemies();
+    if (livingEnemies.length === 0) return;
+    livingEnemies.forEach((enemy) => {
+      enemy.hp = 0;
+      this.beginEnemyDefeat(enemy);
+    });
+    this.enterResult('victory', now);
+  }
+
   private evaluateBattleOutcome(now: number): void {
     if (this.phase === 'result' || this.phase === 'loading') return;
     if (this.getLivingEnemies().length === 0) this.enterResult('victory', now);
@@ -2286,6 +2587,8 @@ export class BattleRuntime {
     this.allies.forEach((ally) => {
       if (ally.alive) this.updateIdle(ally, now, ally.slotIndex * 0.31);
     });
+    // Domain-owned results stay visible until the Domain advances/remounts the encounter.
+    if (this.authoritativeResult !== null) return;
     if (elapsed >= RESULT_HOLD_SECONDS) this.resetWave(now);
   }
 

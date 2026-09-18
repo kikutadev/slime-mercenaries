@@ -10,15 +10,14 @@ import {
   dispatchContractDefinitions,
   resolveCurrencyDefinition,
   type DispatchContractId,
-  type JobSlimeId,
 } from './definitions';
-import type { SlimeMercenariesState } from './state';
+import type { SlimeInstanceId, SlimeMercenariesState } from './state';
 
 /** Start one deterministic reserve dispatch. Battle-assigned slimes cannot be reused concurrently. */
 export function startDispatch(
   state: SlimeMercenariesState,
   contractId: DispatchContractId,
-  slimeId: JobSlimeId,
+  slimeId: SlimeInstanceId,
 ): CommandResult<SlimeMercenariesState, 'not-owned' | 'not-reserve' | 'contract-running' | 'insufficient-power'> {
   const slime = state.gameData.roster.slimes[slimeId];
   if (slime === undefined) return reject(state, 'not-owned');

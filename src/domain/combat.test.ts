@@ -5,13 +5,14 @@ import {
   advanceCombatFromWallClock,
   advanceCombatTo,
   assignSlimeToFormation,
-  currentCombatEncounter,
   nextCombatBoundarySec,
   partyCombatDps,
   partyCombatPower,
 } from './combat';
-import { ids } from './definitions';
-import { createInitialSlimeMercenariesState, type SlimeMercenariesState } from './state';
+import { balance } from './balance';
+import { cloverRoadStageDefinitions, ids } from './definitions';
+import { firstSlimeIdByType } from './roster';
+import { createInitialSlimeMercenariesState, highestStageClearedForArea, type SlimeMercenariesState } from './state';
 
 function createSwordParty(seed = 1): SlimeMercenariesState {
   const initial = createInitialSlimeMercenariesState(1_000, seed);
@@ -19,7 +20,9 @@ function createSwordParty(seed = 1): SlimeMercenariesState {
   if (!crafted.accepted) throw new Error('test setup: craft failed');
   const created = createJobSlime(crafted.state, 'sword');
   if (!created.accepted) throw new Error('test setup: job creation failed');
-  const assigned = assignSlimeToFormation(created.state, 'sword', 0);
+  const swordId = firstSlimeIdByType(created.state, 'sword');
+  if (swordId === null) throw new Error('test setup: sword missing');
+  const assigned = assignSlimeToFormation(created.state, swordId, 0);
   if (!assigned.accepted) throw new Error('test setup: formation failed');
   return assigned.state;
 }
@@ -34,8 +37,7 @@ describe('analytical combat progression', () => {
 
   it('clears a wave at its event boundary and grants authored Gold', () => {
     const state = createSwordParty();
-    const boundary = nextCombatBoundarySec(state);
-    if (boundary === null) throw new Error('missing boundary');
+    const boundary = requireCombatBoundary(state);
     const beforeGold = readCurrency(state.currencies, ids.currency.gold);
     const advanced = advanceCombatTo(state, boundary);
 
@@ -48,7 +50,7 @@ describe('analytical combat progression', () => {
     const state = createSwordParty();
     const advanced = advanceCombatTo(state, 30);
 
-    expect(advanced.state.gameData.progression.highestStageCleared).toBeGreaterThanOrEqual(1);
+    expect(highestStageClearedForArea(advanced.state.gameData.progression)).toBeGreaterThanOrEqual(1);
     expect(advanced.state.gameData.progression.currentStage).toBeGreaterThanOrEqual(2);
     expect(readToken(advanced.state.tokens, ids.token.trainingSword)).toBeGreaterThanOrEqual(1);
     expect(readToken(advanced.state.tokens, ids.token.lifeWater)).toBeGreaterThanOrEqual(1);
@@ -64,40 +66,118 @@ describe('analytical combat progression', () => {
     expect(first.gameData.progression).toEqual(second.gameData.progression);
   });
 
-  it('stops progression at the first boss when party power is below the authored threshold', () => {
-    const advanced = advanceUntilBossBlock(createSwordParty());
+  it('retreats one stage when a normal frontier stage exceeds party power', () => {
+    const defeated = advanceUntilEvent(createSwordParty(), 'partyDefeated');
 
-    expect(advanced.gameData.progression.highestStageCleared).toBe(4);
-    expect(advanced.gameData.combat.blockedBossStage).toBe(advanced.gameData.progression.currentStage);
-    expect(advanced.gameData.combat.contentBoundaryReached).toBe(false);
+    expect(highestStageClearedForArea(defeated.state.gameData.progression)).toBe(2);
+    expect(defeated.state.gameData.progression.currentStage).toBe(2);
+    expect(defeated.state.gameData.combat.retryFarmClearsRemaining).toBe(balance.combat.frontier.retryFarmClears);
+    expect(defeated.state.gameData.combat.contentBoundaryReached).toBe(false);
+    expect(defeated.events.some((event) => event.type === 'stageRetreated')).toBe(true);
+    expect(nextCombatBoundarySec(defeated.state)).not.toBeNull();
   });
 
-  it('resumes from a boss block after level growth raises party power enough', () => {
-    let state = advanceUntilBossBlock(createSwordParty());
-    const encounter = currentCombatEncounter(state);
-    if (encounter?.kind !== 'boss') throw new Error('expected boss encounter');
+  it('uses the same retreat loop for the stage-5 boss frontier', () => {
+    const defeated = advanceUntilEvent(withSwordLevel(createSwordParty(), 4), 'partyDefeated');
 
-    while (partyCombatPower(state).compare(encounter.boss!.requiredPartyPower) < 0) {
-      const leveled = levelUpSlime(state, 'sword', 1);
-      if (!leveled.accepted) throw new Error(`unable to grow through boss gate: ${leveled.reason}`);
+    expect(highestStageClearedForArea(defeated.state.gameData.progression)).toBe(4);
+    expect(defeated.state.gameData.progression.currentStage).toBe(4);
+    expect(defeated.state.gameData.combat.retryFarmClearsRemaining).toBe(balance.combat.frontier.retryFarmClears);
+    expect(defeated.events.some((event) => event.type === 'stageRetreated')).toBe(true);
+  });
+
+  it('continues granting normal farm rewards after defeat', () => {
+    const defeated = advanceUntilEvent(createSwordParty(15), 'partyDefeated').state;
+    const beforeGold = readCurrency(defeated.currencies, ids.currency.gold);
+    const beforeHardeningGel = readToken(defeated.tokens, ids.token.hardeningGel);
+    const farmed = advanceUntilRetryCountChanges(defeated);
+
+    expect(farmed.gameData.combat.retryFarmClearsRemaining).toBe(balance.combat.frontier.retryFarmClears - 1);
+    expect(readCurrency(farmed.currencies, ids.currency.gold).compare(beforeGold)).toBeGreaterThan(0);
+    expect(readToken(farmed.tokens, ids.token.hardeningGel)).toBeGreaterThanOrEqual(beforeHardeningGel);
+    expect(highestStageClearedForArea(farmed.gameData.progression)).toBe(2);
+    expect(farmed.gameData.progression.currentStage).toBe(2);
+  });
+
+  it('retries the frontier automatically after the authored number of farm clears', () => {
+    let state = advanceUntilEvent(createSwordParty(), 'partyDefeated').state;
+    const events: string[] = [];
+
+    for (let guard = 0; guard < 200 && state.gameData.combat.retryFarmClearsRemaining > 0; guard += 1) {
+      const advanced = advanceCombatTo(state, requireCombatBoundary(state));
+      state = advanced.state;
+      events.push(...advanced.events.map((event) => event.type));
+    }
+
+    expect(state.gameData.combat.retryFarmClearsRemaining).toBe(0);
+    expect(state.gameData.progression.currentStage).toBe(3);
+    expect(highestStageClearedForArea(state.gameData.progression)).toBe(2);
+    expect(events).toContain('frontierRetryStarted');
+  });
+
+  it('retreats and farms again when the automatic frontier retry is still too weak', () => {
+    let state = advanceUntilEvent(createSwordParty(), 'partyDefeated').state;
+    state = advanceUntilFrontierRetry(state);
+    const defeatedAgain = advanceUntilEvent(state, 'partyDefeated');
+
+    expect(defeatedAgain.state.gameData.progression.currentStage).toBe(2);
+    expect(highestStageClearedForArea(defeatedAgain.state.gameData.progression)).toBe(2);
+    expect(defeatedAgain.state.gameData.combat.retryFarmClearsRemaining).toBe(balance.combat.frontier.retryFarmClears);
+  });
+
+  it('breaks through the frontier after growth during the retreat farm cycle', () => {
+    let state = advanceUntilEvent(createSwordParty(), 'partyDefeated').state;
+    const requiredPower = cloverRoadStageDefinitions[4]?.boss?.requiredPartyPower;
+    if (requiredPower === undefined) throw new Error('test setup: missing stage-5 boss');
+
+    while (partyCombatPower(state).compare(requiredPower) < 0) {
+      const swordId = firstSlimeIdByType(state, 'sword');
+      if (swordId === null) throw new Error('test setup: sword missing');
+      const leveled = levelUpSlime(state, swordId, 1);
+      if (!leveled.accepted) throw new Error(`unable to grow through frontier gate: ${leveled.reason}`);
       state = leveled.state;
     }
 
-    const boundary = nextCombatBoundarySec(state);
-    if (boundary === null) throw new Error('boss should have a completion boundary after growth');
-    const resumed = advanceCombatTo(state, boundary);
-    expect(resumed.state.gameData.progression.highestStageCleared).toBe(5);
-    expect(resumed.state.gameData.combat.blockedBossStage).toBeNull();
-    expect(resumed.state.gameData.combat.contentBoundaryReached).toBe(true);
-    expect(resumed.events.some((event) => event.type === 'bossDefeated')).toBe(true);
+    state = advanceUntilFrontierRetry(state);
+    state = advanceUntilHighestStageCleared(state, 5);
+
+    expect(highestStageClearedForArea(state.gameData.progression)).toBe(5);
+    expect(state.gameData.combat.retryFarmClearsRemaining).toBe(0);
+    expect(state.gameData.combat.contentBoundaryReached).toBe(true);
+  });
+
+  it('resolves the same frontier defeat under one-second live ticks', () => {
+    let state = createSwordParty(91);
+    let sawDefeat = false;
+    for (let guard = 0; guard < 600 && !sawDefeat; guard += 1) {
+      const advanced = advanceCombatTo(state, state.simTimeSec + 1);
+      sawDefeat = advanced.events.some((event) => event.type === 'partyDefeated');
+      state = advanced.state;
+    }
+
+    expect(sawDefeat).toBe(true);
+    expect(state.gameData.progression.currentStage).toBe(2);
+    expect(state.gameData.combat.retryFarmClearsRemaining).toBe(balance.combat.frontier.retryFarmClears);
+    expect(state.gameData.combat.frontierDefeatTimeRemainingSec).toBeNull();
+  });
+
+  it('keeps farming during offline elapsed time instead of freezing at the failed frontier', () => {
+    const initial = createSwordParty(123);
+    const offline = advanceCombatFromWallClock(initial, initial.lastWallClockMs + 600_000);
+
+    expect(offline.appliedOfflineSec).toBe(600);
+    expect(offline.events.some((event) => event.type === 'partyDefeated')).toBe(true);
+    expect(highestStageClearedForArea(offline.state.gameData.progression)).toBe(2);
+    expect(readCurrency(offline.state.currencies, ids.currency.gold).toNumber()).toBeGreaterThan(500);
+    expect(offline.state.gameData.combat.contentBoundaryReached).toBe(false);
   });
 
   it('uses the same combat/reward transition for live and offline elapsed time', () => {
     const initial = createSwordParty(123);
-    const live = advanceCombatTo(initial, initial.simTimeSec + 60);
-    const offline = advanceCombatFromWallClock(initial, initial.lastWallClockMs + 60_000);
+    const live = advanceCombatTo(initial, initial.simTimeSec + 600);
+    const offline = advanceCombatFromWallClock(initial, initial.lastWallClockMs + 600_000);
 
-    expect(offline.appliedOfflineSec).toBe(60);
+    expect(offline.appliedOfflineSec).toBe(600);
     expect(offline.state.currencies).toEqual(live.state.currencies);
     expect(offline.state.tokens).toEqual(live.state.tokens);
     expect(offline.state.rngStreams).toEqual(live.state.rngStreams);
@@ -106,16 +186,71 @@ describe('analytical combat progression', () => {
   });
 });
 
-function advanceUntilBossBlock(initial: SlimeMercenariesState): SlimeMercenariesState {
+function requireCombatBoundary(state: SlimeMercenariesState): number {
+  const boundary = nextCombatBoundarySec(state);
+  if (boundary === null) throw new Error('combat unexpectedly has no next boundary');
+  return boundary;
+}
+
+function advanceUntilEvent(
+  initial: SlimeMercenariesState,
+  eventType: string,
+): ReturnType<typeof advanceCombatTo> {
+  let state = initial;
+  for (let guard = 0; guard < 500; guard += 1) {
+    const advanced = advanceCombatTo(state, requireCombatBoundary(state));
+    if (advanced.events.some((event) => event.type === eventType)) return advanced;
+    state = advanced.state;
+  }
+  throw new Error(`${eventType} was not reached within the test guard`);
+}
+
+function advanceUntilRetryCountChanges(initial: SlimeMercenariesState): SlimeMercenariesState {
+  const initialCount = initial.gameData.combat.retryFarmClearsRemaining;
   let state = initial;
   for (let guard = 0; guard < 100; guard += 1) {
-    const boundary = nextCombatBoundarySec(state);
-    if (boundary === null) {
-      const marked = advanceCombatTo(state, state.simTimeSec + 1);
-      if (marked.state.gameData.combat.blockedBossStage !== null) return marked.state;
-      throw new Error('combat stopped before reaching a boss block');
-    }
-    state = advanceCombatTo(state, boundary).state;
+    state = advanceCombatTo(state, requireCombatBoundary(state)).state;
+    if (state.gameData.combat.retryFarmClearsRemaining !== initialCount) return state;
   }
-  throw new Error('boss block was not reached within the test guard');
+  throw new Error('farm clear was not reached within the test guard');
+}
+
+function advanceUntilFrontierRetry(initial: SlimeMercenariesState): SlimeMercenariesState {
+  let state = initial;
+  for (let guard = 0; guard < 300; guard += 1) {
+    if (state.gameData.combat.retryFarmClearsRemaining === 0
+      && state.gameData.progression.currentStage === highestStageClearedForArea(state.gameData.progression) + 1) {
+      return state;
+    }
+    state = advanceCombatTo(state, requireCombatBoundary(state)).state;
+  }
+  throw new Error('frontier retry was not reached within the test guard');
+}
+
+function advanceUntilHighestStageCleared(initial: SlimeMercenariesState, targetStage: number): SlimeMercenariesState {
+  let state = initial;
+  for (let guard = 0; guard < 300; guard += 1) {
+    if (highestStageClearedForArea(state.gameData.progression) >= targetStage) return state;
+    state = advanceCombatTo(state, requireCombatBoundary(state)).state;
+  }
+  throw new Error(`stage ${targetStage} was not cleared within the test guard`);
+}
+
+function withSwordLevel(state: SlimeMercenariesState, level: number): SlimeMercenariesState {
+  const swordId = firstSlimeIdByType(state, 'sword');
+  if (swordId === null) throw new Error('test setup: sword missing');
+  const sword = state.gameData.roster.slimes[swordId]!;
+  return {
+    ...state,
+    gameData: {
+      ...state.gameData,
+      roster: {
+        ...state.gameData.roster,
+        slimes: {
+          ...state.gameData.roster.slimes,
+          [swordId]: { ...sword, level },
+        },
+      },
+    },
+  };
 }

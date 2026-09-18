@@ -1,66 +1,118 @@
 import { GameNumber, createLoadoutState, createRngStreams, createTimedActivityState, type GameNumberSerialized, type GameState, type InventoryState, type LoadoutState, type TimedActivityState } from 'idle-game-kit';
 import { dispatchContractDefinitions, ids, initialEconomyBalance, slimeWeaponLoadoutDefinitions, type DispatchContractId, type JobSlimeId } from './definitions';
 
-export const SLIME_MERCENARIES_SCHEMA_VERSION = 1;
-export const SLIME_MERCENARIES_DEFINITION_VERSION = '2026-09-16.3';
+export const SLIME_MERCENARIES_SCHEMA_VERSION = 5;
+export const SLIME_MERCENARIES_DEFINITION_VERSION = '2026-09-18.4';
 
+export type SlimeInstanceId = string;
 export type SlimeAssignment = 'battle' | 'reserve' | 'dispatch';
+export type SlimeMutationId = 'king' | 'golden' | 'dragon' | 'prism';
 
-/**
- * One canonical progression record per discovered job type.
- * Promotion and Fusion remain separate axes by design.
- */
+export type MutationProgressEntry = Readonly<{
+  fragments: number;
+  catalysts: number;
+}>;
+
+export type MutationProgressState = Readonly<Record<SlimeMutationId, MutationProgressEntry>>;
+
+export function createInitialMutationProgressState(): MutationProgressState {
+  return {
+    king: { fragments: 0, catalysts: 0 },
+    golden: { fragments: 0, catalysts: 0 },
+    dragon: { fragments: 0, catalysts: 0 },
+    prism: { fragments: 0, catalysts: 0 },
+  };
+}
+
+/** One persistent combat slime. Same-type bodies remain separate roster instances. */
 export type SlimeProgress = Readonly<{
+  id: SlimeInstanceId;
+  serial: number;
   typeId: JobSlimeId;
   level: number;
   jobTier: number;
   promotionPathId: string | null;
   fusionRank: number;
   fusionFormId: string;
+  mutationId: SlimeMutationId | null;
   assignment: SlimeAssignment;
 }>;
-
 
 export type WeaponInstanceData = Readonly<{ refinementRank: number }>;
 
 export type EquipmentState = Readonly<{
   inventory: InventoryState<WeaponInstanceData>;
-  loadouts: Readonly<Record<JobSlimeId, LoadoutState>>;
+  loadouts: Readonly<Record<SlimeInstanceId, LoadoutState>>;
 }>;
 
 export function createInitialEquipmentState(): EquipmentState {
+  return { inventory: {}, loadouts: {} };
+}
+
+export function createSlimeWeaponLoadout(typeId: JobSlimeId): LoadoutState {
+  return createLoadoutState(slimeWeaponLoadoutDefinitions[typeId]);
+}
+
+export function slimeInstanceIdForSerial(serial: number): SlimeInstanceId {
+  if (!Number.isSafeInteger(serial) || serial <= 0) throw new RangeError('slime serial must be a positive safe integer.');
+  return `slime.${serial}`;
+}
+
+export type AreaProgressState = Readonly<{
+  highestStageCleared: number;
+}>;
+
+export type SlimeProgressionState = Readonly<{
+  currentAreaId: string;
+  currentStage: number;
+  areas: Readonly<Record<string, AreaProgressState>>;
+}>;
+
+export function highestStageClearedForArea(
+  progression: SlimeProgressionState,
+  areaId = progression.currentAreaId,
+): number {
+  return progression.areas[areaId]?.highestStageCleared ?? 0;
+}
+
+export function withHighestStageClearedForArea(
+  progression: SlimeProgressionState,
+  areaId: string,
+  highestStageCleared: number,
+): SlimeProgressionState {
   return {
-    inventory: {},
-    loadouts: {
-      sword: createLoadoutState(slimeWeaponLoadoutDefinitions.sword),
-      bow: createLoadoutState(slimeWeaponLoadoutDefinitions.bow),
+    ...progression,
+    areas: {
+      ...progression.areas,
+      [areaId]: { highestStageCleared },
     },
   };
 }
 
 export type SlimeMercenariesData = Readonly<{
-  progression: Readonly<{
-    currentAreaId: string;
-    currentStage: number;
-    highestStageCleared: number;
-  }>;
+  progression: SlimeProgressionState;
   combat: Readonly<{
     currentWaveIndex: number;
     waveWorkRemaining: GameNumberSerialized | null;
-    blockedBossStage: number | null;
+    /** Number of completed farm-stage clears still required before retrying the frontier. */
+    retryFarmClearsRemaining: number;
+    /** Durable countdown for a losing frontier attempt so chunked live ticks equal offline simulation. */
+    frontierDefeatTimeRemainingSec: number | null;
     contentBoundaryReached: boolean;
   }>;
   dispatch: Readonly<{
-    contracts: Readonly<Record<DispatchContractId, Readonly<{ slimeId: JobSlimeId | null; activity: TimedActivityState }>>>;
+    contracts: Readonly<Record<DispatchContractId, Readonly<{ slimeId: SlimeInstanceId | null; activity: TimedActivityState }>>>;
   }>;
+  mutationProgress: MutationProgressState;
   equipment: EquipmentState;
   economy: Readonly<{
     /** Index into the Plain Slime shop price curve. */
     plainSlimeShopPurchaseCount: number;
   }>;
   roster: Readonly<{
-    slimes: Readonly<Partial<Record<JobSlimeId, SlimeProgress>>>;
-    formationSlots: readonly (JobSlimeId | null)[];
+    slimes: Readonly<Record<SlimeInstanceId, SlimeProgress>>;
+    formationSlots: readonly (SlimeInstanceId | null)[];
+    nextSlimeSerial: number;
   }>;
 }>;
 
@@ -104,14 +156,18 @@ export function createInitialSlimeMercenariesState(
       progression: {
         currentAreaId: 'area.clover-road',
         currentStage: 1,
-        highestStageCleared: 0,
+        areas: {
+          'area.clover-road': { highestStageCleared: 0 },
+        },
       },
       combat: {
         currentWaveIndex: 0,
         waveWorkRemaining: null,
-        blockedBossStage: null,
+        retryFarmClearsRemaining: 0,
+        frontierDefeatTimeRemainingSec: null,
         contentBoundaryReached: false,
       },
+      mutationProgress: createInitialMutationProgressState(),
       dispatch: {
         contracts: Object.fromEntries(
           Object.entries(dispatchContractDefinitions).map(([contractId, definition]) => [
@@ -127,6 +183,7 @@ export function createInitialSlimeMercenariesState(
       roster: {
         slimes: {},
         formationSlots: [null, null, null, null, null, null],
+        nextSlimeSerial: 1,
       },
     },
   };

@@ -568,6 +568,11 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .camp-quest span { color:#d3efa7; font-size:6px; font-weight:900; letter-spacing:.13em; }
 .camp-quest strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:8px; }
 .camp-quest em { font-style:normal; }
+.camp-upgrade-alert { position:absolute; z-index:21; left:50%; bottom:188px; width:min(310px,calc(100% - 80px)); min-height:39px; display:grid; grid-template-columns:auto 1fr auto; gap:8px; align-items:center; transform:translateX(-50%); padding:7px 11px; border:1px solid rgba(241,190,83,.48); border-radius:999px; background:rgba(64,91,55,.94); color:#fff; box-shadow:0 10px 28px rgba(34,65,42,.2); backdrop-filter:blur(10px); text-align:left; animation:camp-upgrade-pulse 1.8s ease-in-out infinite; }
+.camp-upgrade-alert span { color:#ffe39b; font-size:6px; font-weight:900; letter-spacing:.12em; }
+.camp-upgrade-alert strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:8px; }
+.camp-upgrade-alert em { font-style:normal; color:#ffe39b; font-size:14px; }
+@keyframes camp-upgrade-pulse { 0%,100% { box-shadow:0 10px 28px rgba(34,65,42,.2),0 0 0 0 rgba(243,188,73,0); } 50% { box-shadow:0 12px 30px rgba(34,65,42,.24),0 0 0 5px rgba(243,188,73,.10); } }
 .camp-action-dock { position:absolute; z-index:36; left:10px; right:10px; bottom:8px; min-height:145px; padding:13px; border:1px solid rgba(255,255,255,.75); border-radius:22px; background:rgba(244,250,238,.95); box-shadow:0 18px 46px rgba(28,61,45,.25); backdrop-filter:blur(16px); animation:dock-rise .2s ease-out both; }
 .camp-action-dock > div:first-child > span { display:block; color:#4c8258; font-size:7px; font-weight:900; letter-spacing:.13em; }
 .camp-action-dock > div:first-child > strong { display:block; margin-top:2px; font-size:14px; }
@@ -578,6 +583,12 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .camp-level-buttons span,.camp-level-buttons strong { display:block; }
 .camp-level-buttons span { font-size:12px; font-weight:900; }
 .camp-level-buttons strong { margin-top:2px; font-size:8px; }
+.camp-promotion-action { width:100%; min-height:44px; margin-top:8px; display:grid; grid-template-columns:auto 1fr; grid-template-areas:"badge name" "badge meta"; column-gap:9px; align-items:center; padding:7px 10px; border:1px solid rgba(125,107,61,.16); border-radius:14px; background:rgba(255,250,226,.78); color:#685c35; text-align:left; }
+.camp-promotion-action > span { grid-area:badge; min-width:38px; padding:6px 7px; border-radius:10px; background:rgba(210,170,69,.15); color:#8d702a; font-size:8px; font-weight:900; text-align:center; }
+.camp-promotion-action > strong { grid-area:name; font-size:9px; }
+.camp-promotion-action > small { grid-area:meta; color:rgba(72,61,35,.54); font-size:6px; }
+.camp-promotion-action.is-ready { border-color:rgba(215,165,53,.52); background:linear-gradient(180deg,#fff6cf,#f2e6aa); box-shadow:0 5px 16px rgba(130,100,33,.12); }
+.camp-promotion-action:disabled { opacity:.46; }
 .camp-weapon-strip { display:flex; gap:7px; margin-top:9px; overflow-x:auto; scrollbar-width:none; }
 .camp-weapon-strip button { flex:0 0 132px; min-height:62px; padding:8px; border:1px solid rgba(50,93,58,.1); border-radius:14px; background:#fff; text-align:left; }
 .camp-weapon-strip button.is-equipped { border-color:rgba(61,132,73,.4); background:#eaf6e1; }
@@ -865,3 +876,18 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
   .forge-room { bottom:235px; }
   .forge-console { min-height:215px; }
 }
+.validation-mode-badge { position:absolute; top:14px; left:50%; z-index:40; transform:translateX(-50%); padding:4px 8px; border:1px solid rgba(94,104,56,.16); border-radius:999px; background:rgba(255,251,215,.84); color:#6d6b35; font-size:6px; font-weight:900; letter-spacing:.08em; backdrop-filter:blur(8px); }
+.validation-mode-badge--action { pointer-events:auto; cursor:pointer; }
+.validation-mode-badge--action:active { transform:translateX(-50%) scale(.97); }
+.camp-promotion-choices { display:grid; grid-template-columns:1fr; gap:7px; margin-top:8px; }
+.camp-promotion-choices.is-branching { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.camp-promotion-choices .camp-promotion-action { margin-top:0; min-width:0; }
+.camp-promotion-choices.is-branching .camp-promotion-action { grid-template-columns:1fr; grid-template-areas:"badge" "name" "meta"; gap:2px; }
+.camp-promotion-choices.is-branching .camp-promotion-action > span { justify-self:start; }
+.camp-validation-tools { display:grid; grid-template-columns:auto 1fr 1fr; gap:6px; align-items:center; margin-top:8px; padding:6px; border:1px dashed rgba(103,102,52,.24); border-radius:12px; background:rgba(255,252,224,.58); }
+.camp-validation-tools > span { padding:0 4px; color:#79713c; font-size:6px; font-weight:900; letter-spacing:.08em; }
+.camp-validation-tools button { min-height:31px; border:1px solid rgba(111,105,58,.14); border-radius:9px; background:rgba(255,255,255,.72); color:#655e37; font-size:7px; font-weight:850; }
+.battle-validation-restart { position:absolute; z-index:34; left:50%; bottom:118px; transform:translateX(-50%); min-width:178px; padding:7px 12px; border:1px solid rgba(255,255,255,.62); border-radius:999px; background:rgba(255,250,213,.92); color:#625f34; box-shadow:0 8px 22px rgba(55,70,42,.12); backdrop-filter:blur(9px); }
+.battle-validation-restart span,.battle-validation-restart strong { display:block; }
+.battle-validation-restart span { font-size:6px; font-weight:900; letter-spacing:.11em; }
+.battle-validation-restart strong { margin-top:1px; font-size:8px; }

@@ -49,11 +49,31 @@ const PRESENTATION: Readonly<Record<string, FusionPresentation>> = {
     title: '三連射',
     description: '一度の攻撃で複数の矢を放つ',
   },
+  'fusion.shield.01-fortified-guard': {
+    title: '堅守強化',
+    description: '同職の核を取り込み、防御性能と押し返す力を一段強化する',
+  },
+  'fusion.wand.01-arcane-focus': {
+    title: '魔力収束',
+    description: '核へ魔力を収束させ、魔法攻撃の出力を一段引き上げる',
+  },
+  'fusion.dagger.01-afterimage-edge': {
+    title: '残影強化',
+    description: '同職の核を刃へ馴染ませ、高速近接の出力を一段引き上げる',
+  },
+  'fusion.gun.01-overpressure': {
+    title: '高圧射撃',
+    description: '同職の核と補強材を組み合わせ、射撃出力を一段引き上げる',
+  },
 };
 
 const STEPS: Record<SlimeId, FusionStep[]> = {
   sword: fusionStepDefinitions.sword.map(toPresentationStep),
+  shield: fusionStepDefinitions.shield.map(toPresentationStep),
   bow: fusionStepDefinitions.bow.map(toPresentationStep),
+  wand: fusionStepDefinitions.wand.map(toPresentationStep),
+  dagger: fusionStepDefinitions.dagger.map(toPresentationStep),
+  gun: fusionStepDefinitions.gun.map(toPresentationStep),
 };
 
 export function getNextFusionStep(slime: SlimeProgress): FusionStep | null {

@@ -13,29 +13,34 @@ import {
 import { balance } from './balance';
 import { equippedWeaponCombatMultiplier } from './equipment';
 import {
-  cloverRoadStageDefinitions,
+  resolveStageDefinition,
   ids,
   resolveCurrencyDefinition,
   typeLevelDefinitions,
-  type JobSlimeId,
   type StageBossDefinition,
   type StageDefinition,
   type StageWaveDefinition,
 } from './definitions';
-import type { SlimeMercenariesState, SlimeProgress } from './state';
+import { highestStageClearedForArea, withHighestStageClearedForArea, type SlimeInstanceId, type SlimeMercenariesState, type SlimeProgress } from './state';
 
 export type CombatEncounter = Readonly<{
   kind: 'wave' | 'boss';
   work: number;
+  requiredPartyPower: number | null;
   waveIndex: number;
   wave?: StageWaveDefinition;
   boss?: StageBossDefinition;
 }>;
 
-/** Assign one canonical slime type to a battle slot while preserving the no-duplicate invariant. */
+export type CombatAdvancePolicy = Readonly<{
+  /** Offline resume can farm indefinitely without silently clearing an uncleared major frontier. */
+  allowFrontierFirstClear?: boolean;
+}>;
+
+/** Assign one persistent slime instance to a battle slot. Same-type instances may occupy other slots. */
 export function assignSlimeToFormation(
   state: SlimeMercenariesState,
-  slimeId: JobSlimeId,
+  slimeId: SlimeInstanceId,
   slotIndex: number,
 ): CommandResult<SlimeMercenariesState, 'invalid-slot' | 'not-owned' | 'dispatched'> {
   if (!Number.isSafeInteger(slotIndex) || slotIndex < 0 || slotIndex >= state.gameData.roster.formationSlots.length) {
@@ -103,7 +108,7 @@ export function partyCombatDps(state: SlimeMercenariesState): GameNumber {
   );
 }
 
-/** Coarse survivability/power gate used only for blocking bosses in the first headless model. */
+/** Coarse survivability/power gate used by authoritative frontier win/loss checks. */
 export function partyCombatPower(state: SlimeMercenariesState): GameNumber {
   return activeSlimes(state).reduce(
     (total, slime) => total.add(slimePower(state, slime)),
@@ -111,14 +116,14 @@ export function partyCombatPower(state: SlimeMercenariesState): GameNumber {
   );
 }
 
-/** Power of one owned canonical slime independent from its current assignment. */
-export function slimeCombatPower(state: SlimeMercenariesState, slimeId: JobSlimeId): GameNumber {
+/** Power of one owned slime instance independent from its current assignment. */
+export function slimeCombatPower(state: SlimeMercenariesState, slimeId: SlimeInstanceId): GameNumber {
   const slime = state.gameData.roster.slimes[slimeId];
   return slime === undefined ? GameNumber.zero() : slimePower(state, slime);
 }
 
 export function currentStageDefinition(state: SlimeMercenariesState): StageDefinition | null {
-  return cloverRoadStageDefinitions[state.gameData.progression.currentStage - 1] ?? null;
+  return resolveStageDefinition(state.gameData.progression.currentAreaId, state.gameData.progression.currentStage);
 }
 
 export function currentCombatEncounter(state: SlimeMercenariesState): CombatEncounter | null {
@@ -126,9 +131,23 @@ export function currentCombatEncounter(state: SlimeMercenariesState): CombatEnco
   if (stage === null || state.gameData.combat.contentBoundaryReached) return null;
   const index = state.gameData.combat.currentWaveIndex;
   const wave = stage.waves[index];
-  if (wave !== undefined) return { kind: 'wave', work: wave.work, waveIndex: index, wave };
+  if (wave !== undefined) {
+    return {
+      kind: 'wave',
+      work: wave.work,
+      requiredPartyPower: stage.requiredPartyPower ?? null,
+      waveIndex: index,
+      wave,
+    };
+  }
   if (index === stage.waves.length && stage.boss !== undefined) {
-    return { kind: 'boss', work: stage.boss.work, waveIndex: index, boss: stage.boss };
+    return {
+      kind: 'boss',
+      work: stage.boss.work,
+      requiredPartyPower: stage.boss.requiredPartyPower,
+      waveIndex: index,
+      boss: stage.boss,
+    };
   }
   return null;
 }
@@ -137,7 +156,14 @@ export function currentCombatEncounter(state: SlimeMercenariesState): CombatEnco
 export function nextCombatBoundarySec(state: SlimeMercenariesState): number | null {
   const encounter = currentCombatEncounter(state);
   if (encounter === null) return null;
-  if (encounter.kind === 'boss' && partyCombatPower(state).compare(encounter.boss!.requiredPartyPower) < 0) return null;
+  // A failed frontier attempt is itself an authoritative boundary. Reserving a short authored
+  // duration gives the presentation enough time to show the defeat while offline uses identical rules.
+  if (encounter.requiredPartyPower !== null
+    && partyCombatPower(state).compare(encounter.requiredPartyPower) < 0) {
+    const remaining = state.gameData.combat.frontierDefeatTimeRemainingSec
+      ?? balance.combat.frontier.defeatDurationSec;
+    return state.simTimeSec + Math.max(1, Math.ceil(remaining));
+  }
   const dps = partyCombatDps(state);
   if (dps.compare(0) <= 0) return null;
   const remaining = state.gameData.combat.waveWorkRemaining === null
@@ -154,6 +180,7 @@ export function nextCombatBoundarySec(state: SlimeMercenariesState): number | nu
 export function advanceCombatTo(
   state: SlimeMercenariesState,
   targetSimTimeSec: number,
+  policy: CombatAdvancePolicy = {},
 ): Readonly<{ state: SlimeMercenariesState; events: readonly DomainEvent[] }> {
   if (!Number.isSafeInteger(targetSimTimeSec) || targetSimTimeSec < state.simTimeSec) {
     throw new RangeError('targetSimTimeSec must be a safe integer at or after current sim time.');
@@ -180,22 +207,50 @@ export function advanceCombatTo(
       continue;
     }
 
-    if (encounter.kind === 'boss') {
-      const required = encounter.boss!.requiredPartyPower;
-      const power = partyCombatPower(nextState);
-      if (power.compare(required) < 0) {
-        if (nextState.gameData.combat.blockedBossStage !== nextState.gameData.progression.currentStage) {
-          nextState = setBossBlocked(nextState, nextState.gameData.progression.currentStage);
-          events.push(semanticEvent(nextState, 'bossBlocked', `${nextState.gameData.progression.currentStage}`, {
-            stageNumber: nextState.gameData.progression.currentStage,
-            requiredPartyPower: required,
-            currentPartyPower: power.toNumber(),
-          }));
-        }
-        nextState = setSimTime(nextState, targetSimTimeSec);
+    const required = encounter.requiredPartyPower;
+    const power = required === null ? null : partyCombatPower(nextState);
+    if (encounter.kind === 'boss' && required !== null && power !== null) {
+      const isUnclearedFrontier = nextState.gameData.progression.currentStage
+        > highestStageClearedForArea(nextState.gameData.progression);
+      if (isUnclearedFrontier && policy.allowFrontierFirstClear === false && power.compare(required) >= 0) {
+        const deferred = resolveFrontierBreakthroughDeferred(nextState);
+        nextState = deferred.state;
+        events.push(...deferred.events);
+        continue;
+      }
+    }
+
+    if (required !== null && power !== null && power.compare(required) < 0) {
+      const remaining = nextState.gameData.combat.frontierDefeatTimeRemainingSec
+        ?? balance.combat.frontier.defeatDurationSec;
+      const availableSeconds = targetSimTimeSec - nextState.simTimeSec;
+      if (remaining > availableSeconds) {
+        nextState = writeCombat(
+          setSimTime(nextState, targetSimTimeSec),
+          {
+            waveWorkRemaining: null,
+            frontierDefeatTimeRemainingSec: remaining - availableSeconds,
+          },
+        );
         break;
       }
-      if (nextState.gameData.combat.blockedBossStage !== null) nextState = setBossBlocked(nextState, null);
+      nextState = writeCombat(
+        setSimTime(nextState, nextState.simTimeSec + remaining),
+        { waveWorkRemaining: null, frontierDefeatTimeRemainingSec: null },
+      );
+      const defeated = resolveFrontierDefeat(nextState, required, power.toNumber());
+      nextState = defeated.state;
+      events.push(...defeated.events);
+      continue;
+    }
+
+    if (nextState.gameData.combat.frontierDefeatTimeRemainingSec !== null) {
+      // Power improved before the defeat resolved. Cancel the losing attempt and restart the
+      // current frontier encounter cleanly instead of interpreting the countdown as encounter work.
+      nextState = writeCombat(nextState, {
+        frontierDefeatTimeRemainingSec: null,
+        waveWorkRemaining: null,
+      });
     }
 
     const dps = partyCombatDps(nextState);
@@ -274,7 +329,7 @@ function resolveBoss(
   const stage = currentStageDefinition(state);
   if (stage === null) throw new Error('Cannot resolve a boss without a current Stage.');
   let nextState = applyGenericRewards(state, boss.rewards);
-  nextState = writeCombat(nextState, { waveWorkRemaining: null, blockedBossStage: null });
+  nextState = writeCombat(nextState, { waveWorkRemaining: null, frontierDefeatTimeRemainingSec: null });
   const completed = completeStage(nextState);
   return {
     state: completed.state,
@@ -291,19 +346,65 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
     const ended = setContentBoundary(state);
     return { state: ended, events: [] };
   }
+
   let nextState = applyGenericRewards(state, stage.clearRewards);
-  const highestStageCleared = Math.max(nextState.gameData.progression.highestStageCleared, stage.stageNumber);
-  const nextStage = cloverRoadStageDefinitions[stage.stageNumber];
-  if (nextStage === undefined) {
+  const highestStageCleared = highestStageClearedForArea(nextState.gameData.progression, stage.areaId);
+  const isRetreatFarmClear = nextState.gameData.combat.retryFarmClearsRemaining > 0
+    && stage.stageNumber <= highestStageCleared;
+
+  if (isRetreatFarmClear) {
+    const remaining = Math.max(0, nextState.gameData.combat.retryFarmClearsRemaining - 1);
+    const frontierStageNumber = highestStageCleared + 1;
+    const frontierStage = resolveStageDefinition(nextState.gameData.progression.currentAreaId, frontierStageNumber);
+    const retryingFrontier = remaining === 0 && frontierStage !== null;
+
     nextState = {
       ...nextState,
       gameData: {
         ...nextState.gameData,
-        progression: { ...nextState.gameData.progression, highestStageCleared },
+        progression: {
+          ...nextState.gameData.progression,
+          currentStage: retryingFrontier ? frontierStage.stageNumber : stage.stageNumber,
+        },
         combat: {
           currentWaveIndex: 0,
           waveWorkRemaining: null,
-          blockedBossStage: null,
+          retryFarmClearsRemaining: remaining,
+          frontierDefeatTimeRemainingSec: null,
+          contentBoundaryReached: false,
+        },
+      },
+    };
+
+    const events: DomainEvent[] = [semanticEvent(nextState, 'stageCleared', stage.id, {
+      stageId: stage.id,
+      stageNumber: stage.stageNumber,
+      nextStageNumber: retryingFrontier ? frontierStage.stageNumber : stage.stageNumber,
+      farming: true,
+      retryFarmClearsRemaining: remaining,
+    })];
+    if (retryingFrontier) {
+      events.push(semanticEvent(nextState, 'frontierRetryStarted', `${frontierStage.stageNumber}`, {
+        stageId: frontierStage.id,
+        stageNumber: frontierStage.stageNumber,
+      }));
+    }
+    return { state: nextState, events };
+  }
+
+  const nextHighestStageCleared = Math.max(highestStageCleared, stage.stageNumber);
+  const nextStage = resolveStageDefinition(stage.areaId, stage.stageNumber + 1);
+  if (nextStage === null) {
+    nextState = {
+      ...nextState,
+      gameData: {
+        ...nextState.gameData,
+        progression: withHighestStageClearedForArea(nextState.gameData.progression, stage.areaId, nextHighestStageCleared),
+        combat: {
+          currentWaveIndex: 0,
+          waveWorkRemaining: null,
+          retryFarmClearsRemaining: 0,
+          frontierDefeatTimeRemainingSec: null,
           contentBoundaryReached: true,
         },
       },
@@ -314,14 +415,14 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
       gameData: {
         ...nextState.gameData,
         progression: {
-          ...nextState.gameData.progression,
+          ...withHighestStageClearedForArea(nextState.gameData.progression, stage.areaId, nextHighestStageCleared),
           currentStage: nextStage.stageNumber,
-          highestStageCleared,
         },
         combat: {
           currentWaveIndex: 0,
           waveWorkRemaining: null,
-          blockedBossStage: null,
+          retryFarmClearsRemaining: 0,
+          frontierDefeatTimeRemainingSec: null,
           contentBoundaryReached: false,
         },
       },
@@ -333,7 +434,82 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
       stageId: stage.id,
       stageNumber: stage.stageNumber,
       nextStageNumber: nextStage?.stageNumber ?? null,
+      farming: false,
     })],
+  };
+}
+
+function resolveFrontierBreakthroughDeferred(
+  state: SlimeMercenariesState,
+): Readonly<{ state: SlimeMercenariesState; events: readonly DomainEvent[] }> {
+  const frontierStage = state.gameData.progression.currentStage;
+  const farmStage = Math.max(1, frontierStage - 1);
+  const nextState: SlimeMercenariesState = {
+    ...state,
+    gameData: {
+      ...state.gameData,
+      progression: {
+        ...state.gameData.progression,
+        currentStage: farmStage,
+      },
+      combat: {
+        currentWaveIndex: 0,
+        waveWorkRemaining: null,
+        retryFarmClearsRemaining: balance.combat.frontier.retryFarmClears,
+        frontierDefeatTimeRemainingSec: null,
+        contentBoundaryReached: false,
+      },
+    },
+  };
+  return {
+    state: nextState,
+    events: [semanticEvent(nextState, 'frontierBreakthroughDeferred', `${frontierStage}:${farmStage}`, {
+      frontierStageNumber: frontierStage,
+      farmStageNumber: farmStage,
+      retryFarmClears: balance.combat.frontier.retryFarmClears,
+    })],
+  };
+}
+
+
+function resolveFrontierDefeat(
+  state: SlimeMercenariesState,
+  requiredPartyPower: number,
+  currentPartyPower: number,
+): Readonly<{ state: SlimeMercenariesState; events: readonly DomainEvent[] }> {
+  const failedStage = state.gameData.progression.currentStage;
+  const farmStage = Math.max(1, failedStage - 1);
+  const nextState: SlimeMercenariesState = {
+    ...state,
+    gameData: {
+      ...state.gameData,
+      progression: {
+        ...state.gameData.progression,
+        currentStage: farmStage,
+      },
+      combat: {
+        currentWaveIndex: 0,
+        waveWorkRemaining: null,
+        retryFarmClearsRemaining: balance.combat.frontier.retryFarmClears,
+        frontierDefeatTimeRemainingSec: null,
+        contentBoundaryReached: false,
+      },
+    },
+  };
+  return {
+    state: nextState,
+    events: [
+      semanticEvent(nextState, 'partyDefeated', `${failedStage}`, {
+        stageNumber: failedStage,
+        requiredPartyPower,
+        currentPartyPower,
+      }),
+      semanticEvent(nextState, 'stageRetreated', `${failedStage}:${farmStage}`, {
+        failedStageNumber: failedStage,
+        farmStageNumber: farmStage,
+        retryFarmClears: balance.combat.frontier.retryFarmClears,
+      }),
+    ],
   };
 }
 
@@ -384,7 +560,7 @@ function slimeDps(state: SlimeMercenariesState, slime: SlimeProgress): GameNumbe
     .multiply(levelMultiplier)
     .multiply(fusionMultiplier)
     .multiply(promotionMultiplier)
-    .multiply(equippedWeaponCombatMultiplier(state, slime.typeId));
+    .multiply(equippedWeaponCombatMultiplier(state, slime.id));
 }
 
 function slimePower(state: SlimeMercenariesState, slime: SlimeProgress): GameNumber {
@@ -398,7 +574,7 @@ function slimePower(state: SlimeMercenariesState, slime: SlimeProgress): GameNum
     .multiply(levelMultiplier)
     .multiply(fusionMultiplier)
     .multiply(promotionMultiplier)
-    .multiply(equippedWeaponCombatMultiplier(state, slime.typeId));
+    .multiply(equippedWeaponCombatMultiplier(state, slime.id));
 }
 
 function curveValueAtForSlime(slime: SlimeProgress): GameNumber {
@@ -419,12 +595,12 @@ function writeCombat(
   };
 }
 
-function setBossBlocked(state: SlimeMercenariesState, stageNumber: number | null): SlimeMercenariesState {
-  return writeCombat(state, { blockedBossStage: stageNumber, waveWorkRemaining: null });
-}
-
 function setContentBoundary(state: SlimeMercenariesState): SlimeMercenariesState {
-  return writeCombat(state, { contentBoundaryReached: true, waveWorkRemaining: null });
+  return writeCombat(state, {
+    contentBoundaryReached: true,
+    waveWorkRemaining: null,
+    frontierDefeatTimeRemainingSec: null,
+  });
 }
 
 function setSimTime(state: SlimeMercenariesState, simTimeSec: number): SlimeMercenariesState {
