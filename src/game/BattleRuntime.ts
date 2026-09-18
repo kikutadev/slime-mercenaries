@@ -61,6 +61,7 @@ import type { EnemyBehaviorId, EnemyId, EnemyScaleClass } from './enemies';
 import type { EnemyFormationSlot } from './encounters';
 import { createBattleEnvironment } from './battle-environment';
 import { getApproachCameraRetreat, getEnemyApproachEntryPose, getSceneryApproachOffset } from './battle-approach';
+import { getVictoryMarchSlot, getVictoryTransitionPose, shouldUseMarchEntry, victoryStatusLabel } from './battle-transition';
 
 export interface BattleSnapshotAlly {
   hp: number;
@@ -120,6 +121,8 @@ interface AllyUnit {
   healthBar: HealthBarGroup;
   home: THREE.Vector3;
   combatAnchor: THREE.Vector3;
+  approachOrigin: THREE.Vector3;
+  resultOrigin: THREE.Vector3;
   maxHp: number;
   hp: number;
   alive: boolean;
@@ -226,6 +229,13 @@ interface ImpactRuntime {
   duration: number;
 }
 
+interface VictoryLootMoteRuntime {
+  mesh: THREE.Mesh<THREE.OctahedronGeometry, THREE.MeshBasicMaterial>;
+  start: THREE.Vector3;
+  end: THREE.Vector3;
+  delay: number;
+}
+
 export interface BattleRuntimeAllyConfig {
   slimeId: string;
   slotIndex: number;
@@ -329,9 +339,11 @@ export class BattleRuntime {
   private readonly muzzleFlashes: MuzzleFlashRuntime[] = [];
   private readonly tracers: TracerRuntime[] = [];
   private readonly impacts: ImpactRuntime[] = [];
+  private readonly victoryLootMotes: VictoryLootMoteRuntime[] = [];
   private slashArc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null = null;
   private spinArc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null = null;
   private environmentSceneryRoot: THREE.Group | null = null;
+  private environmentTravel: ((distance: number) => void) | null = null;
   private disposed = false;
   private initialized = false;
   private rawNow = 0;
@@ -346,6 +358,7 @@ export class BattleRuntime {
   private cameraShakeEndsAt = -Infinity;
   private cameraShakeAmplitude = 0;
   private lastSnapshotKey = '';
+  private continuationEntryPending: boolean;
 
   constructor(options: BattleRuntimeOptions) {
     this.scene = options.scene;
@@ -356,6 +369,7 @@ export class BattleRuntime {
     this.allyConfigs = options.allies;
     this.enemyConfigs = options.enemies;
     this.onSnapshot = options.onSnapshot;
+    this.continuationEntryPending = shouldUseMarchEntry(options.stageNumber, options.waveIndex);
   }
 
   async initialize(): Promise<void> {
@@ -367,6 +381,7 @@ export class BattleRuntime {
 
     const environment = createBattleEnvironment(this.scene, this.stageNumber, this.waveIndex);
     this.environmentSceneryRoot = environment.sceneryRoot;
+    this.environmentTravel = environment.setTravelDistance;
     this.createSlashArc();
 
     const [loadedAllies, loadedEnemies] = await Promise.all([
@@ -579,16 +594,98 @@ export class BattleRuntime {
     this.impacts.push({ group, materials, startedAt: this.simulationNow, duration });
   }
 
+  private createVictoryLootMotes(): void {
+    this.clearVictoryLootMotes();
+    if (this.enemies.length === 0) return;
+    const geometry = new THREE.OctahedronGeometry(0.055, 0);
+    const colors = ['#ffd76a', '#9ae880', '#fff0ad'] as const;
+    const count = Math.min(14, Math.max(7, this.enemies.length * 2));
+    for (let index = 0; index < count; index += 1) {
+      const source = this.enemies[index % this.enemies.length]!;
+      const material = new THREE.MeshBasicMaterial({
+        color: colors[index % colors.length]!,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      const angle = index * 2.399963229728653;
+      const start = source.root.position.clone();
+      start.x += Math.cos(angle) * (0.08 + (index % 3) * 0.035);
+      start.y = 0.12 + (index % 2) * 0.035;
+      start.z += Math.sin(angle) * 0.07;
+      const end = new THREE.Vector3(
+        ((index % 3) - 1) * 0.16,
+        0.22 + (index % 2) * 0.04,
+        -0.28 + (index % 4) * 0.035,
+      );
+      mesh.position.copy(start);
+      mesh.visible = false;
+      this.scene.add(mesh);
+      this.victoryLootMotes.push({ mesh, start, end, delay: (index % 5) * 0.045 });
+    }
+  }
+
+  private updateVictoryLootMotes(elapsed: number, visibility: number): void {
+    for (let index = 0; index < this.victoryLootMotes.length; index += 1) {
+      const mote = this.victoryLootMotes[index]!;
+      const local = clamp01((elapsed - 0.18 - mote.delay) / 0.78);
+      const active = visibility > 0.001 && local > 0 && local < 1;
+      mote.mesh.visible = active;
+      if (!active) continue;
+      const eased = easeOutCubic(local);
+      mote.mesh.position.lerpVectors(mote.start, mote.end, eased);
+      mote.mesh.position.y += Math.sin(local * Math.PI) * 0.46;
+      mote.mesh.rotation.x = elapsed * 5.4 + index * 0.31;
+      mote.mesh.rotation.y = elapsed * 6.8 + index * 0.47;
+      mote.mesh.scale.setScalar(0.72 + Math.sin(local * Math.PI) * 0.58);
+      mote.mesh.material.opacity = visibility * Math.sin(local * Math.PI);
+    }
+  }
+
+  private clearVictoryLootMotes(): void {
+    const geometry = this.victoryLootMotes[0]?.mesh.geometry ?? null;
+    for (const mote of this.victoryLootMotes) {
+      this.scene.remove(mote.mesh);
+      mote.mesh.material.dispose();
+    }
+    geometry?.dispose();
+    this.victoryLootMotes.length = 0;
+  }
+
+  private updateVictoryMarch(ally: AllyUnit, now: number): void {
+    if (!ally.alive) return;
+    const elapsed = Math.max(0, now - this.phaseStartedAt);
+    const pose = getVictoryTransitionPose(elapsed, ally.slotIndex);
+    const slot = getVictoryMarchSlot(ally.slotIndex);
+    this.tempVector.set(slot.x, 0.02, slot.z);
+    ally.root.position.lerpVectors(ally.resultOrigin, this.tempVector, pose.formationBlend);
+    ally.root.position.y = THREE.MathUtils.lerp(ally.resultOrigin.y, 0.02, pose.formationBlend) + pose.bob;
+    ally.root.scale.setScalar(SCALE);
+    ally.root.rotation.z = 0;
+    ally.body.scale.copy(ally.bodyBaseScale);
+    this.resetBranchAccents(ally);
+    if (ally.faceRoot) ally.faceRoot.position.copy(ally.faceBasePosition);
+    this.applyUnitDeformation(ally, 0, pose.stretch, pose.lean, Math.sin(elapsed * 3.9 + ally.slotIndex) * 0.025, pose.bob);
+    this.setEquipmentSwing(ally, Math.sin(elapsed * 7.8 + ally.slotIndex * 0.82) * 0.075, pose.bob * 0.18, 0);
+    this.tempVector2.set(ally.root.position.x, 0, ally.root.position.z - 1);
+    this.facePoint(ally, this.tempVector2);
+  }
+
   private async loadUnit(config: BattleRuntimeAllyConfig): Promise<AllyUnit> {
     const home = this.allyHome(config.slotIndex);
     const combatAnchor = config.formationRole === 'front'
       ? this.meleeCombatAnchor(config.slotIndex)
       : home.clone();
+    const marchSlot = getVictoryMarchSlot(config.slotIndex);
+    const approachOrigin = this.continuationEntryPending
+      ? new THREE.Vector3(marchSlot.x, 0.02, marchSlot.z)
+      : home.clone();
     const gltf = await this.loader.loadAsync(`${this.baseUrl}${config.asset}`);
     const root = gltf.scene as THREE.Group;
     root.name = `SlimeRuntime:${config.slimeId}:${config.slotIndex}`;
     root.scale.setScalar(SCALE);
-    root.position.copy(home);
+    root.position.copy(approachOrigin);
     root.traverse((object) => {
       if (object instanceof THREE.Mesh) {
         object.castShadow = true;
@@ -609,7 +706,7 @@ export class BattleRuntime {
     }
 
     const shadow = this.makeShadow(0.24);
-    shadow.position.set(home.x, 0.011, home.z);
+    shadow.position.set(approachOrigin.x, 0.011, approachOrigin.z);
     const healthBar = this.createWorldHealthBar();
     const guardPulseVfx = config.behaviorId === 'guardian-guard' ? createGuardPulseVfx() : null;
     if (guardPulseVfx) this.scene.add(guardPulseVfx);
@@ -648,6 +745,8 @@ export class BattleRuntime {
       healthBar,
       home,
       combatAnchor,
+      approachOrigin,
+      resultOrigin: approachOrigin.clone(),
       maxHp: config.maxHp,
       hp: config.maxHp,
       alive: true,
@@ -851,7 +950,9 @@ export class BattleRuntime {
       fill.scale.x = Math.max(0.001, ratio);
       fill.position.x = -(fillWidth * (1 - ratio)) / 2;
     }
-    unit.healthBar.visible = unit.root.visible && (unit.alive || unit.state === 'defeat');
+    unit.healthBar.visible = unit.root.visible
+      && (unit.alive || unit.state === 'defeat')
+      && !(this.phase === 'result' && this.result === 'victory');
     unit.healthBar.position.set(unit.root.position.x, Math.max(0.31, unit.root.position.y + (unit.state === 'defeat' ? 0.18 : 0.34)), unit.root.position.z + 0.015);
     unit.healthBar.quaternion.copy(this.camera.quaternion);
   }
@@ -993,6 +1094,8 @@ export class BattleRuntime {
     this.phase = 'approach';
     this.phaseStartedAt = now;
     if (this.environmentSceneryRoot) this.environmentSceneryRoot.position.z = getSceneryApproachOffset(0);
+    this.environmentTravel?.(0);
+    this.clearVictoryLootMotes();
     this.result = null;
     this.allies.forEach((ally) => {
       ally.attackStartedAt = -Infinity;
@@ -1016,7 +1119,10 @@ export class BattleRuntime {
     if (this.environmentSceneryRoot) this.environmentSceneryRoot.position.z = getSceneryApproachOffset(approachElapsed);
     this.allies.forEach((ally) => {
       if (!ally.alive) return;
-      if (this.isMeleeBehavior(ally)) {
+      const destination = this.isMeleeBehavior(ally) ? ally.combatAnchor : ally.home;
+      if (this.continuationEntryPending) {
+        this.updateHopTravel(ally, now, this.phaseStartedAt, ally.approachOrigin, destination, duration);
+      } else if (this.isMeleeBehavior(ally)) {
         this.updateHopTravel(ally, now, this.phaseStartedAt, ally.home, ally.combatAnchor, duration);
       } else {
         ally.root.position.copy(ally.home);
@@ -1034,6 +1140,7 @@ export class BattleRuntime {
       if (this.environmentSceneryRoot) this.environmentSceneryRoot.position.z = 0;
       this.phase = 'combat';
       this.phaseStartedAt = now;
+      this.continuationEntryPending = false;
       this.enemies.forEach((enemy) => {
         enemy.attackStartedAt = -Infinity;
         enemy.attackTarget = null;
@@ -2146,23 +2253,44 @@ export class BattleRuntime {
       ally.attackTarget = null;
       ally.hitsApplied = 0;
       ally.shotApplied = false;
+      ally.resultOrigin.copy(ally.root.position);
+      if (ally.alive) {
+        ally.root.rotation.z = 0;
+        ally.body.scale.copy(ally.bodyBaseScale);
+        this.clearMorphs(ally);
+        this.setEquipmentSwing(ally, 0);
+        this.resetBranchAccents(ally);
+      }
     });
     this.enemies.forEach((enemy) => {
       enemy.attackStartedAt = -Infinity;
       enemy.attackTarget = null;
     });
+    this.clearFlightVfx();
+    if (this.environmentSceneryRoot) this.environmentSceneryRoot.position.z = 0;
+    this.environmentTravel?.(0);
+    if (result === 'victory') this.createVictoryLootMotes();
     this.emitSnapshot(true);
   }
 
   private updateResult(now: number): void {
+    const elapsed = Math.max(0, now - this.phaseStartedAt);
+    this.enemies.forEach((enemy) => this.updateEnemyDefeat(enemy, now));
+    if (this.result === 'victory') {
+      const transition = getVictoryTransitionPose(elapsed, 0);
+      this.allies.forEach((ally) => this.updateVictoryMarch(ally, now));
+      this.environmentTravel?.(transition.sceneryTravel);
+      this.updateVictoryLootMotes(elapsed, transition.lootVisibility);
+      return;
+    }
     this.allies.forEach((ally) => {
       if (ally.alive) this.updateIdle(ally, now, ally.slotIndex * 0.31);
     });
-    this.enemies.forEach((enemy) => this.updateEnemyDefeat(enemy, now));
-    if (now - this.phaseStartedAt >= RESULT_HOLD_SECONDS) this.resetWave(now);
+    if (elapsed >= RESULT_HOLD_SECONDS) this.resetWave(now);
   }
 
   private resetWave(now: number): void {
+    this.continuationEntryPending = false;
     this.clearProjectiles();
     this.allies.forEach((ally) => {
       this.resetAlly(ally);
@@ -2229,7 +2357,7 @@ export class BattleRuntime {
     enemy.shadow.material.opacity = 0.22;
   }
 
-  private clearProjectiles(): void {
+  private clearFlightVfx(): void {
     this.projectiles.splice(0).forEach((projectile) => this.scene.remove(projectile.root));
     this.muzzleFlashes.splice(0).forEach((flash) => this.scene.remove(flash.mesh));
     this.tracers.splice(0).forEach((tracer) => {
@@ -2238,9 +2366,14 @@ export class BattleRuntime {
       tracer.mesh.material.dispose();
     });
     this.enemyProjectiles.splice(0).forEach((spore) => this.scene.remove(spore.root));
-    this.impacts.splice(0).forEach((impact) => this.scene.remove(impact.group));
     this.resetSlash();
     this.resetSpinArc();
+  }
+
+  private clearProjectiles(): void {
+    this.clearVictoryLootMotes();
+    this.clearFlightVfx();
+    this.impacts.splice(0).forEach((impact) => this.scene.remove(impact.group));
   }
 
   private startCameraShake(duration: number, amplitude: number): void {
@@ -2253,6 +2386,9 @@ export class BattleRuntime {
     this.camera.position.copy(CAMERA_BASE_POSITION);
     if (this.phase === 'approach') {
       this.camera.position.z += getApproachCameraRetreat(this.simulationNow - this.phaseStartedAt);
+    } else if (this.phase === 'result' && this.result === 'victory') {
+      const transition = getVictoryTransitionPose(this.simulationNow - this.phaseStartedAt, 0);
+      this.camera.position.z -= transition.cameraAdvance;
     }
     if (now < this.cameraShakeEndsAt) {
       const duration = Math.max(0.001, this.cameraShakeEndsAt - this.cameraShakeStartedAt);
@@ -2276,7 +2412,9 @@ export class BattleRuntime {
         ? '接敵中'
         : this.phase === 'combat'
           ? '交戦中'
-          : this.result === 'victory' ? '勝利' : '敗北';
+          : this.result === 'victory'
+            ? victoryStatusLabel(this.simulationNow - this.phaseStartedAt)
+            : '敗北';
     const allies = Object.fromEntries(this.allies.map((ally) => [ally.slimeId, {
       hp: ally.hp,
       maxHp: ally.maxHp,

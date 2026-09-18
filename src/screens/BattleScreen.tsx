@@ -52,7 +52,7 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeI
       </header>
 
       {hasBattleSlime && (
-        <div className={`battle-enemy-compact ${sceneModel.encounter?.boss ? 'is-boss' : ''}`} aria-label="敵の体力">
+        <div className={`battle-enemy-compact ${sceneModel.encounter?.boss ? 'is-boss' : ''}${battle.result === 'victory' ? ' is-cleared' : ''}`} aria-label="敵の体力">
           <div><strong>{sceneModel.encounter?.displayName ?? '敵部隊'}</strong><span>{sceneModel.encounter?.boss ? 'BOSS' : `残り${battle.enemyAlive}体`}</span></div>
           <div className="enemy-hp-track"><div className="enemy-hp-fill" style={{ transform: `scaleX(${enemyRatio})` }} /></div>
         </div>

@@ -156,6 +156,11 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
   color: #fff;
   backdrop-filter: blur(8px);
   box-shadow: 0 10px 22px rgba(22,52,42,.14);
+  transition: opacity 260ms ease, transform 320ms cubic-bezier(.2,.75,.25,1);
+}
+.battle-enemy-compact.is-cleared {
+  opacity: 0;
+  transform: translateY(-9px) scale(.97);
 }
 .battle-enemy-compact > div:first-child { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; font-size: 9px; }
 .battle-enemy-compact strong { font-size: 10px; }

@@ -1,5 +1,6 @@
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { getBattleEnvironmentTheme, getBattleWaveSceneryPhase } from './battle-environment';
+import { createBattleEnvironment, getBattleEnvironmentTheme, getBattleWaveSceneryPhase } from './battle-environment';
 
 describe('battle environment themes', () => {
   it('provides a distinct authored theme for every current Clover Road stage', () => {
@@ -18,6 +19,24 @@ describe('battle environment themes', () => {
     expect(getBattleEnvironmentTheme(5).fence).toBe('none');
     expect(getBattleEnvironmentTheme(5).roadWidth).toBeLessThan(getBattleEnvironmentTheme(1).roadWidth);
     expect(getBattleEnvironmentTheme(5).hemisphereIntensity).toBeLessThan(getBattleEnvironmentTheme(1).hemisphereIntensity);
+  });
+
+  it('wraps long victory-march scenery travel inside the offscreen corridor', () => {
+    const scene = new THREE.Scene();
+    const environment = createBattleEnvironment(scene, 5, 2);
+    const initial = environment.sceneryRoot.children.map((child) => child.position.z);
+
+    environment.setTravelDistance(1000);
+    for (const child of environment.sceneryRoot.children) {
+      expect(Number.isFinite(child.position.z)).toBe(true);
+      expect(child.position.z).toBeGreaterThanOrEqual(-10.8);
+      expect(child.position.z).toBeLessThanOrEqual(4.8);
+    }
+
+    environment.setTravelDistance(0);
+    environment.sceneryRoot.children.forEach((child, index) => {
+      expect(child.position.z).toBeCloseTo(initial[index] ?? 0);
+    });
   });
 
   it('clamps unsupported stage numbers and keeps wave scenery progression deterministic', () => {

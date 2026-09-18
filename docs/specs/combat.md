@@ -161,6 +161,8 @@ last enemy defeat
 
 No result modal for normal waves.
 
+The authored `0.8–1.5 seconds` is the visible handoff into marching, not a second authoritative wave timer. If the product/domain combat has not advanced yet, the party may keep marching in place with looping roadside travel until the authoritative encounter changes.
+
 ### 8.1 Encounter staging
 
 Enemy composition owns presentation choreography independently from economy balance. A visual encounter may specify semantic formation slots and a minimum first-attack delay without changing HP, work, rewards, or offline simulation values.
@@ -182,6 +184,33 @@ Rules:
 - formation slots are authored per encounter when role readability matters; simple onboarding waves may use automatic front-to-rear placement
 - Stage 5 should read as a mixed gauntlet with front/mid/back roles, not as a wall of simultaneous projectiles
 - presentation staging must not become a second combat balance system; subsequent attack cadence remains owned by the enemy definition/motion profile
+
+### 8.2 Wave-clear authority and visual handoff
+
+The domain combat state remains the single source of truth for `currentWaveIndex`, stage completion, rewards, random drops, and boss progression. `BattleRuntime` is presentation-only and must never select or advance the next encounter on a local visual victory.
+
+Visual victory flow:
+
+```text
+final visible enemy defeat
+-> generic loot motes converge on the party
+-> survivors compact into the forward march formation
+-> enemy HP panel exits
+-> roadside scenery loops forward while status reads 進軍中
+-> domain `encounterKey` changes
+-> next runtime starts from the same march formation
+-> front/back roles fan out while new enemies enter
+```
+
+Rules:
+
+- the old encounter must not respawn after a visual victory while waiting for the domain
+- visual loot motes communicate collection only; they never encode reward type or quantity
+- actual reward messaging comes from authoritative domain events such as `combatWaveCleared`
+- Stage 1 / Wave 1 is the only cold-start formation; later waves and stages use the march formation as their approach origin
+- the previous march endpoint and the next encounter start x/z coordinates must match exactly for all six party slots
+- local visual defeat may still replay the same encounter because presentation HP is not authoritative product state; this retry must not mutate domain progression
+- transition presentation must not alter HP, damage, wave work, rewards, random drops, offline simulation, or target-selection rules
 
 Current Clover Road progression:
 

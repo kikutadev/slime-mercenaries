@@ -143,6 +143,7 @@ const THEMES: readonly BattleEnvironmentTheme[] = [
 export interface BattleEnvironmentRuntime {
   theme: BattleEnvironmentTheme;
   sceneryRoot: THREE.Group;
+  setTravelDistance: (distance: number) => void;
 }
 
 export function getBattleEnvironmentTheme(stageNumber: number): BattleEnvironmentTheme {
@@ -163,6 +164,13 @@ function wrapRoadsideZ(z: number, wavePhase: number): number {
   let value = z + wavePhase;
   while (value > 3.2) value -= 12.4;
   while (value < -9.2) value += 12.4;
+  return value;
+}
+
+function wrapTravelZ(z: number, travelDistance: number): number {
+  let value = z + Math.max(0, travelDistance);
+  while (value > 4.8) value -= 15.6;
+  while (value < -10.8) value += 15.6;
   return value;
 }
 
@@ -357,6 +365,24 @@ function addFeatureProps(
   addStone(root, theme, 3.15, wrapRoadsideZ(-7.0, wavePhase), 1.1);
 }
 
+function addRoadFlecks(root: THREE.Group, theme: BattleEnvironmentTheme, wavePhase: number): void {
+  const geometry = new THREE.CircleGeometry(0.045, 7);
+  const fleckMaterial = material(theme.roadEdgeColor, 1);
+  const seeds: readonly [number, number, number][] = [
+    [-1.34, 1.9, 0.72], [0.72, 1.1, 0.48], [-0.22, 0.25, 0.62], [1.42, -0.55, 0.52],
+    [-1.02, -1.25, 0.44], [0.36, -2.0, 0.68], [1.18, -2.8, 0.46], [-1.5, -3.55, 0.58],
+    [-0.46, -4.25, 0.52], [0.95, -5.05, 0.7], [-1.22, -5.8, 0.5], [0.18, -6.55, 0.62],
+    [1.4, -7.3, 0.46], [-0.76, -8.2, 0.56],
+  ];
+  for (const [x, z, scale] of seeds) {
+    const fleck = new THREE.Mesh(geometry, fleckMaterial);
+    fleck.rotation.x = -Math.PI / 2;
+    fleck.scale.set(1.65 * scale, 0.72 * scale, 1);
+    fleck.position.set(x, -0.008, wrapRoadsideZ(z, wavePhase));
+    root.add(fleck);
+  }
+}
+
 function addTrees(root: THREE.Group, theme: BattleEnvironmentTheme, wavePhase: number): void {
   const treeSets: Readonly<Record<BattleEnvironmentFeature, readonly [number, number, number, number][]>> = {
     clover: [
@@ -422,6 +448,14 @@ export function createBattleEnvironment(
   addFence(sceneryRoot, theme, wavePhase);
   addFeatureProps(sceneryRoot, theme, wavePhase);
   addTrees(sceneryRoot, theme, wavePhase);
+  addRoadFlecks(sceneryRoot, theme, wavePhase);
+  const scrollingItems = sceneryRoot.children.map((object) => ({
+    object,
+    baseZ: object.position.z,
+  }));
+  const setTravelDistance = (distance: number) => {
+    for (const item of scrollingItems) item.object.position.z = wrapTravelZ(item.baseZ, distance);
+  };
 
   scene.add(new THREE.HemisphereLight(theme.hemisphereSkyColor, theme.hemisphereGroundColor, theme.hemisphereIntensity));
   const sun = new THREE.DirectionalLight(theme.sunColor, theme.sunIntensity);
@@ -436,5 +470,5 @@ export function createBattleEnvironment(
   sun.shadow.camera.bottom = -5;
   scene.add(sun);
 
-  return { theme, sceneryRoot };
+  return { theme, sceneryRoot, setTravelDistance };
 }

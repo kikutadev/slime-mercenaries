@@ -1020,3 +1020,27 @@ Visual acceptance:
 - Stage 3 flowers remain outside the combat corridor and do not compete with Flower-family enemy silhouettes
 - Stage 5 entry / mid-approach / combat contact strip confirms enemies settle to existing authored combat positions before combat starts
 - latest full gate: 94 / 94 tests PASS, typecheck PASS, 10 / 10 GLB validation PASS, production build PASS
+
+## 23. Wave-clear march handoff round — 2026-09-18
+
+The local Three.js battle result loop was reviewed against the domain simulator. A presentation bug was found: visual victory waited 1.85 seconds and then restored the same encounter, while the domain independently owned `currentWaveIndex`. The runtime was corrected so presentation no longer pretends to advance waves.
+
+Implemented:
+
+- removed same-encounter reset from the visual victory path; defeat-only visual retry remains
+- added pure `battle-transition.ts` timing/formation contracts for settle, loot, and continuous march
+- final enemy defeat now hands off through generic loot motes into a six-slot compact march formation
+- survivor HP bars and the old enemy compact HP panel leave the screen during victory handoff
+- roadside scenery gains deterministic wrapping travel so `進軍中` can continue for an arbitrarily long authoritative wait
+- the domain remains the only owner of next-wave selection, rewards, random drops, and stage progression
+- later encounters start allies from the exact previous march x/z slots, then fan front/back roles into their authored combat positions during the existing approach phase
+- Stage 1 Wave 1 remains the only cold-start deployment
+- no combat balance, economy, reward, simulator, or enemy cadence values were changed
+
+Acceptance:
+
+- Stage 1 visual victory reaches `戦利品回収` then `進軍中` and remains marching after 20 seconds without respawning the defeated encounter
+- Stage 5 dense-scenery stress capture remains stable through 20 seconds of march travel
+- Stage 1 march endpoint and Stage 2 entry start x/z coordinates match exactly for all six party slots
+- later-encounter approach expands the party from march formation into existing front/back combat positions before combat begins
+- latest full gate: 100 / 100 tests PASS, typecheck PASS, 10 / 10 GLB validation PASS, production build PASS, diff-check PASS
