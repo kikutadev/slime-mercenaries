@@ -5,11 +5,13 @@ import {
   equipmentForgeDefinition,
   ids,
   jobCreationDefinitions,
+  mutationDefinitions,
   previewJobCreation,
   previewPlainSlimeCraft,
   previewPlainSlimePurchase,
   previewSlimeFusion,
   previewSlimeLevelUp,
+  previewSlimeMutation,
   previewSlimePromotion,
   previewSlimePromotions,
   slimeCombatPower,
@@ -21,10 +23,12 @@ import {
   type JobSlimeId,
   type SlimeInstanceId,
   type SlimeMercenariesState,
+  type SlimeMutationId,
 } from '../../domain';
 import { FUSION_ITEMS, getSlimePresentation, getSlimePresentationForRank } from '../../game/slimes';
 
 const JOB_IDS = Object.keys(jobCreationDefinitions) as JobSlimeId[];
+const MUTATION_IDS = Object.keys(mutationDefinitions) as SlimeMutationId[];
 
 export function selectGlobalHud(state: SlimeMercenariesState) {
   return {
@@ -93,6 +97,24 @@ export function selectOwnedSlimeIds(state: SlimeMercenariesState): readonly Slim
   return ownedSlimes(state).map((slime) => slime.id);
 }
 
+export function selectSlimeMutationOptions(
+  state: SlimeMercenariesState,
+  slimeId: SlimeInstanceId,
+) {
+  return MUTATION_IDS.map((mutationId) => {
+    const preview = previewSlimeMutation(state, slimeId, mutationId);
+    return {
+      id: mutationId,
+      eligibility: mutationDefinitions[mutationId].eligibility,
+      eligible: preview.eligible,
+      alreadyMutated: preview.alreadyMutated,
+      fragments: preview.fragments,
+      catalysts: preview.catalysts,
+      canMutate: preview.canMutate,
+    } as const;
+  });
+}
+
 export function selectSlimeDetail(state: SlimeMercenariesState, slimeId: SlimeInstanceId) {
   const slime = state.gameData.roster.slimes[slimeId];
   if (slime === undefined) return null;
@@ -127,6 +149,8 @@ export function selectSlimeDetail(state: SlimeMercenariesState, slimeId: SlimeIn
     level: slime.level,
     fusionRank: slime.fusionRank,
     fusionFormId: slime.fusionFormId,
+    mutationId: slime.mutationId,
+    mutationOptions: selectSlimeMutationOptions(state, slimeId),
     assignment: slime.assignment,
     weaponName: weapon?.displayName ?? '未装備',
     levelActions: {

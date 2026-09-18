@@ -10,3 +10,4 @@ export * from './roster';
 export * from './state';
 
 export * from './mutation';
+export * from './rewards';

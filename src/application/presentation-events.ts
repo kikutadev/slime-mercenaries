@@ -1,7 +1,15 @@
 import type { DomainEvent, PresentationQueueItem } from 'idle-game-kit';
-import { jobCreationDefinitions, type JobSlimeId } from '../domain';
+import { jobCreationDefinitions, type JobSlimeId, type SlimeMutationId } from '../domain';
 
 export type PresentationTone = 'reward' | 'milestone' | 'warning' | 'system';
+
+const MUTATION_DISPLAY_NAMES: Readonly<Record<SlimeMutationId, string>> = {
+  king: 'キングスライム',
+  golden: 'ゴールデンスライム',
+  dragon: 'ドラゴンスライム',
+  prism: 'プリズムスライム',
+};
+
 
 export type SlimePresentationNotice = PresentationQueueItem & Readonly<{
   id: string;
@@ -75,6 +83,14 @@ export function toPresentationNotices(events: readonly DomainEvent[]): readonly 
           ...notice(event, '昇格完了', '職業ランクが上昇しました', 'milestone', 85),
           presentationPreemption: 'resume-current' as const,
         }];
+      case 'slimeMutated': {
+        const mutationId = stringPayload(event, 'mutationId') as SlimeMutationId | null;
+        const mutationName = mutationId === null ? 'レア変異' : MUTATION_DISPLAY_NAMES[mutationId] ?? 'レア変異';
+        return [{
+          ...notice(event, '変異完了 · ' + mutationName, '特殊な形態を獲得しました', 'milestone', 92, 'slime-mutation'),
+          presentationPreemption: 'resume-current' as const,
+        }];
+      }
       case 'dispatchCompleted':
         return [notice(event, '派遣帰還', '派遣報酬は自動で反映済みです', 'reward', 42, 'dispatch-return')];
       case 'weaponEquipped':

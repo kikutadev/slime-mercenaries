@@ -1,5 +1,6 @@
 import type { CurrencyDefinition, CurveDefinition, GachaDefinition, ItemDefinition, LoadoutDefinition, Reward, TimedActivityDefinition } from 'idle-game-kit';
 import { balance } from './balance';
+import type { SlimeProductReward } from './rewards';
 
 /** Stable IDs are the save/balance boundary. Display names can change without migrating saves. */
 export const ids = {
@@ -638,7 +639,7 @@ export type StageWaveDefinition = Readonly<{
   /** Stable visual encounter ID; analytical combat still uses work/rewards as authority. */
   encounterId: string;
   work: number;
-  rewards: readonly Reward[];
+  rewards: readonly SlimeProductReward[];
   randomDrops: readonly Readonly<{
     tokenId: string;
     chance: number;
@@ -651,7 +652,7 @@ export type StageBossDefinition = Readonly<{
   encounterId: string;
   work: number;
   requiredPartyPower: number;
-  rewards: readonly Reward[];
+  rewards: readonly SlimeProductReward[];
 }>;
 
 export type StageDefinition = Readonly<{
@@ -662,11 +663,11 @@ export type StageDefinition = Readonly<{
   requiredPartyPower?: number;
   waves: readonly StageWaveDefinition[];
   boss?: StageBossDefinition;
-  clearRewards: readonly Reward[];
+  clearRewards: readonly SlimeProductReward[];
 }>;
 
-function stageClearRewards(clearReward: Readonly<Record<string, number>>): readonly Reward[] {
-  const rewards: Reward[] = [];
+function stageClearRewards(clearReward: Readonly<Record<string, number>>): readonly SlimeProductReward[] {
+  const rewards: SlimeProductReward[] = [];
   const tokenByKey: Readonly<Record<string, string>> = {
     slimeGel: ids.token.slimeGel,
     lifeWater: ids.token.lifeWater,

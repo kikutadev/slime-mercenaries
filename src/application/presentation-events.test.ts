@@ -46,6 +46,14 @@ describe('presentation event policy', () => {
     expect(notice?.body).toContain('再編成');
   });
 
+  it('presents a completed rare mutation as a high-priority milestone', () => {
+    const [notice] = toPresentationNotices([event('slimeMutated', { slimeId: 'slime.7', mutationId: 'prism' })]);
+    expect(notice?.title).toBe('変異完了 · プリズムスライム');
+    expect(notice?.tone).toBe('milestone');
+    expect(notice?.presentationPriority).toBeGreaterThanOrEqual(90);
+    expect(notice?.presentationCoalescingKey).toBe('slime-mutation');
+  });
+
   it('turns dispatch completion into a non-blocking reward notice', () => {
     const [notice] = toPresentationNotices([event('dispatchCompleted', { contractId: 'roadEscort' })]);
     expect(notice?.title).toBe('派遣帰還');

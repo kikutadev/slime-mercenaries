@@ -9,6 +9,7 @@ import {
   forgeEquipment,
   fuseSlime,
   levelUpSlime,
+  mutateSlime,
   promoteSlime,
   removeSlimeFromFormation,
   startDispatch,
@@ -18,6 +19,7 @@ import {
   type JobSlimeId,
   type SlimeInstanceId,
   type SlimeMercenariesState,
+  type SlimeMutationId,
 } from '../domain';
 import { createSlimeMercenariesBrowserRepository } from '../platform/web';
 import {
@@ -134,6 +136,10 @@ export class SlimeGameController {
 
   promoteSlime(slimeId: SlimeInstanceId, promotionId?: string) {
     return this.execute((state) => promoteSlime(state, slimeId, promotionId));
+  }
+
+  mutateSlime(slimeId: SlimeInstanceId, mutationId: SlimeMutationId) {
+    return this.execute((state) => mutateSlime(state, slimeId, mutationId));
   }
 
   validationSetSlimeLevel(slimeId: SlimeInstanceId, level = 40) {

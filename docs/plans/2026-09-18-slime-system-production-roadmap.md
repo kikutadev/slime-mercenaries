@@ -73,7 +73,7 @@ These should be deterministic and usable by live BattleRuntime and authoritative
 
 ## Phase 4 — Tier-3 production combat identity
 
-Status: In Progress — system behaviors separated; production motion/VFX polish remains
+Status: Implemented — production motion/VFX integrated and verified
 
 All 12 Tier-3 models exist, but currently reuse Tier-2 battle behavior. Give every Tier-3 specialization a dedicated production motion/behavior and signature VFX using the gallery and battle runtime from the same implementation.
 
@@ -101,7 +101,7 @@ Loadout infrastructure supports all six families, but authored weapon content is
 
 ## Phase 6 — Rare mutations
 
-Status: In Progress — Domain foundation implemented
+Status: In Progress — Domain/Application/reward plumbing implemented
 
 Implement King / Golden / Dragon / Prism / Mimic as horizontal special forms with deterministic backstops. Do not require indefinite RNG for Codex completion.
 
@@ -125,9 +125,9 @@ Status: Planned
 - Save schema v5 stores `progression.areas[areaId].highestStageCleared`; schema v4 per-instance saves migrate without changing roster/loadout identity.
 - Every normal family now has a usable Fusion Core sink. Sword/Bow keep their deeper authored trees; Shield/Wand/Dagger/Gun currently have the first system-completeness milestone only.
 - Temporary combat-effect primitives cover damage reduction, movement slow, execute thresholds and line-pierce distance.
-- All 12 Tier-3 specializations now expose distinct battle behavior IDs and distinct runtime mechanics. Animation/VFX review at 1x mobile speed is still required before Phase 4 is complete.
+- All 12 Tier-3 specializations now expose distinct battle behavior IDs, dedicated production motion contracts, and shared Gallery/BattleRuntime VFX. Tier-2 prototype fallbacks and the fake Engineer turret runtime were removed; Engineer uses the actual model turret root.
 - Forge now contains one Common/Rare/Mythic weapon for all six families using the same per-family 55/18/2 weight pattern, preserving the prior aggregate rarity ratio.
-- Existing-body Rare Mutation state exists for King/Golden/Dragon/Prism. Fragment thresholds are intentionally not invented. Dragon selected origins remain closed until authored; Mimic remains a separate special-capture problem.
+- Existing-body Rare Mutation state exists for King/Golden/Dragon/Prism. The Application controller now exposes the authoritative mutate command, headless selectors expose per-instance eligibility/readiness, and combat rewards can carry product-owned mutation Fragment/Catalyst rewards without leaking mutation concepts into Kit Core. Fragment conversion thresholds are intentionally not invented. Dragon selected origins remain closed until authored; Mimic remains a separate special-capture problem.
 - Areas are definition-driven instead of Clover-Road hardcoded. Areas 2-8 still need stage content; only the persistence/runtime structure is complete.
 
 ## Verification contract

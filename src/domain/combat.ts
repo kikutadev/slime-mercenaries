@@ -1,6 +1,5 @@
 import {
   GameNumber,
-  applyRewards,
   curveValueAt,
   grantToken,
   nextRandom,
@@ -15,13 +14,13 @@ import { equippedWeaponCombatMultiplier } from './equipment';
 import {
   resolveStageDefinition,
   ids,
-  resolveCurrencyDefinition,
   typeLevelDefinitions,
   type StageBossDefinition,
   type StageDefinition,
   type StageWaveDefinition,
 } from './definitions';
 import { highestStageClearedForArea, withHighestStageClearedForArea, type SlimeInstanceId, type SlimeMercenariesState, type SlimeProgress } from './state';
+import { applySlimeProductRewards } from './rewards';
 
 export type CombatEncounter = Readonly<{
   kind: 'wave' | 'boss';
@@ -302,7 +301,7 @@ function resolveNormalWave(
 ): Readonly<{ state: SlimeMercenariesState; events: readonly DomainEvent[] }> {
   const stage = currentStageDefinition(state);
   if (stage === null) throw new Error('Cannot resolve a wave without a current Stage.');
-  let nextState = applyGenericRewards(state, wave.rewards);
+  let nextState = applySlimeProductRewards(state, wave.rewards);
   const random = resolveRandomDrops(nextState, wave);
   nextState = random.state;
   const waveNumber = state.gameData.combat.currentWaveIndex + 1;
@@ -328,7 +327,7 @@ function resolveBoss(
 ): Readonly<{ state: SlimeMercenariesState; events: readonly DomainEvent[] }> {
   const stage = currentStageDefinition(state);
   if (stage === null) throw new Error('Cannot resolve a boss without a current Stage.');
-  let nextState = applyGenericRewards(state, boss.rewards);
+  let nextState = applySlimeProductRewards(state, boss.rewards);
   nextState = writeCombat(nextState, { waveWorkRemaining: null, frontierDefeatTimeRemainingSec: null });
   const completed = completeStage(nextState);
   return {
@@ -347,7 +346,7 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
     return { state: ended, events: [] };
   }
 
-  let nextState = applyGenericRewards(state, stage.clearRewards);
+  let nextState = applySlimeProductRewards(state, stage.clearRewards);
   const highestStageCleared = highestStageClearedForArea(nextState.gameData.progression, stage.areaId);
   const isRetreatFarmClear = nextState.gameData.combat.retryFarmClearsRemaining > 0
     && stage.stageNumber <= highestStageCleared;
@@ -532,13 +531,6 @@ function resolveRandomDrops(
     granted.push({ tokenId: drop.tokenId, count: drop.count });
   }
   return { state: nextState, granted };
-}
-
-function applyGenericRewards(
-  state: SlimeMercenariesState,
-  rewards: Parameters<typeof applyRewards>[1],
-): SlimeMercenariesState {
-  return applyRewards(state, rewards, { resolveCurrencyDefinition }) as SlimeMercenariesState;
 }
 
 function activeSlimes(state: SlimeMercenariesState): readonly SlimeProgress[] {

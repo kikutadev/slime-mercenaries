@@ -177,7 +177,7 @@ Completed on 2026-09-18.
 Verification:
 
 - `pnpm run typecheck` — PASS
-- `npm test` — 20 files / 97 tests PASS
+- `pnpm test` — PASS
 - `pnpm run build` — PASS (existing large enemy-motion chunk warning remains)
 - `pnpm run simulate:balance` — PASS
 - `pnpm run simulate:check` — PASS

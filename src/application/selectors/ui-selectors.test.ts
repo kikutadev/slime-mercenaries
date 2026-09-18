@@ -6,10 +6,11 @@ import {
   createInitialSlimeMercenariesState,
   createJobSlime,
   firstSlimeIdByType,
+  grantMutationCatalyst,
   ids,
   resolveCurrencyDefinition,
 } from '../../domain';
-import { selectCampUpgradeOpportunities, selectCreateSlimePanel, selectDispatchScreen, selectEarlyGameCue, selectNavigationAttention } from './ui-selectors';
+import { selectCampUpgradeOpportunities, selectCreateSlimePanel, selectDispatchScreen, selectEarlyGameCue, selectNavigationAttention, selectSlimeDetail, selectSlimeMutationOptions } from './ui-selectors';
 
 function createSwordState() {
   let state = createInitialSlimeMercenariesState(0, 11);
@@ -57,6 +58,32 @@ describe('UI selectors', () => {
     expect(selectNavigationAttention(state).has('slimes')).toBe(false);
     state = { ...state, gameData: { ...state.gameData, combat: { ...state.gameData.combat, retryFarmClearsRemaining: 3 } } };
     expect(selectNavigationAttention(state).has('slimes')).toBe(true);
+  });
+
+  it('projects per-instance mutation eligibility and catalyst readiness from Domain state', () => {
+    const setup = createSwordState();
+    const sword = setup.state.gameData.roster.slimes[setup.swordId]!;
+    const tier2State = {
+      ...setup.state,
+      gameData: {
+        ...setup.state.gameData,
+        roster: {
+          ...setup.state.gameData.roster,
+          slimes: {
+            ...setup.state.gameData.roster.slimes,
+            [setup.swordId]: { ...sword, jobTier: 2 },
+          },
+        },
+      },
+    };
+    const ready = grantMutationCatalyst(tier2State, 'golden');
+    const options = selectSlimeMutationOptions(ready, setup.swordId);
+    const golden = options.find((option) => option.id === 'golden');
+    const king = options.find((option) => option.id === 'king');
+
+    expect(golden).toMatchObject({ eligible: true, catalysts: 1, canMutate: true });
+    expect(king).toMatchObject({ eligible: false, canMutate: false });
+    expect(selectSlimeDetail(ready, setup.swordId)?.mutationOptions).toEqual(options);
   });
 
   it('guides first-use progression from Plain creation into battle without storing tutorial state', () => {
