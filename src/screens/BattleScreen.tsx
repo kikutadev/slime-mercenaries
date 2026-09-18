@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { BattleCanvas } from '../components/BattleCanvas';
 import { useGameState } from '../app/GameProvider';
 import { selectBattleSceneModel } from '../application/selectors/battle-scene';
@@ -19,12 +19,21 @@ const INITIAL_BATTLE: BattleSnapshot = {
 export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeId) => void }) {
   const state = useGameState();
   const [battle, setBattle] = useState<BattleSnapshot>(INITIAL_BATTLE);
+  const [stageArrival, setStageArrival] = useState<number | null>(null);
+  const previousStageRef = useRef(state.gameData.progression.currentStage);
   const hud = selectGlobalHud(state);
   const formation = selectFormation(state);
   const sceneModel = selectBattleSceneModel(state);
   const hasBattleSlime = sceneModel.allies.length > 0;
   const enemyRatio = battle.enemyMaxHp > 0 ? battle.enemyHp / battle.enemyMaxHp : 0;
   const activeCount = sceneModel.allies.length;
+
+  useEffect(() => {
+    const previousStage = previousStageRef.current;
+    previousStageRef.current = sceneModel.stageNumber;
+    if (sceneModel.stageNumber <= previousStage) return;
+    setStageArrival(sceneModel.stageNumber);
+  }, [sceneModel.stageNumber]);
 
   const battleStatus = useMemo(() => {
     if (state.gameData.combat.contentBoundaryReached) return '現在のエリアを踏破しました';
@@ -56,6 +65,17 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: JobSlimeI
         <div className="battle-empty-visual" aria-hidden="true">
           <div className="battle-empty-road" />
           <div className="battle-empty-orb">●</div>
+        </div>
+      )}
+
+      {stageArrival !== null && (
+        <div
+          key={stageArrival}
+          className="battle-stage-arrival"
+          aria-hidden="true"
+          onAnimationEnd={() => setStageArrival((current) => current === stageArrival ? null : current)}
+        >
+          <i />
         </div>
       )}
 
