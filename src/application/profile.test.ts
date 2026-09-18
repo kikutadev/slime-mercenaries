@@ -171,13 +171,21 @@ it('migrates schema-v0 profiles to the current empty instance roster', async () 
 it('migrates schema-v4 per-instance saves into per-area progression without touching roster identity', async () => {
   const repository = new MemoryProfileRepository();
   const current = createSwordParty(1_000);
+  const legacySlimes = Object.fromEntries(
+    Object.entries(current.gameData.roster.slimes).map(([slimeId, slime]) => {
+      const { mutationId: _mutationId, ...legacySlime } = slime;
+      return [slimeId, legacySlime];
+    }),
+  );
+  const { mutationProgress: _mutationProgress, ...legacyGameData } = current.gameData;
   const legacy = {
     ...current,
     schemaVersion: 4,
     definitionVersion: '2026-09-18.3',
     gameData: {
-      ...current.gameData,
+      ...legacyGameData,
       progression: { currentAreaId: 'area.clover-road', currentStage: 5, highestStageCleared: 4 },
+      roster: { ...current.gameData.roster, slimes: legacySlimes },
     },
   } as unknown as SlimeMercenariesState;
   await repository.save({ profileId: 'default', savedAtMs: 1_000, state: legacy });
@@ -188,6 +196,8 @@ it('migrates schema-v4 per-instance saves into per-area progression without touc
   expect(loaded.state.gameData.progression.currentStage).toBe(5);
   expect(highestStageClearedForArea(loaded.state.gameData.progression)).toBe(4);
   expect(loaded.state.gameData.roster).toEqual(current.gameData.roster);
+  expect(Object.values(loaded.state.gameData.roster.slimes).every((slime) => slime.mutationId === null)).toBe(true);
+  expect(loaded.state.gameData.mutationProgress).toEqual(current.gameData.mutationProgress);
   expect(loaded.state.gameData.equipment).toEqual(current.gameData.equipment);
 });
 

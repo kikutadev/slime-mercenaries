@@ -176,6 +176,15 @@ function migrateSchemaV4State(state: SchemaV4State): SlimeMercenariesState {
       ...state.gameData,
       progression: migrateLegacyProgression(state.gameData.progression),
       mutationProgress: createInitialMutationProgressState(),
+      roster: {
+        ...state.gameData.roster,
+        slimes: Object.fromEntries(
+          Object.entries(state.gameData.roster.slimes).map(([slimeId, slime]) => [
+            slimeId,
+            { ...slime, mutationId: (slime as SlimeProgress & { mutationId?: SlimeProgress['mutationId'] }).mutationId ?? null },
+          ]),
+        ) as SlimeMercenariesState['gameData']['roster']['slimes'],
+      },
     },
   } as SlimeMercenariesState;
 }
