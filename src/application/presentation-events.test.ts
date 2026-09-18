@@ -1,12 +1,56 @@
 import { describe, expect, it } from 'vitest';
 import type { DomainEvent } from 'idle-game-kit';
-import { buildOfflineReturnView, toPresentationNotices } from './presentation-events';
+import { buildOfflineReturnView, toBattleRewardCue, toPresentationNotices } from './presentation-events';
 
 function event(type: string, payload?: Readonly<Record<string, unknown>>): DomainEvent {
   return { id: `${type}:1`, type, simTimeSec: 12, ...(payload === undefined ? {} : { payload }) };
 }
 
 describe('presentation event policy', () => {
+
+  it('aggregates authoritative combat rewards into one battle cue', () => {
+    const cue = toBattleRewardCue([
+      event('combatWaveCleared', {
+        grantedRewards: [
+          { kind: 'currency', id: 'currency.gold', amount: 12 },
+          { kind: 'token', id: 'token.material.slime-gel', amount: 1 },
+        ],
+      }),
+      event('stageCleared', {
+        grantedRewards: [
+          { kind: 'token', id: 'token.material.slime-gel', amount: 2 },
+          { kind: 'token', id: 'token.material.life-water', amount: 1 },
+        ],
+      }),
+    ]);
+
+    expect(cue).not.toBeNull();
+    expect(cue?.items).toEqual([
+      { kind: 'gold', id: 'currency.gold', label: 'G', amount: 12 },
+      { kind: 'material', id: 'token.material.slime-gel', label: 'スライムジェル', amount: 3 },
+      { kind: 'material', id: 'token.material.life-water', label: '生命の水', amount: 1 },
+    ]);
+  });
+
+  it('ignores malformed or unrelated event reward payloads', () => {
+    expect(toBattleRewardCue([
+      event('dispatchCompleted', { grantedRewards: [{ kind: 'currency', id: 'currency.gold', amount: 10 }] }),
+      event('combatWaveCleared', { grantedRewards: [{ kind: 'token', id: 'x', amount: 0 }] }),
+    ])).toBeNull();
+  });
+
+  it('uses authoritative reward amounts in routine wave notices', () => {
+    const [notice] = toPresentationNotices([
+      event('combatWaveCleared', {
+        grantedRewards: [
+          { kind: 'currency', id: 'currency.gold', amount: 24 },
+          { kind: 'token', id: 'token.material.slime-gel', amount: 2 },
+        ],
+      }),
+    ]);
+    expect(notice?.body).toBe('G +24 · スライムジェル +2');
+  });
+
   it('prioritizes new job discoveries over routine battle rewards', () => {
     const notices = toPresentationNotices([
       event('combatWaveCleared', { randomDrops: [] }),

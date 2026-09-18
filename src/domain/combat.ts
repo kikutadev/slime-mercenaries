@@ -21,7 +21,7 @@ import {
   type StageWaveDefinition,
 } from './definitions';
 import { highestStageClearedForArea, withHighestStageClearedForArea, type SlimeInstanceId, type SlimeMercenariesState, type SlimeProgress } from './state';
-import { applySlimeProductRewards } from './rewards';
+import { applySlimeProductRewards, type SlimeProductReward } from './rewards';
 
 export type CombatEncounter = Readonly<{
   kind: 'wave' | 'boss';
@@ -339,6 +339,10 @@ function resolveNormalWave(
     stageId: stage.id,
     stageNumber: stage.stageNumber,
     waveNumber,
+    grantedRewards: [
+      ...rewardEventItems(wave.rewards),
+      ...random.granted.map((drop) => ({ kind: 'token' as const, id: drop.tokenId, amount: drop.count })),
+    ],
     randomDrops: random.granted,
   })];
 
@@ -363,7 +367,11 @@ function resolveBoss(
   return {
     state: completed.state,
     events: [
-      semanticEvent(nextState, 'bossDefeated', stage.id, { stageId: stage.id, stageNumber: stage.stageNumber }),
+      semanticEvent(nextState, 'bossDefeated', stage.id, {
+        stageId: stage.id,
+        stageNumber: stage.stageNumber,
+        grantedRewards: rewardEventItems(boss.rewards),
+      }),
       ...completed.events,
     ],
   };
@@ -376,14 +384,15 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
     return { state: ended, events: [] };
   }
 
-  let nextState = applySlimeProductRewards(state, stage.clearRewards);
-  const highestStageCleared = highestStageClearedForArea(nextState.gameData.progression, stage.areaId);
+  const previousHighestStageCleared = highestStageClearedForArea(state.gameData.progression, stage.areaId);
+  const firstClear = stage.stageNumber > previousHighestStageCleared;
+  let nextState = firstClear ? applySlimeProductRewards(state, stage.clearRewards) : state;
   const isRetreatFarmClear = nextState.gameData.combat.retryFarmClearsRemaining > 0
-    && stage.stageNumber <= highestStageCleared;
+    && stage.stageNumber <= previousHighestStageCleared;
 
   if (isRetreatFarmClear) {
     const remaining = Math.max(0, nextState.gameData.combat.retryFarmClearsRemaining - 1);
-    const frontierStageNumber = highestStageCleared + 1;
+    const frontierStageNumber = previousHighestStageCleared + 1;
     const frontierStage = resolveStageDefinition(nextState.gameData.progression.currentAreaId, frontierStageNumber);
     const retryingFrontier = remaining === 0 && frontierStage !== null;
 
@@ -408,9 +417,11 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
     const events: DomainEvent[] = [semanticEvent(nextState, 'stageCleared', stage.id, {
       stageId: stage.id,
       stageNumber: stage.stageNumber,
+      nextAreaId: stage.areaId,
       nextStageNumber: retryingFrontier ? frontierStage.stageNumber : stage.stageNumber,
       farming: true,
       retryFarmClearsRemaining: remaining,
+      grantedRewards: [],
     })];
     if (retryingFrontier) {
       events.push(semanticEvent(nextState, 'frontierRetryStarted', `${frontierStage.stageNumber}`, {
@@ -421,7 +432,7 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
     return { state: nextState, events };
   }
 
-  const nextHighestStageCleared = Math.max(highestStageCleared, stage.stageNumber);
+  const nextHighestStageCleared = Math.max(previousHighestStageCleared, stage.stageNumber);
   const nextStage = resolveNextWorldStageDefinition(stage.areaId, stage.stageNumber);
   if (nextStage === null) {
     nextState = {
@@ -458,6 +469,7 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
       },
     };
   }
+
   return {
     state: nextState,
     events: [semanticEvent(nextState, 'stageCleared', stage.id, {
@@ -466,9 +478,11 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
       nextAreaId: nextStage?.areaId ?? null,
       nextStageNumber: nextStage?.stageNumber ?? null,
       farming: false,
+      grantedRewards: firstClear ? rewardEventItems(stage.clearRewards) : [],
     })],
   };
 }
+
 
 function resolveFrontierBreakthroughDeferred(
   state: SlimeMercenariesState,
@@ -501,7 +515,6 @@ function resolveFrontierBreakthroughDeferred(
     })],
   };
 }
-
 
 function resolveFrontierDefeat(
   state: SlimeMercenariesState,
@@ -563,6 +576,30 @@ function resolveRandomDrops(
     granted.push({ tokenId: drop.tokenId, count: drop.count });
   }
   return { state: nextState, granted };
+}
+
+type CombatRewardEventItem = Readonly<{
+  kind: 'currency' | 'token';
+  id: string;
+  amount: number;
+}>;
+
+function rewardEventItems(rewards: readonly SlimeProductReward[]): readonly CombatRewardEventItem[] {
+  const items: CombatRewardEventItem[] = [];
+  const visit = (reward: SlimeProductReward): void => {
+    if (reward.type === 'currency') {
+      const amount = GameNumber.from(reward.amount).toNumber();
+      if (amount > 0) items.push({ kind: 'currency', id: reward.currencyId, amount });
+      return;
+    }
+    if (reward.type === 'token') {
+      if (reward.count > 0) items.push({ kind: 'token', id: reward.tokenId, amount: reward.count });
+      return;
+    }
+    if (reward.type === 'composite') reward.rewards.forEach((nested) => visit(nested));
+  };
+  rewards.forEach(visit);
+  return items;
 }
 
 function activeSlimes(state: SlimeMercenariesState): readonly SlimeProgress[] {

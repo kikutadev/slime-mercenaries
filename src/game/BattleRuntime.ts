@@ -131,6 +131,7 @@ import type { EnemyFormationSlot } from './encounters';
 import { createBattleEnvironment } from './battle-environment';
 import { getApproachCameraRetreat, getEnemyApproachEntryPose, getSceneryApproachOffset } from './battle-approach';
 import { getVictoryMarchSlot, getVictoryTransitionPose, shouldUseMarchEntry, victoryStatusLabel } from './battle-transition';
+import { battleRewardParticleCount, battleRewardVisual, type BattleRewardCue } from './battle-reward';
 
 export interface BattleSnapshotAlly {
   hp: number;
@@ -310,10 +311,12 @@ interface ImpactRuntime {
 }
 
 interface VictoryLootMoteRuntime {
-  mesh: THREE.Mesh<THREE.OctahedronGeometry, THREE.MeshBasicMaterial>;
+  mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
   start: THREE.Vector3;
   end: THREE.Vector3;
   delay: number;
+  startedAt: number;
+  duration: number;
 }
 
 export interface BattleRuntimeAllyConfig {
@@ -430,6 +433,8 @@ export class BattleRuntime {
   private readonly tracers: TracerRuntime[] = [];
   private readonly impacts: ImpactRuntime[] = [];
   private readonly victoryLootMotes: VictoryLootMoteRuntime[] = [];
+  private pendingRewardCue: BattleRewardCue | null = null;
+  private lastRewardCueId: string | null = null;
   private slashArc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null = null;
   private spinArc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null = null;
   private environmentSceneryRoot: THREE.Group | null = null;
@@ -486,6 +491,11 @@ export class BattleRuntime {
     this.allies.push(...loadedAllies);
     this.enemies.push(...loadedEnemies);
     this.allies.forEach((ally) => this.facePoint(ally, TARGET_HOME));
+    if (this.pendingRewardCue !== null) {
+      const cue = this.pendingRewardCue;
+      this.pendingRewardCue = null;
+      this.createVictoryLootMotes(cue);
+    }
     this.startBattle(this.rawNow + 0.15);
     this.emitSnapshot(true);
   }
@@ -510,6 +520,7 @@ export class BattleRuntime {
       this.updateMuzzleFlashes(simulationNow);
       this.updateTracers(simulationNow);
       this.updateImpacts(simulationNow);
+      this.updateVictoryLootMotes(simulationNow);
       this.evaluateBattleOutcome(simulationNow);
     }
     this.updateHealthBars();
@@ -688,62 +699,92 @@ export class BattleRuntime {
     this.impacts.push({ group, materials, startedAt: this.simulationNow, duration });
   }
 
-  private createVictoryLootMotes(): void {
+  public presentRewardCue(cue: BattleRewardCue): void {
+    if (this.disposed || this.lastRewardCueId === cue.id) return;
+    this.lastRewardCueId = cue.id;
+    if (this.allies.length === 0) {
+      this.pendingRewardCue = cue;
+      return;
+    }
+    this.createVictoryLootMotes(cue);
+  }
+
+  private createVictoryLootMotes(cue: BattleRewardCue): void {
     this.clearVictoryLootMotes();
-    if (this.enemies.length === 0) return;
-    const geometry = new THREE.OctahedronGeometry(0.055, 0);
-    const colors = ['#ffd76a', '#9ae880', '#fff0ad'] as const;
-    const count = Math.min(14, Math.max(7, this.enemies.length * 2));
-    for (let index = 0; index < count; index += 1) {
-      const source = this.enemies[index % this.enemies.length]!;
-      const material = new THREE.MeshBasicMaterial({
-        color: colors[index % colors.length]!,
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-      });
-      const mesh = new THREE.Mesh(geometry, material);
-      const angle = index * 2.399963229728653;
-      const start = source.root.position.clone();
-      start.x += Math.cos(angle) * (0.08 + (index % 3) * 0.035);
-      start.y = 0.12 + (index % 2) * 0.035;
-      start.z += Math.sin(angle) * 0.07;
-      const end = new THREE.Vector3(
-        ((index % 3) - 1) * 0.16,
-        0.22 + (index % 2) * 0.04,
-        -0.28 + (index % 4) * 0.035,
-      );
-      mesh.position.copy(start);
-      mesh.visible = false;
-      this.scene.add(mesh);
-      this.victoryLootMotes.push({ mesh, start, end, delay: (index % 5) * 0.045 });
+    let particleIndex = 0;
+    for (const item of cue.items) {
+      const visual = battleRewardVisual(item);
+      const count = battleRewardParticleCount(item);
+      for (let localIndex = 0; localIndex < count; localIndex += 1) {
+        const geometry: THREE.BufferGeometry = visual.shape === 'coin'
+          ? new THREE.CylinderGeometry(0.048, 0.048, 0.018, 10)
+          : visual.shape === 'orb'
+            ? new THREE.IcosahedronGeometry(0.052, 1)
+            : new THREE.OctahedronGeometry(0.058, 0);
+        const material = new THREE.MeshBasicMaterial({
+          color: visual.color,
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        const angle = particleIndex * 2.399963229728653;
+        const lane = (particleIndex % 5) - 2;
+        const start = new THREE.Vector3(
+          lane * 0.15 + Math.cos(angle) * 0.08,
+          0.13 + (particleIndex % 3) * 0.035,
+          -1.02 + Math.sin(angle) * 0.1,
+        );
+        const targetAlly = this.allies[particleIndex % this.allies.length];
+        const end = targetAlly === undefined
+          ? new THREE.Vector3(0, 0.24, -0.2)
+          : targetAlly.root.position.clone().add(new THREE.Vector3(0, 0.22, 0.02));
+        mesh.position.copy(start);
+        mesh.visible = false;
+        if (visual.shape === 'coin') mesh.rotation.x = Math.PI / 2;
+        this.scene.add(mesh);
+        this.victoryLootMotes.push({
+          mesh,
+          start,
+          end,
+          delay: (particleIndex % 6) * 0.045,
+          startedAt: this.simulationNow,
+          duration: 0.86 + (particleIndex % 3) * 0.06,
+        });
+        particleIndex += 1;
+      }
     }
   }
 
-  private updateVictoryLootMotes(elapsed: number, visibility: number): void {
+  private updateVictoryLootMotes(now: number): void {
+    let activeCount = 0;
     for (let index = 0; index < this.victoryLootMotes.length; index += 1) {
       const mote = this.victoryLootMotes[index]!;
-      const local = clamp01((elapsed - 0.18 - mote.delay) / 0.78);
-      const active = visibility > 0.001 && local > 0 && local < 1;
+      const local = clamp01((now - mote.startedAt - mote.delay) / mote.duration);
+      const active = now >= mote.startedAt + mote.delay && local < 1;
       mote.mesh.visible = active;
       if (!active) continue;
+      activeCount += 1;
       const eased = easeOutCubic(local);
       mote.mesh.position.lerpVectors(mote.start, mote.end, eased);
-      mote.mesh.position.y += Math.sin(local * Math.PI) * 0.46;
-      mote.mesh.rotation.x = elapsed * 5.4 + index * 0.31;
-      mote.mesh.rotation.y = elapsed * 6.8 + index * 0.47;
-      mote.mesh.scale.setScalar(0.72 + Math.sin(local * Math.PI) * 0.58);
-      mote.mesh.material.opacity = visibility * Math.sin(local * Math.PI);
+      mote.mesh.position.y += Math.sin(local * Math.PI) * 0.42;
+      mote.mesh.rotation.x += 0.13;
+      mote.mesh.rotation.y += 0.19;
+      mote.mesh.scale.setScalar(0.76 + Math.sin(local * Math.PI) * 0.5);
+      mote.mesh.material.opacity = Math.sin(local * Math.PI);
+    }
+    if (activeCount === 0 && this.victoryLootMotes.length > 0
+      && now > Math.max(...this.victoryLootMotes.map((mote) => mote.startedAt + mote.delay + mote.duration))) {
+      this.clearVictoryLootMotes();
     }
   }
 
   private clearVictoryLootMotes(): void {
-    const geometry = this.victoryLootMotes[0]?.mesh.geometry ?? null;
     for (const mote of this.victoryLootMotes) {
       this.scene.remove(mote.mesh);
+      mote.mesh.geometry.dispose();
       mote.mesh.material.dispose();
     }
-    geometry?.dispose();
     this.victoryLootMotes.length = 0;
   }
 
@@ -3406,7 +3447,6 @@ export class BattleRuntime {
     this.clearFlightVfx();
     if (this.environmentSceneryRoot) this.environmentSceneryRoot.position.z = 0;
     this.environmentTravel?.(0);
-    if (result === 'victory') this.createVictoryLootMotes();
     this.emitSnapshot(true);
   }
 
@@ -3417,7 +3457,6 @@ export class BattleRuntime {
       const transition = getVictoryTransitionPose(elapsed, 0);
       this.allies.forEach((ally) => this.updateVictoryMarch(ally, now));
       this.environmentTravel?.(transition.sceneryTravel);
-      this.updateVictoryLootMotes(elapsed, transition.lootVisibility);
       return;
     }
     this.allies.forEach((ally) => {

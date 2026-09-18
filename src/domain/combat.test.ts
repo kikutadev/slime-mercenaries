@@ -43,7 +43,16 @@ describe('analytical combat progression', () => {
 
     expect(advanced.state.gameData.combat.currentWaveIndex).toBe(1);
     expect(readCurrency(advanced.state.currencies, ids.currency.gold).compare(beforeGold)).toBeGreaterThan(0);
-    expect(advanced.events.some((event) => event.type === 'combatWaveCleared')).toBe(true);
+    const waveEvent = advanced.events.find((event) => event.type === 'combatWaveCleared');
+    expect(waveEvent).toBeDefined();
+    const grantedRewards = waveEvent?.payload?.grantedRewards;
+    expect(Array.isArray(grantedRewards)).toBe(true);
+    expect((grantedRewards as readonly Record<string, unknown>[]).some((reward) => (
+      reward.kind === 'currency'
+      && reward.id === ids.currency.gold
+      && typeof reward.amount === 'number'
+      && reward.amount > 0
+    ))).toBe(true);
   });
 
   it('moves to the next stage and grants deterministic stage-clear progression materials', () => {
@@ -55,6 +64,9 @@ describe('analytical combat progression', () => {
     expect(readToken(advanced.state.tokens, ids.token.trainingSword)).toBeGreaterThanOrEqual(1);
     expect(readToken(advanced.state.tokens, ids.token.lifeWater)).toBeGreaterThanOrEqual(1);
     expect(readToken(advanced.state.tokens, ids.token.slimeGel)).toBeGreaterThanOrEqual(8);
+    const stageEvent = advanced.events.find((event) => event.type === 'stageCleared');
+    expect(stageEvent).toBeDefined();
+    expect(Array.isArray(stageEvent?.payload?.grantedRewards)).toBe(true);
   });
 
   it('keeps random wave drops deterministic for the same seed and elapsed time', () => {

@@ -2,7 +2,8 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { BottomSheet, usePresentationQueue } from 'idle-game-kit/react';
 import { useGameBootstrap, useGameController, useGameState } from './GameProvider';
 import { selectNavigationAttention, selectOwnedSlimeIds } from '../application/selectors/ui-selectors';
-import { buildOfflineReturnView, presentationNoticeDurationMs, toPresentationNotices } from '../application/presentation-events';
+import { buildOfflineReturnView, presentationNoticeDurationMs, toBattleRewardCue, toPresentationNotices } from '../application/presentation-events';
+import type { BattleRewardCue } from '../game/battle-reward';
 import { SlimesScreen } from '../screens/SlimesScreen';
 import { DispatchScreen } from '../screens/DispatchScreen';
 import { ForgeScreen } from '../screens/ForgeScreen';
@@ -24,11 +25,30 @@ export function AppShell() {
   const [screen, setScreen] = useState<ScreenId | null>(null);
   const [selectedSlimeId, setSelectedSlimeId] = useState<SlimeInstanceId | null>(null);
   const [offlineDismissed, setOfflineDismissed] = useState(false);
+  const [battleRewardCue, setBattleRewardCue] = useState<BattleRewardCue | null>(null);
   const presentation = usePresentationQueue(presentationNoticeDurationMs);
+  const initialScreen: ScreenId = ownedIds.length > 0 && state.gameData.roster.formationSlots.some((slot) => slot !== null)
+    ? 'battle'
+    : 'slimes';
+  const activeScreen = screen ?? initialScreen;
+
 
   useEffect(() => controller.subscribeEvents((events) => {
-    presentation.enqueue(toPresentationNotices(events));
-  }), [controller, presentation.enqueue]);
+    const notices = toPresentationNotices(events);
+    presentation.enqueue(activeScreen === 'battle'
+      ? notices.filter((notice) => notice.presentationCoalescingKey !== 'combat-reward')
+      : notices);
+    const rewardCue = toBattleRewardCue(events);
+    if (rewardCue !== null) setBattleRewardCue(rewardCue);
+  }), [controller, presentation.enqueue, activeScreen]);
+
+  useEffect(() => {
+    if (battleRewardCue === null) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      setBattleRewardCue((current) => current?.id === battleRewardCue.id ? null : current);
+    }, 2_200);
+    return () => window.clearTimeout(timeoutId);
+  }, [battleRewardCue]);
 
   useEffect(() => {
     if (bootstrap.status !== 'ready' || screen !== null) return;
@@ -74,17 +94,12 @@ export function AppShell() {
     setSelectedSlimeId(slimeId);
     setScreen('slimes');
   };
-  const initialScreen: ScreenId = ownedIds.length > 0 && state.gameData.roster.formationSlots.some((slot) => slot !== null)
-    ? 'battle'
-    : 'slimes';
-  const activeScreen = screen ?? initialScreen;
-
   return (
     <main className="page">
       <section className="game-shell" aria-label="ゲーム画面">
         <div className="app-content">
           <Suspense fallback={<section className="screen screen--active" aria-label="画面を読み込み中" />}>
-            {activeScreen === 'battle' && <BattleScreen onOpenSlime={openSlime} />}
+            {activeScreen === 'battle' && <BattleScreen onOpenSlime={openSlime} rewardCue={battleRewardCue} />}
             {activeScreen === 'slimes' && <SlimesScreen selectedId={selectedSlimeId} onSelect={setSelectedSlimeId} onOpenBattle={() => setScreen('battle')} />}
             {activeScreen === 'dispatch' && <DispatchScreen />}
             {activeScreen === 'forge' && <ForgeScreen />}
