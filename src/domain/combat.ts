@@ -20,7 +20,7 @@ import {
   type StageDefinition,
   type StageWaveDefinition,
 } from './definitions';
-import { highestStageClearedForArea, withHighestStageClearedForArea, type SlimeInstanceId, type SlimeMercenariesState, type SlimeProgress } from './state';
+import { highestStageClearedForArea, withAreaUnlocked, withHighestStageClearedForArea, type SlimeInstanceId, type SlimeMercenariesState, type SlimeProgress } from './state';
 import { applySlimeProductRewards, describeSlimeProductRewards } from './rewards';
 
 export type CombatEncounter = Readonly<{
@@ -442,12 +442,19 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
 
   const nextHighestStageCleared = Math.max(previousHighestStageCleared, stage.stageNumber);
   const nextStage = resolveNextWorldStageDefinition(stage.areaId, stage.stageNumber);
+  const clearedProgression = withHighestStageClearedForArea(
+    nextState.gameData.progression,
+    stage.areaId,
+    nextHighestStageCleared,
+  );
+  const areaChanged = nextStage !== null && nextStage.areaId !== stage.areaId;
+
   if (nextStage === null) {
     nextState = {
       ...nextState,
       gameData: {
         ...nextState.gameData,
-        progression: withHighestStageClearedForArea(nextState.gameData.progression, stage.areaId, nextHighestStageCleared),
+        progression: clearedProgression,
         combat: {
           currentWaveIndex: 0,
           waveWorkRemaining: null,
@@ -458,12 +465,15 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
       },
     };
   } else {
+    const progressed = areaChanged
+      ? withAreaUnlocked(clearedProgression, nextStage.areaId)
+      : clearedProgression;
     nextState = {
       ...nextState,
       gameData: {
         ...nextState.gameData,
         progression: {
-          ...withHighestStageClearedForArea(nextState.gameData.progression, stage.areaId, nextHighestStageCleared),
+          ...progressed,
           currentAreaId: nextStage.areaId,
           currentStage: nextStage.stageNumber,
         },
@@ -478,17 +488,22 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
     };
   }
 
-  return {
-    state: nextState,
-    events: [semanticEvent(nextState, 'stageCleared', stage.id, {
-      stageId: stage.id,
-      stageNumber: stage.stageNumber,
-      nextAreaId: nextStage?.areaId ?? null,
-      nextStageNumber: nextStage?.stageNumber ?? null,
-      farming: false,
-      grantedRewards: firstClear ? describeSlimeProductRewards(stage.clearRewards) : [],
-    })],
-  };
+  const events: DomainEvent[] = [semanticEvent(nextState, 'stageCleared', stage.id, {
+    areaId: stage.areaId,
+    stageId: stage.id,
+    stageNumber: stage.stageNumber,
+    nextAreaId: nextStage?.areaId ?? null,
+    nextStageNumber: nextStage?.stageNumber ?? null,
+    farming: false,
+    grantedRewards: firstClear ? describeSlimeProductRewards(stage.clearRewards) : [],
+  })];
+  if (areaChanged && nextStage !== null) {
+    events.push(semanticEvent(nextState, 'areaUnlocked', nextStage.areaId, {
+      areaId: nextStage.areaId,
+      stageNumber: nextStage.stageNumber,
+    }));
+  }
+  return { state: nextState, events };
 }
 
 

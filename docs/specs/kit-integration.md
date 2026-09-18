@@ -135,7 +135,7 @@ Kit GameState
 │  └─ reusable dispatch timing states where appropriate
 ├─ RNG streams / gacha state / unlocks
 └─ gameData: SlimeMercenariesGameData
-   ├─ currentAreaId / stage / highestStageCleared
+   ├─ currentAreaId / currentStage / areas[areaId].highestStageCleared
    ├─ slimeInstancesById
    │  ├─ stable instance ID + job type
    │  ├─ level

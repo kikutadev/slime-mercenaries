@@ -154,6 +154,20 @@ export function toPresentationNotices(events: readonly DomainEvent[]): readonly 
       }
       case 'bossDefeated':
         return [notice(event, 'ボス撃破', '大きな報酬を獲得', 'milestone', 65, 'boss-state')];
+      case 'areaUnlocked':
+        return [{
+          ...notice(event, '新エリア解放', '次のエリアへ進みます', 'milestone', 88, 'area-progress'),
+          presentationPreemption: 'resume-current' as const,
+        }];
+      case 'areaStageEntered':
+        return [notice(
+          event,
+          'ステージ ' + (numberPayload(event, 'stageNumber') ?? '') + ' へ移動',
+          '解放済みの戦場へ戻りました',
+          'system',
+          20,
+          'area-navigation',
+        )];
       case 'partyDefeated':
         return [{
           ...notice(event, '敗北 · 撤退', 'ひとつ前のステージで戦力を立て直します', 'warning', 72, 'frontier-state'),

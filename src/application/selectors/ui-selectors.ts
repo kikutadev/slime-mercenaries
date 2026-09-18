@@ -15,6 +15,8 @@ import {
   previewSlimeFusions,
   slimeCombatPower,
   resolveAreaDefinition,
+  WORLD_AREA_IDS,
+  maxSelectableStageForArea,
   firstSlimeByType,
   ownedSlimes,
   sameTypeCount,
@@ -28,6 +30,24 @@ import { FUSION_ITEMS, getSlimePresentation, getSlimePresentationForRank } from 
 
 const JOB_IDS = Object.keys(jobCreationDefinitions) as JobSlimeId[];
 const MUTATION_IDS = Object.keys(mutationDefinitions) as SlimeMutationId[];
+
+export function selectWorldAreas(state: SlimeMercenariesState) {
+  return WORLD_AREA_IDS.map((areaId) => {
+    const definition = resolveAreaDefinition(areaId)!;
+    const progress = state.gameData.progression.areas[areaId];
+    return {
+      id: areaId,
+      order: definition.order,
+      name: definition.displayName,
+      current: state.gameData.progression.currentAreaId === areaId,
+      unlocked: progress !== undefined,
+      contentAvailable: definition.stages.length > 0,
+      highestStageCleared: progress?.highestStageCleared ?? 0,
+      stageCount: definition.stages.length,
+      maxSelectableStage: maxSelectableStageForArea(state, areaId),
+    } as const;
+  });
+}
 
 export function selectGlobalHud(state: SlimeMercenariesState) {
   return {

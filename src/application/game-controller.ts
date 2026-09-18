@@ -6,6 +6,7 @@ import {
   craftPlainSlime,
   createJobSlime,
   equipWeapon,
+  enterAreaStage,
   forgeEquipment,
   fuseSlime,
   levelUpSlime,
@@ -172,6 +173,10 @@ export class SlimeGameController {
 
   equipWeapon(slimeId: SlimeInstanceId, weaponDefinitionId: string) {
     return this.execute((state) => equipWeapon(state, slimeId, weaponDefinitionId));
+  }
+
+  enterAreaStage(areaId: string, stageNumber: number) {
+    return this.execute((state) => enterAreaStage(state, areaId, stageNumber));
   }
 
   private execute<TReason extends string>(

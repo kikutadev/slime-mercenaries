@@ -6,6 +6,7 @@ export type MutationEligibility = 'tier3' | 'tier2-plus' | 'magic-ranged-tier3' 
 
 export type MutationDefinition = Readonly<{
   id: SlimeMutationId;
+  displayName: string;
   eligibility: MutationEligibility;
 }>;
 
@@ -16,10 +17,10 @@ export type MutationDefinition = Readonly<{
 export const dragonEligibleTypeIds: readonly JobSlimeId[] = [];
 
 export const mutationDefinitions: Readonly<Record<SlimeMutationId, MutationDefinition>> = {
-  king: { id: 'king', eligibility: 'tier3' },
-  golden: { id: 'golden', eligibility: 'tier2-plus' },
-  dragon: { id: 'dragon', eligibility: 'selected-tier3' },
-  prism: { id: 'prism', eligibility: 'magic-ranged-tier3' },
+  king: { id: 'king', displayName: 'キングスライム', eligibility: 'tier3' },
+  golden: { id: 'golden', displayName: 'ゴールデンスライム', eligibility: 'tier2-plus' },
+  dragon: { id: 'dragon', displayName: 'ドラゴンスライム', eligibility: 'selected-tier3' },
+  prism: { id: 'prism', displayName: 'プリズムスライム', eligibility: 'magic-ranged-tier3' },
 };
 
 const PRISM_TYPES = new Set<JobSlimeId>(['bow', 'wand', 'gun']);

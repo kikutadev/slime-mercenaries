@@ -78,6 +78,17 @@ export function highestStageClearedForArea(
   return progression.areas[areaId]?.highestStageCleared ?? 0;
 }
 
+export function withAreaUnlocked(
+  progression: SlimeProgressionState,
+  areaId: string,
+): SlimeProgressionState {
+  if (progression.areas[areaId] !== undefined) return progression;
+  return {
+    ...progression,
+    areas: { ...progression.areas, [areaId]: { highestStageCleared: 0 } },
+  };
+}
+
 export function withHighestStageClearedForArea(
   progression: SlimeProgressionState,
   areaId: string,
