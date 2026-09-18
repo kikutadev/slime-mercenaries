@@ -37,8 +37,7 @@ describe('public validation sandbox', () => {
     const slimes = Object.values(prepared.state.gameData.roster.slimes);
     expect(slimes.map((slime) => slime.typeId).sort()).toEqual([...NORMAL_JOB_SLIME_IDS].sort());
     expect(prepared.state.gameData.roster.formationSlots.every((id) => id !== null)).toBe(true);
-    expect(prepared.events.filter((event) => event.type === 'slimeJobDiscovered')).toHaveLength(6);
-    expect(prepared.events.filter((event) => event.type === 'formationChanged')).toHaveLength(6);
+    expect(prepared.events).toEqual([]);
   });
 
   it('can create all six normal families and field all six through the production battle projection', () => {

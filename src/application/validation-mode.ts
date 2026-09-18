@@ -122,13 +122,11 @@ export function prepareValidationRoster(
   if (!PUBLIC_VALIDATION_MODE) return { accepted: false, state, events: [], reason: 'validation-mode-disabled' };
 
   let next = applyValidationSandboxResources(state);
-  const events = [];
   for (const typeId of NORMAL_JOB_SLIME_IDS) {
     if (firstSlimeIdByType(next, typeId) !== null) continue;
     const created = createJobSlime(next, typeId);
     if (!created.accepted) return { accepted: false, state, events: [], reason: 'job-create-failed' };
     next = applyValidationSandboxResources(created.state);
-    events.push(...created.events);
   }
 
   for (const [slotIndex, typeId] of NORMAL_JOB_SLIME_IDS.entries()) {
@@ -137,8 +135,7 @@ export function prepareValidationRoster(
     const assigned = assignSlimeToFormation(next, slimeId, slotIndex);
     if (!assigned.accepted) return { accepted: false, state, events: [], reason: 'formation-failed' };
     next = assigned.state;
-    events.push(...assigned.events);
   }
 
-  return { accepted: true, state: applyValidationSandboxResources(next), events };
+  return { accepted: true, state: applyValidationSandboxResources(next), events: [] };
 }
