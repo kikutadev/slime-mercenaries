@@ -438,13 +438,26 @@ The initiative is complete when:
 - only built output is deployed publicly
 - all forms satisfy model and production acceptance gates
 
-## Animation production quality gate — tier escalation
+## Animation production quality gate — visual impact first
 
-Model completion alone is not a release condition. Every combat form must make its job identity readable from motion, timing and VFX even with the name hidden.
+Model completion alone is not a release condition. The primary product goal is emotional and visual: at normal speed and mobile gameplay scale, the attack should make the player think **“that looks cool, that looks strong, I want to use/replay it.”** Job identity must remain readable even with the name hidden.
 
-- **Tier 1 — core grammar:** one clear anticipation, one primary action, one recovery. Keep VFX restrained to one readable contact/projectile cue. The purpose is to establish each branch's basic physical language.
-- **Tier 2 — specialization:** do not ship a faster Tier-1 replay. Require at least one branch-specific secondary motion (off-hand, rune, shield pulse, recoil cadence, sidestep, etc.) plus a second VFX layer or multi-beat payoff. The job should be identifiable from the animation alone.
-- **Tier 3 — signature sequence:** require a unique 3+ beat sequence (anticipation → signature action → secondary payoff → recovery), dedicated VFX vocabulary, stronger timing contrast, and a visibly richer aftermath. Tier-3 motion must not be representable as “Tier-2 with larger numbers.”
-- **Rare / mutation forms:** may break the branch grammar entirely. Their body/equipment motion, environmental VFX or camera accent should communicate rarity before UI text is read.
+Beat count, secondary-motion count, and VFX-layer count are implementation tools only. They are not acceptance criteria. A short Tier-3 strike that lands with exceptional timing, silhouette, and impact is better than a longer sequence that merely contains more events.
 
-Quality review is performed in both **Battle** and **3/4 Inspect** views at mobile width. Acceptance requires readable silhouette, no clipping, correct attack direction, visible secondary motion, and VFX that retain their intended color on the production background. Gallery-only substitute animation is prohibited; the gallery must execute the same shared production motion/VFX implementation as `BattleRuntime`.
+- **Tier 1 — clear job fantasy:** establish one memorable physical idea for the branch. Keep the action readable, crisp, and attractive rather than intentionally plain.
+- **Tier 2 — stronger specialization:** never ship “Tier 1 but faster/larger.” Give the job a visibly different rhythm or secondary behavior so its specialization reads immediately and feels stronger and more satisfying.
+- **Tier 3 — signature / finisher quality:** the attack must look like this job's signature technique or finisher at 1x. Use the strongest appropriate contrast for the fantasy — speed for Blademaster/Ninja, weight for Berserker/Fortress/Cannoneer, stillness-to-impact for Sniper/Assassin, large-scale spellcraft for Archmage, freezing/stopping force for Frost Mage, etc. Extra beats or VFX are accepted only when they strengthen the decisive moment. VFX must support the slime/weapon rather than hide them.
+- **Rare / mutation forms:** may break branch grammar entirely. Their silhouette, body/equipment motion, environmental VFX, and camera accents should communicate rarity before UI text is read.
+
+**Final visual acceptance is performed at 1x and mobile width** in both **Battle** and **3/4 Inspect** views. Review continuous frames/video, not only a hand-picked still. 0.5x is for technical debugging (clipping, missing VFX, timing diagnosis), not for deciding whether an attack looks good.
+
+Acceptance requires:
+- a readable hero silhouette with the slime/weapon remaining the visual subject
+- correct attack direction and believable source/impact geometry
+- one decisive, memorable visual payoff
+- no unacceptable clipping or framing loss
+- VFX colors that remain readable on the production background
+- a clear reason the form feels cooler/stronger than its lower-tier predecessor
+- production runtime and gallery using the same shared motion/VFX implementation
+
+Gallery-only substitute animation remains prohibited.

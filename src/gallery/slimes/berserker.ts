@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#9f5545',
   inspectionFacingYawDegrees: 90,
   inspectionSideDistance: 1.5,
-  equipmentAnchor: null,
-  weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. Chipped heavy blade and wild brow accents establish the Berserker branch; rage-speed heavy sweep remains production-runtime work.',
+  equipmentAnchor: 'WeaponAnchor',
+  weaponTipName: 'WeaponTip',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production heavy signature: deep compression, committed release, ground impact/debris and long violent recoil.',
 };
 
 export default definition;

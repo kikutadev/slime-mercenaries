@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#8c6a38',
   inspectionFacingYawDegrees: -20,
   inspectionSideDistance: 1.58,
-  equipmentAnchor: null,
+  equipmentAnchor: 'SniperBowAnchor',
   weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. Oversized precision longbow, large sight and long-arrow quiver establish a distinct boss-killer silhouette; charged piercing motion remains production-runtime work.',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production precision signature: still aim, sight lock, instantaneous piercing-line release and heavy recoil.',
 };
 
 export default definition;

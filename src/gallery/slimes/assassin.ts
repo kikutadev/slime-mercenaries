@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#382e45',
   inspectionFacingYawDegrees: 90,
   inspectionSideDistance: 1.32,
-  equipmentAnchor: null,
-  weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. Narrow mask and curved blades establish Assassin; low-HP execute behavior remains production-runtime work.',
+  equipmentAnchor: 'WeaponAnchor',
+  weaponTipName: 'WeaponTip',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production assassin signature: low stillness, instant behind-target relocation, cross hit-stop and delayed execution line.',
 };
 
 export default definition;

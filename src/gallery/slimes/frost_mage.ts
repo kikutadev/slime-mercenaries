@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#77b8d7',
   inspectionFacingYawDegrees: 90,
   inspectionSideDistance: 1.38,
-  equipmentAnchor: null,
+  equipmentAnchor: 'FrostStaffAnchor',
   weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. Crystal crown and frost staff establish the control-caster branch; freeze field remains production-runtime work.',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production frost signature: staff plant, rigid cold stillness, ice lance, freeze field and crystal eruption.',
 };
 
 export default definition;

@@ -48,6 +48,66 @@ import {
   type MorphMesh,
   type SlimeEquipmentMotionKind,
 } from '../game/slime-motion';
+import {
+  TIER3_SWORD_TIMING,
+  applyBerserkerSignatureVfx,
+  applyBlademasterSignatureVfx,
+  createBerserkerSignatureVfx,
+  createBlademasterSignatureVfx,
+  getBerserkerAttackMotion,
+  getBlademasterAttackMotion,
+} from '../game/slime-motions/tier3/sword';
+import {
+  TIER3_BOW_THRESHOLDS,
+  TIER3_BOW_TIMING,
+  applySniperSignatureVfx,
+  applyStormSignatureVfx,
+  createSniperSignatureVfx,
+  createStormSignatureVfx,
+  getSniperAttackMotion,
+  getStormArcherAttackMotion,
+  getStormShotReleaseU,
+} from '../game/slime-motions/tier3/bow';
+import {
+  TIER3_DEFENSE_TIMING,
+  applyFortressSignatureVfx,
+  applyPaladinSignatureVfx,
+  createFortressSignatureVfx,
+  createPaladinSignatureVfx,
+  getFortressAttackMotion,
+  getPaladinAttackMotion,
+} from '../game/slime-motions/tier3/defense';
+import {
+  TIER3_MAGIC_TIMING,
+  applyArchmageSignatureVfx,
+  applyFrostMageSignatureVfx,
+  createArchmageSignatureVfx,
+  createFrostMageSignatureVfx,
+  getArchmageAttackMotion,
+  getFrostMageAttackMotion,
+} from '../game/slime-motions/tier3/magic';
+import {
+  ASSASSIN_SIGNATURE_TIMING,
+  NINJA_SIGNATURE_TIMING,
+  getAssassinSignatureMotion,
+  getNinjaSignatureMotion,
+} from '../game/slime-motions/tier3/rogue';
+import {
+  CANNONEER_SIGNATURE_TIMING,
+  ENGINEER_SIGNATURE_TIMING,
+  getCannoneerSignatureMotion,
+  getEngineerSignatureMotion,
+} from '../game/slime-motions/tier3/gun';
+import {
+  applyAssassinSignatureVfx,
+  applyCannoneerSignatureVfx,
+  applyEngineerSignatureVfx,
+  applyNinjaSignatureVfx,
+  createAssassinSignatureVfx,
+  createCannoneerSignatureVfx,
+  createEngineerSignatureVfx,
+  createNinjaSignatureVfx,
+} from '../game/slime-motions/tier3/effects';
 import { EnemyGalleryStage } from './EnemyGalleryStage';
 import type { GalleryCameraId, GalleryMotionId, SlimeGalleryDefinition } from './types';
 
@@ -60,6 +120,8 @@ interface ModelParts {
   weaponTip: THREE.Object3D | null;
   projectileOrigin: THREE.Object3D | null;
   spellOrigin: THREE.Object3D | null;
+  auxiliaryRoot: THREE.Object3D | null;
+  auxiliaryMuzzle: THREE.Object3D | null;
   normalEyes: THREE.Object3D[];
   xEyes: THREE.Group[];
   bodyBaseScale: THREE.Vector3;
@@ -71,6 +133,9 @@ interface ModelParts {
   secondaryEquipmentBasePosition: THREE.Vector3;
   mageRuneBaseQuaternion: THREE.Quaternion;
   mageRuneBaseScale: THREE.Vector3;
+  auxiliaryBasePosition: THREE.Vector3;
+  auxiliaryBaseQuaternion: THREE.Quaternion;
+  auxiliaryBaseScale: THREE.Vector3;
 }
 
 interface StageProps {
@@ -91,6 +156,10 @@ const BATTLE_CAMERA_OFFSET = BATTLE_CAMERA_POSITION.clone().sub(BATTLE_CAMERA_LO
 const yAxis = new THREE.Vector3(0, 1, 0);
 const tempA = new THREE.Vector3();
 const tempB = new THREE.Vector3();
+const tempC = new THREE.Vector3();
+const tempD = new THREE.Vector3();
+const tempE = new THREE.Vector3();
+const tempF = new THREE.Vector3();
 const tempQ = new THREE.Quaternion();
 
 
@@ -136,6 +205,14 @@ function collectParts(model: THREE.Object3D, definition: SlimeGalleryDefinition)
   const weaponTip = definition.weaponTipName ? model.getObjectByName(definition.weaponTipName) ?? null : null;
   const projectileOrigin = model.getObjectByName('ProjectileOrigin') ?? null;
   const spellOrigin = model.getObjectByName('SpellOrigin') ?? null;
+  const auxiliaryRoot = definition.id === 'engineer'
+    ? model.getObjectByName('EngineerTurretRoot') ?? null
+    : null;
+  const auxiliaryMuzzle = definition.id === 'engineer'
+    ? model.getObjectByName('EngineerTurretMuzzle') ?? null
+    : definition.id === 'cannoneer'
+      ? model.getObjectByName('CannoneerMuzzle') ?? null
+      : null;
   const { normalEyes, xEyes } = buildDefeatEyes(model);
   return {
     body,
@@ -146,6 +223,8 @@ function collectParts(model: THREE.Object3D, definition: SlimeGalleryDefinition)
     weaponTip,
     projectileOrigin,
     spellOrigin,
+    auxiliaryRoot,
+    auxiliaryMuzzle,
     normalEyes,
     xEyes,
     bodyBaseScale: body?.scale.clone() ?? new THREE.Vector3(1, 1, 1),
@@ -157,6 +236,9 @@ function collectParts(model: THREE.Object3D, definition: SlimeGalleryDefinition)
     secondaryEquipmentBasePosition: secondaryEquipment?.position.clone() ?? new THREE.Vector3(),
     mageRuneBaseQuaternion: mageRune?.quaternion.clone() ?? new THREE.Quaternion(),
     mageRuneBaseScale: mageRune?.scale.clone() ?? new THREE.Vector3(1, 1, 1),
+    auxiliaryBasePosition: auxiliaryRoot?.position.clone() ?? new THREE.Vector3(),
+    auxiliaryBaseQuaternion: auxiliaryRoot?.quaternion.clone() ?? new THREE.Quaternion(),
+    auxiliaryBaseScale: auxiliaryRoot?.scale.clone() ?? new THREE.Vector3(1, 1, 1),
   };
 }
 
@@ -170,6 +252,7 @@ function equipmentKind(definition: SlimeGalleryDefinition): SlimeEquipmentMotion
 }
 
 function targetDistanceFor(definition: SlimeGalleryDefinition): number {
+  if (definition.id === 'sniper' || definition.id === 'storm-archer') return 1.42;
   if (definition.modelKind === 'bow' || definition.modelKind === 'wand' || definition.modelKind === 'gun') return 1.55;
   if (definition.modelKind === 'shield') return 0.82;
   return 0.95;
@@ -187,6 +270,12 @@ function resetParts(parts: ModelParts): void {
   parts.secondaryEquipment?.quaternion.copy(parts.secondaryEquipmentBaseQuaternion);
   if (parts.secondaryEquipment) parts.secondaryEquipment.position.copy(parts.secondaryEquipmentBasePosition);
   applyMageRunePose(parts.mageRune, parts.mageRuneBaseQuaternion, parts.mageRuneBaseScale, 0, 0);
+  if (parts.auxiliaryRoot) {
+    parts.auxiliaryRoot.position.copy(parts.auxiliaryBasePosition);
+    parts.auxiliaryRoot.quaternion.copy(parts.auxiliaryBaseQuaternion);
+    parts.auxiliaryRoot.scale.copy(parts.auxiliaryBaseScale);
+    parts.auxiliaryRoot.visible = false;
+  }
   parts.normalEyes.forEach((eye) => { eye.visible = true; });
   parts.xEyes.forEach((eye) => { eye.visible = false; });
 }
@@ -206,6 +295,18 @@ function clipDuration(motion: GalleryMotionId, definition: SlimeGalleryDefinitio
   if (motion === 'move') return 1.55;
   if (motion === 'defeat') return SLIME_MOTION_TIMING.allyDefeat;
   if (motion === 'attack') {
+    if (definition.id === 'blademaster') return TIER3_SWORD_TIMING.blademasterAttack;
+    if (definition.id === 'berserker') return TIER3_SWORD_TIMING.berserkerAttack;
+    if (definition.id === 'sniper') return TIER3_BOW_TIMING.sniperAttack;
+    if (definition.id === 'storm-archer') return TIER3_BOW_TIMING.stormArcherAttack;
+    if (definition.id === 'paladin') return TIER3_DEFENSE_TIMING.paladinAttack;
+    if (definition.id === 'fortress') return TIER3_DEFENSE_TIMING.fortressAttack;
+    if (definition.id === 'archmage') return TIER3_MAGIC_TIMING.archmageAttack;
+    if (definition.id === 'frost-mage') return TIER3_MAGIC_TIMING.frostMageAttack;
+    if (definition.id === 'ninja') return NINJA_SIGNATURE_TIMING.duration;
+    if (definition.id === 'assassin') return ASSASSIN_SIGNATURE_TIMING.duration;
+    if (definition.id === 'cannoneer') return CANNONEER_SIGNATURE_TIMING.duration;
+    if (definition.id === 'engineer') return ENGINEER_SIGNATURE_TIMING.duration;
     if (definition.id === 'fighter') return SLIME_MOTION_TIMING.fighterAttack;
     if (definition.id === 'guardian') return SLIME_MOTION_TIMING.guardianAttack;
     if (definition.id === 'mage') {
@@ -217,6 +318,7 @@ function clipDuration(motion: GalleryMotionId, definition: SlimeGalleryDefinitio
       const releaseAt = SLIME_MOTION_TIMING.gunnerAttack * getGunnerShotReleaseU(2);
       return releaseAt + SLIME_MOTION_TIMING.bulletFlight;
     }
+
     if (definition.id === 'ranger') {
       return SLIME_MOTION_TIMING.rangerAttack * getRangerShotReleaseU(1) + SLIME_MOTION_TIMING.arrowFlight;
     }
@@ -258,12 +360,17 @@ function CameraRig({ mode, motion, definition }: { mode: GalleryCameraId; motion
       camera.lookAt(lookAt);
     } else if (motion === 'attack') {
       const ranged = targetDistance >= 1.4;
-      const focusFraction = ranged ? 0.44 : 0.42;
+      const cinematicTier3 = [
+        'blademaster', 'berserker', 'sniper', 'storm-archer',
+        'paladin', 'fortress', 'archmage', 'frost-mage',
+        'ninja', 'assassin', 'cannoneer', 'engineer',
+      ].includes(definition.id);
+      const focusFraction = cinematicTier3 ? (definition.id === 'blademaster' ? 0.84 : ranged ? 0.50 : 0.58) : (ranged ? 0.44 : 0.42);
       const midpoint = GALLERY_HOME.clone().addScaledVector(inspectForward, targetDistance * focusFraction);
-      midpoint.y = 0.26;
-      const sideDistance = (ranged ? 2.85 : 2.35) * compact;
-      const forwardDistance = (ranged ? 0.92 : 0.82) * compact;
-      const height = (ranged ? 0.96 : 0.88) * compact;
+      midpoint.y = cinematicTier3 ? 0.24 : 0.26;
+      const sideDistance = (cinematicTier3 ? (ranged ? 2.88 : definition.id === 'blademaster' ? 2.35 : 2.10) : (ranged ? 2.85 : 2.35)) * compact;
+      const forwardDistance = (cinematicTier3 ? (ranged ? 0.72 : 0.68) : (ranged ? 0.92 : 0.82)) * compact;
+      const height = (cinematicTier3 ? (ranged ? 0.82 : 0.78) : (ranged ? 0.96 : 0.88)) * compact;
       camera.position.copy(midpoint)
         .addScaledVector(inspectRight, sideDistance)
         .addScaledVector(inspectForward, forwardDistance)
@@ -300,6 +407,19 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
   const magicOrb = useMemo(() => createMagicOrbMesh(), []);
   const bullet = useMemo(() => createGunBulletMesh(), []);
   const muzzleFlash = useMemo(() => createMuzzleFlashMesh(), []);
+  const blademasterSignature = useMemo(() => createBlademasterSignatureVfx(), []);
+  const berserkerSignature = useMemo(() => createBerserkerSignatureVfx(), []);
+  const sniperSignature = useMemo(() => createSniperSignatureVfx(), []);
+  const stormSignature = useMemo(() => createStormSignatureVfx(), []);
+  const paladinSignature = useMemo(() => createPaladinSignatureVfx(), []);
+  const fortressSignature = useMemo(() => createFortressSignatureVfx(), []);
+  const archmageSignature = useMemo(() => createArchmageSignatureVfx(), []);
+  const frostMageSignature = useMemo(() => createFrostMageSignatureVfx(), []);
+  const ninjaSignature = useMemo(() => createNinjaSignatureVfx(), []);
+  const assassinSignature = useMemo(() => createAssassinSignatureVfx(), []);
+  const cannoneerSignature = useMemo(() => createCannoneerSignatureVfx(), []);
+  const engineerSignature = useMemo(() => createEngineerSignatureVfx(), []);
+  const stormArrows = useMemo(() => [createSlimeArrowMesh(), createSlimeArrowMesh(), createSlimeArrowMesh()], []);
   const startedAt = useRef(0);
   const previousReplayKey = useRef(replayKey);
   const inspectionYaw = THREE.MathUtils.degToRad(definition.inspectionFacingYawDegrees ?? 0);
@@ -345,7 +465,25 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
     bullet.material.dispose();
     muzzleFlash.geometry.dispose();
     muzzleFlash.material.dispose();
-  }, [bullet, guardPulse, gunnerTracer, mageCastSigil, mageOrb, magicOrb, muzzleFlash, rogueSlash, slash, spin]);
+    disposeObjectResources(blademasterSignature);
+    disposeObjectResources(berserkerSignature);
+    disposeObjectResources(sniperSignature);
+    disposeObjectResources(stormSignature);
+    disposeObjectResources(paladinSignature);
+    disposeObjectResources(fortressSignature);
+    disposeObjectResources(archmageSignature);
+    disposeObjectResources(frostMageSignature);
+    disposeObjectResources(ninjaSignature);
+    disposeObjectResources(assassinSignature);
+    disposeObjectResources(cannoneerSignature);
+    disposeObjectResources(engineerSignature);
+    stormArrows.forEach((stormArrow) => disposeObjectResources(stormArrow));
+  }, [
+    archmageSignature, assassinSignature, berserkerSignature, blademasterSignature, bullet,
+    cannoneerSignature, engineerSignature, fortressSignature, frostMageSignature, guardPulse,
+    gunnerTracer, mageCastSigil, mageOrb, magicOrb, muzzleFlash, ninjaSignature, paladinSignature,
+    rogueSlash, slash, sniperSignature, spin, stormArrows, stormSignature,
+  ]);
 
   useFrame(({ clock, camera }) => {
     const root = rootRef.current;
@@ -356,6 +494,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
     }
 
     resetParts(parts);
+    root.visible = true;
     root.position.copy(GALLERY_HOME);
     root.rotation.set(0, baseYaw, 0);
     root.scale.setScalar(PRODUCTION_SCALE);
@@ -380,6 +519,19 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
     bullet.visible = false;
     muzzleFlash.visible = false;
     muzzleFlash.material.opacity = 0;
+    blademasterSignature.visible = false;
+    berserkerSignature.visible = false;
+    sniperSignature.visible = false;
+    stormSignature.visible = false;
+    paladinSignature.visible = false;
+    fortressSignature.visible = false;
+    archmageSignature.visible = false;
+    frostMageSignature.visible = false;
+    ninjaSignature.visible = false;
+    assassinSignature.visible = false;
+    cannoneerSignature.visible = false;
+    engineerSignature.visible = false;
+    stormArrows.forEach((stormArrow) => { stormArrow.visible = false; });
 
     const duration = clipDuration(motion, definition);
     const elapsed = Math.max(0, (clock.elapsedTime - startedAt.current) * speed);
@@ -420,6 +572,234 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
         parts.equipmentBasePosition,
         equipmentKind(definition),
         pose.equipment,
+      );
+      return;
+    }
+
+    if (definition.id === 'blademaster') {
+      const u = clamp01(local / TIER3_SWORD_TIMING.blademasterAttack);
+      const pose = getBlademasterAttackMotion(u);
+      root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
+      applyPose(parts, definition, pose);
+      tempC.copy(dummyHome);
+      tempC.y = 0.28;
+      applyBlademasterSignatureVfx(blademasterSignature, pose, camera.quaternion, tempC);
+      return;
+    }
+
+    if (definition.id === 'berserker') {
+      const u = clamp01(local / TIER3_SWORD_TIMING.berserkerAttack);
+      const pose = getBerserkerAttackMotion(u);
+      root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
+      applyPose(parts, definition, pose);
+      tempC.copy(dummyHome);
+      tempC.y = 0.13;
+      applyBerserkerSignatureVfx(berserkerSignature, pose, camera.quaternion, tempC);
+      return;
+    }
+
+    if (definition.id === 'sniper') {
+      const attackTime = Math.min(local, TIER3_BOW_TIMING.sniperAttack);
+      const u = clamp01(attackTime / TIER3_BOW_TIMING.sniperAttack);
+      const pose = getSniperAttackMotion(u);
+      applyPose(parts, definition, pose);
+      root.updateMatrixWorld(true);
+      if (parts.projectileOrigin) parts.projectileOrigin.getWorldPosition(tempA);
+      else if (parts.equipment) parts.equipment.getWorldPosition(tempA);
+      else tempA.copy(root.position);
+      tempB.copy(dummyHome).add(new THREE.Vector3(0, 0.28, 0));
+      applySniperSignatureVfx(sniperSignature, pose, tempA, tempB, camera.quaternion);
+      const releaseAt = TIER3_BOW_TIMING.sniperAttack * TIER3_BOW_THRESHOLDS.sniperReleaseU;
+      if (local >= releaseAt && local < releaseAt + TIER3_BOW_TIMING.sniperArrowFlight) {
+        const flightU = clamp01((local - releaseAt) / TIER3_BOW_TIMING.sniperArrowFlight);
+        tempB.copy(dummyHome).add(new THREE.Vector3(0, 0.28, 0));
+        arrow.visible = true;
+        arrow.position.lerpVectors(tempA, tempB, flightU);
+        arrow.position.y += getArrowArcHeight(flightU) * 0.10;
+        tempQ.setFromUnitVectors(yAxis, tempB.clone().sub(tempA).normalize());
+        arrow.quaternion.copy(tempQ);
+      }
+      return;
+    }
+
+    if (definition.id === 'storm-archer') {
+      const attackTime = Math.min(local, TIER3_BOW_TIMING.stormArcherAttack);
+      const u = clamp01(attackTime / TIER3_BOW_TIMING.stormArcherAttack);
+      const pose = getStormArcherAttackMotion(u);
+      tempC.set(-forward.z, 0, forward.x);
+      root.position.copy(GALLERY_HOME).addScaledVector(tempC, pose.bodyOffset);
+      applyPose(parts, definition, pose);
+      root.updateMatrixWorld(true);
+      if (parts.projectileOrigin) parts.projectileOrigin.getWorldPosition(tempA);
+      else if (parts.equipment) parts.equipment.getWorldPosition(tempA);
+      else tempA.copy(root.position);
+      tempD.copy(dummyHome).addScaledVector(tempC, -0.24).add(new THREE.Vector3(0, 0.28, 0));
+      tempE.copy(dummyHome).add(new THREE.Vector3(0, 0.28, 0));
+      tempF.copy(dummyHome).addScaledVector(tempC, 0.24).add(new THREE.Vector3(0, 0.28, 0));
+      applyStormSignatureVfx(stormSignature, pose, tempA, [tempD, tempE, tempF], camera.quaternion);
+      for (const shotIndex of [0, 1, 2] as const) {
+        const releaseAt = TIER3_BOW_TIMING.stormArcherAttack * getStormShotReleaseU(shotIndex);
+        if (local < releaseAt || local >= releaseAt + TIER3_BOW_TIMING.stormArrowFlight) continue;
+        const flightU = clamp01((local - releaseAt) / TIER3_BOW_TIMING.stormArrowFlight);
+        const stormArrow = stormArrows[shotIndex]!;
+        tempB.copy(dummyHome).addScaledVector(tempC, (shotIndex - 1) * 0.24).add(new THREE.Vector3(0, 0.28, 0));
+        stormArrow.visible = true;
+        stormArrow.position.lerpVectors(tempA, tempB, flightU);
+        stormArrow.position.y += getArrowArcHeight(flightU) * 0.45;
+        tempQ.setFromUnitVectors(yAxis, tempB.clone().sub(tempA).normalize());
+        stormArrow.quaternion.copy(tempQ);
+      }
+      return;
+    }
+
+    if (definition.id === 'paladin') {
+      const u = clamp01(local / TIER3_DEFENSE_TIMING.paladinAttack);
+      const pose = getPaladinAttackMotion(u);
+      root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
+      applyPose(parts, definition, pose);
+      root.updateMatrixWorld(true);
+      if (parts.equipment) parts.equipment.getWorldPosition(tempA);
+      else tempA.copy(root.position);
+      applyPaladinSignatureVfx(paladinSignature, pose, camera.quaternion, root.position, tempA);
+      return;
+    }
+
+    if (definition.id === 'fortress') {
+      const u = clamp01(local / TIER3_DEFENSE_TIMING.fortressAttack);
+      const pose = getFortressAttackMotion(u);
+      root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
+      applyPose(parts, definition, pose);
+      applyFortressSignatureVfx(fortressSignature, pose, camera.quaternion, root.position);
+      return;
+    }
+
+    if (definition.id === 'archmage') {
+      const u = clamp01(local / TIER3_MAGIC_TIMING.archmageAttack);
+      const pose = getArchmageAttackMotion(u);
+      root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
+      applyPose(parts, definition, pose);
+      applyMageRunePose(
+        parts.mageRune,
+        parts.mageRuneBaseQuaternion,
+        parts.mageRuneBaseScale,
+        pose.runeCharge * Math.PI * 1.6,
+        Math.max(pose.runeCharge, pose.moteBoost),
+      );
+      tempA.copy(dummyHome);
+      tempA.y = 0.02;
+      applyArchmageSignatureVfx(archmageSignature, pose, camera.quaternion, root.position, tempA);
+      return;
+    }
+
+    if (definition.id === 'frost-mage') {
+      const u = clamp01(local / TIER3_MAGIC_TIMING.frostMageAttack);
+      const pose = getFrostMageAttackMotion(u);
+      root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
+      applyPose(parts, definition, pose);
+      root.updateMatrixWorld(true);
+      if (parts.spellOrigin) parts.spellOrigin.getWorldPosition(tempA);
+      else if (parts.equipment) parts.equipment.getWorldPosition(tempA);
+      else tempA.copy(root.position);
+      tempB.copy(dummyHome);
+      tempB.y = 0.18;
+      applyFrostMageSignatureVfx(frostMageSignature, pose, tempA, tempB);
+      return;
+    }
+
+    if (definition.id === 'ninja') {
+      const u = clamp01(local / NINJA_SIGNATURE_TIMING.duration);
+      const pose = getNinjaSignatureMotion(u);
+      tempC.set(-forward.z, 0, forward.x);
+      root.position.copy(GALLERY_HOME)
+        .addScaledVector(forward, pose.bodyOffset)
+        .addScaledVector(tempC, pose.lateralOffset);
+      root.visible = pose.bodyAlpha > 0.08;
+      applyPose(parts, definition, pose);
+      applyEquipmentPose(
+        parts.secondaryEquipment,
+        parts.secondaryEquipmentBaseQuaternion,
+        parts.secondaryEquipmentBasePosition,
+        'dagger',
+        pose.secondaryEquipment,
+      );
+      tempD.copy(GALLERY_HOME);
+      tempD.y += 0.22;
+      tempE.copy(dummyHome);
+      tempE.y += 0.24;
+      applyNinjaSignatureVfx(ninjaSignature, pose, camera.quaternion, tempD, tempE);
+      return;
+    }
+
+    if (definition.id === 'assassin') {
+      const u = clamp01(local / ASSASSIN_SIGNATURE_TIMING.duration);
+      const pose = getAssassinSignatureMotion(u);
+      tempC.set(-forward.z, 0, forward.x);
+      tempD.copy(dummyHome).addScaledVector(forward, 0.34);
+      root.position.lerpVectors(GALLERY_HOME, tempD, pose.behindTargetProgress)
+        .addScaledVector(tempC, pose.lateralOffset);
+      root.visible = pose.bodyAlpha > 0.08;
+      applyPose(parts, definition, pose);
+      applyEquipmentPose(
+        parts.secondaryEquipment,
+        parts.secondaryEquipmentBaseQuaternion,
+        parts.secondaryEquipmentBasePosition,
+        'dagger',
+        pose.secondaryEquipment,
+      );
+      tempE.copy(dummyHome);
+      tempE.y += 0.25;
+      applyAssassinSignatureVfx(assassinSignature, pose, camera.quaternion, tempE);
+      return;
+    }
+
+    if (definition.id === 'cannoneer') {
+      const u = clamp01(local / CANNONEER_SIGNATURE_TIMING.duration);
+      const pose = getCannoneerSignatureMotion(u);
+      root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
+      applyPose(parts, definition, pose);
+      root.updateMatrixWorld(true);
+      if (parts.auxiliaryMuzzle) parts.auxiliaryMuzzle.getWorldPosition(tempA);
+      else if (parts.projectileOrigin) parts.projectileOrigin.getWorldPosition(tempA);
+      else if (parts.equipment) parts.equipment.getWorldPosition(tempA);
+      else tempA.copy(root.position);
+      tempB.copy(dummyHome);
+      tempB.y += 0.24;
+      applyCannoneerSignatureVfx(cannoneerSignature, pose, camera.quaternion, tempA, tempB);
+      return;
+    }
+
+    if (definition.id === 'engineer') {
+      const u = clamp01(local / ENGINEER_SIGNATURE_TIMING.duration);
+      const pose = getEngineerSignatureMotion(u);
+      root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
+      applyPose(parts, definition, pose);
+
+      if (parts.auxiliaryRoot) {
+        parts.auxiliaryRoot.visible = pose.turret.visibility > 0.01;
+        parts.auxiliaryRoot.position.copy(parts.auxiliaryBasePosition);
+        parts.auxiliaryRoot.position.y += pose.turret.lift;
+        parts.auxiliaryRoot.quaternion.copy(parts.auxiliaryBaseQuaternion);
+        parts.auxiliaryRoot.rotateY(pose.turret.yaw);
+        const deployScale = Math.max(0.001, pose.turret.visibility * (0.74 + pose.turret.deployProgress * 0.26));
+        parts.auxiliaryRoot.scale.copy(parts.auxiliaryBaseScale).multiplyScalar(deployScale);
+      }
+
+      root.updateMatrixWorld(true);
+      root.getWorldPosition(tempA);
+      if (parts.auxiliaryRoot) parts.auxiliaryRoot.getWorldPosition(tempB);
+      else tempB.copy(root.position);
+      if (parts.auxiliaryMuzzle) parts.auxiliaryMuzzle.getWorldPosition(tempC);
+      else tempC.copy(tempB);
+      tempD.copy(dummyHome);
+      tempD.y += 0.24;
+      applyEngineerSignatureVfx(
+        engineerSignature,
+        pose,
+        camera.quaternion,
+        tempA,
+        tempB,
+        tempC,
+        tempD,
       );
       return;
     }
@@ -701,13 +1081,26 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
     <>
       <group ref={rootRef}><primitive object={model} /></group>
       <group ref={dummyRef}>
-        <mesh castShadow position={[0, 0.22, 0]} scale={[0.25, 0.22, 0.24]}>
+        <mesh castShadow position={[0, 0.22, 0]} scale={[0.18, 0.16, 0.17]}>
           <sphereGeometry args={[1, 28, 20]} />
           <meshStandardMaterial color="#9c6a8f" roughness={0.68} />
         </mesh>
-        <mesh position={[-0.055, 0.26, 0.21]}><sphereGeometry args={[0.026, 12, 8]} /><meshBasicMaterial color="#251d2a" /></mesh>
-        <mesh position={[0.055, 0.26, 0.21]}><sphereGeometry args={[0.026, 12, 8]} /><meshBasicMaterial color="#251d2a" /></mesh>
+        <mesh position={[-0.043, 0.21, 0.155]}><sphereGeometry args={[0.021, 12, 8]} /><meshBasicMaterial color="#251d2a" /></mesh>
+        <mesh position={[0.043, 0.21, 0.155]}><sphereGeometry args={[0.021, 12, 8]} /><meshBasicMaterial color="#251d2a" /></mesh>
       </group>
+      <primitive object={blademasterSignature} />
+      <primitive object={berserkerSignature} />
+      <primitive object={sniperSignature} />
+      <primitive object={stormSignature} />
+      <primitive object={paladinSignature} />
+      <primitive object={fortressSignature} />
+      <primitive object={archmageSignature} />
+      <primitive object={frostMageSignature} />
+      <primitive object={ninjaSignature} />
+      <primitive object={assassinSignature} />
+      <primitive object={cannoneerSignature} />
+      <primitive object={engineerSignature} />
+      {stormArrows.map((stormArrow, index) => <primitive key={`storm-arrow-${index}`} object={stormArrow} />)}
       <primitive object={slash} />
       <primitive object={spin} />
       <primitive object={guardPulse} />

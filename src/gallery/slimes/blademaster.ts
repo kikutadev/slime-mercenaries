@@ -11,11 +11,11 @@ const definition: SlimeGalleryDefinition = {
   accent: '#537bb6',
   inspectionFacingYawDegrees: 90,
   inspectionSideDistance: 1.42,
-  equipmentAnchor: null,
-  weaponTipName: null,
-  availableMotions: ['idle'],
-  implementationStatus: 'model',
-  notes: 'Model review only. Long blade and scarf establish the speed-focused Sword branch; dash-through and delayed cut remain production-runtime work.',
+  equipmentAnchor: 'WeaponAnchor',
+  weaponTipName: 'WeaponTip',
+  availableMotions: ['idle', 'move', 'attack', 'defeat'],
+  implementationStatus: 'implemented',
+  notes: 'Production iaijutsu signature: near-invisible pass-through, behind-target stillness and delayed oversized cut.',
 };
 
 export default definition;
