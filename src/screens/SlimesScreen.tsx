@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BottomSheet } from 'idle-game-kit/react';
 import { useGameController, useGameState } from '../app/GameProvider';
+import { validationToolsVisible } from '../application/validation-mode';
 import {
   selectCampUpgradeOpportunities,
   selectCreateSlimePanel,
@@ -38,6 +39,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   const controller = useGameController();
   const hud = selectGlobalHud(state);
   const validationMode = controller.validationMode;
+  const showValidationTools = validationToolsVisible();
   const ownedIds = selectOwnedSlimeIds(state);
   const selected = selectedId !== null && state.gameData.roster.slimes[selectedId] !== undefined
     ? selectedId
@@ -109,7 +111,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
     <section className="screen screen--camp screen--active" aria-label="キャンプ">
       <header className="camp-topbar">
         <div className="camp-resources"><span>G</span><strong>{validationMode ? '∞' : hud.gold}</strong></div>
-        {validationMode && (
+        {showValidationTools && (
           <button
             className="validation-mode-badge validation-mode-badge--action"
             type="button"
@@ -245,7 +247,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                   </button>
                 ))}
               </div>
-              {validationMode && (
+              {showValidationTools && (
                 <div className="camp-validation-tools">
                   <span>検証ツール</span>
                   <button type="button" onClick={() => {

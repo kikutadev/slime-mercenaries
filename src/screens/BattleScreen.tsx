@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BattleCanvas } from '../components/BattleCanvas';
 import { useGameController, useGameState } from '../app/GameProvider';
+import { validationToolsVisible } from '../application/validation-mode';
 import { selectBattleSceneModel } from '../application/selectors/battle-scene';
 import { selectFormation, selectGlobalHud } from '../application/selectors/ui-selectors';
 import type { BattleSnapshot } from '../game/BattleRuntime';
@@ -20,6 +21,7 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInst
   const state = useGameState();
   const controller = useGameController();
   const validationMode = controller.validationMode;
+  const showValidationTools = validationToolsVisible();
   const [battle, setBattle] = useState<BattleSnapshot>(INITIAL_BATTLE);
   const hud = selectGlobalHud(state);
   const formation = selectFormation(state);
@@ -96,7 +98,7 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInst
         </div>
       )}
 
-      {validationMode && state.gameData.combat.contentBoundaryReached && (
+      {showValidationTools && state.gameData.combat.contentBoundaryReached && (
         <button className="battle-validation-restart" type="button" onClick={() => controller.validationResetBattle()}>
           <span>検証</span><strong>戦闘を最初から再開</strong>
         </button>
