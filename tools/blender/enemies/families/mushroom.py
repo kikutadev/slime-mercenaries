@@ -411,6 +411,70 @@ def _create_cap(
             )
 
 
+
+def _reparent_keep_world(obj: bpy.types.Object, parent: bpy.types.Object) -> None:
+    """Move authored geometry under a semantic runtime pivot without changing rest pose."""
+    bpy.context.view_layer.update()
+    world = obj.matrix_world.copy()
+    obj.parent = parent
+    obj.matrix_world = world
+
+
+def _group_cap_motion_nodes(definition: MushroomDefinition, body_root: bpy.types.Object) -> None:
+    """Create per-mushroom cap pivots after geometry authoring.
+
+    PrimaryRoot is the whole cap/headwear mass. Bosses also get SecondaryRoot for
+    the upper shelf/sprouts so the delayed reaction can happen without tearing
+    the face or stem away from the body.
+    """
+    cap_pivot = (
+        0.0,
+        definition.cap_back_offset,
+        definition.cap_height - definition.cap_scale[2] * 0.10,
+    )
+    primary = create_empty("PrimaryRoot", body_root, cap_pivot)
+
+    primary_names = [
+        obj.name
+        for obj in body_root.children
+        if (
+            obj.name.startswith("Cap")
+            or obj.name.startswith("SporePouch_")
+            or obj.name.startswith("SporeBud_")
+            or obj.name.startswith("BossSprout")
+        )
+    ]
+    for name in primary_names:
+        obj = bpy.data.objects.get(name)
+        if obj is not None and obj is not primary:
+            _reparent_keep_world(obj, primary)
+
+    if definition.body_profile != "boss":
+        return
+
+    secondary = create_empty(
+        "SecondaryRoot",
+        body_root,
+        (
+            -definition.cap_scale[0] * 0.04,
+            definition.cap_back_offset + definition.cap_scale[1] * 0.20,
+            definition.cap_height + definition.cap_scale[2] * 0.22,
+        ),
+    )
+    _reparent_keep_world(secondary, primary)
+    for name in (
+        "CapLayer_Back",
+        "CapLayer_Top",
+        "BossSproutStem_01",
+        "BossSproutCap_01",
+        "BossSproutStem_02",
+        "BossSproutCap_02",
+    ):
+        obj = bpy.data.objects.get(name)
+        if obj is not None:
+            _reparent_keep_world(obj, secondary)
+
+
 def build_mushroom(definition: MushroomDefinition) -> bpy.types.Object:
     """Build one V2 mushroom-family enemy from shared shape grammar and per-form data."""
     root, body_root, face_root = _create_root()
@@ -427,6 +491,7 @@ def build_mushroom(definition: MushroomDefinition) -> bpy.types.Object:
 
     _create_body(definition, body_root, stem_material, accent_material)
     _create_cap(definition, body_root, cap_material, underside_material, spot_material, accent_material)
+    _group_cap_motion_nodes(definition, body_root)
     _create_face(definition, face_root, eye_material, mouth_material, cheek_material)
 
     cap_x, cap_y, cap_z = definition.cap_scale

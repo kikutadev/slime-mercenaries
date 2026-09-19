@@ -1,6 +1,6 @@
 # Area 3–8 Enemy Asset & Gallery Production Roadmap
 
-Status: Active — Area 3 / Area 4 V2 rebuilt, validated and publicly deployed; Area 5 remains gated on this quality baseline
+Status: Active — current 20-enemy character contracts enforced and publicly verified; Area 5 is contract-first and remains unstarted
 Date: 2026-09-20
 
 ## Scope
@@ -79,9 +79,9 @@ Area 1 Boss candidate `クローバーラム` はcontent hard-lock前のため�
 ## Production order
 
 1. Area 3をproduction gallery vertical sliceとして完成
-2. Area 4 / 5をfamily単位で制作
-3. Area 6 / 7をfamily単位で制作
-4. Area 8を最終Area品質として制作
+2. Area 4以降はキャラごとにcontractを先に定義し、一体ずつ全gateを通す
+3. 同Areaの通常4体 + Bossを並べたsilhouette QAを通してから次Areaへ進む
+4. Area 8は同じcontract方式のまま、最終Area向けにmotion density / secondary reactionを強化する
 
 Area 3 acceptance前にArea 4以降を雑に量産しない。
 
@@ -167,6 +167,38 @@ V2 changes:
 - [x] deployed to games.kikuta.dev, Worker version `20523648-888f-446e-9561-4700ec6fa552`
 
 Area 5 stays paused until this V2 set is verified in the public Gallery.
+
+## Per-character contract baseline — 2026-09-20
+
+Enemy production no longer accepts family-level completion.
+
+**Rule: 1 character = 1 spec = 1 executable geometry gate = 1 behavior-specific motion gate = 1 timed Gallery QA.**
+
+Current baseline:
+
+- [x] all 20 current production enemies own a per-character `VALIDATION_PROFILE`
+- [x] each profile owns silhouette ratio, mesh budget, required structure, forbidden structure where applicable, dominant-hook sizing, and semantic parent rules where applicable
+- [x] all 20 current GLBs pass the character-specific Blender validator
+- [x] all current enemy families have character-specific motion tests rather than finite-value checks alone
+- [x] targeted enemy/Gallery test gate passes: 49 tests
+- [x] TypeScript typecheck passes
+- [x] production build passes
+- [x] deterministic Gallery QA waits for GLB load, replays from time zero, and captures each character's specified Attack / Defeat beat
+- [x] 20 characters × Idle / Attack / Defeat = 60 timed Gallery frames captured with no duplicate hashes
+- [x] all 20 pass the 520px / 1x framing gate
+- [x] Mushroom family now exposes semantic cap pivots; Great Mushroom owns an independent upper-shelf `SecondaryRoot`
+- [x] Great Mushroom boss attack rebuilt to hold → slam → delayed upper-shelf reaction → recovery
+- [x] Great Mushroom attack / defeat durations are 1.28s / 1.42s
+- [x] deployed build verified on games.kikuta.dev
+- [x] changed mushroom GLB SHA-256 hashes match public assets byte-for-byte
+- [x] public Great Mushroom Gallery reports the new 1.28s / 1.42s production motion durations
+- [x] deployment Worker version: `a3c0b11c-1e55-443b-adb3-4c9cefc2d0cf`
+
+Human-readable requirements are maintained in:
+`docs/specs/enemies/character-production-contracts.md`.
+
+Area 5 and later MUST define the character contract before Blender implementation starts.
+A family definition, generic validator pass, or a single good-looking screenshot is not sufficient evidence of completion.
 
 ## Asset architecture
 
