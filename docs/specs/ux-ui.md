@@ -131,6 +131,25 @@ Giving a job to a Plain Slime is also distinct:
 
 Routine recruit/create actions should have visible cause and effect before any toast or number becomes the main feedback. Avoid generic Unicode pictograms as the primary action art.
 
+### 6.2 Strengthening presentation
+
+Strengthening should also communicate cause before the level number changes.
+
+Sequence:
+
+1. the selected spend amount leaves the Gold resource as visible coins
+2. coins converge on the selected slime
+3. the slime reacts in 3D
+4. the resulting level is revealed
+
++1, +10, and Max are not three labels on the same feedback. Their intensity scales deliberately:
+
+- +1: small hop / light ring
+- +10: larger squash-stretch and denser coin flow
+- Max: strongest flash, broad rings, and an extra rotational beat
+
+During the short ceremony, roster switching and other Camp actions are locked so the feedback stays attached to the slime that was strengthened. The displayed level remains on the pre-strength value during the spend/charge beat and catches up at the reveal.
+
 ## 7. Formation editing
 
 Formation editing is direct and small-party oriented.

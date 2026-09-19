@@ -21,6 +21,7 @@ interface CampResidentProps {
   fusionRank: number;
   reaction: CampSlimeReaction;
   reactionKey: number;
+  reactionStrength: 1 | 2 | 3;
 }
 
 const MODEL_SCALE = 0.54;
@@ -47,7 +48,13 @@ function animateIdle(parts: ModelParts, time: number) {
   setMorph(parts.body, sway < 0 ? 'WobbleLeft' : 'WobbleRight', Math.abs(sway) * 0.72);
 }
 
-function CampResident({ slimeId, fusionRank, reaction, reactionKey }: CampResidentProps) {
+function CampResident({
+  slimeId,
+  fusionRank,
+  reaction,
+  reactionKey,
+  reactionStrength,
+}: CampResidentProps) {
   const presentation = getSlimePresentationForRank(slimeId, fusionRank);
   const gltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}${presentation.asset}`);
   const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
@@ -88,23 +95,35 @@ function CampResident({ slimeId, fusionRank, reaction, reactionKey }: CampReside
     group.scale.setScalar(MODEL_SCALE);
     animateIdle(parts, time);
 
-    if (reaction === 'level-up' && elapsed >= 0 && elapsed < 0.92) {
+    if (reaction === 'level-up' && elapsed >= 0 && elapsed < 1.12) {
       resetBody(parts);
+      const power = reactionStrength === 1 ? 1 : reactionStrength === 2 ? 1.34 : 1.72;
       if (elapsed < 0.18) {
         const u = elapsed / 0.18;
-        setMorph(parts.body, 'Squash', 0.38 * u);
-        group.scale.set(MODEL_SCALE * (1 + 0.08 * u), MODEL_SCALE * (1 - 0.12 * u), MODEL_SCALE);
-      } else if (elapsed < 0.55) {
-        const u = (elapsed - 0.18) / 0.37;
-        const jump = Math.sin(u * Math.PI) * 0.48;
+        setMorph(parts.body, 'Squash', Math.min(0.58, 0.34 * power * u));
+        group.scale.set(
+          MODEL_SCALE * (1 + 0.07 * power * u),
+          MODEL_SCALE * (1 - 0.10 * power * u),
+          MODEL_SCALE,
+        );
+      } else if (elapsed < 0.68) {
+        const u = (elapsed - 0.18) / 0.50;
+        const jump = Math.sin(u * Math.PI) * (0.36 + 0.12 * power);
         group.position.y = -0.50 + jump;
-        setMorph(parts.body, 'Stretch', 0.30 * Math.sin(u * Math.PI));
-        group.rotation.y = -0.24 + Math.sin(u * Math.PI) * 0.18;
+        setMorph(parts.body, 'Stretch', Math.min(0.52, 0.24 * power * Math.sin(u * Math.PI)));
+        group.rotation.y = -0.24 + Math.sin(u * Math.PI) * (0.15 + 0.10 * power);
+        if (reactionStrength === 3) {
+          group.rotation.y += u * Math.PI * 0.82;
+        }
       } else {
-        const u = (elapsed - 0.55) / 0.37;
+        const u = (elapsed - 0.68) / 0.44;
         const settle = Math.sin(u * Math.PI) * (1 - u);
-        setMorph(parts.body, 'Squash', 0.22 * settle);
-        setMorph(parts.body, 'WobbleRight', 0.16 * settle);
+        setMorph(parts.body, 'Squash', Math.min(0.40, 0.17 * power * settle));
+        setMorph(
+          parts.body,
+          reactionStrength === 1 ? 'WobbleRight' : 'WobbleLeft',
+          Math.min(0.30, 0.12 * power * settle),
+        );
       }
       return;
     }
@@ -139,10 +158,17 @@ interface CampSlimeStageProps {
   fusionRank: number;
   reaction: CampSlimeReaction;
   reactionKey: number;
+  reactionStrength?: 1 | 2 | 3;
 }
 
 /** Camp-only character stage. Fusion choreography deliberately lives elsewhere. */
-export function CampSlimeStage({ slimeId, fusionRank, reaction, reactionKey }: CampSlimeStageProps) {
+export function CampSlimeStage({
+  slimeId,
+  fusionRank,
+  reaction,
+  reactionKey,
+  reactionStrength = 1,
+}: CampSlimeStageProps) {
   const presentation = getSlimePresentationForRank(slimeId, fusionRank);
   return (
     <div className={`camp-resident-stage camp-resident-stage--${reaction}`} aria-label={`${presentation.name}のキャンプ表示`}>
@@ -155,7 +181,13 @@ export function CampSlimeStage({ slimeId, fusionRank, reaction, reactionKey }: C
         <ambientLight intensity={2.1} />
         <directionalLight position={[-3, 5, 4]} intensity={4.0} castShadow />
         <pointLight position={[2.2, 1.8, 2]} intensity={1.15} color={presentation.accent} />
-        <CampResident slimeId={slimeId} fusionRank={fusionRank} reaction={reaction} reactionKey={reactionKey} />
+        <CampResident
+          slimeId={slimeId}
+          fusionRank={fusionRank}
+          reaction={reaction}
+          reactionKey={reactionKey}
+          reactionStrength={reactionStrength}
+        />
       </Canvas>
     </div>
   );

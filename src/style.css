@@ -615,13 +615,6 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .camp-roster button > span { position: absolute; right: -3px; bottom: -3px; min-width: 18px; height: 16px; display: grid; place-items: center; padding: 0 3px; border: 2px solid rgba(242,250,237,.95); border-radius: 999px; background: #3f7950; color: #fff; font-size: 6px; font-weight: 900; }
 .camp-roster__add { color: #3f7950; font-size: 20px; font-weight: 800; }
 .camp-world { position: absolute; inset: 0; overflow: hidden; }
-.camp-gold-flight { position:absolute; z-index:10; inset:0; pointer-events:none; }
-.camp-gold-flight i { position:absolute; right:30px; top:28px; width:11px; height:11px; border:2px solid rgba(255,244,180,.92); border-radius:50%; background:#f4c849; box-shadow:0 0 12px rgba(246,198,66,.45); animation:camp-gold-to-slime .68s cubic-bezier(.18,.76,.28,1) both; }
-.camp-gold-flight i:nth-child(2){ animation-delay:.04s; right:42px; top:34px; }
-.camp-gold-flight i:nth-child(3){ animation-delay:.08s; right:25px; top:45px; }
-.camp-gold-flight i:nth-child(4){ animation-delay:.12s; right:48px; top:24px; }
-.camp-gold-flight i:nth-child(5){ animation-delay:.16s; right:34px; top:52px; }
-.camp-gold-flight i:nth-child(6){ animation-delay:.20s; right:18px; top:31px; }
 .camp-reward-ring { position:absolute; z-index:7; left:50%; top:48%; width:96px; height:44px; border:2px solid rgba(255,236,135,.78); border-radius:50%; transform:translate(-50%,-50%); box-shadow:0 0 22px rgba(255,214,80,.28); pointer-events:none; animation:camp-reward-ring .9s ease-out both; }
 .camp-slime-stage { position: absolute; z-index: 8; left: 50%; top: 47%; width: 260px; height: 270px; transform: translate(-50%,-50%); }
 .camp-resident-stage { position:relative; width:100%; height:235px; }
@@ -1424,7 +1417,6 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .forge-collection__list small { color:rgba(255,255,255,.42); font-size:6px; }
 .forge-collection__list em { color:#efd378; font-size:8px; font-style:normal; font-weight:900; }
 
-@keyframes camp-gold-to-slime { 0%{opacity:0;transform:translate(0,0) scale(.55)} 16%{opacity:1} 100%{opacity:0;transform:translate(-170px,310px) scale(.3)} }
 @keyframes camp-reward-ring { 0%{opacity:0;transform:translate(-50%,-50%) scale(.35)} 30%{opacity:1} 100%{opacity:0;transform:translate(-50%,-50%) scale(2.4)} }
 @keyframes camp-flag-rally { 0%{transform:rotate(0)} 28%{transform:rotate(-8deg) scale(1.07)} 56%{transform:rotate(7deg) scale(1.05)} 100%{transform:rotate(0) scale(1)} }
 @keyframes camp-dummy-react { 0%,100%{transform:rotate(0)} 35%{transform:rotate(-5deg)} 62%{transform:rotate(4deg)} }
@@ -2271,4 +2263,243 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
   .camp-roster button { height: 62px; grid-template-rows: 34px auto auto; }
   .camp-roster img { width: 33px; height: 33px; }
   .camp-primary-action { min-height: 56px; }
+}
+
+
+/* Camp strengthening — spend, absorb, react, then reveal the new level */
+.camp-strengthen-effect {
+  position: absolute;
+  z-index: 18;
+  inset: 0;
+  pointer-events: none;
+}
+.camp-strengthen-effect__cost {
+  position: absolute;
+  z-index: 3;
+  right: 20px;
+  top: 22px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border: 1px solid rgba(255,245,180,.65);
+  border-radius: 999px;
+  background: rgba(70,79,41,.84);
+  color: #fff1a5;
+  box-shadow: 0 7px 16px rgba(60,68,32,.14);
+  opacity: 0;
+  animation: strengthen-cost-out .64s ease-out both;
+}
+.camp-strengthen-effect__cost span {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #e6ba42;
+  color: #fff8cf;
+  font-size: 9px;
+  font-weight: 950;
+}
+.camp-strengthen-effect__cost strong {
+  font-size: 10px;
+}
+
+.camp-strengthen-effect__coins {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+}
+.camp-strengthen-effect__coins i {
+  position: absolute;
+  right: 28px;
+  top: 30px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255,246,188,.94);
+  border-radius: 50%;
+  background: #e9bd43;
+  box-shadow: 0 0 12px rgba(238,194,70,.48);
+  animation: strengthen-coin-to-slime .64s cubic-bezier(.18,.78,.24,1) both;
+}
+.camp-strengthen-effect__coins i:nth-child(2) { right: 47px; top: 25px; animation-delay:.025s; }
+.camp-strengthen-effect__coins i:nth-child(3) { right: 24px; top: 48px; animation-delay:.05s; }
+.camp-strengthen-effect__coins i:nth-child(4) { right: 58px; top: 42px; animation-delay:.075s; }
+.camp-strengthen-effect__coins i:nth-child(5) { right: 38px; top: 59px; animation-delay:.10s; }
+.camp-strengthen-effect__coins i:nth-child(6) { right: 70px; top: 31px; animation-delay:.125s; }
+.camp-strengthen-effect__coins i:nth-child(7) { right: 17px; top: 66px; animation-delay:.15s; }
+.camp-strengthen-effect__coins i:nth-child(8) { right: 77px; top: 55px; animation-delay:.175s; }
+.camp-strengthen-effect__coins i:nth-child(9) { right: 50px; top: 74px; animation-delay:.20s; }
+.camp-strengthen-effect__coins i:nth-child(10) { right: 91px; top: 37px; animation-delay:.225s; }
+.camp-strengthen-effect__coins i:nth-child(11) { right: 29px; top: 82px; animation-delay:.25s; }
+.camp-strengthen-effect__coins i:nth-child(12) { right: 98px; top: 61px; animation-delay:.275s; }
+
+.camp-strengthen-effect--ten .camp-strengthen-effect__coins i {
+  width: 13px;
+  height: 13px;
+  box-shadow: 0 0 15px rgba(238,194,70,.60);
+}
+.camp-strengthen-effect--max .camp-strengthen-effect__coins i {
+  width: 14px;
+  height: 14px;
+  box-shadow: 0 0 19px rgba(255,205,67,.72);
+}
+
+.camp-strengthen-effect__energy {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 38%;
+  width: 120px;
+  height: 120px;
+  transform: translate(-50%,-50%);
+}
+.camp-strengthen-effect__energy i {
+  position: absolute;
+  inset: 50%;
+  border: 2px solid rgba(255,226,101,.56);
+  border-radius: 50%;
+  transform: translate(-50%,-50%) scale(.22);
+  opacity: 0;
+}
+.camp-strengthen-effect--result .camp-strengthen-effect__energy i {
+  animation: strengthen-energy-ring .78s cubic-bezier(.16,.78,.24,1) both;
+}
+.camp-strengthen-effect--result .camp-strengthen-effect__energy i:nth-child(2) { animation-delay:.08s; }
+.camp-strengthen-effect--result .camp-strengthen-effect__energy i:nth-child(3) { animation-delay:.16s; }
+.camp-strengthen-effect--ten .camp-strengthen-effect__energy i {
+  border-width: 3px;
+}
+.camp-strengthen-effect--max .camp-strengthen-effect__energy i {
+  border-width: 3px;
+  border-color: rgba(255,236,133,.76);
+  box-shadow: 0 0 22px rgba(255,215,75,.24);
+}
+
+.camp-strengthen-effect__level {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  top: 16%;
+  min-width: 172px;
+  transform: translate(-50%,8px);
+  padding: 8px 13px;
+  border: 1px solid rgba(255,255,255,.76);
+  border-radius: 17px;
+  background: rgba(44,92,57,.92);
+  color: #fff;
+  box-shadow: 0 11px 26px rgba(31,75,45,.18);
+  text-align: center;
+  opacity: 0;
+}
+.camp-strengthen-effect--result .camp-strengthen-effect__level {
+  animation: strengthen-level-reveal .78s cubic-bezier(.18,.8,.22,1) both;
+}
+.camp-strengthen-effect__level small {
+  display: block;
+  color: #d8ef9a;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .05em;
+}
+.camp-strengthen-effect__level strong {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+.camp-strengthen-effect__level span {
+  color: rgba(255,255,255,.58);
+  font-size: 11px;
+  font-weight: 850;
+}
+.camp-strengthen-effect__level b {
+  color: #d8ef9a;
+  font-size: 12px;
+}
+.camp-strengthen-effect__level em {
+  color: #fff7bf;
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 950;
+}
+.camp-strengthen-effect--max .camp-strengthen-effect__level {
+  background: linear-gradient(180deg,rgba(73,105,51,.96),rgba(45,85,48,.96));
+  box-shadow: 0 12px 32px rgba(49,85,39,.24),0 0 28px rgba(231,196,78,.14);
+}
+
+.camp-level-buttons button {
+  position: relative;
+  min-height: 58px;
+  padding: 7px 5px 6px;
+  transition: transform .12s ease, opacity .12s ease, background .12s ease;
+}
+.camp-level-buttons button:not(:disabled):active {
+  transform: translateY(1px) scale(.985);
+}
+.camp-level-buttons button.is-running:disabled {
+  opacity: 1;
+  border-color: rgba(224,174,55,.48);
+  background: linear-gradient(180deg,#fff4c6,#e9dd9e);
+  color: #715925;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.30),0 4px 12px rgba(123,96,36,.10);
+}
+.camp-level-buttons.is-busy button:not(.is-running) {
+  opacity: .24;
+}
+.camp-level-buttons span,
+.camp-level-buttons strong,
+.camp-level-buttons em {
+  display: block;
+}
+.camp-level-buttons em {
+  margin-top: 2px;
+  color: rgba(40,83,48,.55);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 850;
+}
+.camp-level-buttons button.is-running em {
+  color: rgba(93,70,28,.68);
+}
+.camp-primary-action:disabled,
+.camp-roster button:disabled,
+.camp-inline-tool__heading > button:disabled {
+  cursor: default;
+}
+.camp-primary-action:disabled,
+.camp-roster button:disabled:not(.is-selected) {
+  opacity: .48;
+}
+
+@keyframes strengthen-cost-out {
+  0% { opacity:0; transform:translateY(-6px) scale(.94); }
+  18%,56% { opacity:1; transform:translateY(0) scale(1); }
+  100% { opacity:0; transform:translate(-120px,165px) scale(.66); }
+}
+@keyframes strengthen-coin-to-slime {
+  0% { opacity:0; transform:translate(0,0) scale(.62) rotate(0deg); }
+  14% { opacity:1; }
+  72% { opacity:1; }
+  100% { opacity:0; right:50%; top:40%; transform:translate(50%,-50%) scale(.30) rotate(140deg); }
+}
+@keyframes strengthen-energy-ring {
+  0% { opacity:0; transform:translate(-50%,-50%) scale(.18); }
+  24% { opacity:.95; }
+  100% { opacity:0; transform:translate(-50%,-50%) scale(1.55); }
+}
+@keyframes strengthen-level-reveal {
+  0% { opacity:0; transform:translate(-50%,10px) scale(.92); }
+  34%,78% { opacity:1; transform:translate(-50%,0) scale(1); }
+  100% { opacity:0; transform:translate(-50%,-5px) scale(.99); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .camp-strengthen-effect *,
+  .camp-strengthen-effect *::before,
+  .camp-strengthen-effect *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+  }
 }

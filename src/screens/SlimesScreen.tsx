@@ -12,6 +12,7 @@ import {
   selectSlimeDetail,
 } from '../application/selectors/ui-selectors';
 import type { CampSlimeReaction } from '../components/CampSlimeStage';
+import { CampStrengthenEffect, type StrengthenCeremony, type StrengthenVariant } from '../components/CampStrengthenEffect';
 import { CampStationIcon } from '../components/CampStationIcon';
 import { NurseryIcon } from '../components/NurseryIcon';
 import type { NurseryCeremony } from '../components/NurseryCeremonyStage';
@@ -51,6 +52,14 @@ type CampFeedback = Readonly<{
   reaction: CampSlimeReaction;
   title: string;
   detail?: string;
+  strength?: 1 | 2 | 3;
+}>;
+
+type CampLevelAction = Readonly<{
+  count: number;
+  targetLevel: number;
+  cost: string;
+  available: boolean;
 }>;
 
 export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
@@ -80,11 +89,62 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   const [notice, setNotice] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<CampFeedback>({ key: 0, reaction: 'idle', title: '' });
   const [nurseryCeremony, setNurseryCeremony] = useState<NurseryCeremony | null>(null);
+  const [strengthenCeremony, setStrengthenCeremony] = useState<StrengthenCeremony | null>(null);
   const nurseryCeremonyKey = useRef(0);
+  const strengthenCeremonyKey = useRef(0);
   const nurseryBusy = nurseryCeremony !== null;
+  const strengthenBusy = strengthenCeremony !== null;
 
-  const triggerFeedback = (reaction: CampSlimeReaction, title: string, detail?: string) => {
-    setFeedback((current) => ({ key: current.key + 1, reaction, title, ...(detail === undefined ? {} : { detail }) }));
+  const triggerFeedback = (
+    reaction: CampSlimeReaction,
+    title: string,
+    detail?: string,
+    strength: 1 | 2 | 3 = 1,
+  ) => {
+    setFeedback((current) => ({
+      key: current.key + 1,
+      reaction,
+      title,
+      strength,
+      ...(detail === undefined ? {} : { detail }),
+    }));
+  };
+
+  const handleStrengthen = (
+    action: CampLevelAction,
+    variant: StrengthenVariant,
+  ) => {
+    if (selected === null || detail === null || strengthenBusy) return;
+    const result = controller.levelUpSlime(selected, action.count);
+    if (!result.accepted) {
+      setNotice(rejectionLabel(result.reason));
+      return;
+    }
+
+    setNotice(null);
+    const key = ++strengthenCeremonyKey.current;
+    const strength: 1 | 2 | 3 = variant === 'one' ? 1 : variant === 'ten' ? 2 : 3;
+    const chargeMs = variant === 'one' ? 280 : variant === 'ten' ? 360 : 430;
+    const settleMs = variant === 'one' ? 760 : variant === 'ten' ? 900 : 1040;
+    setStrengthenCeremony({
+      key,
+      phase: 'charging',
+      variant,
+      fromLevel: detail.level,
+      targetLevel: action.targetLevel,
+      cost: action.cost,
+    });
+
+    window.setTimeout(() => {
+      setStrengthenCeremony((current) => current?.key === key
+        ? { ...current, phase: 'result' }
+        : current);
+      triggerFeedback('level-up', `Lv.${action.targetLevel}`, `-${action.cost} G`, strength);
+
+      window.setTimeout(() => {
+        setStrengthenCeremony((current) => current?.key === key ? null : current);
+      }, settleMs);
+    }, chargeMs);
   };
 
   const playNurseryCeremony = (
@@ -214,12 +274,8 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                 fusionReady={detail.fusionOptions.some((option) => option.canFuse)}
               />
             </Suspense>
-            {feedback.reaction === 'level-up' && feedback.title !== '' && (
-              <div className="camp-gold-flight" key={`gold-${feedback.key}`} aria-hidden="true">
-                <i /><i /><i /><i /><i /><i />
-              </div>
-            )}
-            {(feedback.reaction === 'level-up' || feedback.reaction === 'recruit') && feedback.title !== '' && (
+            <CampStrengthenEffect ceremony={strengthenCeremony} />
+            {feedback.reaction === 'recruit' && feedback.title !== '' && (
               <div className="camp-reward-ring" key={`ring-${feedback.key}`} aria-hidden="true" />
             )}
             <div className="camp-slime-stage">
@@ -229,6 +285,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                   fusionRank={detail.fusionRank}
                   reaction={feedback.reaction}
                   reactionKey={feedback.key}
+                  reactionStrength={feedback.strength ?? 1}
                 />
               </Suspense>
               {feedback.title !== '' && (
@@ -238,7 +295,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                 </div>
               )}
               <div className="camp-slime-name">
-                <span>{detail.role}</span><strong>{detail.name}</strong><small>Lv.{detail.level} · 合成ランク {detail.fusionRank}</small>
+                <span>{detail.role}</span><strong>{detail.name}</strong><small>Lv.{strengthenCeremony?.phase === 'charging' ? strengthenCeremony.fromLevel : detail.level} · 合成ランク {detail.fusionRank}</small>
               </div>
             </div>
           </div>
@@ -258,7 +315,8 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                       key={id}
                       className={id === selected ? 'is-selected' : ''}
                       type="button"
-                      aria-label={`${p.name} Lv.${slime.level}`}
+                      aria-label={`${p.name} Lv.${strengthenCeremony?.phase === 'charging' && id === selected ? strengthenCeremony.fromLevel : slime.level}`}
+                      disabled={strengthenBusy}
                       onClick={() => {
                         onSelect(id);
                         setFeedback((current) => ({ key: current.key + 1, reaction: 'idle', title: '' }));
@@ -266,11 +324,11 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                     >
                       <img src={`${import.meta.env.BASE_URL}${p.icon}`} alt="" />
                       <strong>{p.name.replace('スライム', '')}</strong>
-                      <small>Lv.{slime.level}</small>
+                      <small>Lv.{strengthenCeremony?.phase === 'charging' && id === selected ? strengthenCeremony.fromLevel : slime.level}</small>
                     </button>
                   );
                 })}
-                <button className="camp-roster__add" type="button" onClick={() => setCreateOpen(true)} aria-label="仲間を増やす">
+                <button className="camp-roster__add" type="button" disabled={strengthenBusy} onClick={() => setCreateOpen(true)} aria-label="仲間を増やす">
                   <span>＋</span><strong>追加</strong>
                 </button>
               </div>
@@ -303,6 +361,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
               <button
                 className={`camp-primary-action ${mode === 'train' ? 'is-active' : ''} ${state.gameData.combat.retryFarmClearsRemaining > 0 && selectedUpgrades.some((opportunity) => opportunity.kind === 'level') ? 'is-ready' : ''}`}
                 type="button"
+                disabled={strengthenBusy}
                 onClick={() => setMode(mode === 'train' ? 'none' : 'train')}
               >
                 <span><CampStationIcon kind="train" /></span>
@@ -311,6 +370,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
               <button
                 className={`camp-primary-action ${detail.fusionOptions.some((option) => option.canFuse) ? 'is-ready' : ''}`}
                 type="button"
+                disabled={strengthenBusy}
                 onClick={() => setMode('fusion')}
               >
                 <span><CampStationIcon kind="fusion" /></span>
@@ -319,12 +379,13 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
               <button
                 className={`camp-primary-action ${mode === 'formation' ? 'is-active' : ''}`}
                 type="button"
+                disabled={strengthenBusy}
                 onClick={() => setMode(mode === 'formation' ? 'none' : 'formation')}
               >
                 <span><CampStationIcon kind="formation" /></span>
                 <strong>編成</strong>
               </button>
-              <button className="camp-primary-action" type="button" onClick={() => setCreateOpen(true)}>
+              <button className="camp-primary-action" type="button" disabled={strengthenBusy} onClick={() => setCreateOpen(true)}>
                 <span><CampStationIcon kind="nursery" /></span>
                 <strong>仲間</strong>
               </button>
@@ -333,27 +394,36 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
             {mode === 'train' && (
               <div className="camp-inline-tool camp-inline-tool--train">
                 <div className="camp-inline-tool__heading">
-                  <div><strong>{detail.name}を強化</strong><small>Lv.{detail.level}</small></div>
-                  <button type="button" onClick={() => setMode('none')} aria-label="強化を閉じる">×</button>
+                  <div>
+                    <strong>{detail.name}を強化</strong>
+                    <small>Lv.{strengthenCeremony?.phase === 'charging' ? strengthenCeremony.fromLevel : detail.level}</small>
+                  </div>
+                  <button type="button" disabled={strengthenBusy} onClick={() => setMode('none')} aria-label="強化を閉じる">×</button>
                 </div>
-                <div className="camp-level-buttons">
-                  {[detail.levelActions.one, detail.levelActions.ten, detail.levelActions.max].map((action, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      disabled={action === null || !action.available}
-                      onClick={() => {
-                        if (action === null) return;
-                        const result = controller.levelUpSlime(selected, action.count);
-                        if (!result.accepted) { setNotice(rejectionLabel(result.reason)); return; }
-                        setNotice(null);
-                        triggerFeedback('level-up', `Lv.${action.targetLevel}`, `-${action.cost} G`);
-                      }}
-                    >
-                      <span>{index === 0 ? '+1' : index === 1 ? '+10' : '最大'}</span>
-                      <strong>{action?.cost ?? '—'} G</strong>
-                    </button>
-                  ))}
+                <div className={`camp-level-buttons ${strengthenBusy ? 'is-busy' : ''}`}>
+                  {([
+                    ['one', '+1', detail.levelActions.one],
+                    ['ten', '+10', detail.levelActions.ten],
+                    ['max', '最大', detail.levelActions.max],
+                  ] as const).map(([variant, label, action]) => {
+                    const running = strengthenCeremony?.variant === variant;
+                    return (
+                      <button
+                        key={variant}
+                        className={running ? 'is-running' : ''}
+                        type="button"
+                        disabled={strengthenBusy || action === null || !action.available}
+                        onClick={() => {
+                          if (action === null) return;
+                          handleStrengthen(action, variant);
+                        }}
+                      >
+                        <span>{running ? '強化中' : label}</span>
+                        <strong>{running ? `-${strengthenCeremony.cost} G` : `${action?.cost ?? '—'} G`}</strong>
+                        <em>{running ? `Lv.${strengthenCeremony.targetLevel}` : action === null ? '—' : `→ Lv.${action.targetLevel}`}</em>
+                      </button>
+                    );
+                  })}
                 </div>
                 {showValidationTools && (
                   <div className="camp-validation-tools">
