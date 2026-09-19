@@ -16,6 +16,16 @@ import {
  */
 export const PUBLIC_VALIDATION_MODE = import.meta.env.VITE_VALIDATION_MODE !== 'false';
 
+/**
+ * Keep validation-only shortcuts out of the product presentation by default.
+ * Internal/headless QA can opt in with ?validation-tools=1 while the public
+ * validation economy (infinite resources) remains enabled independently.
+ */
+export function validationToolsVisible(): boolean {
+  if (!PUBLIC_VALIDATION_MODE || typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('validation-tools') === '1';
+}
+
 const VALIDATION_GOLD = GameNumber.from(1_000_000_000_000);
 const VALIDATION_TOKEN_COUNT = 1_000_000;
 const VALIDATION_TOKEN_IDS = Object.values(ids.token);
