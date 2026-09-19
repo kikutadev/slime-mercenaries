@@ -1,4 +1,4 @@
-import { currentCombatEncounter, equippedWeaponDefinition, nextCombatBoundarySec, partyCombatPower, type SlimeInstanceId, type SlimeMercenariesState } from '../../domain';
+import { currentCombatEncounter, currentStageDefinition, equippedWeaponDefinition, nextCombatBoundarySec, partyCombatPower, type SlimeInstanceId, type SlimeMercenariesState } from '../../domain';
 import { resolveEncounterDefinition, type ResolvedEncounter } from '../../game/encounters';
 import { getSlimePresentation, type BattleBehaviorId } from '../../game/slimes';
 
@@ -32,6 +32,7 @@ export type BattleSceneModel = Readonly<{
   encounter: ResolvedEncounter | null;
   authoritativeResult: 'victory' | 'defeat' | null;
   authoritativeResultDelaySec: number | null;
+  isStageFinalEncounter: boolean;
   allies: readonly BattleSceneAlly[];
 }>;
 
@@ -69,6 +70,7 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
   const stageNumber = state.gameData.progression.currentStage;
   const waveIndex = state.gameData.combat.currentWaveIndex;
   const combatEncounter = currentCombatEncounter(state);
+  const stage = currentStageDefinition(state);
   const encounterId = combatEncounter?.kind === 'wave'
     ? combatEncounter.wave?.encounterId
     : combatEncounter?.boss?.encounterId;
@@ -97,6 +99,21 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
     ].join(':'))
     .join('|');
   const runtimeVisualKey = `${visualKey}|result:${authoritativeResult ?? '-'}`;
+  const isStageFinalEncounter = combatEncounter?.kind === 'boss'
+    || (combatEncounter?.kind === 'wave'
+      && stage !== null
+      && stage.boss === undefined
+      && combatEncounter.waveIndex === stage.waves.length - 1);
 
-  return { encounterKey, visualKey: runtimeVisualKey, stageNumber, waveIndex, encounter, authoritativeResult, authoritativeResultDelaySec, allies };
+  return {
+    encounterKey,
+    visualKey: runtimeVisualKey,
+    stageNumber,
+    waveIndex,
+    encounter,
+    authoritativeResult,
+    authoritativeResultDelaySec,
+    isStageFinalEncounter,
+    allies,
+  };
 }

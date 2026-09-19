@@ -1023,12 +1023,15 @@ export class BattleRuntime {
       ? amount * resolveTimedMultiplier(target.damageTakenEffect, this.simulationNow)
       : amount;
     let nextHp = Math.max(0, target.hp - effectiveAmount);
-    // A Domain-owned encounter must not resolve locally before its authored boundary.
+    // Domain progression owns the encounter result. Keep the visual runtime from contradicting it:
+    // - a party that is authoritatively winning must not visibly lose members and revive on the next wave;
+    // - the final unit on either side is held at 1 HP until the authored boundary resolves the encounter.
     if (this.authoritativeResult !== null && nextHp <= 0) {
+      const winnerSide = this.authoritativeResult === 'victory' ? 'ally' : 'enemy';
       const isLast = target.side === 'enemy'
         ? this.getLivingEnemies().length === 1
         : this.getLivingAllies().length === 1;
-      if (isLast) nextHp = 1;
+      if (target.side === winnerSide || isLast) nextHp = 1;
     }
     target.hp = nextHp;
     target.hitStartedAt = this.simulationNow;
@@ -2499,6 +2502,9 @@ export class BattleRuntime {
 
   private evaluateBattleOutcome(now: number): void {
     if (this.phase === 'result' || this.phase === 'loading') return;
+    // When Domain supplied an authored result, only enforceAuthoritativeResult may end the encounter.
+    // This prevents local HP timing from racing stage/wave progression and causing visual resets.
+    if (this.authoritativeResult !== null) return;
     if (this.getLivingEnemies().length === 0) this.enterResult('victory', now);
     else if (this.getLivingAllies().length === 0) this.enterResult('defeat', now);
   }

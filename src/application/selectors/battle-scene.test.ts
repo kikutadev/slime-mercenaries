@@ -82,6 +82,7 @@ describe('battle scene projection', () => {
     expect(model.encounter?.enemies.every((enemy) => enemy.id === 'tiny-mushroom')).toBe(true);
     expect(model.authoritativeResult).toBe('victory');
     expect(model.authoritativeResultDelaySec).toBe(6);
+    expect(model.isStageFinalEncounter).toBe(false);
   });
 
   it('changes enemy composition with stage and wave progression', () => {
@@ -102,6 +103,29 @@ describe('battle scene projection', () => {
     expect(model.encounterKey).toContain('encounter.clover-road.03.02');
   });
 
+  it('marks only the actual stage-closing encounter as final', () => {
+    const state = createSwordBattleState();
+    const stageOneFinalWave = {
+      ...state,
+      gameData: {
+        ...state.gameData,
+        progression: { ...state.gameData.progression, currentStage: 1 },
+        combat: { ...state.gameData.combat, currentWaveIndex: 2 },
+      },
+    };
+    expect(selectBattleSceneModel(stageOneFinalWave).isStageFinalEncounter).toBe(true);
+
+    const stageFiveLastNormalWave = {
+      ...state,
+      gameData: {
+        ...state.gameData,
+        progression: { ...state.gameData.progression, currentStage: 5 },
+        combat: { ...state.gameData.combat, currentWaveIndex: 2 },
+      },
+    };
+    expect(selectBattleSceneModel(stageFiveLastNormalWave).isStageFinalEncounter).toBe(false);
+  });
+
   it('projects the authored great mushroom boss encounter', () => {
     const state = createSwordBattleState();
     const bossState = {
@@ -117,6 +141,7 @@ describe('battle scene projection', () => {
     expect(model.encounter?.boss).toBe(true);
     expect(model.encounter?.enemies).toHaveLength(1);
     expect(model.encounter?.enemies[0]?.id).toBe('great-mushroom');
+    expect(model.isStageFinalEncounter).toBe(true);
   });
 
   it('projects an authored defeat for an underpowered normal frontier stage', () => {

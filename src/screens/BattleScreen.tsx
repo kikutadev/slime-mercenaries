@@ -20,10 +20,15 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInst
   const state = useGameState();
   const controller = useGameController();
   const validationMode = controller.validationMode;
-  const [battle, setBattle] = useState<BattleSnapshot>(INITIAL_BATTLE);
+  const [battleState, setBattleState] = useState<Readonly<{ sceneKey: string; snapshot: BattleSnapshot }>>({
+    sceneKey: '',
+    snapshot: INITIAL_BATTLE,
+  });
   const hud = selectGlobalHud(state);
   const formation = selectFormation(state);
   const sceneModel = selectBattleSceneModel(state);
+  const sceneKey = `${sceneModel.encounterKey}:${sceneModel.visualKey}`;
+  const battle = battleState.sceneKey === sceneKey ? battleState.snapshot : INITIAL_BATTLE;
   const hasBattleSlime = sceneModel.allies.length > 0;
   const enemyRatio = battle.enemyMaxHp > 0 ? battle.enemyHp / battle.enemyMaxHp : 0;
   const activeCount = sceneModel.allies.length;
@@ -34,10 +39,16 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInst
       return `再編成中 · ステージ${state.gameData.progression.currentStage} · 再出撃まであと${state.gameData.combat.retryFarmClearsRemaining}周`;
     }
     if (activeCount === 0) return '傭兵を編成すると自動戦闘が始まります';
+    if (battle.result === 'defeat') return '敗北 · 戦線を立て直します';
+    if (battle.result === 'victory') {
+      return sceneModel.isStageFinalEncounter ? 'ステージクリア' : '敵部隊を突破 · 次のウェーブへ';
+    }
     return battle.label;
   }, [
     activeCount,
     battle.label,
+    battle.result,
+    sceneModel.isStageFinalEncounter,
     state.gameData.combat.contentBoundaryReached,
     state.gameData.combat.retryFarmClearsRemaining,
     state.gameData.progression.currentStage,
@@ -46,7 +57,7 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInst
   return (
     <section className="screen screen--battle screen--active" aria-label="戦闘">
       {hasBattleSlime ? (
-        <BattleCanvas model={sceneModel} onSnapshot={setBattle} />
+        <BattleCanvas model={sceneModel} onSnapshot={(snapshot) => setBattleState({ sceneKey, snapshot })} />
       ) : (
         <div className="battle-empty-visual" aria-hidden="true">
           <div className="battle-empty-road" />
@@ -72,6 +83,23 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInst
         <span className="status-dot" />
         {battleStatus}
       </div>
+
+      {(battle.result === 'defeat' || (battle.result === 'victory' && sceneModel.isStageFinalEncounter)) && (
+        <div
+          className={`battle-result-overlay battle-result-overlay--${battle.result}`}
+          role="status"
+          aria-live="polite"
+        >
+          <div className="battle-result-overlay__burst" aria-hidden="true" />
+          <div className="battle-result-overlay__card">
+            <span className="battle-result-overlay__eyebrow">
+              {battle.result === 'victory' ? 'ステージクリア' : '撤退'}
+            </span>
+            <strong>{battle.result === 'victory' ? '勝利' : '敗北'}</strong>
+            <small>{battle.result === 'victory' ? '次のステージへ進軍' : '戦線を立て直します'}</small>
+          </div>
+        </div>
+      )}
 
       {validationMode && state.gameData.combat.contentBoundaryReached && (
         <button className="battle-validation-restart" type="button" onClick={() => controller.validationResetBattle()}>
