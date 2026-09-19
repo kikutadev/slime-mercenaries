@@ -130,6 +130,17 @@ describe('Puff Flower attack grammar', () => {
     const size = bounds.getSize(new THREE.Vector3());
     expect(Math.max(size.x, size.y, size.z)).toBeLessThan(0.12);
 
+    const materials: THREE.Material[] = [];
+    pollen?.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const meshMaterials = Array.isArray(object.material) ? object.material : [object.material];
+      materials.push(...meshMaterials);
+    });
+    expect(materials).toHaveLength(4);
+    expect(Math.max(...materials.map((material) => material.opacity))).toBeLessThanOrEqual(0.60);
+    expect(materials.every((material) => material.transparent)).toBe(true);
+    expect(materials.every((material) => material.depthWrite === false)).toBe(true);
+
     expect(profile.projectile?.flightSeconds).toBeLessThanOrEqual(0.50);
     expect(profile.projectile?.arcHeight(0.5) ?? 1).toBeLessThanOrEqual(0.10);
   });
