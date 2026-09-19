@@ -90,4 +90,74 @@ describe('Sunken Marsh production motion profiles', () => {
     expect(Math.abs(lily.rotationZ)).toBeGreaterThan(1);
     expect(boss.secondary?.inflate ?? 0).toBeLessThan(-0.3);
   });
+
+  it('puff-frog contract: throat tell -> hold -> hop -> pancake impact', () => {
+    const p = getMarshMotionProfile('marsh-frog-hop');
+    const inflate = p.attack(0.22);
+    const hold = p.attack(0.36);
+    const hop = p.attack(0.56);
+    const impact = p.attack(0.78);
+    expect(inflate.secondary?.inflate ?? 0).toBeGreaterThan(0.20);
+    expect(hold.secondary?.inflate ?? 0).toBeGreaterThan(inflate.secondary?.inflate ?? 0);
+    expect(hop.jump).toBeGreaterThan(0.14);
+    expect(impact.scaleY).toBeLessThan(0.80);
+    expect(p.attackDuration).toBeGreaterThanOrEqual(0.90);
+  });
+
+  it('marsh-sprout contract: leaves close -> body gathers -> single water orb release', () => {
+    const p = getMarshMotionProfile('marsh-sprout-orb');
+    const close = p.attack(0.26);
+    const gather = p.attack(0.38);
+    const release = p.attack(0.60);
+    expect(close.secondary?.open ?? 0).toBeLessThan(-0.30);
+    expect(gather.scaleZ).toBeGreaterThan(1.05);
+    expect(release.releaseProgress).toBeGreaterThan(0);
+    expect(release.secondary?.open ?? 0).toBeGreaterThan(0);
+    expect(p.projectile?.kind).toBe('water-orb');
+    expect(p.defeat(0.72, 1).secondary?.open ?? 0).toBeLessThan(-0.20);
+  });
+
+  it('bubble-snail contract: body compresses before shell pulse and shell settles late', () => {
+    const p = getMarshMotionProfile('marsh-bubble-pulse');
+    const compress = p.attack(0.26);
+    const pulse = p.attack(0.56);
+    const settle = p.attack(0.78);
+    expect(compress.secondary?.inflate ?? 0).toBeLessThan(-0.18);
+    expect(pulse.travel).toBeGreaterThan(0.40);
+    expect(pulse.secondary?.inflate ?? 0).toBeGreaterThan(0.08);
+    expect(Math.abs(settle.secondary?.secondaryBend ?? 0)).toBeGreaterThan(0.01);
+    expect(p.defeat(0.76, 1).secondary?.inflate ?? 0).toBeLessThan(-0.25);
+  });
+
+  it('skimming-lily contract: left-right tilt -> flat skim -> trailing wake', () => {
+    const p = getMarshMotionProfile('marsh-lily-skim');
+    const left = p.attack(0.10);
+    const right = p.attack(0.25);
+    const skim = p.attack(0.50);
+    const wake = p.attack(0.74);
+    expect(left.wobbleZ).toBeLessThan(-0.08);
+    expect(right.wobbleZ).toBeGreaterThan(0.08);
+    expect(skim.travel).toBeGreaterThan(0.60);
+    expect(skim.jump).toBeLessThan(0.02);
+    expect(Math.abs(wake.secondary?.secondaryBend ?? 0)).toBeGreaterThan(0.04);
+    expect(Math.abs(p.defeat(0.72, 1).rotationZ)).toBeGreaterThan(1.5);
+  });
+
+  it('great-marsh-frog contract: boss differs from normal frog with stepped inflation and long settle', () => {
+    const p = getMarshMotionProfile('marsh-frog-boss');
+    const step1 = p.attack(0.12);
+    const step2 = p.attack(0.25);
+    const step3 = p.attack(0.40);
+    const hold = p.attack(0.51);
+    const release = p.attack(0.62);
+    const wobble = p.attack(0.80);
+    expect(step2.secondary?.inflate ?? 0).toBeGreaterThan(step1.secondary?.inflate ?? 0);
+    expect(step3.secondary?.inflate ?? 0).toBeGreaterThan(step2.secondary?.inflate ?? 0);
+    expect(hold.secondary?.inflate ?? 0).toBeGreaterThan(0.95);
+    expect(release.scaleX).toBeGreaterThan(1.05);
+    expect(Math.abs(wobble.secondary?.inflate ?? 0)).toBeGreaterThan(0.01);
+    expect(p.attackDuration).toBeGreaterThanOrEqual(1.35);
+    expect(p.defeatDuration).toBeGreaterThanOrEqual(1.45);
+  });
+
 });
