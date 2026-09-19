@@ -642,7 +642,7 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .fusion-workbench__header > strong { font-size:18px; }
 .fusion-workbench__header > small { color:rgba(255,255,255,.55); font-size:8px; }
 .fusion-workbench__stage { position:absolute; z-index:4; top:74px; left:0; right:0; height:390px; }
-.fusion-workbench__stage .slime-preview { height:100%; }
+.fusion-workbench__stage .fusion-stage-shell { height:100%; }
 .fusion-workbench__stage .fusion-stage::before { inset:60px 7% 26px; background:radial-gradient(circle,rgba(255,218,104,.19),rgba(86,213,194,.08) 34%,transparent 68%); }
 .fusion-workbench__stage .fusion-stage__merge-mark span { width:47px; height:47px; background:rgba(255,238,171,.12); border-color:rgba(255,222,113,.45); color:#ffe083; box-shadow:0 0 34px rgba(255,206,82,.24); }
 .fusion-rune { position:absolute; z-index:0; left:50%; top:61%; border:1px solid rgba(255,222,121,.25); border-radius:50%; transform:translate(-50%,-50%) rotateX(66deg); pointer-events:none; }
@@ -1402,3 +1402,79 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .forge-collection__list em {
   font-size: 10px;
 }
+
+
+/* Fusion production pass — authored ceremony hierarchy */
+.fusion-stage__merge-mark span {
+  position: relative;
+  overflow: hidden;
+}
+.fusion-stage__merge-mark span > i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 12px currentColor;
+}
+.fusion-stage__merge-mark span > i:nth-child(1) { transform: translate(-12px, 0); }
+.fusion-stage__merge-mark span > i:nth-child(2) { transform: translate(0, -9px); }
+.fusion-stage__merge-mark span > i:nth-child(3) { transform: translate(12px, 0); }
+.fusion-stage__merge-mark--enhancement span,
+.fusion-stage__merge-mark--major-behavior span {
+  border-style: dashed;
+}
+.fusion-stage__merge-mark--major-behavior span {
+  box-shadow: 0 0 42px rgba(255,206,82,.34);
+}
+.fusion-workbench__header > span,
+.fusion-result-tease span,
+.fusion-complete-panel > span { font-size: 9px; letter-spacing: .10em; }
+.fusion-workbench__header > small,
+.fusion-stage-caption,
+.fusion-result-tease small,
+.fusion-complete-panel > p,
+.fusion-unlock-badge { font-size: 10px; }
+.fusion-ingredient strong { font-size: 10px; }
+.fusion-ingredient small { font-size: 9px; }
+.fusion-ingredient em { font-size: 9px; line-height: 1.2; }
+.fusion-level-lock { font-size: 10px; }
+.fusion-trigger span { font-size: 9px; letter-spacing: .10em; }
+.fusion-result-actions button,
+.fusion-complete-panel > button { font-size: 11px; }
+
+
+/* Final mobile readability and placeholder cleanup */
+.loading-slime { width:72px; height:72px; font-size:0; }
+.nursery-vat__bubble { width:72px; height:72px; margin:0 auto -5px; font-size:0; }
+.camp-roster button > span { min-width:22px; height:18px; font-size:9px; }
+.validation-mode-badge { padding:5px 9px; font-size:9px; letter-spacing:.05em; }
+.battle-validation-restart span { font-size:9px; letter-spacing:.07em; }
+.battle-validation-restart strong { font-size:10px; }
+
+
+/* Production readability — active overlays, nursery and camp action copy */
+.global-event-notice > span { font-size:9px; letter-spacing:.09em; }
+.global-event-notice > small { font-size:10px; line-height:1.45; }
+.save-warning { font-size:10px; }
+.offline-summary__hero span { font-size:9px; letter-spacing:.10em; }
+.offline-summary__hero small { font-size:10px; }
+.offline-summary__grid span, .offline-summary__reward span { font-size:9px; }
+.camp-action-feedback small { font-size:9px; }
+.camp-quest span, .camp-upgrade-alert span { font-size:9px; letter-spacing:.08em; }
+.camp-quest strong, .camp-upgrade-alert strong { font-size:10px; }
+.camp-action-dock > div:first-child > span { font-size:9px; letter-spacing:.08em; }
+.camp-action-dock > div:first-child > small { font-size:9px; }
+.camp-level-buttons strong { font-size:10px; }
+.camp-promotion-action > small { font-size:9px; }
+.camp-weapon-strip strong, .camp-weapon-strip small { font-size:9px; }
+.camp-formation-strip small { font-size:9px; }
+.camp-empty-world small { font-size:9px; }
+.nursery-vat > span { font-size:9px; letter-spacing:.08em; }
+.nursery-actions small { font-size:9px; line-height:1.4; }
+.nursery-job-title span { font-size:9px; letter-spacing:.08em; }
+.nursery-jobs small, .nursery-jobs em { font-size:9px; }
+.fusion-stage__merge-mark small { font-size:9px; letter-spacing:.08em; }

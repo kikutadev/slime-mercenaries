@@ -9,6 +9,7 @@ import { DispatchScreen } from '../screens/DispatchScreen';
 import { ForgeScreen } from '../screens/ForgeScreen';
 import type { SlimeInstanceId } from '../domain';
 import { NavIcon, type NavIconKind } from '../components/navigation/NavIcon';
+import { SlimeMark } from '../components/SlimeMark';
 
 type ScreenId = 'battle' | 'slimes' | 'dispatch' | 'forge';
 
@@ -47,7 +48,7 @@ export function AppShell() {
     return (
       <main className="page">
         <section className="game-shell game-shell--loading">
-          <div className="loading-slime">●</div>
+          <SlimeMark className="loading-slime" />
           <span>セーブデータを読み込み中…</span>
         </section>
       </main>

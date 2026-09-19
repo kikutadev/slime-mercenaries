@@ -4,8 +4,8 @@ import { selectSlimeDetail } from '../../application/selectors/ui-selectors';
 import { jobCreationDefinitions, type SlimeInstanceId } from '../../domain';
 import { getSlimePresentation, getSlimePresentationForRank } from '../../game/slimes';
 import { getNextFusionStep } from '../../game/fusion';
-import { getFusionIngredientPresentation } from '../../game/fusion-presentation';
-import { SlimePreview } from '../SlimePreview';
+import { getFusionIngredientPresentation, getFusionStepPresentation } from '../../game/fusion-presentation';
+import { FusionStage } from './FusionStage';
 
 interface FusionWorkbenchProps {
   slimeId: SlimeInstanceId;
@@ -68,7 +68,8 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
     const fromRank = progress.fusionRank;
     const resultName = next.resultName ?? resultPresentation.name;
     const description = next.description;
-    const behavior = behaviorLabel(detail.fusion.behaviorUnlockId);
+    const stepPresentation = getFusionStepPresentation(next.id);
+    const behavior = stepPresentation.behaviorTitle;
     const result = controller.fuseSlime(slimeId);
     if (!result.accepted) {
       setNotice(rejectionLabel(result.reason));
@@ -107,7 +108,7 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
             })}
           </div>
         )}
-        <SlimePreview
+        <FusionStage
           slimeId={progress.typeId}
           fusionRank={run?.fromRank ?? progress.fusionRank}
           fusionReady={!completed}
@@ -115,6 +116,7 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
           sequenceKey={sequenceKey}
           fromRank={run?.fromRank ?? progress.fusionRank}
           toRank={run?.toRank ?? progress.fusionRank + 1}
+          ceremony={getFusionStepPresentation(next.id).ceremony}
           onFusionComplete={() => {
             setCompleted(true);
             setRun(null);
@@ -209,19 +211,6 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
   );
 }
 
-function behaviorLabel(id: string): string {
-  if (id.includes('spinning-cleave')) return '横薙ぎ範囲攻撃';
-  if (id.includes('heavy-impact')) return '重撃インパクト';
-  if (id.includes('whirlwind')) return '旋風斬り';
-  if (id.includes('follow-up')) return '追撃射撃';
-  if (id.includes('pierce')) return '貫通射撃';
-  if (id.includes('triple')) return '三連射';
-  if (id.includes('fortified-guard')) return '堅守強化';
-  if (id.includes('arcane-focus')) return '魔力収束';
-  if (id.includes('afterimage-edge')) return '残影強化';
-  if (id.includes('overpressure')) return '高圧射撃';
-  return '新しい戦闘挙動';
-}
 
 function rejectionLabel(reason: string | undefined): string {
   switch (reason) {

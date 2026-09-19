@@ -8,11 +8,13 @@ export interface FusionRequirement {
 }
 
 export interface FusionStep {
+  id: string;
   rank: number;
   minLevel: number;
   title: string;
   description: string;
   resultName?: string;
+  behaviorUnlockId: string;
   recipe: FusionRequirement[];
 }
 
@@ -88,10 +90,12 @@ function toPresentationStep(definition: FusionStepDefinition): FusionStep {
   const presentation = PRESENTATION[definition.id];
   if (presentation === undefined) throw new Error(`Missing Fusion presentation metadata: ${definition.id}`);
   return {
+    id: definition.id,
     rank: definition.fromRank,
     minLevel: definition.minLevel,
     title: presentation.title,
     description: presentation.description,
+    behaviorUnlockId: definition.behaviorUnlockId,
     ...(presentation.resultName === undefined ? {} : { resultName: presentation.resultName }),
     recipe: definition.recipe.map((requirement) => ({
       itemId: requireFusionItemId(requirement.tokenId),

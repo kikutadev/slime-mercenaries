@@ -12,6 +12,7 @@ import {
 } from '../application/selectors/ui-selectors';
 import { FusionWorkbench } from '../components/fusion/FusionWorkbench';
 import { CampSlimeStage, type CampSlimeReaction } from '../components/CampSlimeStage';
+import { SlimeMark } from '../components/SlimeMark';
 import { CampEnvironmentStage } from '../components/CampEnvironmentStage';
 import { CampStationIcon } from '../components/CampStationIcon';
 import { ids, sameTypeCount, slimeInstanceIdForSerial, type JobSlimeId, type SlimeInstanceId } from '../domain';
@@ -330,7 +331,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
           closeButtonClassName="sheet-close"
         >
           <div className="nursery-world">
-            <div className="nursery-vat"><div className="nursery-vat__bubble">●</div><span>プレーンスライム</span><strong>{validationMode ? '∞' : createPanel.plainStock}</strong></div>
+            <div className="nursery-vat"><SlimeMark className="nursery-vat__bubble" /><span>プレーンスライム</span><strong>{validationMode ? '∞' : createPanel.plainStock}</strong></div>
             <div className="nursery-actions">
               <button type="button" disabled={!createPanel.craft.canCraft} onClick={() => runAction('プレーンスライムが生まれました', () => controller.craftPlainSlime(1))}>
                 <span>♨</span><strong>素材から生み出す</strong><small>{createPanel.craft.requirements.map((item) => `${resourceLabel(item.tokenId)} ${validationMode ? '∞' : item.owned}/${item.required}`).join(' · ')}</small>
