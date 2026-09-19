@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { BottomSheet } from 'idle-game-kit/react';
 import { useGameController, useGameState } from '../app/GameProvider';
 import { validationToolsVisible } from '../application/validation-mode';
@@ -12,8 +12,9 @@ import {
   selectSlimeDetail,
 } from '../application/selectors/ui-selectors';
 import type { CampSlimeReaction } from '../components/CampSlimeStage';
-import { SlimeMark } from '../components/SlimeMark';
 import { CampStationIcon } from '../components/CampStationIcon';
+import { NurseryIcon } from '../components/NurseryIcon';
+import type { NurseryCeremony } from '../components/NurseryCeremonyStage';
 import { ids, sameTypeCount, slimeInstanceIdForSerial, type JobSlimeId, type SlimeInstanceId } from '../domain';
 import { getSlimePresentation } from '../game/slimes';
 
@@ -30,6 +31,11 @@ const CampEnvironmentStage = lazy(async () => {
 const FusionWorkbench = lazy(async () => {
   const module = await import('../components/fusion/FusionWorkbench');
   return { default: module.FusionWorkbench };
+});
+
+const NurseryCeremonyStage = lazy(async () => {
+  const module = await import('../components/NurseryCeremonyStage');
+  return { default: module.NurseryCeremonyStage };
 });
 
 interface Props {
@@ -73,17 +79,54 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   const [createOpen, setCreateOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<CampFeedback>({ key: 0, reaction: 'idle', title: '' });
+  const [nurseryCeremony, setNurseryCeremony] = useState<NurseryCeremony | null>(null);
+  const nurseryCeremonyKey = useRef(0);
+  const nurseryBusy = nurseryCeremony !== null;
 
   const triggerFeedback = (reaction: CampSlimeReaction, title: string, detail?: string) => {
     setFeedback((current) => ({ key: current.key + 1, reaction, title, ...(detail === undefined ? {} : { detail }) }));
   };
 
-  const runAction = (success: string, action: () => { accepted: boolean; reason?: string }) => {
-    const result = action();
-    setNotice(result.accepted ? success : rejectionLabel(result.reason));
+  const playNurseryCeremony = (
+    ceremony: Omit<NurseryCeremony, 'key'>,
+    durationMs: number,
+    onComplete?: () => void,
+  ) => {
+    const key = ++nurseryCeremonyKey.current;
+    setNurseryCeremony({ ...ceremony, key });
+    window.setTimeout(() => {
+      setNurseryCeremony((active) => active?.key === key ? null : active);
+      onComplete?.();
+    }, durationMs);
+  };
+
+  const handleCraftPlain = () => {
+    if (nurseryBusy) return;
+    const beforeStock = createPanel.plainStock;
+    const result = controller.craftPlainSlime(1);
+    if (!result.accepted) {
+      setNotice(rejectionLabel(result.reason));
+      return;
+    }
+    setNotice(null);
+    playNurseryCeremony({ kind: 'craft', beforeStock }, 1280);
+  };
+
+  const handlePurchasePlain = () => {
+    if (nurseryBusy) return;
+    const beforeStock = createPanel.plainStock;
+    const result = controller.buyPlainSlime(1);
+    if (!result.accepted) {
+      setNotice(rejectionLabel(result.reason));
+      return;
+    }
+    setNotice(null);
+    playNurseryCeremony({ kind: 'purchase', beforeStock }, 1040);
   };
 
   const handleCreateJob = (jobId: JobSlimeId) => {
+    if (nurseryBusy) return;
+    const jobView = createPanel.jobs.find((job) => job.id === jobId);
     const wasDiscovered = sameTypeCount(state, jobId) > 0;
     const result = controller.createJobSlime(jobId);
     if (!result.accepted) {
@@ -96,17 +139,27 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
       setNotice('作成したスライムを確認できませんでした');
       return;
     }
-    onSelect(createdId);
     const name = getSlimePresentation(created).name;
     if (!wasDiscovered) {
       const open = result.state.gameData.roster.formationSlots.findIndex((slot) => slot === null);
       if (open >= 0) controller.assignSlime(createdId, open);
-      setNotice(null);
-      triggerFeedback('recruit', `${name}が仲間になった！`, '出撃編成に自動で加わりました');
-    } else {
-      setNotice(`${name}がもう1匹仲間になりました。編成・派遣・合成素材化を選べます`);
     }
-    setCreateOpen(false);
+    setNotice(null);
+    playNurseryCeremony({
+      kind: 'job',
+      beforeStock: createPanel.plainStock,
+      jobName: name,
+      jobId,
+      ...(jobView === undefined ? {} : { jobIcon: `${import.meta.env.BASE_URL}${jobView.icon}` }),
+    }, 1380, () => {
+      onSelect(createdId);
+      setCreateOpen(false);
+      triggerFeedback(
+        'recruit',
+        `${name}が仲間になった！`,
+        wasDiscovered ? '同じ職業の仲間が増えました' : '出撃編成に自動で加わりました',
+      );
+    });
   };
 
   if (mode === 'fusion' && selected !== null) {
@@ -361,36 +414,72 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
 
       {createOpen && (
         <BottomSheet
-          title="スライム育成所"
-          onClose={() => setCreateOpen(false)}
+          title="仲間を増やす"
+          onClose={() => { if (!nurseryBusy) setCreateOpen(false); }}
           backdropClassName="sheet-backdrop"
-          sheetClassName="sheet-panel nursery-sheet"
+          sheetClassName={`sheet-panel nursery-sheet ${nurseryBusy ? 'is-busy' : ''}`}
           headerClassName="sheet-header"
           closeButtonClassName="sheet-close"
         >
           <div className="nursery-world">
-            <div className="nursery-vat"><SlimeMark className="nursery-vat__bubble" /><span>プレーンスライム</span><strong>{validationMode ? '∞' : createPanel.plainStock}</strong></div>
-            <div className="nursery-actions">
-              <button type="button" disabled={!createPanel.craft.canCraft} onClick={() => runAction('プレーンスライムが生まれました', () => controller.craftPlainSlime(1))}>
-                <span>♨</span><strong>素材から生み出す</strong><small>{createPanel.craft.requirements.map((item) => `${resourceLabel(item.tokenId)} ${validationMode ? '∞' : item.owned}/${item.required}`).join(' · ')}</small>
+            <Suspense fallback={<div className="nursery-stage nursery-stage--loading" aria-hidden="true" />}>
+              <NurseryCeremonyStage
+                ceremony={nurseryCeremony}
+                stockLabel={validationMode ? '∞' : String(nurseryCeremony?.beforeStock ?? createPanel.plainStock)}
+              />
+            </Suspense>
+
+            <section className="nursery-craft-panel" aria-label="素材からプレーンスライムを生み出す">
+              <div className="nursery-craft-panel__heading">
+                <span><NurseryIcon kind="craft" /></span>
+                <div><strong>素材から生み出す</strong><small>素材が生成槽に集まり、スライムになります</small></div>
+              </div>
+              <div className="nursery-materials">
+                {createPanel.craft.requirements.map((item) => (
+                  <div className={item.owned >= item.required || validationMode ? 'is-ready' : 'is-missing'} key={item.tokenId}>
+                    <span>
+                      <NurseryIcon kind={item.tokenId === ids.token.lifeWater ? 'water' : 'gel'} />
+                    </span>
+                    <div><strong>{resourceLabel(item.tokenId)}</strong><small>{validationMode ? '∞' : item.owned} / {item.required}</small></div>
+                  </div>
+                ))}
+              </div>
+              <button
+                className="nursery-craft-trigger"
+                type="button"
+                disabled={nurseryBusy || !createPanel.craft.canCraft}
+                onClick={handleCraftPlain}
+              >
+                <strong>{nurseryBusy && nurseryCeremony?.kind === 'craft' ? '生まれています…' : '生み出す'}</strong>
+                <small>プレーンスライム +1</small>
               </button>
-              <button type="button" disabled={!createPanel.purchase.canAfford} onClick={() => runAction('プレーンスライムを迎えました', () => controller.buyPlainSlime(1))}>
-                <span>G</span><strong>ショップから迎える</strong><small>{createPanel.purchase.cost} G</small>
-              </button>
-            </div>
-            <div className="nursery-job-title"><span>職業装備</span><strong>道具を渡して職業を生む</strong></div>
+            </section>
+
+            <button
+              className="nursery-shop-action"
+              type="button"
+              disabled={nurseryBusy || !createPanel.purchase.canAfford}
+              onClick={handlePurchasePlain}
+            >
+              <span><NurseryIcon kind="shop" /></span>
+              <div><strong>ショップから迎える</strong><small>すぐにキャンプへ仲間入り</small></div>
+              <em>{validationMode ? '∞' : createPanel.purchase.cost} G</em>
+            </button>
+
+            <div className="nursery-job-title"><span>職業を与える</span><strong>プレーンスライムに道具を渡す</strong></div>
             <div className="nursery-jobs">
               {createPanel.jobs.map((job) => (
-                <button key={job.id} type="button" disabled={!job.canCreate} onClick={() => handleCreateJob(job.id)}>
+                <button key={job.id} type="button" disabled={nurseryBusy || !job.canCreate} onClick={() => handleCreateJob(job.id)}>
                   <img src={`${import.meta.env.BASE_URL}${job.icon}`} alt="" />
-                  <span><strong>{job.name}</strong><small>{job.isNew ? '新しい職業' : '同職の別個体として加入'}</small></span>
-                  <em>{job.canCreate ? '作成' : '素材不足'}</em>
+                  <span><strong>{job.name}</strong><small>{job.isNew ? 'はじめての職業' : '同じ職業の仲間を増やす'}</small></span>
+                  <em>{job.canCreate ? '道具を渡す' : '素材不足'}</em>
                 </button>
               ))}
             </div>
           </div>
         </BottomSheet>
       )}
+
     </section>
   );
 }

@@ -109,6 +109,28 @@ Strengthen exposes Level +1 / +10 / Max. Job/form advancement is handled by Fusi
 
 Do not show a population count whose purpose is spawning more same-type bodies. Do not make players hunt across screen corners for Train/Fuse/Recruit/Formation controls.
 
+### 6.1 Recruit / creation presentation
+
+Recruiting and creating slimes must not read as an inventory counter update.
+
+Plain Slime material creation is a short causal sequence:
+
+1. required materials visibly converge on the nursery vat
+2. the vat reacts before the result exists visually
+3. the Plain Slime emerges with squash/stretch and a short flash
+4. +1 is shown as the result; the persistent stock display catches up after the ceremony
+
+Buying a Plain Slime uses a distinct arrival/coin treatment rather than reusing the material-creation motion.
+
+Giving a job to a Plain Slime is also distinct:
+
+- show the actual job-tool silhouette entering the vat
+- flash at the handoff
+- reveal the resulting job Slime
+- return to Camp with that Slime selected and reacting to its arrival
+
+Routine recruit/create actions should have visible cause and effect before any toast or number becomes the main feedback. Avoid generic Unicode pictograms as the primary action art.
+
 ## 7. Formation editing
 
 Formation editing is direct and small-party oriented.
