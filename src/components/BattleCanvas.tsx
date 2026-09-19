@@ -2,20 +2,73 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import type { BattleSceneModel } from '../application/selectors/battle-scene';
-import { BattleRuntime, type BattleSnapshot } from '../game/BattleRuntime';
+import {
+  BattleRuntime,
+  type BattleRuntimeEncounterUpdate,
+  type BattleRuntimeEnemyConfig,
+  type BattleSnapshot,
+} from '../game/BattleRuntime';
 import type { BattleRewardCue } from '../game/battle-reward';
 
 interface BattleCanvasProps {
   model: BattleSceneModel;
+  pendingModel: BattleSceneModel | null;
   onSnapshot: (snapshot: BattleSnapshot) => void;
+  onEncounterReady: (model: BattleSceneModel) => void;
   rewardCue: BattleRewardCue | null;
 }
 
-function BattleRuntimeScene({ model, onSnapshot, rewardCue }: BattleCanvasProps) {
+function enemyConfigs(model: BattleSceneModel): readonly BattleRuntimeEnemyConfig[] {
+  return model.encounter?.enemies.map((enemy) => ({
+    enemyId: enemy.id,
+    name: enemy.name,
+    asset: enemy.asset,
+    behaviorId: enemy.behaviorId,
+    maxHp: enemy.maxHp,
+    moveSpeed: enemy.moveSpeed,
+    attackRange: enemy.attackRange,
+    attackInterval: enemy.attackInterval,
+    attackDamage: enemy.attackDamage,
+    renderScale: enemy.renderScale,
+    scaleClass: enemy.scaleClass,
+    shadowRadius: enemy.shadowRadius,
+    instanceIndex: enemy.instanceIndex,
+    formationSlot: enemy.formationSlot,
+    initialAttackDelay: enemy.initialAttackDelay,
+  })) ?? [];
+}
+
+function encounterUpdate(model: BattleSceneModel): BattleRuntimeEncounterUpdate {
+  return {
+    stageNumber: model.stageNumber,
+    waveIndex: model.waveIndex,
+    enemies: enemyConfigs(model),
+    authoritativeResult: model.authoritativeResult,
+    authoritativeResultDelaySec: model.authoritativeResultDelaySec,
+  };
+}
+
+function BattleRuntimeScene({
+  model,
+  pendingModel,
+  onSnapshot,
+  onEncounterReady,
+  rewardCue,
+}: BattleCanvasProps) {
   const { scene, camera, gl } = useThree();
   const runtimeRef = useRef<BattleRuntime | null>(null);
+  const runtimeReadyRef = useRef<Promise<void> | null>(null);
+  const modelRef = useRef(model);
+  const pendingModelRef = useRef(pendingModel);
   const snapshotRef = useRef(onSnapshot);
+  const encounterReadyRef = useRef(onEncounterReady);
+  const appliedEncounterKeyRef = useRef(model.encounterKey);
+  const appliedVisualKeyRef = useRef(model.visualKey);
+
+  modelRef.current = model;
+  pendingModelRef.current = pendingModel;
   snapshotRef.current = onSnapshot;
+  encounterReadyRef.current = onEncounterReady;
 
   useEffect(() => {
     if (!(camera instanceof THREE.PerspectiveCamera)) return;
@@ -26,13 +79,14 @@ function BattleRuntimeScene({ model, onSnapshot, rewardCue }: BattleCanvasProps)
     gl.shadowMap.enabled = true;
     gl.shadowMap.type = THREE.PCFSoftShadowMap;
 
+    const initialModel = modelRef.current;
     const runtime = new BattleRuntime({
       scene,
       camera,
       baseUrl: import.meta.env.BASE_URL,
-      stageNumber: model.stageNumber,
-      waveIndex: model.waveIndex,
-      allies: model.allies.map((ally) => ({
+      stageNumber: initialModel.stageNumber,
+      waveIndex: initialModel.waveIndex,
+      allies: initialModel.allies.map((ally) => ({
         slimeId: ally.slimeId,
         slotIndex: ally.slotIndex,
         asset: ally.asset,
@@ -43,35 +97,96 @@ function BattleRuntimeScene({ model, onSnapshot, rewardCue }: BattleCanvasProps)
         maxHp: ally.maxHp,
         formationRole: ally.formationRole,
       })),
-      authoritativeResult: model.authoritativeResult,
-      authoritativeResultDelaySec: model.authoritativeResultDelaySec,
-      enemies: model.encounter?.enemies.map((enemy) => ({
-        enemyId: enemy.id,
-        name: enemy.name,
-        asset: enemy.asset,
-        behaviorId: enemy.behaviorId,
-        maxHp: enemy.maxHp,
-        moveSpeed: enemy.moveSpeed,
-        attackRange: enemy.attackRange,
-        attackInterval: enemy.attackInterval,
-        attackDamage: enemy.attackDamage,
-        renderScale: enemy.renderScale,
-        scaleClass: enemy.scaleClass,
-        shadowRadius: enemy.shadowRadius,
-        instanceIndex: enemy.instanceIndex,
-        formationSlot: enemy.formationSlot,
-        initialAttackDelay: enemy.initialAttackDelay,
-      })) ?? [],
+      authoritativeResult: initialModel.authoritativeResult,
+      authoritativeResultDelaySec: initialModel.authoritativeResultDelaySec,
+      enemies: enemyConfigs(initialModel),
       onSnapshot: (snapshot) => snapshotRef.current(snapshot),
     });
+
     runtimeRef.current = runtime;
-    void runtime.initialize();
+    appliedEncounterKeyRef.current = initialModel.encounterKey;
+    appliedVisualKeyRef.current = initialModel.visualKey;
+    const ready = runtime.initialize().catch((error: unknown) => {
+      if (runtimeRef.current !== runtime) return;
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('Battle runtime initialization failed:', message);
+      snapshotRef.current({
+        phase: 'loading',
+        label: '戦闘データを再読込中',
+        result: null,
+        enemyAlive: 0,
+        enemyHp: 0,
+        enemyMaxHp: 0,
+        allies: {},
+      });
+    });
+    runtimeReadyRef.current = ready;
 
     return () => {
       runtime.dispose();
       runtimeRef.current = null;
+      runtimeReadyRef.current = null;
     };
-  }, [camera, gl, scene, model.stageNumber, model.waveIndex, model.visualKey]);
+  }, [camera, gl, scene, model.runtimeKey]);
+
+  // Same-encounter authoritative result changes do not require a visual reload.
+  useEffect(() => {
+    const runtime = runtimeRef.current;
+    const ready = runtimeReadyRef.current;
+    if (runtime === null || ready === null) return;
+
+    const desiredModel = model;
+    void ready.then(() => {
+      if (runtimeRef.current !== runtime) return;
+      if (appliedEncounterKeyRef.current !== desiredModel.encounterKey) return;
+      if (appliedVisualKeyRef.current === desiredModel.visualKey) return;
+
+      runtime.updateAuthoritativeResult(
+        desiredModel.authoritativeResult,
+        desiredModel.authoritativeResultDelaySec,
+      );
+      appliedVisualKeyRef.current = desiredModel.visualKey;
+    }).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('Battle result synchronization failed:', message);
+    });
+  }, [model.encounterKey, model.visualKey]);
+
+  // Encounter transitions are prepared off-screen. The old result remains visible until
+  // every next-enemy asset is loaded and the runtime has atomically installed the new wave.
+  useEffect(() => {
+    const runtime = runtimeRef.current;
+    const ready = runtimeReadyRef.current;
+    if (runtime === null || ready === null || pendingModel === null) return;
+
+    const desiredModel = pendingModel;
+    void ready.then(async () => {
+      if (runtimeRef.current !== runtime) return;
+      const pendingBeforeLoad = pendingModelRef.current;
+      if (pendingBeforeLoad === null
+        || pendingBeforeLoad.encounterKey !== desiredModel.encounterKey
+        || pendingBeforeLoad.visualKey !== desiredModel.visualKey) {
+        return;
+      }
+
+      await runtime.updateEncounter(encounterUpdate(desiredModel));
+      if (runtimeRef.current !== runtime) return;
+
+      const pendingAfterLoad = pendingModelRef.current;
+      if (pendingAfterLoad === null
+        || pendingAfterLoad.encounterKey !== desiredModel.encounterKey
+        || pendingAfterLoad.visualKey !== desiredModel.visualKey) {
+        return;
+      }
+
+      appliedEncounterKeyRef.current = desiredModel.encounterKey;
+      appliedVisualKeyRef.current = desiredModel.visualKey;
+      encounterReadyRef.current(desiredModel);
+    }).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('Battle encounter transition failed:', message);
+    });
+  }, [pendingModel?.encounterKey, pendingModel?.visualKey]);
 
   useEffect(() => {
     if (rewardCue === null) return;
@@ -88,7 +203,7 @@ function BattleRuntimeScene({ model, onSnapshot, rewardCue }: BattleCanvasProps)
 export function BattleCanvas(props: BattleCanvasProps) {
   return (
     <Canvas
-      key={`${props.model.encounterKey}:${props.model.visualKey}`}
+      key={props.model.runtimeKey}
       className="battle-canvas"
       camera={{ fov: 31, near: 0.1, far: 50, position: [2.8, 5.35, 8.9] }}
       dpr={[1, 2]}

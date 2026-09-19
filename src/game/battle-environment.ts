@@ -142,8 +142,10 @@ const THEMES: readonly BattleEnvironmentTheme[] = [
 
 export interface BattleEnvironmentRuntime {
   theme: BattleEnvironmentTheme;
+  root: THREE.Group;
   sceneryRoot: THREE.Group;
   setTravelDistance: (distance: number) => void;
+  dispose: () => void;
 }
 
 export function getBattleEnvironmentTheme(stageNumber: number): BattleEnvironmentTheme {
@@ -158,6 +160,19 @@ export function getBattleWaveSceneryPhase(waveIndex: number): number {
 
 function material(color: string, roughness = 0.9): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, roughness, metalness: 0 });
+}
+
+function disposeEnvironmentRoot(root: THREE.Group): void {
+  const geometries = new Set<THREE.BufferGeometry>();
+  const materials = new Set<THREE.Material>();
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    geometries.add(object.geometry);
+    const objectMaterials = Array.isArray(object.material) ? object.material : [object.material];
+    objectMaterials.forEach((entry) => materials.add(entry));
+  });
+  geometries.forEach((geometry) => geometry.dispose());
+  materials.forEach((entry) => entry.dispose());
 }
 
 function wrapRoadsideZ(z: number, wavePhase: number): number {
@@ -416,6 +431,9 @@ export function createBattleEnvironment(
 ): BattleEnvironmentRuntime {
   const theme = getBattleEnvironmentTheme(stageNumber);
   const wavePhase = getBattleWaveSceneryPhase(waveIndex);
+  const environmentRoot = new THREE.Group();
+  environmentRoot.name = `BattleEnvironment:${theme.id}`;
+  scene.add(environmentRoot);
 
   scene.background = new THREE.Color(theme.skyColor);
   scene.fog = new THREE.Fog(theme.fogColor, theme.feature === 'hollow' ? 7.8 : 9, theme.feature === 'hollow' ? 19 : 22);
@@ -424,14 +442,14 @@ export function createBattleEnvironment(
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(0, -0.045, -3.2);
   ground.receiveShadow = true;
-  scene.add(ground);
+  environmentRoot.add(ground);
 
   const road = new THREE.Mesh(new THREE.PlaneGeometry(theme.roadWidth, 20), material(theme.roadColor, 0.99));
   road.rotation.x = -Math.PI / 2;
   road.rotation.z = THREE.MathUtils.degToRad(theme.roadRotationDeg);
   road.position.set(0.08, -0.032, -3.75);
   road.receiveShadow = true;
-  scene.add(road);
+  environmentRoot.add(road);
 
   const edgeMaterial = material(theme.roadEdgeColor, 1);
   for (const side of [-1, 1]) {
@@ -439,12 +457,12 @@ export function createBattleEnvironment(
     edge.rotation.x = -Math.PI / 2;
     edge.rotation.z = road.rotation.z;
     edge.position.set(side * (theme.roadWidth / 2 - 0.02) + 0.08, -0.02, -3.75);
-    scene.add(edge);
+    environmentRoot.add(edge);
   }
 
   const sceneryRoot = new THREE.Group();
   sceneryRoot.name = 'BattleScenery:' + theme.id;
-  scene.add(sceneryRoot);
+  environmentRoot.add(sceneryRoot);
   addFence(sceneryRoot, theme, wavePhase);
   addFeatureProps(sceneryRoot, theme, wavePhase);
   addTrees(sceneryRoot, theme, wavePhase);
@@ -457,7 +475,7 @@ export function createBattleEnvironment(
     for (const item of scrollingItems) item.object.position.z = wrapTravelZ(item.baseZ, distance);
   };
 
-  scene.add(new THREE.HemisphereLight(theme.hemisphereSkyColor, theme.hemisphereGroundColor, theme.hemisphereIntensity));
+  environmentRoot.add(new THREE.HemisphereLight(theme.hemisphereSkyColor, theme.hemisphereGroundColor, theme.hemisphereIntensity));
   const sun = new THREE.DirectionalLight(theme.sunColor, theme.sunIntensity);
   sun.position.set(-4.5, 7.5, 5.5);
   sun.castShadow = true;
@@ -468,7 +486,12 @@ export function createBattleEnvironment(
   sun.shadow.camera.right = 5;
   sun.shadow.camera.top = 5;
   sun.shadow.camera.bottom = -5;
-  scene.add(sun);
+  environmentRoot.add(sun);
 
-  return { theme, sceneryRoot, setTravelDistance };
+  const dispose = () => {
+    scene.remove(environmentRoot);
+    disposeEnvironmentRoot(environmentRoot);
+  };
+
+  return { theme, root: environmentRoot, sceneryRoot, setTravelDistance, dispose };
 }

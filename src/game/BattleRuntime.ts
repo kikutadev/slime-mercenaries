@@ -140,6 +140,7 @@ import {
 } from './battle-approach';
 import { getVictoryMarchSlot, getVictoryPresentationElapsed, getVictoryTransitionPose, shouldUseMarchEntry, victoryStatusLabel } from './battle-transition';
 import { battleRewardParticleCount, battleRewardVisual, type BattleRewardCue } from './battle-reward';
+import { authoritativeResultTriggerDelay } from './battle-runtime-timing';
 
 export interface BattleSnapshotAlly {
   hp: number;
@@ -373,6 +374,14 @@ export interface BattleRuntimeOptions {
   onSnapshot: (snapshot: BattleSnapshot) => void;
 }
 
+export type BattleRuntimeEncounterUpdate = Readonly<{
+  stageNumber: number;
+  waveIndex: number;
+  enemies: readonly BattleRuntimeEnemyConfig[];
+  authoritativeResult: 'victory' | 'defeat' | null;
+  authoritativeResultDelaySec: number | null;
+}>;
+
 const SCALE = 0.19;
 const ALLY_HOME_POSITIONS = [
   new THREE.Vector3(-0.62, 0.02, 1.18),
@@ -410,8 +419,6 @@ const ENEMY_ATTACK_RANGE = 0.72;
 const ENEMY_MOVE_SPEED = 0.74;
 const MELEE_BODY_GAP = 0.58;
 const RESULT_HOLD_SECONDS = 1.85;
-const AUTHORITATIVE_DEFEAT_LEAD_SECONDS = 2.2;
-const AUTHORITATIVE_VICTORY_LEAD_SECONDS = 1.0;
 const CAMERA_BASE_POSITION = new THREE.Vector3(2.8, 5.35, 8.9);
 const CAMERA_LOOK_AT = new THREE.Vector3(0, 0.38, -1.05);
 
@@ -421,14 +428,14 @@ export class BattleRuntime {
   private readonly loader = new GLTFLoader();
   private readonly enemyTemplatePromises = new Map<string, Promise<THREE.Group>>();
   private readonly baseUrl: string;
-  private readonly stageNumber: number;
-  private readonly waveIndex: number;
+  private stageNumber: number;
+  private waveIndex: number;
   private readonly allyConfigs: readonly BattleRuntimeAllyConfig[];
-  private readonly enemyConfigs: readonly BattleRuntimeEnemyConfig[];
-  private readonly authoritativeResult: 'victory' | 'defeat' | null;
-  private readonly authoritativeResultDelaySec: number | null;
+  private enemyConfigs: readonly BattleRuntimeEnemyConfig[];
+  private authoritativeResult: 'victory' | 'defeat' | null;
+  private authoritativeResultDelaySec: number | null;
   private readonly onSnapshot: (snapshot: BattleSnapshot) => void;
-  private readonly bossEncounter: boolean;
+  private bossEncounter: boolean;
   private readonly tempVector = new THREE.Vector3();
   private readonly tempVector2 = new THREE.Vector3();
   private readonly tempVector3 = new THREE.Vector3();
@@ -450,6 +457,8 @@ export class BattleRuntime {
   private spinArc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null = null;
   private environmentSceneryRoot: THREE.Group | null = null;
   private environmentTravel: ((distance: number) => void) | null = null;
+  private environmentDispose: (() => void) | null = null;
+  private encounterUpdateRevision = 0;
   private disposed = false;
   private initialized = false;
   private rawNow = 0;
@@ -483,6 +492,56 @@ export class BattleRuntime {
     this.continuationEntryPending = shouldUseMarchEntry(options.stageNumber, options.waveIndex);
   }
 
+  private installEnvironment(stageNumber: number, waveIndex: number): void {
+    this.environmentDispose?.();
+    const environment = createBattleEnvironment(this.scene, stageNumber, waveIndex);
+    this.environmentSceneryRoot = environment.sceneryRoot;
+    this.environmentTravel = environment.setTravelDistance;
+    this.environmentDispose = environment.dispose;
+  }
+
+  public updateAuthoritativeResult(
+    result: 'victory' | 'defeat' | null,
+    delaySec: number | null,
+  ): void {
+    this.authoritativeResult = result;
+    this.authoritativeResultDelaySec = delaySec;
+  }
+
+  public async updateEncounter(update: BattleRuntimeEncounterUpdate): Promise<void> {
+    if (this.disposed) return;
+    const revision = ++this.encounterUpdateRevision;
+    const loadedEnemies = await Promise.all(update.enemies.map((config) => this.loadEnemy(config, false)));
+
+    if (this.disposed || revision !== this.encounterUpdateRevision) {
+      loadedEnemies.forEach((enemy) => this.disposeEnemy(enemy));
+      return;
+    }
+
+    this.clearProjectiles();
+    this.enemies.splice(0).forEach((enemy) => this.disposeEnemy(enemy));
+
+    this.stageNumber = update.stageNumber;
+    this.waveIndex = update.waveIndex;
+    this.enemyConfigs = update.enemies;
+    this.authoritativeResult = update.authoritativeResult;
+    this.authoritativeResultDelaySec = update.authoritativeResultDelaySec;
+    this.bossEncounter = update.enemies.some((enemy) => enemy.scaleClass === 'boss');
+    this.continuationEntryPending = shouldUseMarchEntry(update.stageNumber, update.waveIndex);
+    this.installEnvironment(update.stageNumber, update.waveIndex);
+
+    loadedEnemies.forEach((enemy) => this.attachEnemy(enemy));
+    this.enemies.push(...loadedEnemies);
+    this.allies.forEach((ally) => {
+      ally.approachOrigin.copy(ally.root.position);
+      this.resetAlly(ally);
+      this.facePoint(ally, TARGET_HOME);
+    });
+
+    this.startBattle(this.simulationNow + 0.08);
+    this.emitSnapshot(true);
+  }
+
   async initialize(): Promise<void> {
     if (this.initialized || this.disposed) return;
     this.initialized = true;
@@ -490,9 +549,7 @@ export class BattleRuntime {
     this.camera.position.copy(CAMERA_BASE_POSITION);
     this.camera.lookAt(CAMERA_LOOK_AT);
 
-    const environment = createBattleEnvironment(this.scene, this.stageNumber, this.waveIndex);
-    this.environmentSceneryRoot = environment.sceneryRoot;
-    this.environmentTravel = environment.setTravelDistance;
+    this.installEnvironment(this.stageNumber, this.waveIndex);
     this.createSlashArc();
 
     const [loadedAllies, loadedEnemies] = await Promise.all([
@@ -564,10 +621,18 @@ export class BattleRuntime {
   }
 
   dispose(): void {
+    if (this.disposed) return;
     this.disposed = true;
+    this.encounterUpdateRevision += 1;
+    this.clearProjectiles();
+    this.enemies.splice(0).forEach((enemy) => this.disposeEnemy(enemy));
+    this.environmentDispose?.();
+    this.environmentDispose = null;
+    this.environmentSceneryRoot = null;
+    this.environmentTravel = null;
   }
 
-  private makeShadow(radius = 0.3): THREE.Mesh<THREE.CircleGeometry, BasicMaterial> {
+  private makeShadow(radius = 0.3, attachToScene = true): THREE.Mesh<THREE.CircleGeometry, BasicMaterial> {
     const material = new THREE.MeshBasicMaterial({
       color: '#25462e',
       transparent: true,
@@ -578,7 +643,7 @@ export class BattleRuntime {
     shadow.rotation.x = -Math.PI / 2;
     shadow.scale.set(1.35, 0.68, 1);
     shadow.position.y = 0.011;
-    this.scene.add(shadow);
+    if (attachToScene) this.scene.add(shadow);
     return shadow;
   }
 
@@ -588,6 +653,7 @@ export class BattleRuntime {
 
   private makeEnemyAttackTelegraph(
     motionProfile: EnemyMotionProfile,
+    attachToScene = true,
   ): THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial> | null {
     const vfx = motionProfile.attackVfx;
     if (vfx === undefined) return null;
@@ -605,7 +671,7 @@ export class BattleRuntime {
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.y = 0.014;
     mesh.visible = false;
-    this.scene.add(mesh);
+    if (attachToScene) this.scene.add(mesh);
     return mesh;
   }
 
@@ -620,7 +686,7 @@ export class BattleRuntime {
     return promise;
   }
 
-  private async loadEnemy(config: BattleRuntimeEnemyConfig): Promise<EnemyUnit> {
+  private async loadEnemy(config: BattleRuntimeEnemyConfig, attachToScene = true): Promise<EnemyUnit> {
     const home = this.enemyHome(config.formationSlot);
     const template = await this.loadEnemyTemplate(config.asset);
     const root = template.clone(true) as THREE.Group;
@@ -638,7 +704,7 @@ export class BattleRuntime {
     const faceRoot = root.getObjectByName('FaceRoot') ?? null;
     const effectOrigin = root.getObjectByName('EffectOrigin') ?? null;
     const motionProfile = getEnemyMotionProfile(config.behaviorId);
-    const attackTelegraph = this.makeEnemyAttackTelegraph(motionProfile);
+    const attackTelegraph = this.makeEnemyAttackTelegraph(motionProfile, attachToScene);
     const rigParts = resolveEnemyRigParts(root);
     const rigRest = captureEnemyRigRestPose(rigParts);
     const normalEyes = ['Eye_L', 'Eye_R']
@@ -646,8 +712,8 @@ export class BattleRuntime {
       .filter((eye): eye is THREE.Object3D => Boolean(eye));
     const xEyes = this.createEnemyDefeatEyes(normalEyes);
     this.setEnemyDefeatEyes(normalEyes, xEyes, false);
-    this.scene.add(root);
-    const shadow = this.makeShadow(config.shadowRadius);
+    if (attachToScene) this.scene.add(root);
+    const shadow = this.makeShadow(config.shadowRadius, attachToScene);
     shadow.position.set(home.x, 0.011, home.z);
 
     return {
@@ -672,6 +738,35 @@ export class BattleRuntime {
       attackStartedAt: -Infinity, attackOrigin: home.clone(), attackTarget: null, attackHitApplied: false,
       nextAttackAt: 0, lastUpdateAt: 0, normalEyes, xEyes, moveSpeedEffect: null,
     };
+  }
+
+  private attachEnemy(enemy: EnemyUnit): void {
+    this.scene.add(enemy.root);
+    this.scene.add(enemy.shadow);
+    if (enemy.attackTelegraph !== null) this.scene.add(enemy.attackTelegraph);
+  }
+
+  private disposeEnemy(enemy: EnemyUnit): void {
+    this.scene.remove(enemy.root);
+    this.scene.remove(enemy.shadow);
+    enemy.shadow.geometry.dispose();
+    enemy.shadow.material.dispose();
+    if (enemy.attackTelegraph !== null) {
+      this.scene.remove(enemy.attackTelegraph);
+      enemy.attackTelegraph.geometry.dispose();
+      enemy.attackTelegraph.material.dispose();
+    }
+
+    const geometries = new Set<THREE.BufferGeometry>();
+    const materials = new Set<THREE.Material>();
+    enemy.xEyes.forEach((root) => root.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      geometries.add(object.geometry);
+      const objectMaterials = Array.isArray(object.material) ? object.material : [object.material];
+      objectMaterials.forEach((entry) => materials.add(entry));
+    }));
+    geometries.forEach((geometry) => geometry.dispose());
+    materials.forEach((entry) => entry.dispose());
   }
 
   private createEnemyDefeatEyes(normalEyes: readonly THREE.Object3D[]): THREE.Object3D[] {
@@ -3470,11 +3565,14 @@ export class BattleRuntime {
 
   private enforceAuthoritativeResult(now: number): void {
     if (this.authoritativeResult === null || this.authoritativeResultDelaySec === null) return;
-    if (this.phase === 'loading' || this.phase === 'result') return;
-    const leadSeconds = this.authoritativeResult === 'defeat'
-      ? AUTHORITATIVE_DEFEAT_LEAD_SECONDS
-      : AUTHORITATIVE_VICTORY_LEAD_SECONDS;
-    const triggerDelay = Math.max(0.8, this.authoritativeResultDelaySec - leadSeconds);
+    // Analytical idle progress can complete in one second. Presentation must never kill
+    // an encounter while it is still entering the screen.
+    if (this.phase !== 'combat') return;
+    const triggerDelay = authoritativeResultTriggerDelay(
+      this.authoritativeResult,
+      this.authoritativeResultDelaySec,
+      this.bossEncounter,
+    );
     if (now - this.battleStartedAt < triggerDelay) return;
 
     if (this.authoritativeResult === 'defeat') {

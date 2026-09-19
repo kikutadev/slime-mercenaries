@@ -1,4 +1,4 @@
-import { currentCombatEncounter, equippedWeaponDefinition, nextCombatBoundarySec, partyCombatPower, type SlimeInstanceId, type SlimeMercenariesState } from '../../domain';
+import { currentCombatEncounter, currentStageDefinition, equippedWeaponDefinition, nextCombatBoundarySec, partyCombatPower, type SlimeInstanceId, type SlimeMercenariesState } from '../../domain';
 import { resolveEncounterDefinition, type ResolvedEncounter } from '../../game/encounters';
 import { getSlimePresentation, type BattleBehaviorId } from '../../game/slimes';
 
@@ -26,6 +26,7 @@ export type BattleSceneAlly = Readonly<{
 export type BattleSceneModel = Readonly<{
   areaId: string;
   encounterKey: string;
+  runtimeKey: string;
   visualKey: string;
   stageNumber: number;
   waveIndex: number;
@@ -68,9 +69,13 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
   const stageNumber = state.gameData.progression.currentStage;
   const waveIndex = state.gameData.combat.currentWaveIndex;
   const combatEncounter = currentCombatEncounter(state);
+  const stage = currentStageDefinition(state);
+  const terminalPresentationEncounterId = state.gameData.combat.contentBoundaryReached
+    ? stage?.waves[0]?.encounterId ?? stage?.boss?.encounterId
+    : undefined;
   const encounterId = combatEncounter?.kind === 'wave'
     ? combatEncounter.wave?.encounterId
-    : combatEncounter?.boss?.encounterId;
+    : combatEncounter?.boss?.encounterId ?? terminalPresentationEncounterId;
   const encounter = encounterId === undefined ? null : resolveEncounterDefinition(encounterId);
   const authoritativeResult = combatEncounter === null
     ? null
@@ -83,7 +88,7 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
     ? null
     : Math.max(0, nextBoundarySec - state.simTimeSec);
   const encounterKey = `${state.gameData.progression.currentAreaId}:${stageNumber}:${waveIndex}:${encounter?.id ?? 'none'}`;
-  const visualKey = allies
+  const runtimeKey = allies
     .map((ally) => [
       ally.slotIndex,
       ally.slimeId,
@@ -94,7 +99,7 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
       ally.behaviorId,
     ].join(':'))
     .join('|');
-  const runtimeVisualKey = `${visualKey}|result:${authoritativeResult ?? '-'}`;
+  const visualKey = `${runtimeKey}|result:${authoritativeResult ?? '-'}`;
 
-  return { areaId: state.gameData.progression.currentAreaId, encounterKey, visualKey: runtimeVisualKey, stageNumber, waveIndex, encounter, authoritativeResult, authoritativeResultDelaySec, allies };
+  return { areaId: state.gameData.progression.currentAreaId, encounterKey, runtimeKey, visualKey, stageNumber, waveIndex, encounter, authoritativeResult, authoritativeResultDelaySec, allies };
 }

@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BattleCanvas } from '../components/BattleCanvas';
 import { useGameController, useGameState } from '../app/GameProvider';
+import { BATTLE_RESULT_HOLD_MS, canAdoptBattleSceneModel } from '../application/battle-presentation';
 import { validationToolsVisible } from '../application/validation-mode';
-import { selectBattleSceneModel } from '../application/selectors/battle-scene';
+import { selectBattleSceneModel, type BattleSceneModel } from '../application/selectors/battle-scene';
 import { selectFormation, selectGlobalHud } from '../application/selectors/ui-selectors';
 import type { BattleSnapshot } from '../game/BattleRuntime';
 import type { SlimeInstanceId } from '../domain';
@@ -29,15 +30,103 @@ export function BattleScreen({
   const controller = useGameController();
   const validationMode = controller.validationMode;
   const showValidationTools = validationToolsVisible();
+  const authoritativeSceneModel = selectBattleSceneModel(state);
+  const [sceneModel, setSceneModel] = useState(authoritativeSceneModel);
+  const [pendingSceneModel, setPendingSceneModel] = useState<BattleSceneModel | null>(null);
   const [battle, setBattle] = useState<BattleSnapshot>(INITIAL_BATTLE);
   const [stageArrival, setStageArrival] = useState<number | null>(null);
-  const previousStageRef = useRef(state.gameData.progression.currentStage);
+  const latestSceneModelRef = useRef(authoritativeSceneModel);
+  const presentedSceneModelRef = useRef(sceneModel);
+  const pendingSceneModelRef = useRef<BattleSceneModel | null>(pendingSceneModel);
+  const presentationTimerRef = useRef<number | null>(null);
+  const previousStageRef = useRef(sceneModel.stageNumber);
   const hud = selectGlobalHud(state);
   const formation = selectFormation(state);
-  const sceneModel = selectBattleSceneModel(state);
-  const hasBattleSlime = sceneModel.allies.length > 0;
-  const enemyRatio = battle.enemyMaxHp > 0 ? battle.enemyHp / battle.enemyMaxHp : 0;
-  const activeCount = sceneModel.allies.length;
+
+  latestSceneModelRef.current = authoritativeSceneModel;
+  presentedSceneModelRef.current = sceneModel;
+  pendingSceneModelRef.current = pendingSceneModel;
+
+  const queueSceneModel = useCallback((incoming: BattleSceneModel) => {
+    const presented = presentedSceneModelRef.current;
+    if (incoming.encounterKey === presented.encounterKey) {
+      presentedSceneModelRef.current = incoming;
+      setSceneModel(incoming);
+      return;
+    }
+    if (incoming.encounter === null) return;
+    pendingSceneModelRef.current = incoming;
+    setPendingSceneModel(incoming);
+  }, []);
+
+  const schedulePresentationAdvance = useCallback(() => {
+    if (presentationTimerRef.current !== null) return;
+
+    presentationTimerRef.current = window.setTimeout(() => {
+      presentationTimerRef.current = null;
+      const presented = presentedSceneModelRef.current;
+      const incoming = latestSceneModelRef.current;
+      if (!canAdoptBattleSceneModel(presented, incoming, 'result')) return;
+      queueSceneModel(incoming);
+    }, BATTLE_RESULT_HOLD_MS);
+  }, [queueSceneModel]);
+
+  useEffect(() => () => {
+    if (presentationTimerRef.current !== null) window.clearTimeout(presentationTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    const incoming = authoritativeSceneModel;
+    const presented = presentedSceneModelRef.current;
+    const pending = pendingSceneModelRef.current;
+
+    // While an encounter transition is loading, coalesce any faster analytical
+    // progression into the newest real encounter. The visible battle remains stable.
+    if (pending !== null) {
+      if (incoming.encounter !== null
+        && incoming.encounterKey !== presented.encounterKey
+        && incoming.encounterKey !== pending.encounterKey) {
+        pendingSceneModelRef.current = incoming;
+        setPendingSceneModel(incoming);
+      }
+      return;
+    }
+
+    if (!canAdoptBattleSceneModel(presented, incoming, battle.phase)) return;
+    const encounterChanged = presented.encounterKey !== incoming.encounterKey;
+    if (encounterChanged && presented.encounter !== null) {
+      schedulePresentationAdvance();
+      return;
+    }
+
+    queueSceneModel(incoming);
+  }, [
+    authoritativeSceneModel.encounterKey,
+    authoritativeSceneModel.visualKey,
+    authoritativeSceneModel.encounter,
+    battle.phase,
+    queueSceneModel,
+    schedulePresentationAdvance,
+  ]);
+
+  const handleSnapshot = useCallback((snapshot: BattleSnapshot) => {
+    setBattle(snapshot);
+    if (snapshot.phase === 'result') schedulePresentationAdvance();
+  }, [schedulePresentationAdvance]);
+
+  const handleEncounterReady = useCallback((readyModel: BattleSceneModel) => {
+    const pending = pendingSceneModelRef.current;
+    if (pending === null
+      || pending.encounterKey !== readyModel.encounterKey
+      || pending.visualKey !== readyModel.visualKey) {
+      return;
+    }
+
+    presentedSceneModelRef.current = readyModel;
+    pendingSceneModelRef.current = null;
+    setSceneModel(readyModel);
+    setPendingSceneModel(null);
+  }, []);
 
   useEffect(() => {
     const previousStage = previousStageRef.current;
@@ -46,25 +135,37 @@ export function BattleScreen({
     setStageArrival(sceneModel.stageNumber);
   }, [sceneModel.stageNumber]);
 
+  const hasBattleSlime = sceneModel.allies.length > 0;
+  const hasEncounter = sceneModel.encounter !== null;
+  const enemyRatio = battle.enemyMaxHp > 0 ? battle.enemyHp / battle.enemyMaxHp : 0;
+  const activeCount = sceneModel.allies.length;
+
   const battleStatus = useMemo(() => {
-    if (state.gameData.combat.contentBoundaryReached) return '現在のエリアを踏破しました';
+    if (!hasEncounter && state.gameData.combat.contentBoundaryReached) return '次の戦闘を準備中';
     if (state.gameData.combat.retryFarmClearsRemaining > 0) {
-      return `再編成中 · ステージ${state.gameData.progression.currentStage} · 再出撃まであと${state.gameData.combat.retryFarmClearsRemaining}周`;
+      return `再編成中 · ステージ${sceneModel.stageNumber} · 再出撃まであと${state.gameData.combat.retryFarmClearsRemaining}周`;
     }
     if (activeCount === 0) return '傭兵を編成すると自動戦闘が始まります';
     return battle.label;
   }, [
     activeCount,
     battle.label,
+    hasEncounter,
+    sceneModel.stageNumber,
     state.gameData.combat.contentBoundaryReached,
     state.gameData.combat.retryFarmClearsRemaining,
-    state.gameData.progression.currentStage,
   ]);
 
   return (
     <section className="screen screen--battle screen--active" aria-label="戦闘">
-      {hasBattleSlime ? (
-        <BattleCanvas model={sceneModel} onSnapshot={setBattle} rewardCue={rewardCue} />
+      {hasBattleSlime && hasEncounter ? (
+        <BattleCanvas
+          model={sceneModel}
+          pendingModel={pendingSceneModel}
+          onSnapshot={handleSnapshot}
+          onEncounterReady={handleEncounterReady}
+          rewardCue={rewardCue}
+        />
       ) : (
         <div className="battle-empty-visual" aria-hidden="true">
           <div className="battle-empty-road" />
@@ -85,12 +186,12 @@ export function BattleScreen({
 
       <header className="battle-topbar">
         <div>
-          <p className="eyebrow">{hud.areaLabel} · ステージ {hud.stageLabel}</p>
+          <p className="eyebrow">{hud.areaLabel} · ステージ {sceneModel.stageNumber}</p>
         </div>
         <div className="resource-pill"><span className="resource-pill__coin">G</span><strong>{validationMode ? '∞' : hud.gold}</strong></div>
       </header>
 
-      {hasBattleSlime && (
+      {hasBattleSlime && hasEncounter && (
         <div className={`battle-enemy-compact ${sceneModel.encounter?.boss ? 'is-boss' : ''}${sceneModel.encounter?.boss && battle.phase === 'approach' ? ' is-entering' : ''}${battle.result === 'victory' ? ' is-cleared' : ''}`} aria-label="敵の体力">
           <div><strong>{sceneModel.encounter?.displayName ?? '敵部隊'}</strong><span>{sceneModel.encounter?.boss ? 'BOSS' : `残り${battle.enemyAlive}体`}</span></div>
           <div className="enemy-hp-track"><div className="enemy-hp-fill" style={{ transform: `scaleX(${enemyRatio})` }} /></div>

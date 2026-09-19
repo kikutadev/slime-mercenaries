@@ -119,6 +119,28 @@ describe('battle scene projection', () => {
     expect(model.encounter?.enemies[0]?.id).toBe('great-mushroom');
   });
 
+  it('keeps a real enemy encounter visible at the authored content boundary', () => {
+    const state = createSwordBattleState();
+    const boundaryState = {
+      ...state,
+      gameData: {
+        ...state.gameData,
+        progression: { ...withHighestStageClearedForArea(state.gameData.progression, 'area.clover-road', 5), currentStage: 5 },
+        combat: {
+          ...state.gameData.combat,
+          currentWaveIndex: 0,
+          contentBoundaryReached: true,
+        },
+      },
+    };
+
+    const model = selectBattleSceneModel(boundaryState);
+    expect(model.encounter?.id).toBe('encounter.clover-road.05.01');
+    expect(model.encounter?.enemies.length).toBeGreaterThan(0);
+    expect(model.authoritativeResult).toBeNull();
+    expect(model.authoritativeResultDelaySec).toBeNull();
+  });
+
   it('projects an authored defeat for an underpowered normal frontier stage', () => {
     const state = createSwordBattleState();
     const frontierState = {
