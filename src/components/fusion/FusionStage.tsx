@@ -2,8 +2,9 @@ import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { isGreatswordRank } from '../game/fusion';
-import { getSlimePresentationForRank, type SlimeId } from '../game/slimes';
+import { isGreatswordRank } from '../../game/fusion';
+import { type FusionCeremonyPreset } from '../../game/fusion-presentation';
+import { getSlimePresentationForRank, type SlimeId } from '../../game/slimes';
 
 type MorphMesh = THREE.Mesh & {
   morphTargetDictionary?: Record<string, number>;
@@ -26,6 +27,7 @@ interface FusionSceneProps {
   sequenceKey: number;
   fromRank: number;
   toRank: number;
+  ceremony: FusionCeremonyPreset;
   onComplete: () => void;
 }
 
@@ -132,6 +134,12 @@ function animateResultAttack(parts: ModelParts, slimeId: SlimeId, fusionRank: nu
 
 function FusionScene(props: FusionSceneProps) {
   const activeRank = props.isFusing ? props.fromRank : props.fusionRank;
+  const fullMerge = props.ceremony === 'major-form';
+  const ceremonyDuration = props.ceremony === 'major-form'
+    ? 1.58
+    : props.ceremony === 'major-behavior'
+      ? 1.34
+      : 1.08;
   const targetRank = props.isFusing ? props.toRank : props.fusionRank + 1;
   const currentPresentation = getSlimePresentationForRank(props.slimeId, activeRank);
   const resultPresentation = getSlimePresentationForRank(props.slimeId, targetRank);
@@ -183,7 +191,7 @@ function FusionScene(props: FusionSceneProps) {
     result.visible = false;
 
     if (!props.isFusing) {
-      if (props.fusionReady) {
+      if (props.fusionReady && fullMerge) {
         right.visible = true;
         const bob = Math.sin(clock.elapsedTime * 2.5) * 0.025;
         left.position.set(LEFT_X, -0.45 + bob, 0);
@@ -204,27 +212,31 @@ function FusionScene(props: FusionSceneProps) {
     }
 
     const elapsed = clock.elapsedTime - startedAt.current;
-    const moveU = THREE.MathUtils.clamp((elapsed - 0.16) / 0.43, 0, 1);
+    const timeline = elapsed * (1.58 / ceremonyDuration);
+    const moveU = THREE.MathUtils.clamp((timeline - 0.16) / 0.43, 0, 1);
     const eased = 1 - ((1 - moveU) ** 3);
-    const anticipation = THREE.MathUtils.clamp(elapsed / 0.18, 0, 1);
-    const tremble = Math.sin(elapsed * 48) * 0.018 * (1 - moveU);
-    const squeeze = Math.sin(moveU * Math.PI) * 0.10;
+    const anticipation = THREE.MathUtils.clamp(timeline / 0.18, 0, 1);
+    const tremble = Math.sin(timeline * 48) * 0.018 * (1 - moveU);
+    const squeeze = Math.sin(moveU * Math.PI) * (props.ceremony === 'enhancement' ? 0.16 : 0.10);
 
-    left.visible = elapsed < 0.62;
-    right.visible = elapsed < 0.62;
-    left.position.set(THREE.MathUtils.lerp(LEFT_X, -0.035, eased) + tremble, -0.45 + Math.sin(moveU * Math.PI) * 0.08, 0);
-    right.position.set(THREE.MathUtils.lerp(RIGHT_X, 0.035, eased) - tremble, -0.45 + Math.sin(moveU * Math.PI) * 0.08, 0);
+    left.visible = timeline < 0.62;
+    right.visible = fullMerge && timeline < 0.62;
+    if (fullMerge) {
+      left.position.set(THREE.MathUtils.lerp(LEFT_X, -0.035, eased) + tremble, -0.45 + Math.sin(moveU * Math.PI) * 0.08, 0);
+      right.position.set(THREE.MathUtils.lerp(RIGHT_X, 0.035, eased) - tremble, -0.45 + Math.sin(moveU * Math.PI) * 0.08, 0);
+      right.scale.set(BASE_SCALE * (1 + squeeze), BASE_SCALE * (1 - squeeze * 0.55), BASE_SCALE);
+      right.rotation.y = 0.18 + anticipation * 0.08;
+      animateJelly(rightParts, clock.elapsedTime, Math.PI);
+    } else {
+      left.position.set(tremble, -0.45 + Math.sin(moveU * Math.PI) * 0.10, 0);
+    }
     left.scale.set(BASE_SCALE * (1 + squeeze), BASE_SCALE * (1 - squeeze * 0.55), BASE_SCALE);
-    right.scale.set(BASE_SCALE * (1 + squeeze), BASE_SCALE * (1 - squeeze * 0.55), BASE_SCALE);
-    left.rotation.y = -0.18 - anticipation * 0.08;
-    right.rotation.y = 0.18 + anticipation * 0.08;
+    left.rotation.y = -0.18 - anticipation * (props.ceremony === 'major-behavior' ? 0.18 : 0.08);
     animateJelly(leftParts, clock.elapsedTime, 0);
-    animateJelly(rightParts, clock.elapsedTime, Math.PI);
 
-
-    if (elapsed >= 0.58) {
+    if (timeline >= 0.58) {
       result.visible = true;
-      const revealU = THREE.MathUtils.clamp((elapsed - 0.58) / 0.42, 0, 1);
+      const revealU = THREE.MathUtils.clamp((timeline - 0.58) / 0.42, 0, 1);
       const overshoot = 1 + Math.sin(revealU * Math.PI) * 0.12;
       const revealScale = BASE_SCALE * THREE.MathUtils.lerp(0.12, 1, 1 - ((1 - revealU) ** 3)) * overshoot;
       result.position.set(0, -0.45 + Math.sin(revealU * Math.PI) * 0.07, 0);
@@ -232,14 +244,14 @@ function FusionScene(props: FusionSceneProps) {
       result.rotation.y = THREE.MathUtils.lerp(0.55, -0.24, revealU);
       animateJelly(resultParts, clock.elapsedTime, 0.7);
 
-      if (elapsed >= 1.02) {
-        const attackU = THREE.MathUtils.clamp((elapsed - 1.02) / 0.46, 0, 1);
+      if (timeline >= 1.02) {
+        const attackU = THREE.MathUtils.clamp((timeline - 1.02) / 0.46, 0, 1);
         const attackRotation = animateResultAttack(resultParts, props.slimeId, props.toRank, attackU);
         result.rotation.y = -0.24 + attackRotation + Math.sin(attackU * Math.PI) * 0.04;
       }
     }
 
-    if (!completed.current && elapsed >= 1.58) {
+    if (!completed.current && elapsed >= ceremonyDuration) {
       completed.current = true;
       completeRef.current();
     }
@@ -254,7 +266,7 @@ function FusionScene(props: FusionSceneProps) {
   );
 }
 
-interface SlimePreviewProps {
+interface FusionStageProps {
   slimeId: SlimeId;
   fusionRank: number;
   fusionReady: boolean;
@@ -262,14 +274,15 @@ interface SlimePreviewProps {
   sequenceKey: number;
   fromRank: number;
   toRank: number;
+  ceremony: FusionCeremonyPreset;
   onFusionComplete: () => void;
 }
 
-export function SlimePreview(props: SlimePreviewProps) {
+export function FusionStage(props: FusionStageProps) {
   const current = getSlimePresentationForRank(props.slimeId, props.fusionRank);
   const result = getSlimePresentationForRank(props.slimeId, props.toRank);
   return (
-    <div className={`slime-preview fusion-stage ${props.isFusing ? 'is-fusing' : ''} ${props.fusionReady ? 'is-ready' : ''}`} aria-label={`${current.name} 合成プレビュー`}>
+    <div className={`fusion-stage-shell fusion-stage ${props.isFusing ? 'is-fusing' : ''} ${props.fusionReady ? 'is-ready' : ''}`} aria-label={`${current.name} 合成プレビュー`}>
       <Canvas
         camera={{ fov: 28, near: 0.1, far: 30, position: [0, 1.8, 6.3] }}
         dpr={[1, 2]}
@@ -287,6 +300,7 @@ export function SlimePreview(props: SlimePreviewProps) {
           sequenceKey={props.sequenceKey}
           fromRank={props.fromRank}
           toRank={props.toRank}
+          ceremony={props.ceremony}
           onComplete={props.onFusionComplete}
         />
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.49, 0]} receiveShadow>
@@ -294,7 +308,11 @@ export function SlimePreview(props: SlimePreviewProps) {
           <meshStandardMaterial color="#dff0cf" roughness={1} transparent opacity={0.72} />
         </mesh>
       </Canvas>
-      {props.fusionReady && !props.isFusing && <div className="fusion-stage__merge-mark" aria-hidden="true"><span>＋</span><small>合成</small></div>}
+      {props.fusionReady && !props.isFusing && (
+        <div className={`fusion-stage__merge-mark fusion-stage__merge-mark--${props.ceremony}`} aria-hidden="true">
+          <span><i /><i /><i /></span><small>{props.ceremony === 'major-form' ? '合成' : '強化'}</small>
+        </div>
+      )}
       {props.isFusing && <div className="fusion-stage__flash" key={props.sequenceKey} aria-hidden="true" />}
       {props.isFusing && <div className="fusion-stage__result" key={`result-${props.sequenceKey}`}><span>進化</span><strong>{result.name}</strong></div>}
     </div>
