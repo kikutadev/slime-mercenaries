@@ -11,12 +11,33 @@ const MOTION_LABELS: Record<GalleryMotionId, string> = {
   defeat: 'Defeat',
 };
 
+const MOTIONS: readonly GalleryMotionId[] = ['idle', 'move', 'attack', 'hit', 'defeat'];
+const CAMERAS: readonly GalleryCameraId[] = ['inspection', 'gameplay', 'front'];
 const SPEEDS = [0.5, 1, 2] as const;
 
+function params(): URLSearchParams {
+  return new URLSearchParams(window.location.search);
+}
+
 function initialSlimeId(): string {
-  const requested = new URLSearchParams(window.location.search).get('slime');
+  const requested = params().get('slime');
   if (requested && slimeGalleryCatalog.some((item) => item.id === requested)) return requested;
   return slimeGalleryCatalog[0]?.id ?? '';
+}
+
+function initialMotion(): GalleryMotionId {
+  const requested = params().get('motion') as GalleryMotionId | null;
+  return requested && MOTIONS.includes(requested) ? requested : 'idle';
+}
+
+function initialCamera(): GalleryCameraId {
+  const requested = params().get('camera') as GalleryCameraId | null;
+  return requested && CAMERAS.includes(requested) ? requested : 'inspection';
+}
+
+function initialSpeed(): (typeof SPEEDS)[number] {
+  const requested = Number(params().get('speed'));
+  return SPEEDS.includes(requested as (typeof SPEEDS)[number]) ? requested as (typeof SPEEDS)[number] : 1;
 }
 
 export default function GalleryApp() {
@@ -25,21 +46,24 @@ export default function GalleryApp() {
     () => slimeGalleryCatalog.find((item) => item.id === selectedId) ?? slimeGalleryCatalog[0],
     [selectedId],
   );
-  const [motion, setMotion] = useState<GalleryMotionId>('idle');
-  const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
+  const [motion, setMotion] = useState<GalleryMotionId>(initialMotion);
+  const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(initialSpeed);
   const [loop, setLoop] = useState(true);
-  const [cameraMode, setCameraMode] = useState<GalleryCameraId>('inspection');
+  const [cameraMode, setCameraMode] = useState<GalleryCameraId>(initialCamera);
   const [showDummy, setShowDummy] = useState(true);
   const [replayKey, setReplayKey] = useState(0);
 
   useEffect(() => {
     if (!selected) return;
-    const params = new URLSearchParams(window.location.search);
-    params.set('slime', selected.id);
-    window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+    const next = params();
+    next.set('slime', selected.id);
+    next.set('motion', motion);
+    next.set('camera', cameraMode);
+    next.set('speed', String(speed));
+    window.history.replaceState(null, '', `${window.location.pathname}?${next.toString()}`);
     if (!selected.availableMotions.includes(motion)) setMotion('idle');
     setReplayKey((value) => value + 1);
-  }, [selected, motion]);
+  }, [selected, motion, cameraMode, speed]);
 
   if (!selected) {
     return <main className="gallery-empty">No gallery definitions are registered.</main>;

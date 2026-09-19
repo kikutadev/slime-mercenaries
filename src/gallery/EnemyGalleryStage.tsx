@@ -30,18 +30,41 @@ const projectileStart = new THREE.Vector3();
 const projectileEnd = new THREE.Vector3();
 
 function buildDefeatEyes(model: THREE.Object3D): { normalEyes: THREE.Object3D[]; xEyes: THREE.Group[] } {
-  const normalEyes = ['Eye_L', 'Eye_R'].map((name) => model.getObjectByName(name)).filter((eye): eye is THREE.Object3D => Boolean(eye));
+  model.updateMatrixWorld(true);
+  const normalEyes = ['Eye_L', 'Eye_R']
+    .map((name) => model.getObjectByName(name))
+    .filter((eye): eye is THREE.Object3D => Boolean(eye));
   const xEyes: THREE.Group[] = [];
-  const geometry = new THREE.BoxGeometry(0.072, 0.020, 0.018);
   const material = new THREE.MeshBasicMaterial({ color: '#261d2b' });
+
   for (const eye of normalEyes) {
+    const footprint = new THREE.Vector3(0.04, 0.02, 0.04);
+    if (eye instanceof THREE.Mesh) {
+      eye.geometry.computeBoundingBox();
+      const bounds = eye.geometry.boundingBox;
+      if (bounds) {
+        bounds.getSize(footprint);
+        footprint.multiply(eye.scale);
+      }
+    }
+
+    const visibleDiameter = Math.max(footprint.x, footprint.z);
+    const barLength = THREE.MathUtils.clamp(visibleDiameter * 1.08, 0.020, 0.074);
+    const barThickness = THREE.MathUtils.clamp(barLength * 0.22, 0.006, 0.018);
+    const barDepth = THREE.MathUtils.clamp(footprint.y * 0.72, 0.006, 0.018);
+    const geometry = new THREE.BoxGeometry(barLength, barThickness, barDepth);
+
     const group = new THREE.Group();
     group.position.copy(eye.position);
-    group.position.z += 0.022;
+    group.position.z += Math.max(0.006, footprint.y * 0.54);
     for (const rotation of [-Math.PI / 4, Math.PI / 4]) {
-      const bar = new THREE.Mesh(geometry, material); bar.rotation.z = rotation; group.add(bar);
+      const bar = new THREE.Mesh(geometry, material);
+      bar.rotation.z = rotation;
+      group.add(bar);
     }
-    group.visible = false; eye.parent?.add(group); xEyes.push(group);
+    group.visible = false;
+    eye.parent?.add(group);
+    xEyes.push(group);
   }
   return { normalEyes, xEyes };
 }
@@ -50,7 +73,7 @@ function CameraRig({ mode, definition }: { mode: GalleryCameraId; definition: Sl
   const { camera, size } = useThree();
   useEffect(() => {
     const compact = size.width < 620 ? 1.16 : 1;
-    const isBoss = definition.modelKind === 'great-mushroom';
+    const isBoss = definition.classification.startsWith('Boss');
     const lookAt = HOME.clone().setY(isBoss ? 0.42 : 0.28);
     if (mode === 'gameplay') camera.position.copy(lookAt).addScaledVector(BATTLE_CAMERA_OFFSET, (isBoss ? 0.44 : 0.34) * compact);
     else if (mode === 'front') camera.position.set(0, isBoss ? 0.96 : 0.72, (isBoss ? 3.35 : 2.25) * compact);
@@ -100,7 +123,7 @@ function EnemyModel({ definition, motion, speed, loop, showDummy, replayKey }: E
     const duration = motion === 'move' ? profile.moveDuration : motion === 'hit' ? 0.22 : motion === 'defeat' ? profile.defeatDuration : motion === 'attack' ? (profile.attackDuration + (profile.projectile?.flightSeconds ?? 0)) : 2.4;
     const elapsed = Math.max(0, (clock.elapsedTime - startedAt.current) * speed);
     const local = loop ? elapsed % duration : Math.min(elapsed, duration);
-    const dummyHome = HOME.clone().addScaledVector(FORWARD, definition.modelKind === 'great-mushroom' ? 1.25 : 0.92);
+    const dummyHome = HOME.clone().addScaledVector(FORWARD, definition.classification.startsWith('Boss') ? 1.25 : 0.92);
     if (dummyRef.current) { dummyRef.current.visible = showDummy && motion === 'attack'; dummyRef.current.position.copy(dummyHome); }
 
     if (motion === 'idle') {
@@ -114,7 +137,14 @@ function EnemyModel({ definition, motion, speed, loop, showDummy, replayKey }: E
     }
     if (motion === 'defeat') {
       const u = THREE.MathUtils.clamp(local / profile.defeatDuration, 0, 1); const pose = profile.defeat(u, -1); root.position.x += pose.lateralDrift; root.position.z -= pose.backwardDrift; root.position.y += pose.yOffset; root.rotation.z = pose.rotationZ; root.scale.setScalar(scale * pose.opacity); bodyRoot.scale.set(bodyBaseScale.x * pose.scaleX, bodyBaseScale.y * pose.scaleY, bodyBaseScale.z * pose.scaleZ); applyEnemySecondaryPose(rigParts, rigRest, pose.secondary);
-      if (faceRoot) { const reveal = Math.sin(Math.min(1, u / 0.72) * Math.PI * 0.5); faceRoot.position.copy(faceBasePosition); faceRoot.position.y += 0.055 * reveal; faceRoot.position.z += 0.38 * reveal; faceRoot.scale.copy(faceBaseScale); }
+      if (faceRoot) {
+        faceRoot.position.copy(faceBasePosition);
+        faceRoot.scale.set(
+          faceBaseScale.x * pose.scaleX,
+          faceBaseScale.y * pose.scaleY,
+          faceBaseScale.z * pose.scaleZ,
+        );
+      }
       eyes.normalEyes.forEach((eye) => { eye.visible = false; }); eyes.xEyes.forEach((eye) => { eye.visible = true; }); return;
     }
 

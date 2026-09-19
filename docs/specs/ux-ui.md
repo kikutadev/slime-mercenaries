@@ -108,7 +108,7 @@ Do not show a population count whose purpose is spawning more same-type bodies.
 Formation editing is direct and small-party oriented.
 
 - tap a slot to select an owned available type
-- prevent duplicate type assignment
+- allow different owned instances of the same type in separate formation slots; prevent assigning the exact same instance twice
 - a dispatched type cannot be selected until it returns
 - swapping should be immediate and visually clear
 - front/back recommendation may be shown as guidance, not as opaque penalty math
@@ -203,7 +203,7 @@ Material Gathering Promotion material
 Flow:
 
 1. choose contract
-2. choose one available reserve slime type
+2. choose one available reserve slime instance
 3. confirm duration/reward emphasis
 4. slime visibly departs
 5. return state shows compact reward

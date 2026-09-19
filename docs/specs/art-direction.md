@@ -90,11 +90,11 @@ Tier/form differences must remain readable at gameplay scale without relying on 
 
 ## 7. Fusion visual language
 
-Fusion strengthens one canonical slime branch. A milestone may replace the weapon/form presentation, but it does not create a larger slime body or a separate population body.
+Fusion strengthens one selected slime instance. A milestone may replace its weapon/form presentation, but it does not create a larger slime body or clone additional bodies.
 
 Suggested progression vocabulary:
 
-- first Sword milestone: two Sword Slimes merge into a same-body-size Greatsword Slime with a much broader blade and a full-body spinning area sweep
+- first Sword milestone: two Sword Slimes merge into a same-body-size Greatsword Slime with a much broader blade and a fast half-turn horizontal area sweep
 - low rank: base weapon and restrained hit effect
 - mid rank: weapon accent, slightly richer trail/impact, extra attack beat where unlocked
 - high rank: signature attack behavior and recognizable VFX motif
@@ -145,9 +145,11 @@ Readable hierarchy:
 
 - fodder: simple rounded silhouettes
 - elite: one exaggerated feature
-- boss: much larger body, strong silhouette, a few readable tells
+- boss: larger visual mass plus a separate silhouette, strong readable tells; never a normal enemy scaled up
 
 Do not make every enemy visually noisy. Active slimes must remain the focus.
+
+Area-specific enemy roster, silhouette hooks, motion escalation, and stage introduction order are owned by `specs/enemies/README.md`.
 
 ## 10. Environment direction
 

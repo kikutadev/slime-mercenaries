@@ -438,13 +438,47 @@ The initiative is complete when:
 - only built output is deployed publicly
 - all forms satisfy model and production acceptance gates
 
-## Animation production quality gate — tier escalation
+## Animation production quality gate — spectacle first
 
-Model completion alone is not a release condition. Every combat form must make its job identity readable from motion, timing and VFX even with the name hidden.
+Model completion alone is not a release condition. The primary target is not animation complexity, beat count, or VFX quantity. The target is **immediate spectacle and coolness**: when the job name is hidden, the player should still think “this one looks powerful, distinctive, and fun to use.”
 
-- **Tier 1 — core grammar:** one clear anticipation, one primary action, one recovery. Keep VFX restrained to one readable contact/projectile cue. The purpose is to establish each branch's basic physical language.
-- **Tier 2 — specialization:** do not ship a faster Tier-1 replay. Require at least one branch-specific secondary motion (off-hand, rune, shield pulse, recoil cadence, sidestep, etc.) plus a second VFX layer or multi-beat payoff. The job should be identifiable from the animation alone.
-- **Tier 3 — signature sequence:** require a unique 3+ beat sequence (anticipation → signature action → secondary payoff → recovery), dedicated VFX vocabulary, stronger timing contrast, and a visibly richer aftermath. Tier-3 motion must not be representable as “Tier-2 with larger numbers.”
-- **Rare / mutation forms:** may break the branch grammar entirely. Their body/equipment motion, environmental VFX or camera accent should communicate rarity before UI text is read.
+### Primary acceptance question
 
-Quality review is performed in both **Battle** and **3/4 Inspect** views at mobile width. Acceptance requires readable silhouette, no clipping, correct attack direction, visible secondary motion, and VFX that retain their intended color on the production background. Gallery-only substitute animation is prohibited; the gallery must execute the same shared production motion/VFX implementation as `BattleRuntime`.
+For every combat form, especially Tier 2 and Tier 3, ask first:
+
+> Does the attack look genuinely cool and satisfying at real game speed on a phone-sized battle view?
+
+If the answer is not an immediate yes, the motion is not accepted even when it has many beats, particles, or secondary systems.
+
+### What creates the desired feeling
+
+Use these as tools, not quotas:
+
+- **strong pose and silhouette** before the hit
+- **sharp acceleration / release** instead of uniformly slow motion
+- **weapon or spell path that reads instantly**
+- **clean hit-stop, recoil, squash/stretch, camera impulse, and aftermath** where appropriate
+- **bold trails, flashes, shockwaves, runes, lightning, ice, smoke, debris, afterimages, explosions, etc.** when they reinforce the job fantasy
+- **clear contrast between anticipation and payoff**
+- **a signature visual idea unique to the job**, not just recolored generic particles
+- **production-scale readability**: effects may be flashy, but the slime, target, and attack direction must remain readable
+
+### Tier intent
+
+- **Tier 1:** already enjoyable and punchy. Establish the branch fantasy with one memorable attack. “Basic” does not mean dull.
+- **Tier 2:** visibly more impressive and specialized than Tier 1. Add a stronger signature motion or payoff when it improves the fantasy, but do not add complexity merely to satisfy a checklist.
+- **Tier 3:** should feel like a showcase character. The player should be able to watch the attack repeatedly in the gallery because it looks cool. A single devastating motion can be better than a long sequence. Use large, confident silhouettes and strong signature VFX/camera/hit reactions where appropriate.
+- **Rare / mutation forms:** may exceed branch conventions entirely. Rarity should be obvious from motion and presentation before UI text is read.
+
+### Explicit anti-goals
+
+Reject a motion when any of the following is true:
+
+- it is merely the lower-tier attack played faster
+- it technically has multiple phases but none of them creates a strong payoff
+- the VFX count increased but the attack still looks weak
+- the character is visually busy but not stylish or readable
+- the strongest form still looks like “a slime wiggling while an effect happens nearby”
+- a screenshot looks acceptable but the real-time release has no snap, impact, or excitement
+
+Quality review is performed at **1x real speed first**, then 0.5x for technical inspection, in both **Battle** and **3/4 Inspect** views at mobile width. Final acceptance is visual and experiential: job identity, impact, spectacle, and replay appeal matter more than beat count. Gallery-only substitute animation is prohibited; the gallery must execute the same shared production motion/VFX implementation as `BattleRuntime`.

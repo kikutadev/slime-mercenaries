@@ -17,6 +17,7 @@ Date: 2026-09-16
 | [`specs/kit-integration.md`](specs/kit-integration.md) | idle-game-kitとのstate/API境界、共通化/ゲーム固有の責務分離 |
 | [`specs/ux-ui.md`](specs/ux-ui.md) | mobile portrait UI、navigation、主要interaction |
 | [`specs/art-direction.md`](specs/art-direction.md) | visual identity、body-size invariant、animation、VFX、environment |
+| [`specs/enemies/README.md`](specs/enemies/README.md) | Area 1以降の敵roster、シルエット、モーション、ステージ導入順 |
 | [`adr/0002-small-party-fusion-and-dispatch.md`](adr/0002-small-party-fusion-and-dispatch.md) | 大人数部隊をやめ、少数編成・同種合成・控え派遣へ移行した理由 |
 | [`adr/0003-plain-slime-supply-and-job-creation.md`](adr/0003-plain-slime-supply-and-job-creation.md) | Plain Slimeを素材生成/Gold購入し、Job Gearで通常職を作る取得モデルの理由 |
 

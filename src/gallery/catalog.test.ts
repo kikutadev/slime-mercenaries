@@ -38,6 +38,16 @@ const EXPECTED_MOTIONS: Readonly<Record<string, readonly string[]>> = {
   'puff-flower': ['idle', 'move', 'attack', 'hit', 'defeat'],
   'round-hedgehog': ['idle', 'move', 'attack', 'hit', 'defeat'],
   'acorn-squirrel': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'crystal-beetle': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'drill-nose-mole': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'crystal-bat': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'pebble-golem': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'amber-turtle': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'puff-frog': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'marsh-sprout': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'bubble-snail': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'skimming-lily': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'great-marsh-frog': ['idle', 'move', 'attack', 'hit', 'defeat'],
 };
 
 describe('slime gallery catalog', () => {
