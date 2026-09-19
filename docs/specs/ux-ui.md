@@ -162,9 +162,9 @@ First Sword fusion milestone:
 
 Later ordinary fusion steps may use a shorter jelly compression + weapon/VFX pulse. Fusion presentation should remain shorter than a NEW job reveal.
 
-## 9. Evolution UI
+## 9. Advanced Fusion UI
 
-Evolution remains a signature surface.
+Advanced Fusion remains a signature surface.
 
 ### Tier 1
 
@@ -172,7 +172,7 @@ Plain Slime with available job gear families around it. Locked-near branches sho
 
 ### Tier 2
 
-Single clear promotion path where no choice exists.
+Single clear Fusion result where no choice exists.
 
 ### Tier 3
 
@@ -197,7 +197,7 @@ Available contracts:
 ```text
 Road Escort        Gold
 Forest Exploration Equipment / Key
-Material Gathering Promotion material
+Material Gathering Fusion material
 ```
 
 Flow:

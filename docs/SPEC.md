@@ -1,7 +1,7 @@
 # Slime Mercenaries — Current Specification
 
 Status: Current
-Date: 2026-09-18
+Date: 2026-09-19
 
 ## 1. Product form
 
@@ -17,7 +17,7 @@ Date: 2026-09-18
 
 ## 1.1 Public validation mode
 
-The current public build is a validation build, not the final economy. Gold and authored resource tokens are replenished by the Application-layer validation policy and displayed as `∞`, allowing repeated creation, Fusion, Promotion, Forge, formation, and live-battle checks. The production Domain commands and authored requirements remain authoritative and are not replaced by zero-cost validation recipes.
+The current public build is a validation build, not the final economy. Gold and authored resource tokens are replenished by the Application-layer validation policy and displayed as `∞`, allowing repeated creation, Fusion, Forge, formation, and live-battle checks. The production Domain commands and authored requirements remain authoritative and are not replaced by zero-cost validation recipes.
 
 The validation switch is `VITE_VALIDATION_MODE`. Production economy builds must set it to `false`.
 
@@ -52,7 +52,7 @@ Roster
     - level
     - fusionRank
     - fusionForm / fusion milestone state
-    - promotion state
+    - jobTier derived from the current Fusion milestone
     - equipped weapon/loadout
     - assignment
 - fusionInventory
@@ -81,7 +81,6 @@ Economy
 - slime-generation materials
 - jobGear stock / unlock state
 - forgeKeys
-- promotion materials
 - mutationFragmentsByFamily
 
 Meta
@@ -100,8 +99,7 @@ The combat roster is a collection of persistent slime instances. Multiple instan
 Each owned slime instance has:
 
 - `type level`: frequent Gold-based growth
-- `fusion rank / form`: explicit Fusion strengthens that individual slime without changing its promotion tier
-- `promotion`: branch-specific evolution Tier
+- `fusion rank / form`: explicit Fusion is the form-growth axis; authored milestones also advance `jobTier` and unlock branch-specific combat behavior
 - `equipped weapon`: one family-compatible weapon loadout
 - `assignment`: battle / dispatch / reserve, tracked per instance
 
@@ -125,7 +123,7 @@ Fusion is a core growth path.
 
 - a spare reserve slime may be explicitly converted into its type-specific Slime Core / equivalent fusion input
 - fusion recipes may combine that type-specific input with weapon components and ordinary materials
-- fusion raises the selected instance's persistent fusion rank / fusion-form progression without changing promotion tier by itself
+- fusion raises the selected instance's persistent fusion rank/form and, at authored milestones, its job tier and specialization
 - fusion must produce meaningful combat growth
 - exact rank count, recipe requirements, and coefficients are balance data
 - reload must not duplicate or reroll a resolved fusion/acquisition result
@@ -145,9 +143,20 @@ Strength progression should instead surface through:
 
 A stronger slime should look more capable, not simply larger.
 
-### Fusion form is not promotion tier
+### Fusion owns form and tier progression
 
-A named fusion milestone such as `Greatsword Slime` is a fusion presentation/form on the owned Sword branch, not a Tier-2 promotion and not an additional Codex type. `jobTier`, `promotionPath`, and `fusionRank/fusionForm` are separate state axes. This prevents the Sword -> Fighter promotion line from colliding with the Sword -> Greatsword fusion milestone.
+Fusion is the only normal form-growth system. A named milestone such as `Greatsword Slime`, `Fighter Slime`, or `Blademaster Slime` is the result of an authored Fusion step on the same persistent slime instance.
+
+The canonical progression is:
+
+```text
+Rank 1: Tier-1 job
+-> Rank 2: first family enhancement/form
+-> Rank 3: Tier-2 job form
+-> Rank 4: player-selected Tier-3 specialization
+```
+
+`jobTier` is retained as derived gameplay metadata for content gates and presentation. Branch identity is the selected `fusionFormId`, and all normal form/tier growth is resolved by Fusion.
 
 ## 7. Evolution structure
 
@@ -203,7 +212,6 @@ Contents can include:
 - equipment
 - Gold
 - Forge Keys
-- promotion materials
 - mutation fragments / rare cores
 
 A dropped chest appears physically on the battlefield. The player may tap it to open immediately; if ignored it auto-opens so idle progression never stalls.
@@ -230,7 +238,7 @@ Initial contract families stay simple:
 
 - escort / guard -> Gold-biased
 - exploration -> equipment / Forge Key-biased
-- gathering -> promotion-material-biased
+- gathering -> Fusion-material-biased
 
 Dispatch is time-based and deterministic enough for an idle product. Initial core does not require failure chance, fatigue, elemental staffing grids, or per-body headcount.
 
@@ -249,7 +257,7 @@ A dispatch reward must be persisted when resolved so reload cannot reroll or dup
 - type levels
 - fusion opportunities
 - equipment upgrades
-- job discovery / promotion
+- job discovery / advanced Fusion
 - dispatch start / return
 
 ### Session/day
@@ -291,7 +299,7 @@ Important progression actions must be idempotent where practical, especially:
 - chest opening
 - equipment draw and pity advancement
 - duplicate weapon refinement conversion
-- evolution/promotion
+- form/tier Fusion
 - mutation redemption
 - dispatch reward resolution / claim
 - offline reward claim

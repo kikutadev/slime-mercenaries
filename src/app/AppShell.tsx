@@ -5,8 +5,6 @@ import { selectNavigationAttention, selectOwnedSlimeIds } from '../application/s
 import { buildOfflineReturnView, presentationNoticeDurationMs, toBattleRewardCue, toPresentationNotices } from '../application/presentation-events';
 import type { BattleRewardCue } from '../game/battle-reward';
 import { SlimesScreen } from '../screens/SlimesScreen';
-import { DispatchScreen } from '../screens/DispatchScreen';
-import { ForgeScreen } from '../screens/ForgeScreen';
 import type { SlimeInstanceId } from '../domain';
 import { NavIcon, type NavIconKind } from '../components/navigation/NavIcon';
 import { SlimeMark } from '../components/SlimeMark';
@@ -14,6 +12,16 @@ import { SlimeMark } from '../components/SlimeMark';
 const BattleScreen = lazy(async () => {
   const module = await import('../screens/BattleScreen');
   return { default: module.BattleScreen };
+});
+
+const DispatchScreen = lazy(async () => {
+  const module = await import('../screens/DispatchScreen');
+  return { default: module.DispatchScreen };
+});
+
+const ForgeScreen = lazy(async () => {
+  const module = await import('../screens/ForgeScreen');
+  return { default: module.ForgeScreen };
 });
 
 type ScreenId = 'battle' | 'slimes' | 'dispatch' | 'forge';

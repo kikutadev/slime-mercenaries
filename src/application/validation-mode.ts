@@ -93,7 +93,7 @@ export function resetValidationSlimeProgress(
         ...state.gameData.roster,
         slimes: {
           ...state.gameData.roster.slimes,
-          [slimeId]: { ...slime, level: 1, jobTier: 1, promotionPathId: null, fusionRank: 1, fusionFormId: 'base' },
+          [slimeId]: { ...slime, level: 1, jobTier: 1, fusionRank: 1, fusionFormId: 'base' },
         },
       },
     },

@@ -680,12 +680,6 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .camp-level-buttons span,.camp-level-buttons strong { display:block; }
 .camp-level-buttons span { font-size:12px; font-weight:900; }
 .camp-level-buttons strong { margin-top:2px; font-size:8px; }
-.camp-promotion-action { width:100%; min-height:44px; margin-top:8px; display:grid; grid-template-columns:auto 1fr; grid-template-areas:"badge name" "badge meta"; column-gap:9px; align-items:center; padding:7px 10px; border:1px solid rgba(125,107,61,.16); border-radius:14px; background:rgba(255,250,226,.78); color:#685c35; text-align:left; }
-.camp-promotion-action > span { grid-area:badge; min-width:38px; padding:6px 7px; border-radius:10px; background:rgba(210,170,69,.15); color:#8d702a; font-size:8px; font-weight:900; text-align:center; }
-.camp-promotion-action > strong { grid-area:name; font-size:9px; }
-.camp-promotion-action > small { grid-area:meta; color:rgba(72,61,35,.54); font-size:6px; }
-.camp-promotion-action.is-ready { border-color:rgba(215,165,53,.52); background:linear-gradient(180deg,#fff6cf,#f2e6aa); box-shadow:0 5px 16px rgba(130,100,33,.12); }
-.camp-promotion-action:disabled { opacity:.46; }
 .camp-weapon-strip { display:flex; gap:7px; margin-top:9px; overflow-x:auto; scrollbar-width:none; }
 .camp-weapon-strip button { flex:0 0 132px; min-height:62px; padding:8px; border:1px solid rgba(50,93,58,.1); border-radius:14px; background:#fff; text-align:left; }
 .camp-weapon-strip button.is-equipped { border-color:rgba(61,132,73,.4); background:#eaf6e1; }
@@ -976,11 +970,6 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .validation-mode-badge { position:absolute; top:14px; left:50%; z-index:40; transform:translateX(-50%); padding:4px 8px; border:1px solid rgba(94,104,56,.16); border-radius:999px; background:rgba(255,251,215,.84); color:#6d6b35; font-size:6px; font-weight:900; letter-spacing:.08em; backdrop-filter:blur(8px); }
 .validation-mode-badge--action { pointer-events:auto; cursor:pointer; }
 .validation-mode-badge--action:active { transform:translateX(-50%) scale(.97); }
-.camp-promotion-choices { display:grid; grid-template-columns:1fr; gap:7px; margin-top:8px; }
-.camp-promotion-choices.is-branching { grid-template-columns:repeat(2,minmax(0,1fr)); }
-.camp-promotion-choices .camp-promotion-action { margin-top:0; min-width:0; }
-.camp-promotion-choices.is-branching .camp-promotion-action { grid-template-columns:1fr; grid-template-areas:"badge" "name" "meta"; gap:2px; }
-.camp-promotion-choices.is-branching .camp-promotion-action > span { justify-self:start; }
 .camp-validation-tools { display:grid; grid-template-columns:auto 1fr 1fr; gap:6px; align-items:center; margin-top:8px; padding:6px; border:1px dashed rgba(103,102,52,.24); border-radius:12px; background:rgba(255,252,224,.58); }
 .camp-validation-tools > span { padding:0 4px; color:#79713c; font-size:6px; font-weight:900; letter-spacing:.08em; }
 .camp-validation-tools button { min-height:31px; border:1px solid rgba(111,105,58,.14); border-radius:9px; background:rgba(255,255,255,.72); color:#655e37; font-size:7px; font-weight:850; }
@@ -1570,7 +1559,6 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .camp-action-dock > div:first-child > span { font-size:9px; letter-spacing:.08em; }
 .camp-action-dock > div:first-child > small { font-size:9px; }
 .camp-level-buttons strong { font-size:10px; }
-.camp-promotion-action > small { font-size:9px; }
 .camp-weapon-strip strong, .camp-weapon-strip small { font-size:9px; }
 .camp-formation-strip small { font-size:9px; }
 .camp-empty-world small { font-size:9px; }
@@ -1579,3 +1567,11 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .nursery-job-title span { font-size:9px; letter-spacing:.08em; }
 .nursery-jobs small, .nursery-jobs em { font-size:9px; }
 .fusion-stage__merge-mark small { font-size:9px; letter-spacing:.08em; }
+
+.fusion-path-choices { display:grid; gap:7px; padding:8px 0 2px; }
+.fusion-path-choices > span { font-size:9px; font-weight:900; color:rgba(70,55,30,.62); letter-spacing:.05em; }
+.fusion-path-choices > div { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+.fusion-path-choices button { min-width:0; min-height:62px; display:grid; align-content:center; gap:3px; padding:8px 9px; border:1px solid rgba(114,92,44,.18); border-radius:13px; background:rgba(255,250,229,.72); color:#594b2c; text-align:left; }
+.fusion-path-choices button strong { font-size:10px; line-height:1.15; }
+.fusion-path-choices button small { font-size:7px; line-height:1.3; color:rgba(70,55,30,.56); }
+.fusion-path-choices button.is-selected { border-color:rgba(212,163,51,.65); background:linear-gradient(180deg,#fff5c9,#ead68e); box-shadow:0 5px 16px rgba(123,91,28,.16); }

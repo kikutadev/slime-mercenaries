@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { isGreatswordRank } from '../../game/fusion';
 import { type FusionCeremonyPreset } from '../../game/fusion-presentation';
-import { getSlimePresentationForRank, type SlimeId } from '../../game/slimes';
+import { type SlimeId, type SlimePresentation } from '../../game/slimes';
 
 type MorphMesh = THREE.Mesh & {
   morphTargetDictionary?: Record<string, number>;
@@ -28,6 +28,8 @@ interface FusionSceneProps {
   fromRank: number;
   toRank: number;
   ceremony: FusionCeremonyPreset;
+  currentPresentation: SlimePresentation;
+  resultPresentation: SlimePresentation;
   onComplete: () => void;
 }
 
@@ -133,18 +135,14 @@ function animateResultAttack(parts: ModelParts, slimeId: SlimeId, fusionRank: nu
 }
 
 function FusionScene(props: FusionSceneProps) {
-  const activeRank = props.isFusing ? props.fromRank : props.fusionRank;
   const fullMerge = props.ceremony === 'major-form';
   const ceremonyDuration = props.ceremony === 'major-form'
     ? 1.58
     : props.ceremony === 'major-behavior'
       ? 1.34
       : 1.08;
-  const targetRank = props.isFusing ? props.toRank : props.fusionRank + 1;
-  const currentPresentation = getSlimePresentationForRank(props.slimeId, activeRank);
-  const resultPresentation = getSlimePresentationForRank(props.slimeId, targetRank);
-  const currentGltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}${currentPresentation.asset}`);
-  const resultGltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}${resultPresentation.asset}`);
+  const currentGltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}${props.currentPresentation.asset}`);
+  const resultGltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}${props.resultPresentation.asset}`);
 
   const leftModel = useMemo(() => currentGltf.scene.clone(true), [currentGltf.scene]);
   const rightModel = useMemo(() => currentGltf.scene.clone(true), [currentGltf.scene]);
@@ -275,12 +273,14 @@ interface FusionStageProps {
   fromRank: number;
   toRank: number;
   ceremony: FusionCeremonyPreset;
+  currentPresentation: SlimePresentation;
+  resultPresentation: SlimePresentation;
   onFusionComplete: () => void;
 }
 
 export function FusionStage(props: FusionStageProps) {
-  const current = getSlimePresentationForRank(props.slimeId, props.fusionRank);
-  const result = getSlimePresentationForRank(props.slimeId, props.toRank);
+  const current = props.currentPresentation;
+  const result = props.resultPresentation;
   return (
     <div className={`fusion-stage-shell fusion-stage ${props.isFusing ? 'is-fusing' : ''} ${props.fusionReady ? 'is-ready' : ''}`} aria-label={`${current.name} 合成プレビュー`}>
       <Canvas
@@ -301,6 +301,8 @@ export function FusionStage(props: FusionStageProps) {
           fromRank={props.fromRank}
           toRank={props.toRank}
           ceremony={props.ceremony}
+          currentPresentation={props.currentPresentation}
+          resultPresentation={props.resultPresentation}
           onComplete={props.onFusionComplete}
         />
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.49, 0]} receiveShadow>

@@ -17,13 +17,11 @@ import {
   previewPlainSlimeCraft,
   previewSlimeFusion,
   previewSlimeLevelUp,
-  promoteSlime,
 } from './commands';
 import {
   fusionStepDefinitions,
   ids,
   jobCreationDefinitions,
-  promotionDefinitions,
   resolveCurrencyDefinition,
 } from './definitions';
 import { firstSlimeIdByType, slimeIdsByType } from './roster';
@@ -208,7 +206,7 @@ describe('individual growth', () => {
     expect(leveled.state.gameData.roster.slimes['slime.2']?.level).toBe(1);
   });
 
-  it('unlocks the authored Sword Fusion form without changing the promotion tier', () => {
+  it('unlocks the authored Sword Fusion form and keeps the authored Tier-1 stage', () => {
     const { state, swordId } = createSword();
     const firstStep = fusionStepDefinitions.sword[0];
     if (firstStep === undefined) throw new Error('Sword Fusion requires at least one authored step.');
@@ -242,56 +240,81 @@ describe('individual growth', () => {
   });
 });
 
-describe('promotion', () => {
-  it('promotes one instance without changing its Fusion rank/form', () => {
+
+describe('advanced Fusion progression', () => {
+  it('moves a Sword from the first Fusion form into the Tier-2 Fighter form', () => {
     const { state, swordId } = createSword();
+    const [firstStep, fighterStep] = fusionStepDefinitions.sword;
+    if (firstStep === undefined || fighterStep === undefined) throw new Error('Sword Fusion fixtures are incomplete.');
     const sword = state.gameData.roster.slimes[swordId]!;
+    let tokens = state.tokens;
+    for (const step of [firstStep, fighterStep]) {
+      for (const requirement of step.recipe) tokens = grantToken(tokens, requirement.tokenId, requirement.count);
+    }
     let prepared: SlimeMercenariesState = {
       ...state,
-      tokens: grantToken(state.tokens, ids.token.promotionMaterial, promotionDefinitions.sword[0]!.recipe[0]!.count),
+      tokens,
       gameData: {
         ...state.gameData,
         roster: {
           ...state.gameData.roster,
-          slimes: {
-            ...state.gameData.roster.slimes,
-            [swordId]: { ...sword, level: promotionDefinitions.sword[0]!.minLevel, fusionRank: 2, fusionFormId: 'greatsword' },
-          },
+          slimes: { ...state.gameData.roster.slimes, [swordId]: { ...sword, level: fighterStep.minLevel } },
         },
       },
     };
-    prepared = applyRewards(prepared, [{ type: 'currency', currencyId: ids.currency.gold, amount: 1_000, source: 'test' }], { resolveCurrencyDefinition }) as SlimeMercenariesState;
 
-    const promoted = promoteSlime(prepared, swordId);
-    expect(promoted.accepted).toBe(true);
-    if (!promoted.accepted) return;
-    expect(promoted.state.gameData.roster.slimes[swordId]).toMatchObject({
+    const first = fuseSlime(prepared, swordId, firstStep.id);
+    expect(first.accepted).toBe(true);
+    if (!first.accepted) return;
+    prepared = first.state;
+    const fighter = fuseSlime(prepared, swordId, fighterStep.id);
+    expect(fighter.accepted).toBe(true);
+    if (!fighter.accepted) return;
+
+    expect(fighter.state.gameData.roster.slimes[swordId]).toMatchObject({
       jobTier: 2,
-      promotionPathId: 'fighter',
-      fusionRank: 2,
-      fusionFormId: 'greatsword',
+      fusionRank: 3,
+      fusionFormId: 'fighter',
     });
   });
 
-  it('rejects Promotion atomically when materials are missing', () => {
+  it('requires an explicit Tier-3 Fusion branch and applies the selected form', () => {
     const { state, swordId } = createSword();
+    const [firstStep, fighterStep, blademasterStep, berserkerStep] = fusionStepDefinitions.sword;
+    if (!firstStep || !fighterStep || !blademasterStep || !berserkerStep) throw new Error('Sword branch fixtures are incomplete.');
     const sword = state.gameData.roster.slimes[swordId]!;
-    let prepared: SlimeMercenariesState = {
+    let tokens = state.tokens;
+    for (const step of [firstStep, fighterStep, blademasterStep, berserkerStep]) {
+      for (const requirement of step.recipe) tokens = grantToken(tokens, requirement.tokenId, requirement.count);
+    }
+    let current: SlimeMercenariesState = {
       ...state,
+      tokens,
       gameData: {
         ...state.gameData,
         roster: {
           ...state.gameData.roster,
-          slimes: { ...state.gameData.roster.slimes, [swordId]: { ...sword, level: promotionDefinitions.sword[0]!.minLevel } },
+          slimes: { ...state.gameData.roster.slimes, [swordId]: { ...sword, level: berserkerStep.minLevel } },
         },
       },
     };
-    prepared = applyRewards(prepared, [{ type: 'currency', currencyId: ids.currency.gold, amount: 1_000, source: 'test' }], { resolveCurrencyDefinition }) as SlimeMercenariesState;
-    const goldBefore = readCurrency(prepared.currencies, ids.currency.gold).toString();
+    for (const step of [firstStep, fighterStep]) {
+      const result = fuseSlime(current, swordId, step.id);
+      if (!result.accepted) throw new Error('Fusion setup failed: ' + result.reason);
+      current = result.state;
+    }
 
-    const rejected = promoteSlime(prepared, swordId);
-    expect(rejected.accepted).toBe(false);
-    expect(rejected.state).toBe(prepared);
-    expect(readCurrency(rejected.state.currencies, ids.currency.gold).toString()).toBe(goldBefore);
+    const ambiguous = fuseSlime(current, swordId);
+    expect(ambiguous.accepted).toBe(false);
+    if (!ambiguous.accepted) expect(ambiguous.reason).toBe('fusion-choice-required');
+
+    const branched = fuseSlime(current, swordId, berserkerStep.id);
+    expect(branched.accepted).toBe(true);
+    if (!branched.accepted) return;
+    expect(branched.state.gameData.roster.slimes[swordId]).toMatchObject({
+      jobTier: 3,
+      fusionRank: 4,
+      fusionFormId: 'berserker',
+    });
   });
 });

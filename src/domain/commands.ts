@@ -7,21 +7,19 @@ import {
   recordCurrencySpend,
   previewLevelUp,
   spendToken,
+  GameNumber,
   type CommandResult,
   type DomainEvent,
-  GameNumber,
 } from 'idle-game-kit';
 import {
   fusionStepDefinitions,
   ids,
   jobCreationDefinitions,
   plainSlimeBalance,
-  promotionDefinitions,
   resolveCurrencyDefinition,
   typeLevelDefinitions,
   type FusionStepDefinition,
   type JobSlimeId,
-  type PromotionDefinition,
   type TokenRequirement,
 } from './definitions';
 import { createSlimeWeaponLoadout, slimeInstanceIdForSerial, type SlimeInstanceId, type SlimeMercenariesState, type SlimeProgress } from './state';
@@ -208,7 +206,6 @@ export function createJobSlime(
     typeId: jobId,
     level: definition.startingLevel,
     jobTier: definition.startingJobTier,
-    promotionPathId: null,
     fusionRank: 1,
     fusionFormId: 'base',
     mutationId: null,
@@ -359,18 +356,14 @@ export type SlimeFusionPreview = Readonly<{
   canFuse: boolean;
 }>;
 
-/** Resolve the next authored Fusion step from the canonical rank without mutating state. */
-export function previewSlimeFusion(
+function fusionPreviewForStep(
   state: SlimeMercenariesState,
   slimeId: SlimeInstanceId,
+  step: FusionStepDefinition,
 ): SlimeFusionPreview {
   const slime = state.gameData.roster.slimes[slimeId];
   if (slime === undefined) {
     return { slimeId, step: null, levelMet: false, requirements: [], canFuse: false };
-  }
-  const step = fusionStepDefinitions[slime.typeId].find((candidate) => candidate.fromRank === slime.fusionRank) ?? null;
-  if (step === null) {
-    return { slimeId, step: null, levelMet: true, requirements: [], canFuse: false };
   }
   const requirements = step.recipe.map((requirement) => previewRequirement(state, requirement));
   const levelMet = slime.level >= step.minLevel;
@@ -383,18 +376,55 @@ export function previewSlimeFusion(
   };
 }
 
+/** Return every authored Fusion result available from the slime's current rank. */
+export function previewSlimeFusions(
+  state: SlimeMercenariesState,
+  slimeId: SlimeInstanceId,
+): readonly SlimeFusionPreview[] {
+  const slime = state.gameData.roster.slimes[slimeId];
+  if (slime === undefined) return [];
+  return fusionStepDefinitions[slime.typeId]
+    .filter((candidate) => candidate.fromRank === slime.fusionRank)
+    .map((step) => fusionPreviewForStep(state, slimeId, step));
+}
+
+/** Resolve one Fusion option for simple one-path callers and explicit branch previews. */
+export function previewSlimeFusion(
+  state: SlimeMercenariesState,
+  slimeId: SlimeInstanceId,
+  fusionStepId?: string,
+): SlimeFusionPreview {
+  const choices = previewSlimeFusions(state, slimeId);
+  const selected = fusionStepId === undefined
+    ? choices[0]
+    : choices.find((choice) => choice.step?.id === fusionStepId);
+  return selected ?? {
+    slimeId,
+    step: null,
+    levelMet: state.gameData.roster.slimes[slimeId] !== undefined,
+    requirements: [],
+    canFuse: false,
+  };
+}
+
 /**
- * Apply one Fusion recipe atomically. Fusion changes only fusionRank/form and never consumes
- * a promotion tier, which keeps Greatsword independent from Fighter promotion.
+ * Apply one Fusion recipe atomically. Fusion is the sole form-growth system and therefore updates
+ * rank, visible form and authored job tier together. Branching ranks require an explicit choice.
  */
 export function fuseSlime(
   state: SlimeMercenariesState,
   slimeId: SlimeInstanceId,
-): CommandResult<SlimeMercenariesState, 'not-owned' | 'max-rank' | 'level-too-low' | 'insufficient-materials'> {
+  fusionStepId?: string,
+): CommandResult<SlimeMercenariesState, 'not-owned' | 'max-rank' | 'fusion-choice-required' | 'invalid-fusion' | 'level-too-low' | 'insufficient-materials'> {
   const slime = state.gameData.roster.slimes[slimeId];
   if (slime === undefined) return reject(state, 'not-owned');
-  const preview = previewSlimeFusion(state, slimeId);
-  if (preview.step === null) return reject(state, 'max-rank');
+  const choices = previewSlimeFusions(state, slimeId);
+  if (choices.length === 0) return reject(state, 'max-rank');
+  if (fusionStepId === undefined && choices.length > 1) return reject(state, 'fusion-choice-required');
+  const preview = fusionStepId === undefined
+    ? choices[0]!
+    : choices.find((choice) => choice.step?.id === fusionStepId);
+  if (preview === undefined || preview.step === null) return reject(state, 'invalid-fusion');
   if (!preview.levelMet) return reject(state, 'level-too-low');
   if (!preview.canFuse) return reject(state, 'insufficient-materials');
 
@@ -403,6 +433,7 @@ export function fuseSlime(
     ...slime,
     fusionRank: preview.step.toRank,
     fusionFormId: preview.step.resultFusionFormId,
+    jobTier: preview.step.resultJobTier,
   };
   const nextState: SlimeMercenariesState = {
     ...state,
@@ -423,6 +454,7 @@ export function fuseSlime(
     fusionStepId: preview.step.id,
     fusionRank: preview.step.toRank,
     fusionFormId: preview.step.resultFusionFormId,
+    jobTier: preview.step.resultJobTier,
     behaviorUnlockId: preview.step.behaviorUnlockId,
   })]);
 }
@@ -490,107 +522,5 @@ export function levelUpSlime(
     levelAfter: preview.targetLevel,
     count: preview.count,
     totalCost: spend.appliedAmount.serialize(),
-  })]);
-}
-
-
-export type SlimePromotionPreview = Readonly<{
-  slimeId: SlimeInstanceId;
-  step: PromotionDefinition | null;
-  levelMet: boolean;
-  goldCost: GameNumber;
-  canAffordGold: boolean;
-  requirements: readonly TokenRequirementPreview[];
-  canPromote: boolean;
-}>;
-
-function promotionPreviewForStep(
-  state: SlimeMercenariesState,
-  slimeId: SlimeInstanceId,
-  step: PromotionDefinition,
-): SlimePromotionPreview {
-  const slime = state.gameData.roster.slimes[slimeId];
-  if (slime === undefined) {
-    return { slimeId, step: null, levelMet: false, goldCost: GameNumber.zero(), canAffordGold: false, requirements: [], canPromote: false };
-  }
-  const requirements = step.recipe.map((requirement) => previewRequirement(state, requirement));
-  const goldCost = GameNumber.from(step.goldCost);
-  const levelMet = slime.level >= step.minLevel;
-  const canAffordGold = readCurrency(state.currencies, ids.currency.gold).compare(goldCost) >= 0;
-  return {
-    slimeId, step, levelMet, goldCost, canAffordGold, requirements,
-    canPromote: levelMet && canAffordGold && requirements.every((requirement) => requirement.missing === 0),
-  };
-}
-
-/** Return every authored branch available from the slime's current job tier. */
-export function previewSlimePromotions(
-  state: SlimeMercenariesState,
-  slimeId: SlimeInstanceId,
-): readonly SlimePromotionPreview[] {
-  const slime = state.gameData.roster.slimes[slimeId];
-  if (slime === undefined) return [];
-  return promotionDefinitions[slime.typeId]
-    .filter((candidate) => candidate.fromTier === slime.jobTier)
-    .map((step) => promotionPreviewForStep(state, slimeId, step));
-}
-
-/** Compatibility preview for tiers with exactly one next promotion. */
-export function previewSlimePromotion(
-  state: SlimeMercenariesState,
-  slimeId: SlimeInstanceId,
-  promotionId?: string,
-): SlimePromotionPreview {
-  const choices = previewSlimePromotions(state, slimeId);
-  const selected = promotionId === undefined
-    ? (choices.length === 1 ? choices[0] : undefined)
-    : choices.find((choice) => choice.step?.id === promotionId);
-  return selected ?? {
-    slimeId,
-    step: null,
-    levelMet: state.gameData.roster.slimes[slimeId] !== undefined,
-    goldCost: GameNumber.zero(),
-    canAffordGold: true,
-    requirements: [],
-    canPromote: false,
-  };
-}
-
-export function promoteSlime(
-  state: SlimeMercenariesState,
-  slimeId: SlimeInstanceId,
-  promotionId?: string,
-): CommandResult<SlimeMercenariesState, 'not-owned' | 'max-tier' | 'promotion-choice-required' | 'invalid-promotion' | 'level-too-low' | 'insufficient-materials' | 'insufficient-gold'> {
-  const slime = state.gameData.roster.slimes[slimeId];
-  if (slime === undefined) return reject(state, 'not-owned');
-  const choices = previewSlimePromotions(state, slimeId);
-  if (choices.length === 0) return reject(state, 'max-tier');
-  if (promotionId === undefined && choices.length > 1) return reject(state, 'promotion-choice-required');
-  const preview = promotionId === undefined
-    ? choices[0]!
-    : choices.find((choice) => choice.step?.id === promotionId);
-  if (preview === undefined || preview.step === null) return reject(state, 'invalid-promotion');
-  if (!preview.levelMet) return reject(state, 'level-too-low');
-  if (preview.requirements.some((requirement) => requirement.missing > 0)) return reject(state, 'insufficient-materials');
-  if (!preview.canAffordGold) return reject(state, 'insufficient-gold');
-
-  const spend = applyCurrencyTransaction(state.currencies, {
-    currencyId: ids.currency.gold, amount: preview.goldCost, kind: 'spend', source: preview.step.id,
-  }, resolveCurrencyDefinition(ids.currency.gold));
-  if (!spend.accepted) return reject(state, 'insufficient-gold');
-
-  const tokens = spendRequirements(state.tokens, preview.step.recipe);
-  const updated: SlimeProgress = { ...slime, jobTier: preview.step.toTier, promotionPathId: preview.step.resultPathId };
-  let nextState: SlimeMercenariesState = {
-    ...state, currencies: spend.balances, tokens,
-    gameData: {
-      ...state.gameData,
-      roster: { ...state.gameData.roster, slimes: { ...state.gameData.roster.slimes, [slimeId]: updated } },
-    },
-  };
-  nextState = recordCurrencySpend(nextState, ids.currency.gold, spend.appliedAmount);
-  return accept(nextState, [semanticEvent(nextState, 'slimePromoted', preview.step.id, {
-    slimeId, promotionId: preview.step.id, jobTier: preview.step.toTier, promotionPathId: preview.step.resultPathId,
-    fusionRank: updated.fusionRank, fusionFormId: updated.fusionFormId,
   })]);
 }

@@ -1,7 +1,7 @@
 # Idle Game Kit Integration
 
 Status: Current implementation boundary
-Date: 2026-09-18
+Date: 2026-09-19
 
 ## 1. Goal
 
@@ -9,9 +9,9 @@ Slime Mercenaries should use `idle-game-kit` for reusable idle-game invariants w
 
 The integration rule is:
 
-> **Kit owns reusable economy/time/persistence primitives. Slime Mercenaries owns combat, job creation, fusion recipes, promotion rules, and battle-facing behavior.**
+> **Kit owns reusable economy/time/persistence primitives. Slime Mercenaries owns combat, job creation, Fusion recipes/branches, and battle-facing behavior.**
 
-The authoritative product Domain, browser profile, React/Three presentation, offline advancement, and balance simulator now share the same persisted `SlimeMercenariesState` and product commands. Three.js remains presentation-only: it animates the current formation/encounter but does not own durable progression, loot, Fusion, Promotion, Equipment, or Stage rewards.
+The authoritative product Domain, browser profile, React/Three presentation, offline advancement, and balance simulator now share the same persisted `SlimeMercenariesState` and product commands. Three.js remains presentation-only: it animates the current formation/encounter but does not own durable progression, loot, Fusion, Equipment, or Stage rewards.
 
 ## 1.1 Current implementation status
 
@@ -19,12 +19,12 @@ Completed on 2026-09-16:
 
 - vendored `idle-game-kit` public package from source commit `ab71170d8cd51297f54f9a1d982fa35c593080e5`
 - canonical `GameState<SlimeMercenariesData>` with schema migration, Gold, Tokens, named RNG, Equipment Inventory/Loadout, Dispatch, Formation, and progression state
-- definition-driven Plain craft/shop/job creation, Type Level, Fusion, and Tier Promotion
+- definition-driven Plain craft/shop/job creation, Type Level, and branched Fusion
 - Forge Key-funded Kit Gacha, persistent Equipment instances, duplicate refinement, family Loadouts, and overflow material
 - analytical Wave/Stage/Boss/reward progression with deterministic loot RNG
 - Kit Timed Activity-backed deterministic Dispatch
 - IndexedDB/ProfileRepository persistence and same-core online/offline world advancement
-- same-core simulator command surface for craft/buy/job/level/fuse/promote/forge/equip/dispatch/progress
+- same-core simulator command surface for craft/buy/job/level/fuse/forge/equip/dispatch/progress
 - balance targets and all routine tuning values centralized in `src/domain/balance.ts`
 - React/Three presentation bound to the persisted authoritative state; the old local roster/fusion inventory fixture has been removed
 
@@ -61,7 +61,7 @@ Connected and verified:
 
 - vendored public Kit package from recorded clean source commit `ab71170d8cd51297f54f9a1d982fa35c593080e5`
 - Gold Currency and countable Token resources
-- Plain craft/shop/job creation, Type Level, Fusion, and Promotion
+- Plain craft/shop/job creation, Type Level, and branched Fusion
 - deterministic Wave/Stage/Boss analytical progression and loot RNG
 - same-core online/offline advancement
 - ProfileRepository boundary with browser IndexedDB adapter and schema-v0/v1/v2 -> v3 migration
@@ -74,7 +74,7 @@ The first-loop target remains first Fusion at 1–3 minutes and Clover Road boss
 
 ### Public validation build
 
-The currently published build is intentionally a content-validation sandbox. `VITE_VALIDATION_MODE=true` replenishes Gold and authored token resources at the Application boundary while keeping production Domain commands, recipes, costs, promotion branches, formation rules, combat projection, and persistence active. The UI renders replenished holdings as `∞` but still shows authored costs. Set `VITE_VALIDATION_MODE=false` when the public build returns to the real economy.
+The currently published build is intentionally a content-validation sandbox. `VITE_VALIDATION_MODE=true` replenishes Gold and authored token resources at the Application boundary while keeping production Domain commands, recipes, Fusion branches, formation rules, combat projection, and persistence active. The UI renders replenished holdings as `∞` but still shows authored costs. Set `VITE_VALIDATION_MODE=false` when the public build returns to the real economy.
 
 Validation-only helpers may prepare the six normal job families, jump an owned slime to Lv.40, reset one slime to its Tier-1/base form, or restart Clover Road. They must not be used by same-core simulator policies and must remain outside Domain balance/economy definitions.
 
@@ -88,7 +88,6 @@ Validation-only helpers may prepare the six normal job families, jump an owned s
 | Job Gear | Token balance initially | direct | product definitions |
 | Forge Key | Token balance | direct | product definition |
 | Fusion material/component | Token balance | direct | product definitions |
-| Promotion material | Token balance | direct | product definitions |
 | Mutation fragments | Token balance | direct | product definitions |
 | Type Level curves | `LevelDefinition`, `previewLevelUp` | adapter | Kit curve math + product command |
 | equipment ownership | `InventoryState` / `ItemInstanceState` | direct foundation | Kit ownership invariant + product item data |
@@ -107,7 +106,6 @@ Validation-only helpers may prepare the six normal job families, jump an owned s
 | target selection / HP / wave / boss | none intentionally | product-specific | Slime Mercenaries |
 | Job creation | product atomic command using Kit Currency/Token helpers | product-specific | Slime Mercenaries |
 | Fusion recipe | product atomic command using Kit Token helpers | product-specific | Slime Mercenaries |
-| Promotion | product atomic command using Kit resources/conditions | product-specific | Slime Mercenaries |
 
 ## 4. Recommended authoritative state boundary
 
@@ -130,7 +128,7 @@ Kit GameState
 │  ├─ fusion-component.greatsword-blank
 │  ├─ fusion-material.hardening-gel
 │  ├─ forge-key
-│  └─ promotion / mutation tokens...
+│  └─ mutation tokens...
 ├─ inventory
 │  └─ persistent combat equipment instances
 ├─ activities
@@ -141,8 +139,7 @@ Kit GameState
    ├─ slimeInstancesById
    │  ├─ stable instance ID + job type
    │  ├─ level
-   │  ├─ promotion tier/path
-   │  ├─ fusion rank/form
+   │  ├─ fusion rank/form + derived job tier
    │  └─ assignment
    ├─ formation slots storing instance IDs
    ├─ per-instance loadout references
@@ -222,7 +219,7 @@ Duplicate creation never auto-merges. A separate product command may explicitly 
 Product command:
 
 ```text
-FuseSlime(slimeInstanceId, fusionStepId)
+FuseSlime(slimeInstanceId, fusionStepId?)
 ```
 
 Inputs are authored recipe requirements such as:
@@ -234,19 +231,9 @@ Hardening Gel x2
 minimum Type Level 10
 ```
 
-The command validates the whole recipe first, spends all resources atomically, advances `fusionRank/fusionForm`, and emits the combat-behavior unlock metadata used by presentation and simulator.
+The command validates the whole recipe first, spends all resources atomically, and advances `fusionRank/fusionForm` together with the authored `jobTier`. If the current rank has multiple results, `fusionStepId` is required so the player explicitly chooses the specialization. The command emits combat-behavior unlock metadata used by presentation and simulator.
 
-Greatsword is a fusion form on the Sword branch, not a Tier-2 promotion.
-
-### 4.5 Promote Slime
-
-Product command:
-
-```text
-PromoteSlime(slimeInstanceId, promotionId)
-```
-
-Promotion consumes authored Gold/material/crest requirements and changes `jobTier/promotionPath`. It is independent of `fusionRank/fusionForm` and preserves applicable fusion progression according to product rules.
+Fusion is the only normal form/tier progression command. The first family enhancement, Tier-2 form, and Tier-3 specialization all use this same atomic path.
 
 ## 6. Level integration
 
@@ -412,7 +399,6 @@ This is where Plain-shop price, material drop rates, Fusion recipe quantities, s
 - job creation resolution
 - persistent slime-instance roster with stable IDs
 - Fusion recipe/state
-- Promotion
 - stage/combat/offline battle model
 - dispatch assignment/power rules
 - equipment effects/refinement semantics
@@ -421,7 +407,7 @@ This is where Plain-shop price, material drop rates, Fusion recipe quantities, s
 
 Token-funded Gacha cost is no longer pending: Slime Mercenaries plus the existing material-paid forge use case provided sufficient evidence for a narrow reusable cost contract, so Kit now supports Currency or Token Gacha cost without adding product-specific Forge semantics.
 
-Do not add a generic recipe/crafting engine yet. Slime Mercenaries currently needs atomic multi-resource recipes for Plain crafting, Fusion, and Promotion, but one product is insufficient evidence that a generic crafting subsystem belongs in Kit.
+Do not add a generic recipe/crafting engine yet. Slime Mercenaries currently needs atomic multi-resource recipes for Plain crafting and Fusion, but one product is insufficient evidence that a generic crafting subsystem belongs in Kit.
 
 If a second independent Kit product requires the same typed pattern—validated multi-input recipe, deterministic spend, typed output, preview, atomic commit—then extract a small generic `RecipeDefinition/previewRecipe/applyRecipeCosts` primitive. Until then, keep recipe definitions and commands product-owned while reusing Currency/Token helpers underneath.
 
@@ -441,6 +427,6 @@ The planned integration sequence is complete for the current Sword/Bow vertical 
 8. [done] Dispatch through Kit Timed Activity
 9. [done] Inventory/Loadout + Token-funded Kit Gacha Forge + refinement
 10. [done] React/Three presentation bound to persisted authoritative state; visual runtime no longer owns durable progression/rewards
-11. [done] Tier Promotion as a separate axis from Fusion, plus current vertical-slice Equipment/Promotion content
+11. [done] branched Fusion as the sole form/tier growth axis, plus current vertical-slice Equipment content
 
 Future work is deliberately outside this integration plan: additional job families/forms/areas, richer equipment behavior/VFX, Cloud Save enablement when desired, and further UI/presentation refinement. New content must continue to use the same Domain/Kit boundaries rather than adding a second progression state in React or Three.js.

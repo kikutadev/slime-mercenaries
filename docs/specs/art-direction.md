@@ -45,7 +45,7 @@ Communicate strength through:
 - VFX intensity within readability limits
 - signature behavior unlocks
 
-Promotion to a genuinely different form may alter silhouette and equipment, but should remain in the same broad gameplay-size family unless the form's identity specifically requires otherwise. Boss scale is separate and may be much larger.
+A Fusion result with a genuinely different form may alter silhouette and equipment, but should remain in the same broad gameplay-size family unless the form's identity specifically requires otherwise. Boss scale is separate and may be much larger.
 
 ## 4. Camera and facing
 

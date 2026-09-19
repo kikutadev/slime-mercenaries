@@ -119,7 +119,7 @@ export const FUSION_ITEMS: Record<FusionItemId, FusionItemDefinition> = {
   [ids.token.temperedSteel]: { id: ids.token.temperedSteel, name: '鍛鉄片', shortName: '鍛鉄片', category: 'material', glyph: '⬟' },
 };
 
-type PromotionPresentation = Readonly<{
+type FusionFormPresentation = Readonly<{
   typeId: JobSlimeId;
   name: string;
   role: string;
@@ -129,33 +129,33 @@ type PromotionPresentation = Readonly<{
   battle: SlimeBattlePresentation;
 }>;
 
-const PROMOTED: Readonly<Record<string, PromotionPresentation>> = {
-  fighter: promoted('sword', '戦士スライム', '前衛・連撃', 2, 'fighter-slime.glb', '#c7654e', 'fighter-combo', 'WeaponAnchor', 'WeaponTip', 8, 'front'),
-  blademaster: promoted('sword', '剣聖スライム', '前衛・技巧斬撃', 3, 'blademaster-slime.glb', '#ffd86c', 'blademaster-dash', 'WeaponAnchor', 'WeaponTip', 9, 'front'),
-  berserker: promoted('sword', '狂戦士スライム', '前衛・重撃', 3, 'berserker-slime.glb', '#ff8b65', 'berserker-heavy', 'WeaponAnchor', 'WeaponTip', 10, 'front'),
+const FUSION_FORMS: Readonly<Record<string, FusionFormPresentation>> = {
+  fighter: fusionForm('sword', '戦士スライム', '前衛・連撃', 2, 'fighter-slime.glb', '#c7654e', 'fighter-combo', 'WeaponAnchor', 'WeaponTip', 8, 'front'),
+  blademaster: fusionForm('sword', '剣聖スライム', '前衛・技巧斬撃', 3, 'blademaster-slime.glb', '#ffd86c', 'blademaster-dash', 'WeaponAnchor', 'WeaponTip', 9, 'front'),
+  berserker: fusionForm('sword', '狂戦士スライム', '前衛・重撃', 3, 'berserker-slime.glb', '#ff8b65', 'berserker-heavy', 'WeaponAnchor', 'WeaponTip', 10, 'front'),
 
-  guardian: promoted('shield', 'ガーディアンスライム', '前衛・重防御', 2, 'guardian-slime.glb', '#85c9ef', 'guardian-guard', 'GuardianShieldAnchor', 'GuardianShieldAnchor', 11, 'front'),
-  paladin: promoted('shield', 'パラディンスライム', '前衛・守護', 3, 'paladin-slime.glb', '#f2d379', 'paladin-barrier', 'PaladinShieldAnchor', 'PaladinShieldAnchor', 12, 'front'),
-  fortress: promoted('shield', 'フォートレススライム', '前衛・要塞', 3, 'fortress-slime.glb', '#9caeb8', 'fortress-plant', 'FortressShieldAnchor', 'FortressShieldAnchor', 14, 'front'),
+  guardian: fusionForm('shield', 'ガーディアンスライム', '前衛・重防御', 2, 'guardian-slime.glb', '#85c9ef', 'guardian-guard', 'GuardianShieldAnchor', 'GuardianShieldAnchor', 11, 'front'),
+  paladin: fusionForm('shield', 'パラディンスライム', '前衛・守護', 3, 'paladin-slime.glb', '#f2d379', 'paladin-barrier', 'PaladinShieldAnchor', 'PaladinShieldAnchor', 12, 'front'),
+  fortress: fusionForm('shield', 'フォートレススライム', '前衛・要塞', 3, 'fortress-slime.glb', '#9caeb8', 'fortress-plant', 'FortressShieldAnchor', 'FortressShieldAnchor', 14, 'front'),
 
-  ranger: promoted('bow', 'レンジャースライム', '後衛・機動射撃', 2, 'ranger-slime.glb', '#87dc78', 'ranger-double-shot', 'RangerBowAnchor', null, 5, 'back'),
-  sniper: promoted('bow', 'スナイパースライム', '後衛・狙撃', 3, 'sniper-slime.glb', '#9fd985', 'sniper-pierce', 'SniperBowAnchor', null, 5, 'back'),
-  'storm-archer': promoted('bow', 'ストームアーチャースライム', '後衛・連撃射撃', 3, 'storm-archer-slime.glb', '#71d9cf', 'storm-archer-volley', 'StormBowAnchor', null, 6, 'back'),
+  ranger: fusionForm('bow', 'レンジャースライム', '後衛・機動射撃', 2, 'ranger-slime.glb', '#87dc78', 'ranger-double-shot', 'RangerBowAnchor', null, 5, 'back'),
+  sniper: fusionForm('bow', 'スナイパースライム', '後衛・狙撃', 3, 'sniper-slime.glb', '#9fd985', 'sniper-pierce', 'SniperBowAnchor', null, 5, 'back'),
+  'storm-archer': fusionForm('bow', 'ストームアーチャースライム', '後衛・連撃射撃', 3, 'storm-archer-slime.glb', '#71d9cf', 'storm-archer-volley', 'StormBowAnchor', null, 6, 'back'),
 
-  mage: promoted('wand', 'メイジスライム', '後衛・魔法', 2, 'mage-slime.glb', '#9b7cf0', 'mage-aoe', 'WandAnchor', null, 5, 'back'),
-  archmage: promoted('wand', 'アークメイジスライム', '後衛・大魔法', 3, 'archmage-slime.glb', '#c18cff', 'archmage-burst', 'WandAnchor', null, 5, 'back'),
-  'frost-mage': promoted('wand', 'フロストメイジスライム', '後衛・氷結魔法', 3, 'frost-mage-slime.glb', '#83d9ff', 'frost-mage-control', 'FrostStaffAnchor', null, 6, 'back'),
+  mage: fusionForm('wand', 'メイジスライム', '後衛・魔法', 2, 'mage-slime.glb', '#9b7cf0', 'mage-aoe', 'WandAnchor', null, 5, 'back'),
+  archmage: fusionForm('wand', 'アークメイジスライム', '後衛・大魔法', 3, 'archmage-slime.glb', '#c18cff', 'archmage-burst', 'WandAnchor', null, 5, 'back'),
+  'frost-mage': fusionForm('wand', 'フロストメイジスライム', '後衛・氷結魔法', 3, 'frost-mage-slime.glb', '#83d9ff', 'frost-mage-control', 'FrostStaffAnchor', null, 6, 'back'),
 
-  rogue: promoted('dagger', 'ローグスライム', '前衛・双短剣', 2, 'rogue-slime.glb', '#7885df', 'rogue-twin-strike', 'WeaponAnchor', 'WeaponTip', 6, 'front'),
-  ninja: promoted('dagger', 'ニンジャスライム', '前衛・忍術', 3, 'ninja-slime.glb', '#9a7ed9', 'ninja-vanish', 'WeaponAnchor', 'WeaponTip', 7, 'front'),
-  assassin: promoted('dagger', 'アサシンスライム', '前衛・暗殺', 3, 'assassin-slime.glb', '#8d65ba', 'assassin-execute', 'WeaponAnchor', 'WeaponTip', 7, 'front'),
+  rogue: fusionForm('dagger', 'ローグスライム', '前衛・双短剣', 2, 'rogue-slime.glb', '#7885df', 'rogue-twin-strike', 'WeaponAnchor', 'WeaponTip', 6, 'front'),
+  ninja: fusionForm('dagger', 'ニンジャスライム', '前衛・忍術', 3, 'ninja-slime.glb', '#9a7ed9', 'ninja-vanish', 'WeaponAnchor', 'WeaponTip', 7, 'front'),
+  assassin: fusionForm('dagger', 'アサシンスライム', '前衛・暗殺', 3, 'assassin-slime.glb', '#8d65ba', 'assassin-execute', 'WeaponAnchor', 'WeaponTip', 7, 'front'),
 
-  gunner: promoted('gun', 'ガンナースライム', '後衛・連射', 2, 'gunner-slime.glb', '#69c6de', 'gunner-burst', 'GunAnchor', null, 6, 'back'),
-  cannoneer: promoted('gun', '砲撃手スライム', '後衛・砲撃', 3, 'cannoneer-slime.glb', '#dfad67', 'cannoneer-shell', 'CannoneerCannonAnchor', null, 7, 'back'),
-  engineer: promoted('gun', 'エンジニアスライム', '後衛・機工', 3, 'engineer-slime.glb', '#e9a75d', 'engineer-turret', 'EngineerWrenchAnchor', null, 7, 'back'),
+  gunner: fusionForm('gun', 'ガンナースライム', '後衛・連射', 2, 'gunner-slime.glb', '#69c6de', 'gunner-burst', 'GunAnchor', null, 6, 'back'),
+  cannoneer: fusionForm('gun', '砲撃手スライム', '後衛・砲撃', 3, 'cannoneer-slime.glb', '#dfad67', 'cannoneer-shell', 'CannoneerCannonAnchor', null, 7, 'back'),
+  engineer: fusionForm('gun', 'エンジニアスライム', '後衛・機工', 3, 'engineer-slime.glb', '#e9a75d', 'engineer-turret', 'EngineerWrenchAnchor', null, 7, 'back'),
 };
 
-function promoted(
+function fusionForm(
   typeId: JobSlimeId,
   name: string,
   role: string,
@@ -167,7 +167,7 @@ function promoted(
   weaponTipName: string | null,
   maxHp: number,
   formationRole: 'front' | 'back',
-): PromotionPresentation {
+): FusionFormPresentation {
   return {
     typeId,
     name,
@@ -181,24 +181,19 @@ function promoted(
 
 export function getSlimePresentation(slime: SlimeProgress): SlimePresentation {
   const baseDefinition = SLIMES[slime.typeId];
-  const promotion = slime.promotionPathId === null ? null : PROMOTED[slime.promotionPathId] ?? null;
+  const authoredForm = FUSION_FORMS[slime.fusionFormId] ?? null;
 
-  // Promotion chooses the job form and primary combat identity. Fusion is an independent growth
-  // axis and must never collapse a promoted Fighter/Blademaster/Berserker back into Greatsword.
-  if (promotion !== null && promotion.typeId === slime.typeId) {
+  if (authoredForm !== null && authoredForm.typeId === slime.typeId) {
     return {
       ...baseDefinition,
-      ...promotion,
+      ...authoredForm,
       id: slime.typeId,
       icon: baseDefinition.icon,
-      form: slime.promotionPathId!,
+      form: slime.fusionFormId,
     };
   }
 
-  // Greatsword is a Tier-1 Sword fusion form. Promoted Sword jobs retain this fusion state in
-  // Domain, but their promoted model/behavior remains authoritative until promoted-form Fusion
-  // modifiers are explicitly authored.
-  if (slime.typeId === 'sword' && slime.jobTier === 1 && slime.fusionRank >= 2) {
+  if (slime.typeId === 'sword' && slime.fusionFormId === 'greatsword') {
     return {
       ...baseDefinition,
       name: '大剣士スライム',
@@ -221,7 +216,6 @@ export function getSlimePresentationForRank(id: SlimeId, fusionRank: number): Sl
     typeId: id,
     level: 1,
     jobTier: 1,
-    promotionPathId: null,
     fusionRank,
     fusionFormId: id === 'sword' && fusionRank >= 2 ? 'greatsword' : 'base',
     mutationId: null,

@@ -591,12 +591,9 @@ function slimeDps(state: SlimeMercenariesState, slime: SlimeProgress): GameNumbe
   const levelMultiplier = curveValueAtForSlime(slime);
   const fusionMultiplier = balance.combat.fusionDpsMultiplierByRank[Math.max(0, slime.fusionRank - 1)]
     ?? balance.combat.fusionDpsMultiplierByRank.at(-1)!;
-  const promotionMultiplier = balance.promotion.dpsMultiplierByTier[Math.max(0, slime.jobTier - 1)]
-    ?? balance.promotion.dpsMultiplierByTier.at(-1)!;
   return GameNumber.from(base)
     .multiply(levelMultiplier)
     .multiply(fusionMultiplier)
-    .multiply(promotionMultiplier)
     .multiply(equippedWeaponCombatMultiplier(state, slime.id));
 }
 
@@ -605,12 +602,9 @@ function slimePower(state: SlimeMercenariesState, slime: SlimeProgress): GameNum
   const levelMultiplier = curveValueAtForSlime(slime);
   const fusionMultiplier = balance.combat.fusionPowerMultiplierByRank[Math.max(0, slime.fusionRank - 1)]
     ?? balance.combat.fusionPowerMultiplierByRank.at(-1)!;
-  const promotionMultiplier = balance.promotion.powerMultiplierByTier[Math.max(0, slime.jobTier - 1)]
-    ?? balance.promotion.powerMultiplierByTier.at(-1)!;
   return GameNumber.from(base)
     .multiply(levelMultiplier)
     .multiply(fusionMultiplier)
-    .multiply(promotionMultiplier)
     .multiply(equippedWeaponCombatMultiplier(state, slime.id));
 }
 

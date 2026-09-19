@@ -21,8 +21,6 @@ import {
   previewPlainSlimePurchase,
   previewSlimeFusion,
   previewSlimeLevelUp,
-  previewSlimePromotion,
-  promoteSlime,
 } from './commands';
 import { assignSlimeToFormation, nextCombatBoundarySec } from './combat';
 import { startDispatch } from './dispatch';
@@ -40,8 +38,7 @@ export type SlimeSimulatorCommand =
   | Readonly<{ type: 'assign'; slimeId: SlimeInstanceId; slotIndex: number }>
   | Readonly<{ type: 'level'; slimeId: SlimeInstanceId; count: number }>
   | Readonly<{ type: 'convert-to-core'; slimeId: SlimeInstanceId }>
-  | Readonly<{ type: 'fuse'; slimeId: SlimeInstanceId }>
-  | Readonly<{ type: 'promote'; slimeId: SlimeInstanceId }>
+  | Readonly<{ type: 'fuse'; slimeId: SlimeInstanceId; fusionStepId?: string }>
   | Readonly<{ type: 'forge'; drawCount: 1 | 10 }>
   | Readonly<{ type: 'equip'; slimeId: SlimeInstanceId; weaponDefinitionId: string }>
   | Readonly<{ type: 'start-dispatch'; contractId: DispatchContractId; slimeId: SlimeInstanceId }>;
@@ -57,8 +54,7 @@ export const slimeSimulatorAdapter: SimulatorAdapter<SlimeMercenariesState, Slim
       case 'assign': return assignSlimeToFormation(state, command.slimeId, command.slotIndex);
       case 'level': return levelUpSlime(state, command.slimeId, command.count);
       case 'convert-to-core': return convertDuplicateToFusionCore(state, command.slimeId);
-      case 'fuse': return fuseSlime(state, command.slimeId);
-      case 'promote': return promoteSlime(state, command.slimeId);
+      case 'fuse': return fuseSlime(state, command.slimeId, command.fusionStepId);
       case 'forge': return forgeEquipment(state, command.drawCount);
       case 'equip': return equipWeapon(state, command.slimeId, command.weaponDefinitionId);
       case 'start-dispatch': return startDispatch(state, command.contractId, command.slimeId);
@@ -114,7 +110,7 @@ export function createFirstLoopPolicy(
       }
 
       const fusion = previewSlimeFusion(state, sword.id);
-      if (fusion.canFuse) return { kind: 'command', command: { type: 'fuse', slimeId: sword.id } };
+      if (fusion.canFuse && fusion.step !== null) return { kind: 'command', command: { type: 'fuse', slimeId: sword.id, fusionStepId: fusion.step.id } };
 
       // Efficient policy anticipates the next unlock and spends before hitting the wall.
       if (profileId === 'efficient' && fusion.step !== null && !fusion.levelMet) {
@@ -131,11 +127,6 @@ export function createFirstLoopPolicy(
         const retreatPhase = `${state.gameData.progression.currentStage}:${state.gameData.combat.retryFarmClearsRemaining}`;
         const canStrengthenThisPhase = profileId !== 'paced-defeat' || handledRetreatPhase !== retreatPhase;
         if (canStrengthenThisPhase) {
-          const promotion = previewSlimePromotion(state, sword.id);
-          if (promotion.canPromote) {
-            if (profileId === 'paced-defeat') handledRetreatPhase = retreatPhase;
-            return { kind: 'command', command: { type: 'promote', slimeId: sword.id } };
-          }
           const level = previewSlimeLevelUp(state, sword.id, 1);
           if (level?.available === true
             && readCurrency(state.currencies, ids.currency.gold).compare(level.totalCost) >= 0) {
@@ -199,7 +190,6 @@ export type FirstLoopSimulationSummary = Readonly<{
   retries: number;
   levelUps: number;
   fusions: number;
-  promotions: number;
   maxNoActionWindowSec: number;
   defeatsByStage: Readonly<Record<string, number>>;
 }>;
@@ -259,7 +249,6 @@ export function summarizeFirstLoopSimulation(
     retries: eventCount('frontierRetryStarted'),
     levelUps: eventCount('slimeLeveled'),
     fusions: eventCount('slimeFused'),
-    promotions: eventCount('slimePromoted'),
     maxNoActionWindowSec: Math.max(0, ...run.waitWindows
       .filter((window) => window.classification === 'no-action')
       .map((window) => window.durationSec)),
@@ -475,7 +464,6 @@ function repetitionMetric(summary: FirstLoopSimulationSummary, metricId: string)
     case 'retries': return summary.retries;
     case 'level-ups': return summary.levelUps;
     case 'fusions': return summary.fusions;
-    case 'promotions': return summary.promotions;
     default: return null;
   }
 }

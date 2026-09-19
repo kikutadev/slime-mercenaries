@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import { useGameController, useGameState } from '../../app/GameProvider';
 import { selectSlimeDetail } from '../../application/selectors/ui-selectors';
 import { jobCreationDefinitions, type SlimeInstanceId } from '../../domain';
-import { getSlimePresentation, getSlimePresentationForRank } from '../../game/slimes';
-import { getNextFusionStep } from '../../game/fusion';
+import { getSlimePresentation } from '../../game/slimes';
+import { getNextFusionSteps } from '../../game/fusion';
 import { getFusionIngredientPresentation, getFusionStepPresentation } from '../../game/fusion-presentation';
 import { FusionStage } from './FusionStage';
 
@@ -14,12 +14,21 @@ interface FusionWorkbenchProps {
   onRecruit: () => void;
 }
 
-type FusionRunRequirement = Readonly<{ tokenId: string; label: string; owned: number; required: number; missing: number }>;
+type FusionRunRequirement = Readonly<{
+  tokenId: string;
+  label: string;
+  owned: number;
+  required: number;
+  missing: number;
+}>;
 
 type FusionRun = Readonly<{
+  stepId: string;
   fromRank: number;
   toRank: number;
   fromName: string;
+  fromFusionFormId: string;
+  fromJobTier: number;
   requirements: readonly FusionRunRequirement[];
 }>;
 
@@ -34,6 +43,7 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
     .sort((left, right) => left.serial - right.serial);
   const fusionCoreTokenId = progress === null ? null : jobCreationDefinitions[progress.typeId].fusionCoreTokenId;
   const [run, setRun] = useState<FusionRun | null>(null);
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [sequenceKey, setSequenceKey] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [completedName, setCompletedName] = useState<string | null>(null);
@@ -41,16 +51,50 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
   const [completedBehavior, setCompletedBehavior] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const displayFromRank = progress === null ? 1 : run?.fromRank ?? (completed ? Math.max(1, progress.fusionRank - 1) : progress.fusionRank);
-  const next = progress === null ? null : getNextFusionStep({ ...progress, fusionRank: displayFromRank });
-  const resultPresentation = useMemo(() => {
+  const displayFromRank = progress === null
+    ? 1
+    : run?.fromRank ?? (completed ? Math.max(1, progress.fusionRank - 1) : progress.fusionRank);
+
+  const nextChoices = useMemo(() => (
+    progress === null
+      ? []
+      : getNextFusionSteps({ ...progress, fusionRank: displayFromRank })
+  ), [displayFromRank, progress]);
+
+  const next = nextChoices.find((candidate) => candidate.id === selectedStepId) ?? nextChoices[0] ?? null;
+  const selectedFusion = next === null
+    ? null
+    : detail?.fusionOptions.find((option) => option.id === next.id) ?? null;
+
+  const currentPresentation = useMemo(() => {
     if (progress === null) return null;
-    return getSlimePresentationForRank(progress.typeId, displayFromRank + 1);
-  }, [displayFromRank, progress]);
+    if (run === null) return getSlimePresentation(progress);
+    return getSlimePresentation({
+      ...progress,
+      fusionRank: run.fromRank,
+      fusionFormId: run.fromFusionFormId,
+      jobTier: run.fromJobTier,
+    });
+  }, [progress, run]);
+
+  const resultPresentation = useMemo(() => {
+    if (progress === null || next === null) return null;
+    return getSlimePresentation({
+      ...progress,
+      fusionRank: next.rank + 1,
+      fusionFormId: next.resultFusionFormId,
+      jobTier: next.resultJobTier,
+    });
+  }, [next, progress]);
 
   if (detail === null || progress === null) return null;
 
-  if (next === null || detail.fusion === null || resultPresentation === null) {
+  if (
+    next === null
+    || currentPresentation === null
+    || resultPresentation === null
+    || (!completed && run === null && selectedFusion === null)
+  ) {
     return (
       <div className="fusion-workbench fusion-workbench--empty">
         <button className="world-close" type="button" onClick={onClose}>×</button>
@@ -63,24 +107,34 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
     );
   }
 
+  const requirements = run?.requirements ?? selectedFusion?.requirements ?? [];
+  const canFuse = selectedFusion?.canFuse ?? false;
+  const levelMet = selectedFusion?.levelMet ?? true;
+  const minLevel = selectedFusion?.minLevel ?? next.minLevel;
+
   const beginFusion = () => {
-    if (!detail.fusion?.canFuse || run !== null) return;
-    const fromRank = progress.fusionRank;
-    const resultName = next.resultName ?? resultPresentation.name;
-    const description = next.description;
+    if (!canFuse || run !== null) return;
     const stepPresentation = getFusionStepPresentation(next.id);
-    const behavior = stepPresentation.behaviorTitle;
-    const result = controller.fuseSlime(slimeId);
+    const result = controller.fuseSlime(slimeId, next.id);
     if (!result.accepted) {
       setNotice(rejectionLabel(result.reason));
       return;
     }
-    setCompletedName(resultName);
-    setCompletedDescription(description);
-    setCompletedBehavior(behavior);
+
+    setCompletedName(next.resultName);
+    setCompletedDescription(next.description);
+    setCompletedBehavior(stepPresentation.behaviorTitle);
     setSequenceKey((value) => value + 1);
     setCompleted(false);
-    setRun({ fromRank, toRank: fromRank + 1, fromName: detail.name, requirements: detail.fusion.requirements });
+    setRun({
+      stepId: next.id,
+      fromRank: progress.fusionRank,
+      toRank: progress.fusionRank + 1,
+      fromName: detail.name,
+      fromFusionFormId: progress.fusionFormId,
+      fromJobTier: progress.jobTier,
+      requirements: selectedFusion?.requirements ?? [],
+    });
   };
 
   return (
@@ -98,7 +152,7 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
         <div className="fusion-rune fusion-rune--inner" />
         {run !== null && (
           <div className="fusion-absorb-layer" key={`absorb-${sequenceKey}`} aria-hidden="true">
-            {run.requirements.map((requirement) => {
+            {requirements.map((requirement) => {
               const meta = getFusionIngredientPresentation(requirement.tokenId);
               return (
                 <span key={requirement.tokenId}>
@@ -110,13 +164,15 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
         )}
         <FusionStage
           slimeId={progress.typeId}
-          fusionRank={run?.fromRank ?? progress.fusionRank}
+          fusionRank={displayFromRank}
           fusionReady={!completed}
           isFusing={run !== null && !completed}
           sequenceKey={sequenceKey}
-          fromRank={run?.fromRank ?? progress.fusionRank}
-          toRank={run?.toRank ?? progress.fusionRank + 1}
+          fromRank={run?.fromRank ?? displayFromRank}
+          toRank={run?.toRank ?? displayFromRank + 1}
           ceremony={getFusionStepPresentation(next.id).ceremony}
+          currentPresentation={currentPresentation}
+          resultPresentation={resultPresentation}
           onFusionComplete={() => {
             setCompleted(true);
             setRun(null);
@@ -127,14 +183,33 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
 
       {!completed ? (
         <div className="fusion-workbench__console">
+          {run === null && nextChoices.length > 1 && (
+            <div className="fusion-path-choices" aria-label="合成先を選ぶ">
+              <span>合成先を選択</span>
+              <div>
+                {nextChoices.map((choice) => (
+                  <button
+                    key={choice.id}
+                    type="button"
+                    className={choice.id === next.id ? 'is-selected' : ''}
+                    onClick={() => setSelectedStepId(choice.id)}
+                  >
+                    <strong>{choice.resultName}</strong>
+                    <small>{choice.description}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="fusion-result-tease">
             <span>次の形態</span>
-            <strong>{next.resultName ?? resultPresentation.name}</strong>
+            <strong>{next.resultName}</strong>
             <small>{next.description}</small>
           </div>
 
           <div className="fusion-recipe-orbit">
-            {detail.fusion.requirements.map((requirement) => {
+            {requirements.map((requirement) => {
               const meta = getFusionIngredientPresentation(requirement.tokenId);
               return (
                 <button
@@ -155,7 +230,7 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
             })}
           </div>
 
-          {fusionCoreTokenId !== null && detail.fusion.requirements.some((requirement) => requirement.tokenId === fusionCoreTokenId && requirement.missing > 0) && spareDuplicates.length > 0 && (
+          {fusionCoreTokenId !== null && requirements.some((requirement) => requirement.tokenId === fusionCoreTokenId && requirement.missing > 0) && spareDuplicates.length > 0 && (
             <div className="fusion-spare-list" aria-label="合成の核に変換する控えスライム">
               {spareDuplicates.map((candidate) => {
                 const candidatePresentation = getSlimePresentation(candidate);
@@ -179,18 +254,18 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
             </div>
           )}
 
-          {!detail.fusion.levelMet && (
-            <div className="fusion-level-lock">Lv.{detail.fusion.minLevel}で合成陣が安定します。現在 Lv.{detail.level}</div>
+          {run === null && !levelMet && (
+            <div className="fusion-level-lock">Lv.{minLevel}で合成陣が安定します。現在 Lv.{detail.level}</div>
           )}
 
           <button
-            className={`fusion-trigger ${detail.fusion.canFuse ? 'is-ready' : ''}`}
+            className={`fusion-trigger ${canFuse ? 'is-ready' : ''}`}
             type="button"
-            disabled={!detail.fusion.canFuse || run !== null}
+            disabled={!canFuse || run !== null}
             onClick={beginFusion}
           >
-            <span>{detail.fusion.canFuse ? '合成可能' : '素材不足'}</span>
-            <strong>{run !== null ? '合成中…' : detail.fusion.canFuse ? '合成する' : '素材を集める'}</strong>
+            <span>{canFuse ? '合成可能' : '素材不足'}</span>
+            <strong>{run !== null ? '合成中…' : canFuse ? '合成する' : '素材を集める'}</strong>
           </button>
         </div>
       ) : (
@@ -211,11 +286,12 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
   );
 }
 
-
 function rejectionLabel(reason: string | undefined): string {
   switch (reason) {
     case 'insufficient-materials': return '合成素材が足りません';
     case 'level-too-low': return 'レベルが足りません';
+    case 'fusion-choice-required': return '合成先を選んでください';
+    case 'invalid-fusion': return 'その合成先は選べません';
     case 'not-reserve': return '控えのスライムだけ合成素材にできます';
     case 'last-of-type': return '最後の1匹は合成素材にできません';
     default: return reason === undefined ? '合成できませんでした' : `合成できません: ${reason}`;

@@ -31,7 +31,6 @@ export type SlimeProgress = Readonly<{
   typeId: JobSlimeId;
   level: number;
   jobTier: number;
-  promotionPathId: string | null;
   fusionRank: number;
   fusionFormId: string;
   mutationId: SlimeMutationId | null;

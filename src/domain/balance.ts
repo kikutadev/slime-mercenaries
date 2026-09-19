@@ -52,8 +52,8 @@ export const balance = {
       dagger: 9.5,
       gun: 9,
     },
-    fusionPowerMultiplierByRank: [1, 1.55, 1.95, 2.45],
-    fusionDpsMultiplierByRank: [1, 1.45, 1.8, 2.2],
+    fusionPowerMultiplierByRank: [1, 1.55, 2.55, 4.35],
+    fusionDpsMultiplierByRank: [1, 1.45, 2.35, 3.75],
     cloverRoad: {
       stages: [
         { waveWork: [60, 70, 80], waveGold: [22, 26, 32], clearReward: { slimeGel: 8, lifeWater: 1, trainingSword: 1 } },
@@ -66,7 +66,7 @@ export const balance = {
           bossWork: 750,
           bossRequiredPower: 12.5,
           bossGold: 180,
-          clearReward: { forgeKey: 2, promotionMaterial: 3, temperedSteel: 2 },
+          clearReward: { forgeKey: 2, hardeningGel: 3, temperedSteel: 2 },
         },
       ],
     },
@@ -82,7 +82,7 @@ export const balance = {
   dispatch: {
     roadEscort: { durationSec: 300, requiredPower: 10, goldReward: 250 },
     forestExploration: { durationSec: 600, requiredPower: 12, forgeKeyReward: 1 },
-    materialGathering: { durationSec: 900, requiredPower: 14, promotionMaterialReward: 2 },
+    materialGathering: { durationSec: 900, requiredPower: 14, hardeningGelReward: 2 },
   },
   targets: {
     firstFusion: { minSec: 60, maxSec: 180 },
@@ -130,13 +130,11 @@ export const balance = {
       jellynova: { weight: 2, dpsMultiplier: 1.42 },
     },
   },
-  promotion: {
-    dpsMultiplierByTier: [1, 1.35, 1.7],
-    powerMultiplierByTier: [1, 1.4, 1.8],
-    tier2: { minLevel: 20, goldCost: 320, promotionMaterial: 3 },
-    tier3: { minLevel: 40, goldCost: 900, promotionMaterial: 6 },
-  },
   fusion: {
+    advanced: {
+      tier2: { minLevel: 20, core: 2, temperedSteel: 2, hardeningGel: 3 },
+      tier3: { minLevel: 40, core: 3, temperedSteel: 4, hardeningGel: 5 },
+    },
     sword: {
       greatsword: {
         minLevel: 10,

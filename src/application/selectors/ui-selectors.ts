@@ -12,8 +12,7 @@ import {
   previewSlimeFusion,
   previewSlimeLevelUp,
   previewSlimeMutation,
-  previewSlimePromotion,
-  previewSlimePromotions,
+  previewSlimeFusions,
   slimeCombatPower,
   resolveAreaDefinition,
   firstSlimeByType,
@@ -120,7 +119,7 @@ export function selectSlimeDetail(state: SlimeMercenariesState, slimeId: SlimeIn
   if (slime === undefined) return null;
   const presentation = getSlimePresentation(slime);
   const fusion = previewSlimeFusion(state, slimeId);
-  const promotions = previewSlimePromotions(state, slimeId);
+  const fusions = previewSlimeFusions(state, slimeId);
   const levelOne = previewSlimeLevelUp(state, slimeId, 1);
   const levelTen = previewSlimeLevelUp(state, slimeId, 10);
   const maxAffordableCount = findMaxAffordableLevelCount(state, slimeId);
@@ -159,26 +158,32 @@ export function selectSlimeDetail(state: SlimeMercenariesState, slimeId: SlimeIn
       max: toLevelAction(levelMax, maxAffordableCount),
     },
     fusion: fusion.step === null ? null : {
+      id: fusion.step.id,
       canFuse: fusion.canFuse,
       levelMet: fusion.levelMet,
       minLevel: fusion.step.minLevel,
       resultFusionFormId: fusion.step.resultFusionFormId,
+      resultName: fusion.step.resultDisplayName,
+      resultJobTier: fusion.step.resultJobTier,
       behaviorUnlockId: fusion.step.behaviorUnlockId,
       requirements: fusion.requirements.map((requirement) => ({
         ...requirement,
         label: FUSION_ITEMS[requirement.tokenId as keyof typeof FUSION_ITEMS]?.shortName ?? requirement.tokenId,
       })),
     },
-    promotions: promotions.flatMap((promotion) => promotion.step === null ? [] : [{
-      id: promotion.step.id,
-      canPromote: promotion.canPromote,
-      levelMet: promotion.levelMet,
-      minLevel: promotion.step.minLevel,
-      resultName: promotion.step.resultDisplayName,
-      resultPathId: promotion.step.resultPathId,
-      goldCost: formatGameNumber(promotion.goldCost),
-      canAffordGold: promotion.canAffordGold,
-      requirements: promotion.requirements,
+    fusionOptions: fusions.flatMap((candidate) => candidate.step === null ? [] : [{
+      id: candidate.step.id,
+      canFuse: candidate.canFuse,
+      levelMet: candidate.levelMet,
+      minLevel: candidate.step.minLevel,
+      resultFusionFormId: candidate.step.resultFusionFormId,
+      resultName: candidate.step.resultDisplayName,
+      resultJobTier: candidate.step.resultJobTier,
+      behaviorUnlockId: candidate.step.behaviorUnlockId,
+      requirements: candidate.requirements.map((requirement) => ({
+        ...requirement,
+        label: FUSION_ITEMS[requirement.tokenId as keyof typeof FUSION_ITEMS]?.shortName ?? requirement.tokenId,
+      })),
     }]),
   } as const;
 }
@@ -291,7 +296,7 @@ export function selectForgeScreen(state: SlimeMercenariesState) {
 
 export type CampUpgradeOpportunity = Readonly<{
   slimeId: SlimeInstanceId;
-  kind: 'level' | 'fusion' | 'promotion';
+  kind: 'level' | 'fusion';
   label: string;
   priority: number;
 }>;
@@ -303,13 +308,9 @@ export function selectCampUpgradeOpportunities(state: SlimeMercenariesState): re
   const gold = readCurrency(state.currencies, ids.currency.gold);
   return selectOwnedSlimeIds(state).flatMap((slimeId) => {
     const opportunities: CampUpgradeOpportunity[] = [];
-    const promotions = previewSlimePromotions(state, slimeId);
-    if (promotions.some((promotion) => promotion.canPromote)) {
-      opportunities.push({ slimeId, kind: 'promotion', label: '昇格可能', priority: 30 });
-    }
-    const fusion = previewSlimeFusion(state, slimeId);
-    if (fusion.canFuse) {
-      opportunities.push({ slimeId, kind: 'fusion', label: '合成可能', priority: 20 });
+    const fusions = previewSlimeFusions(state, slimeId);
+    if (fusions.some((fusion) => fusion.canFuse)) {
+      opportunities.push({ slimeId, kind: 'fusion', label: '合成可能', priority: 30 });
     }
     const level = previewSlimeLevelUp(state, slimeId, 1);
     if (level?.available === true && gold.compare(level.totalCost) >= 0) {

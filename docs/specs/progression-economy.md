@@ -1,7 +1,7 @@
 # Progression, Loot, Dispatch & Economy
 
 Status: Current
-Date: 2026-09-17
+Date: 2026-09-19
 
 ## 1. Economy goal
 
@@ -15,7 +15,7 @@ Do not create currencies merely to add systems. Every resource must have an obvi
 
 | Input | Source | Primary sink | Purpose |
 |---|---|---|---|
-| Gold | kills, stage, dispatch, offline | type level, Plain Slime shop purchase, promotion fees | frequent growth + deterministic body supply |
+| Gold | kills, stage, dispatch, offline | type level, Plain Slime shop purchase | frequent growth + deterministic body supply |
 | Slime-generation material | battle, chest, dispatch | Plain Slime crafting | renewable body supply |
 | Plain Slime stock | crafting, Gold shop | normal-job creation | untrained body source; no individual progression |
 | Job Gear | tutorial, area progression, chest/component crafting | normal-job creation | choose/discover a Tier-1 profession |
@@ -23,7 +23,6 @@ Do not create currencies merely to add systems. Every resource must have an obvi
 | Forge Key | boss, objectives, chest, dispatch | equipment forge draw | deliberate equipment pull |
 | Fusion weapon ingredient | chest/boss/forge/progression | fusion recipe | visible form/attack milestone |
 | Fusion material | battle/chest/dispatch | fusion recipe | shared upgrade ingredient |
-| Promotion Material | area/boss/dispatch | Tier promotion | deterministic evolution |
 | Mutation Fragments | mutation encounters | guaranteed mutation unlock | RNG backstop |
 
 A repeated job creation adds another persistent slime instance. It remains usable until the player explicitly converts an eligible spare reserve instance into a type-specific fusion item such as `Sword Slime Core`.
@@ -61,7 +60,7 @@ Initial target cadence while actively progressing:
 - bosses guarantee at least Gold-equivalent reward
 - Rainbow chests are rare excitement events and also appear at selected deterministic milestones
 
-Chest contents may include slime-generation materials, Job Gear/components, fusion ingredients, equipment, Gold, keys, promotion materials, or mutation progress. Completed normal-job slimes are not the default chest reward.
+Chest contents may include slime-generation materials, Job Gear/components, Fusion ingredients, equipment, Gold, keys, or mutation progress. Completed normal-job slimes are not the default chest reward.
 
 A chest auto-opens after a short delay when ignored. Tapping it is faster, never mandatory.
 
@@ -209,7 +208,7 @@ Dispatch gives reserve slime instances productive work outside the main battlefi
 |---|---:|---|
 | Road Escort | short | Gold |
 | Forest Exploration | medium | equipment / Forge Key |
-| Material Gathering | medium/long | promotion materials |
+| Material Gathering | medium/long | Fusion materials |
 
 Exact durations are balance data.
 
@@ -235,11 +234,11 @@ If the frontier is too strong:
 
 - record the authoritative party defeat
 - retreat one stage while preserving the highest cleared stage
-- Gold/chests/slime-generation materials/Job Gear/Fusion/Equipment/Promotion inputs continue to drop
+- Gold/chests/slime-generation materials/Job Gear/Fusion/Equipment inputs continue to drop
 - after the authored farm-clear count, automatically retry the uncleared frontier
 - if the retry still fails, repeat retreat -> farm -> retry
-- Camp attention may surface actions that are currently executable (`level / fusion / promotion`) using the same production preview queries; it must not invent a recommended build or tell the player which strategic choice is correct
-- ordinary affordable level-ups alone do not keep Camp attention permanently active; the level-up attention is elevated during retreat farming, while rarer Fusion/Promotion opportunities may remain visible normally
+- Camp attention may surface actions that are currently executable (`level / fusion`) using the same production preview queries; it must not invent a recommended build or tell the player which strategic choice is correct
+- ordinary affordable level-ups alone do not keep Camp attention permanently active; the level-up attention is elevated during retreat farming, while rarer Fusion opportunities may remain visible normally
 - no GAME OVER or blocking modal interrupts this loop
 - offline simulation continues farming; it defers the first clear of an uncleared major frontier until an active session
 

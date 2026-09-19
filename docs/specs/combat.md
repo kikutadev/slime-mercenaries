@@ -323,7 +323,7 @@ On party defeat:
 - keep defeated slimes visible long enough for the `べちゃっ + ×目` reaction to read
 - emit the defeat as an authoritative Domain result rather than a renderer-only state
 - retreat one stage, preserving `highestStageCleared`
-- keep granting the existing Gold, material, chest, equipment, Fusion and Promotion economy while farming
+- keep granting the existing Gold, material, chest, equipment, and Fusion economy while farming
 - after the authored farm-clear count, automatically return to the uncleared frontier and retry
 - if the retry still fails, repeat the same retreat/farm/retry cycle
 

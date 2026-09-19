@@ -13,7 +13,6 @@ import {
 } from '../application/selectors/ui-selectors';
 import type { CampSlimeReaction } from '../components/CampSlimeStage';
 import { SlimeMark } from '../components/SlimeMark';
-import { CampEnvironmentStage } from '../components/CampEnvironmentStage';
 import { CampStationIcon } from '../components/CampStationIcon';
 import { ids, sameTypeCount, slimeInstanceIdForSerial, type JobSlimeId, type SlimeInstanceId } from '../domain';
 import { getSlimePresentation } from '../game/slimes';
@@ -21,6 +20,11 @@ import { getSlimePresentation } from '../game/slimes';
 const CampSlimeStage = lazy(async () => {
   const module = await import('../components/CampSlimeStage');
   return { default: module.CampSlimeStage };
+});
+
+const CampEnvironmentStage = lazy(async () => {
+  const module = await import('../components/CampEnvironmentStage');
+  return { default: module.CampEnvironmentStage };
 });
 
 const FusionWorkbench = lazy(async () => {
@@ -162,11 +166,13 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
       ) : (
         <>
           <div className={`camp-world camp-world--${feedback.reaction}`}>
-            <CampEnvironmentStage
-              reaction={feedback.reaction}
-              reactionKey={feedback.key}
-              fusionReady={detail.fusion?.canFuse ?? false}
-            />
+            <Suspense fallback={<div className="camp-environment-stage" aria-hidden="true" />}>
+              <CampEnvironmentStage
+                reaction={feedback.reaction}
+                reactionKey={feedback.key}
+                fusionReady={detail.fusionOptions.some((option) => option.canFuse)}
+              />
+            </Suspense>
             {feedback.reaction === 'level-up' && feedback.title !== '' && (
               <div className="camp-gold-flight" key={`gold-${feedback.key}`} aria-hidden="true">
                 <i /><i /><i /><i /><i /><i />
@@ -196,14 +202,14 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
             </div>
 
             <button
-              className={`camp-hotspot camp-hotspot--train ${mode === 'train' ? 'is-active' : ''} ${selectedUpgrades.some((opportunity) => opportunity.kind === 'promotion') || (state.gameData.combat.retryFarmClearsRemaining > 0 && selectedUpgrades.some((opportunity) => opportunity.kind === 'level')) ? 'is-ready' : ''}`}
+              className={`camp-hotspot camp-hotspot--train ${mode === 'train' ? 'is-active' : ''} ${state.gameData.combat.retryFarmClearsRemaining > 0 && selectedUpgrades.some((opportunity) => opportunity.kind === 'level') ? 'is-ready' : ''}`}
               type="button"
               onClick={() => setMode(mode === 'train' ? 'none' : 'train')}
             >
-              <span><CampStationIcon kind="train" /></span><strong>訓練</strong><small>{selectedUpgrades.some((opportunity) => opportunity.kind === 'promotion') ? '昇格可能' : selectedUpgrades.some((opportunity) => opportunity.kind === 'level') ? '強化可能' : '育成'}</small>
+              <span><CampStationIcon kind="train" /></span><strong>訓練</strong><small>{selectedUpgrades.some((opportunity) => opportunity.kind === 'level') ? '強化可能' : '育成'}</small>
             </button>
-            <button className={`camp-hotspot camp-hotspot--fusion ${detail.fusion?.canFuse ? 'is-ready' : ''}`} type="button" onClick={() => setMode('fusion')}>
-              <span><CampStationIcon kind="fusion" /></span><strong>合成</strong><small>{detail.fusion?.canFuse ? '合成可能' : '合成台'}</small>
+            <button className={`camp-hotspot camp-hotspot--fusion ${detail.fusionOptions.some((option) => option.canFuse) ? 'is-ready' : ''}`} type="button" onClick={() => setMode('fusion')}>
+              <span><CampStationIcon kind="fusion" /></span><strong>合成</strong><small>{detail.fusionOptions.some((option) => option.canFuse) ? '合成可能' : '合成台'}</small>
             </button>
             <button className="camp-hotspot camp-hotspot--nursery" type="button" onClick={() => setCreateOpen(true)}>
               <span><CampStationIcon kind="nursery" /></span><strong>育成所</strong><small>仲間を増やす</small>
@@ -276,28 +282,6 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                 </div>
               )}
 
-              {detail.promotions.length > 0 && (
-                <div className={`camp-promotion-choices ${detail.promotions.length > 1 ? 'is-branching' : ''}`}>
-                  {detail.promotions.map((promotion) => (
-                    <button
-                      key={promotion.id}
-                      className={`camp-promotion-action ${promotion.canPromote ? 'is-ready' : ''}`}
-                      type="button"
-                      disabled={!promotion.canPromote}
-                      onClick={() => {
-                        const result = controller.promoteSlime(selected, promotion.id);
-                        if (!result.accepted) { setNotice(rejectionLabel(result.reason)); return; }
-                        setNotice(null);
-                        triggerFeedback('level-up', `${promotion.resultName}へ昇格`, `Tier ${detail.tier + 1}`);
-                      }}
-                    >
-                      <span>{detail.promotions.length > 1 ? '分岐昇格' : '昇格'}</span>
-                      <strong>{promotion.resultName}</strong>
-                      <small>Lv.{promotion.minLevel} · {promotion.goldCost} G · 素材 {promotion.requirements.every((item) => item.missing === 0) ? 'OK' : '不足'}</small>
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           )}
 
@@ -379,8 +363,6 @@ function rejectionLabel(reason: string | undefined): string {
     case 'insufficient-gold': return 'ゴールドが足りません';
     case 'dispatched': return '派遣中です';
     case 'weapon-not-owned': return 'その武器を所持していません';
-    case 'promotion-choice-required': return '昇格先を選んでください';
-    case 'invalid-promotion': return 'その昇格先は選べません';
     case 'validation-mode-disabled': return '検証モードでのみ使えます';
     case 'job-create-failed': return '全職解放に失敗しました';
     case 'formation-failed': return '派遣中のスライムがいるため6職編成できません';

@@ -14,9 +14,10 @@ describe('fusion presentation metadata', () => {
     }
   });
 
-  it('uses the full two-slime ceremony only for first major form changes', () => {
+  it('uses form-change ceremonies for form Fusion and signature ceremonies for Tier-3 branches', () => {
     expect(getFusionStepPresentation('fusion.sword.01-greatsword').ceremony).toBe('major-form');
-    expect(getFusionStepPresentation('fusion.sword.02-heavy-impact').ceremony).toBe('enhancement');
-    expect(getFusionStepPresentation('fusion.sword.03-whirlwind').ceremony).toBe('major-behavior');
+    expect(getFusionStepPresentation('fusion.sword.02-fighter').ceremony).toBe('major-form');
+    expect(getFusionStepPresentation('fusion.sword.03-blademaster').ceremony).toBe('major-behavior');
+    expect(getFusionStepPresentation('fusion.sword.03-berserker').ceremony).toBe('major-behavior');
   });
 });

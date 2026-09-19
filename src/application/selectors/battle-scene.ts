@@ -14,7 +14,6 @@ export type BattleSceneAlly = Readonly<{
   name: string;
   fusionRank: number;
   fusionFormId: string;
-  promotionPathId: string | null;
   weaponDefinitionId: string | null;
   weaponName: string | null;
   behaviorId: BattleBehaviorId;
@@ -56,7 +55,6 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
       name: presentation.name,
       fusionRank: slime.fusionRank,
       fusionFormId: slime.fusionFormId,
-      promotionPathId: slime.promotionPathId,
       weaponDefinitionId: weapon?.id ?? null,
       weaponName: weapon?.displayName ?? null,
       behaviorId: presentation.battle.behaviorId,
@@ -92,7 +90,6 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
       ally.asset,
       ally.fusionRank,
       ally.fusionFormId,
-      ally.promotionPathId ?? '-',
       ally.weaponDefinitionId ?? '-',
       ally.behaviorId,
     ].join(':'))

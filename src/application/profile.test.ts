@@ -151,7 +151,7 @@ it('migrates a schema-v3 canonical roster into stable slime instances without lo
       progression: { currentAreaId: 'area.clover-road', currentStage: 1, highestStageCleared: 0 },
       roster: {
         slimes: {
-          sword: { typeId: 'sword', level: 12, jobTier: 2, promotionPathId: 'fighter', fusionRank: 2, fusionFormId: 'greatsword', assignment: 'battle' },
+          sword: { typeId: 'sword', level: 12, jobTier: 2, fusionRank: 2, fusionFormId: 'greatsword', assignment: 'battle' },
         },
         formationSlots: ['sword', null, null, null, null, null],
       },
@@ -164,7 +164,7 @@ it('migrates a schema-v3 canonical roster into stable slime instances without lo
   expect(loaded.state.schemaVersion).toBe(5);
   expect(loaded.state.gameData.roster.nextSlimeSerial).toBe(2);
   expect(loaded.state.gameData.roster.slimes['slime.1']).toMatchObject({
-    id: 'slime.1', serial: 1, typeId: 'sword', level: 12, jobTier: 2, promotionPathId: 'fighter', fusionRank: 2,
+    id: 'slime.1', serial: 1, typeId: 'sword', level: 12, jobTier: 2, fusionRank: 2,
   });
   expect(loaded.state.gameData.roster.formationSlots[0]).toBe('slime.1');
   expect(loaded.state.gameData.equipment.loadouts['slime.1']).toEqual(swordLoadout);

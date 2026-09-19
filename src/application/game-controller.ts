@@ -10,7 +10,6 @@ import {
   fuseSlime,
   levelUpSlime,
   mutateSlime,
-  promoteSlime,
   removeSlimeFromFormation,
   startDispatch,
   advanceSlimeWorldFromWallClock,
@@ -126,17 +125,14 @@ export class SlimeGameController {
     return this.execute((state) => levelUpSlime(state, slimeId, count));
   }
 
-  fuseSlime(slimeId: SlimeInstanceId) {
-    return this.execute((state) => fuseSlime(state, slimeId));
+  fuseSlime(slimeId: SlimeInstanceId, fusionStepId?: string) {
+    return this.execute((state) => fuseSlime(state, slimeId, fusionStepId));
   }
 
   convertDuplicateToFusionCore(slimeId: SlimeInstanceId) {
     return this.execute((state) => convertDuplicateToFusionCore(state, slimeId));
   }
 
-  promoteSlime(slimeId: SlimeInstanceId, promotionId?: string) {
-    return this.execute((state) => promoteSlime(state, slimeId, promotionId));
-  }
 
   mutateSlime(slimeId: SlimeInstanceId, mutationId: SlimeMutationId) {
     return this.execute((state) => mutateSlime(state, slimeId, mutationId));

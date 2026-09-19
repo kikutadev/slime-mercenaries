@@ -28,7 +28,6 @@ export const ids = {
     hardeningGel: 'token.fusion.hardening-gel',
     temperedSteel: 'token.fusion.tempered-steel',
     forgeKey: 'token.forge-key',
-    promotionMaterial: 'token.promotion.common',
     swordWeaponMaterial: 'token.equipment-material.sword',
     shieldWeaponMaterial: 'token.equipment-material.shield',
     bowWeaponMaterial: 'token.equipment-material.bow',
@@ -205,7 +204,6 @@ export const initialEconomyBalance = {
     [ids.token.hardeningGel]: 0,
     [ids.token.temperedSteel]: 0,
     [ids.token.forgeKey]: 0,
-    [ids.token.promotionMaterial]: 0,
     [ids.token.swordWeaponMaterial]: 0,
     [ids.token.shieldWeaponMaterial]: 0,
     [ids.token.bowWeaponMaterial]: 0,
@@ -240,12 +238,54 @@ export type FusionStepDefinition = Readonly<{
   toRank: number;
   minLevel: number;
   resultFusionFormId: string;
+  resultDisplayName: string;
+  resultJobTier: number;
   behaviorUnlockId: string;
   recipe: readonly TokenRequirement[];
 }>;
 
+const FUSION_CORE_TOKEN_BY_JOB: Readonly<Record<JobSlimeId, string>> = {
+  sword: ids.token.swordCore,
+  shield: ids.token.shieldCore,
+  bow: ids.token.bowCore,
+  wand: ids.token.wandCore,
+  dagger: ids.token.daggerCore,
+  gun: ids.token.gunCore,
+};
+
+function advancedFusionRecipe(
+  slimeId: JobSlimeId,
+  tier: 'tier2' | 'tier3',
+): readonly TokenRequirement[] {
+  const tuning = balance.fusion.advanced[tier];
+  return [
+    { tokenId: FUSION_CORE_TOKEN_BY_JOB[slimeId], count: tuning.core },
+    { tokenId: ids.token.temperedSteel, count: tuning.temperedSteel },
+    { tokenId: ids.token.hardeningGel, count: tuning.hardeningGel },
+  ];
+}
+
+function advancedFusionStep(args: Readonly<{
+  id: string;
+  slimeId: JobSlimeId;
+  fromRank: number;
+  toRank: number;
+  resultFusionFormId: string;
+  resultDisplayName: string;
+  resultJobTier: number;
+  behaviorUnlockId: string;
+}>): FusionStepDefinition {
+  const tier = args.resultJobTier >= 3 ? 'tier3' : 'tier2';
+  return {
+    ...args,
+    minLevel: balance.fusion.advanced[tier].minLevel,
+    recipe: advancedFusionRecipe(args.slimeId, tier),
+  };
+}
+
 /**
- * Fusion balance lives in data. Form IDs are presentation/combat selectors, not promotion tiers.
+ * Fusion is the only form-growth system. Rank 2 is the first family enhancement, Rank 3
+ * becomes the authored Tier-2 job form, and Rank 4 chooses one authored Tier-3 specialization.
  */
 export const fusionStepDefinitions: Readonly<Record<JobSlimeId, readonly FusionStepDefinition[]>> = {
   sword: [
@@ -256,6 +296,8 @@ export const fusionStepDefinitions: Readonly<Record<JobSlimeId, readonly FusionS
       toRank: 2,
       minLevel: balance.fusion.sword.greatsword.minLevel,
       resultFusionFormId: 'greatsword',
+      resultDisplayName: '大剣士スライム',
+      resultJobTier: 1,
       behaviorUnlockId: 'behavior.sword.spinning-cleave',
       recipe: [
         { tokenId: ids.token.swordCore, count: balance.fusion.sword.greatsword.swordCore },
@@ -263,34 +305,21 @@ export const fusionStepDefinitions: Readonly<Record<JobSlimeId, readonly FusionS
         { tokenId: ids.token.hardeningGel, count: balance.fusion.sword.greatsword.hardeningGel },
       ],
     },
-    {
-      id: 'fusion.sword.02-heavy-impact',
-      slimeId: 'sword',
-      fromRank: 2,
-      toRank: 3,
-      minLevel: balance.fusion.sword.heavyImpact.minLevel,
-      resultFusionFormId: 'greatsword',
-      behaviorUnlockId: 'behavior.sword.heavy-impact',
-      recipe: [
-        { tokenId: ids.token.swordCore, count: balance.fusion.sword.heavyImpact.swordCore },
-        { tokenId: ids.token.temperedSteel, count: balance.fusion.sword.heavyImpact.temperedSteel },
-        { tokenId: ids.token.hardeningGel, count: balance.fusion.sword.heavyImpact.hardeningGel },
-      ],
-    },
-    {
-      id: 'fusion.sword.03-whirlwind',
-      slimeId: 'sword',
-      fromRank: 3,
-      toRank: 4,
-      minLevel: balance.fusion.sword.whirlwind.minLevel,
-      resultFusionFormId: 'whirlwind-greatsword',
-      behaviorUnlockId: 'behavior.sword.whirlwind-wave',
-      recipe: [
-        { tokenId: ids.token.swordCore, count: balance.fusion.sword.whirlwind.swordCore },
-        { tokenId: ids.token.temperedSteel, count: balance.fusion.sword.whirlwind.temperedSteel },
-        { tokenId: ids.token.hardeningGel, count: balance.fusion.sword.whirlwind.hardeningGel },
-      ],
-    },
+    advancedFusionStep({
+      id: 'fusion.sword.02-fighter', slimeId: 'sword', fromRank: 2, toRank: 3,
+      resultFusionFormId: 'fighter', resultDisplayName: '戦士スライム', resultJobTier: 2,
+      behaviorUnlockId: 'behavior.sword.fighter-combo',
+    }),
+    advancedFusionStep({
+      id: 'fusion.sword.03-blademaster', slimeId: 'sword', fromRank: 3, toRank: 4,
+      resultFusionFormId: 'blademaster', resultDisplayName: '剣聖スライム', resultJobTier: 3,
+      behaviorUnlockId: 'behavior.sword.blademaster-dash',
+    }),
+    advancedFusionStep({
+      id: 'fusion.sword.03-berserker', slimeId: 'sword', fromRank: 3, toRank: 4,
+      resultFusionFormId: 'berserker', resultDisplayName: '狂戦士スライム', resultJobTier: 3,
+      behaviorUnlockId: 'behavior.sword.berserker-heavy',
+    }),
   ],
   shield: [
     {
@@ -300,6 +329,8 @@ export const fusionStepDefinitions: Readonly<Record<JobSlimeId, readonly FusionS
       toRank: 2,
       minLevel: balance.fusion.shield.fortifiedGuard.minLevel,
       resultFusionFormId: 'fortified-guard',
+      resultDisplayName: '堅守スライム',
+      resultJobTier: 1,
       behaviorUnlockId: 'behavior.shield.fortified-guard',
       recipe: [
         { tokenId: ids.token.shieldCore, count: balance.fusion.shield.fortifiedGuard.shieldCore },
@@ -307,6 +338,21 @@ export const fusionStepDefinitions: Readonly<Record<JobSlimeId, readonly FusionS
         { tokenId: ids.token.hardeningGel, count: balance.fusion.shield.fortifiedGuard.hardeningGel },
       ],
     },
+    advancedFusionStep({
+      id: 'fusion.shield.02-guardian', slimeId: 'shield', fromRank: 2, toRank: 3,
+      resultFusionFormId: 'guardian', resultDisplayName: 'ガーディアンスライム', resultJobTier: 2,
+      behaviorUnlockId: 'behavior.shield.guardian-guard',
+    }),
+    advancedFusionStep({
+      id: 'fusion.shield.03-paladin', slimeId: 'shield', fromRank: 3, toRank: 4,
+      resultFusionFormId: 'paladin', resultDisplayName: 'パラディンスライム', resultJobTier: 3,
+      behaviorUnlockId: 'behavior.shield.paladin-barrier',
+    }),
+    advancedFusionStep({
+      id: 'fusion.shield.03-fortress', slimeId: 'shield', fromRank: 3, toRank: 4,
+      resultFusionFormId: 'fortress', resultDisplayName: 'フォートレススライム', resultJobTier: 3,
+      behaviorUnlockId: 'behavior.shield.fortress-plant',
+    }),
   ],
   bow: [
     {
@@ -316,6 +362,8 @@ export const fusionStepDefinitions: Readonly<Record<JobSlimeId, readonly FusionS
       toRank: 2,
       minLevel: balance.fusion.bow.rapidShot.minLevel,
       resultFusionFormId: 'rapid-shot',
+      resultDisplayName: '連射弓スライム',
+      resultJobTier: 1,
       behaviorUnlockId: 'behavior.bow.follow-up-shot',
       recipe: [
         { tokenId: ids.token.bowCore, count: balance.fusion.bow.rapidShot.bowCore },
@@ -323,34 +371,21 @@ export const fusionStepDefinitions: Readonly<Record<JobSlimeId, readonly FusionS
         { tokenId: ids.token.hardeningGel, count: balance.fusion.bow.rapidShot.hardeningGel },
       ],
     },
-    {
-      id: 'fusion.bow.02-piercing-shot',
-      slimeId: 'bow',
-      fromRank: 2,
-      toRank: 3,
-      minLevel: balance.fusion.bow.piercingShot.minLevel,
-      resultFusionFormId: 'piercing-shot',
-      behaviorUnlockId: 'behavior.bow.pierce',
-      recipe: [
-        { tokenId: ids.token.bowCore, count: balance.fusion.bow.piercingShot.bowCore },
-        { tokenId: ids.token.temperedSteel, count: balance.fusion.bow.piercingShot.temperedSteel },
-        { tokenId: ids.token.hardeningGel, count: balance.fusion.bow.piercingShot.hardeningGel },
-      ],
-    },
-    {
-      id: 'fusion.bow.03-triple-shot',
-      slimeId: 'bow',
-      fromRank: 3,
-      toRank: 4,
-      minLevel: balance.fusion.bow.tripleShot.minLevel,
-      resultFusionFormId: 'triple-shot',
-      behaviorUnlockId: 'behavior.bow.triple-shot',
-      recipe: [
-        { tokenId: ids.token.bowCore, count: balance.fusion.bow.tripleShot.bowCore },
-        { tokenId: ids.token.temperedSteel, count: balance.fusion.bow.tripleShot.temperedSteel },
-        { tokenId: ids.token.hardeningGel, count: balance.fusion.bow.tripleShot.hardeningGel },
-      ],
-    },
+    advancedFusionStep({
+      id: 'fusion.bow.02-ranger', slimeId: 'bow', fromRank: 2, toRank: 3,
+      resultFusionFormId: 'ranger', resultDisplayName: 'レンジャースライム', resultJobTier: 2,
+      behaviorUnlockId: 'behavior.bow.ranger-double-shot',
+    }),
+    advancedFusionStep({
+      id: 'fusion.bow.03-sniper', slimeId: 'bow', fromRank: 3, toRank: 4,
+      resultFusionFormId: 'sniper', resultDisplayName: 'スナイパースライム', resultJobTier: 3,
+      behaviorUnlockId: 'behavior.bow.sniper-pierce',
+    }),
+    advancedFusionStep({
+      id: 'fusion.bow.03-storm-archer', slimeId: 'bow', fromRank: 3, toRank: 4,
+      resultFusionFormId: 'storm-archer', resultDisplayName: 'ストームアーチャースライム', resultJobTier: 3,
+      behaviorUnlockId: 'behavior.bow.storm-archer-volley',
+    }),
   ],
   wand: [
     {
@@ -360,12 +395,29 @@ export const fusionStepDefinitions: Readonly<Record<JobSlimeId, readonly FusionS
       toRank: 2,
       minLevel: balance.fusion.wand.arcaneFocus.minLevel,
       resultFusionFormId: 'arcane-focus',
+      resultDisplayName: '魔力収束スライム',
+      resultJobTier: 1,
       behaviorUnlockId: 'behavior.wand.arcane-focus',
       recipe: [
         { tokenId: ids.token.wandCore, count: balance.fusion.wand.arcaneFocus.wandCore },
         { tokenId: ids.token.hardeningGel, count: balance.fusion.wand.arcaneFocus.hardeningGel },
       ],
     },
+    advancedFusionStep({
+      id: 'fusion.wand.02-mage', slimeId: 'wand', fromRank: 2, toRank: 3,
+      resultFusionFormId: 'mage', resultDisplayName: 'メイジスライム', resultJobTier: 2,
+      behaviorUnlockId: 'behavior.wand.mage-aoe',
+    }),
+    advancedFusionStep({
+      id: 'fusion.wand.03-archmage', slimeId: 'wand', fromRank: 3, toRank: 4,
+      resultFusionFormId: 'archmage', resultDisplayName: 'アークメイジスライム', resultJobTier: 3,
+      behaviorUnlockId: 'behavior.wand.archmage-burst',
+    }),
+    advancedFusionStep({
+      id: 'fusion.wand.03-frost-mage', slimeId: 'wand', fromRank: 3, toRank: 4,
+      resultFusionFormId: 'frost-mage', resultDisplayName: 'フロストメイジスライム', resultJobTier: 3,
+      behaviorUnlockId: 'behavior.wand.frost-mage-control',
+    }),
   ],
   dagger: [
     {
@@ -375,6 +427,8 @@ export const fusionStepDefinitions: Readonly<Record<JobSlimeId, readonly FusionS
       toRank: 2,
       minLevel: balance.fusion.dagger.afterimageEdge.minLevel,
       resultFusionFormId: 'afterimage-edge',
+      resultDisplayName: '残影スライム',
+      resultJobTier: 1,
       behaviorUnlockId: 'behavior.dagger.afterimage-edge',
       recipe: [
         { tokenId: ids.token.daggerCore, count: balance.fusion.dagger.afterimageEdge.daggerCore },
@@ -382,6 +436,21 @@ export const fusionStepDefinitions: Readonly<Record<JobSlimeId, readonly FusionS
         { tokenId: ids.token.hardeningGel, count: balance.fusion.dagger.afterimageEdge.hardeningGel },
       ],
     },
+    advancedFusionStep({
+      id: 'fusion.dagger.02-rogue', slimeId: 'dagger', fromRank: 2, toRank: 3,
+      resultFusionFormId: 'rogue', resultDisplayName: 'ローグスライム', resultJobTier: 2,
+      behaviorUnlockId: 'behavior.dagger.rogue-twin-strike',
+    }),
+    advancedFusionStep({
+      id: 'fusion.dagger.03-ninja', slimeId: 'dagger', fromRank: 3, toRank: 4,
+      resultFusionFormId: 'ninja', resultDisplayName: 'ニンジャスライム', resultJobTier: 3,
+      behaviorUnlockId: 'behavior.dagger.ninja-vanish',
+    }),
+    advancedFusionStep({
+      id: 'fusion.dagger.03-assassin', slimeId: 'dagger', fromRank: 3, toRank: 4,
+      resultFusionFormId: 'assassin', resultDisplayName: 'アサシンスライム', resultJobTier: 3,
+      behaviorUnlockId: 'behavior.dagger.assassin-execute',
+    }),
   ],
   gun: [
     {
@@ -391,6 +460,8 @@ export const fusionStepDefinitions: Readonly<Record<JobSlimeId, readonly FusionS
       toRank: 2,
       minLevel: balance.fusion.gun.overpressure.minLevel,
       resultFusionFormId: 'overpressure',
+      resultDisplayName: '高圧射撃スライム',
+      resultJobTier: 1,
       behaviorUnlockId: 'behavior.gun.overpressure',
       recipe: [
         { tokenId: ids.token.gunCore, count: balance.fusion.gun.overpressure.gunCore },
@@ -398,6 +469,21 @@ export const fusionStepDefinitions: Readonly<Record<JobSlimeId, readonly FusionS
         { tokenId: ids.token.hardeningGel, count: balance.fusion.gun.overpressure.hardeningGel },
       ],
     },
+    advancedFusionStep({
+      id: 'fusion.gun.02-gunner', slimeId: 'gun', fromRank: 2, toRank: 3,
+      resultFusionFormId: 'gunner', resultDisplayName: 'ガンナースライム', resultJobTier: 2,
+      behaviorUnlockId: 'behavior.gun.gunner-burst',
+    }),
+    advancedFusionStep({
+      id: 'fusion.gun.03-cannoneer', slimeId: 'gun', fromRank: 3, toRank: 4,
+      resultFusionFormId: 'cannoneer', resultDisplayName: '砲撃手スライム', resultJobTier: 3,
+      behaviorUnlockId: 'behavior.gun.cannoneer-shell',
+    }),
+    advancedFusionStep({
+      id: 'fusion.gun.03-engineer', slimeId: 'gun', fromRank: 3, toRank: 4,
+      resultFusionFormId: 'engineer', resultDisplayName: 'エンジニアスライム', resultJobTier: 3,
+      behaviorUnlockId: 'behavior.gun.engineer-turret',
+    }),
   ],
 };
 
@@ -578,75 +664,6 @@ export const equipmentForgeDefinition: GachaDefinition<ForgeReward> = {
   ],
 };
 
-export type PromotionDefinition = Readonly<{
-  id: string;
-  slimeId: JobSlimeId;
-  fromTier: number;
-  toTier: number;
-  resultPathId: string;
-  resultDisplayName: string;
-  minLevel: number;
-  goldCost: number;
-  recipe: readonly TokenRequirement[];
-}>;
-
-export const promotionDefinitions: Readonly<Record<JobSlimeId, readonly PromotionDefinition[]>> = {
-  sword: [
-    promotion('promotion.sword.fighter', 'sword', 1, 2, 'fighter', '戦士スライム', balance.promotion.tier2),
-    promotion('promotion.sword.blademaster', 'sword', 2, 3, 'blademaster', '剣聖スライム', balance.promotion.tier3),
-    promotion('promotion.sword.berserker', 'sword', 2, 3, 'berserker', '狂戦士スライム', balance.promotion.tier3),
-  ],
-  shield: [
-    promotion('promotion.shield.guardian', 'shield', 1, 2, 'guardian', 'ガーディアンスライム', balance.promotion.tier2),
-    promotion('promotion.shield.paladin', 'shield', 2, 3, 'paladin', 'パラディンスライム', balance.promotion.tier3),
-    promotion('promotion.shield.fortress', 'shield', 2, 3, 'fortress', 'フォートレススライム', balance.promotion.tier3),
-  ],
-  bow: [
-    promotion('promotion.bow.ranger', 'bow', 1, 2, 'ranger', 'レンジャースライム', balance.promotion.tier2),
-    promotion('promotion.bow.sniper', 'bow', 2, 3, 'sniper', 'スナイパースライム', balance.promotion.tier3),
-    promotion('promotion.bow.storm-archer', 'bow', 2, 3, 'storm-archer', 'ストームアーチャースライム', balance.promotion.tier3),
-  ],
-  wand: [
-    promotion('promotion.wand.mage', 'wand', 1, 2, 'mage', 'メイジスライム', balance.promotion.tier2),
-    promotion('promotion.wand.archmage', 'wand', 2, 3, 'archmage', 'アークメイジスライム', balance.promotion.tier3),
-    promotion('promotion.wand.frost-mage', 'wand', 2, 3, 'frost-mage', 'フロストメイジスライム', balance.promotion.tier3),
-  ],
-  dagger: [
-    promotion('promotion.dagger.rogue', 'dagger', 1, 2, 'rogue', 'ローグスライム', balance.promotion.tier2),
-    promotion('promotion.dagger.ninja', 'dagger', 2, 3, 'ninja', 'ニンジャスライム', balance.promotion.tier3),
-    promotion('promotion.dagger.assassin', 'dagger', 2, 3, 'assassin', 'アサシンスライム', balance.promotion.tier3),
-  ],
-  gun: [
-    promotion('promotion.gun.gunner', 'gun', 1, 2, 'gunner', 'ガンナースライム', balance.promotion.tier2),
-    promotion('promotion.gun.cannoneer', 'gun', 2, 3, 'cannoneer', '砲撃手スライム', balance.promotion.tier3),
-    promotion('promotion.gun.engineer', 'gun', 2, 3, 'engineer', 'エンジニアスライム', balance.promotion.tier3),
-  ],
-};
-
-function promotion(
-  id: string,
-  slimeId: JobSlimeId,
-  fromTier: number,
-  toTier: number,
-  resultPathId: string,
-  resultDisplayName: string,
-  tuning: Readonly<{ minLevel: number; goldCost: number; promotionMaterial: number }>,
-): PromotionDefinition {
-  return {
-    id,
-    slimeId,
-    fromTier,
-    toTier,
-    resultPathId,
-    resultDisplayName,
-    minLevel: tuning.minLevel,
-    goldCost: tuning.goldCost,
-    recipe: [{ tokenId: ids.token.promotionMaterial, count: tuning.promotionMaterial }],
-  };
-}
-
-
-
 export type StageWaveDefinition = Readonly<{
   /** Stable visual encounter ID; analytical combat still uses work/rewards as authority. */
   encounterId: string;
@@ -688,7 +705,6 @@ function stageClearRewards(clearReward: Readonly<Record<string, number>>): reado
     greatswordBlank: ids.token.greatswordBlank,
     hardeningGel: ids.token.hardeningGel,
     forgeKey: ids.token.forgeKey,
-    promotionMaterial: ids.token.promotionMaterial,
     reinforcedBow: ids.token.reinforcedBow,
     temperedSteel: ids.token.temperedSteel,
   };
@@ -848,7 +864,7 @@ export const dispatchContractDefinitions = {
       id: ids.activity.materialGathering,
       mode: 'timed',
       durationSec: balance.dispatch.materialGathering.durationSec,
-      completionRewards: [{ type: 'token', tokenId: ids.token.promotionMaterial, count: balance.dispatch.materialGathering.promotionMaterialReward }],
+      completionRewards: [{ type: 'token', tokenId: ids.token.hardeningGel, count: balance.dispatch.materialGathering.hardeningGelReward }],
       claimPolicy: 'auto',
       repeatPolicy: 'repeatable',
       offlinePolicy: 'progress',

@@ -7,8 +7,7 @@ import {
   firstSlimeIdByType,
   fuseSlime,
   levelUpSlime,
-  previewSlimePromotions,
-  promoteSlime,
+  previewSlimeFusions,
 } from '../domain';
 import { getSlimePresentation } from '../game/slimes';
 import { selectBattleSceneModel } from './selectors/battle-scene';
@@ -49,33 +48,35 @@ describe('public validation sandbox', () => {
     expect(scene.allies.every((ally) => ally.asset.endsWith('.glb'))).toBe(true);
   });
 
-  it('uses explicit production promotion commands for Tier-3 branches per instance', () => {
+  it('uses explicit production Fusion commands for Tier-3 branches per instance', () => {
     let state = applyValidationSandboxResources(createInitialSlimeMercenariesState(0, 51));
     const created = createJobSlime(state, 'shield');
-    if (!created.accepted) throw new Error(`create shield rejected: ${created.reason}`);
+    if (!created.accepted) throw new Error('create shield rejected: ' + created.reason);
     state = applyValidationSandboxResources(created.state);
     const shieldId = firstSlimeIdByType(state, 'shield');
     if (shieldId === null) throw new Error('shield missing');
 
     const leveled = levelUpSlime(state, shieldId, 39);
-    if (!leveled.accepted) throw new Error(`level shield rejected: ${leveled.reason}`);
+    if (!leveled.accepted) throw new Error('level shield rejected: ' + leveled.reason);
     state = applyValidationSandboxResources(leveled.state);
 
-    const tier2 = promoteSlime(state, shieldId, 'promotion.shield.guardian');
-    if (!tier2.accepted) throw new Error(`guardian rejected: ${tier2.reason}`);
-    state = applyValidationSandboxResources(tier2.state);
+    for (const fusionId of ['fusion.shield.01-fortified-guard', 'fusion.shield.02-guardian']) {
+      const fused = fuseSlime(state, shieldId, fusionId);
+      if (!fused.accepted) throw new Error(fusionId + ' rejected: ' + fused.reason);
+      state = applyValidationSandboxResources(fused.state);
+    }
     expect(getSlimePresentation(state.gameData.roster.slimes[shieldId]!).asset).toBe('assets/guardian-slime.glb');
 
-    const choices = previewSlimePromotions(state, shieldId);
-    expect(choices.map((choice) => choice.step?.id)).toEqual(['promotion.shield.paladin', 'promotion.shield.fortress']);
-    expect(choices.every((choice) => choice.canPromote)).toBe(true);
-    expect(promoteSlime(state, shieldId).accepted).toBe(false);
+    const choices = previewSlimeFusions(state, shieldId);
+    expect(choices.map((choice) => choice.step?.id)).toEqual(['fusion.shield.03-paladin', 'fusion.shield.03-fortress']);
+    expect(choices.every((choice) => choice.canFuse)).toBe(true);
+    expect(fuseSlime(state, shieldId).accepted).toBe(false);
 
-    const tier3 = promoteSlime(state, shieldId, 'promotion.shield.fortress');
-    if (!tier3.accepted) throw new Error(`fortress rejected: ${tier3.reason}`);
+    const tier3 = fuseSlime(state, shieldId, 'fusion.shield.03-fortress');
+    if (!tier3.accepted) throw new Error('fortress rejected: ' + tier3.reason);
     state = applyValidationSandboxResources(tier3.state);
     expect(state.gameData.roster.slimes[shieldId]?.jobTier).toBe(3);
-    expect(state.gameData.roster.slimes[shieldId]?.promotionPathId).toBe('fortress');
+    expect(state.gameData.roster.slimes[shieldId]?.fusionFormId).toBe('fortress');
     expect(getSlimePresentation(state.gameData.roster.slimes[shieldId]!).asset).toBe('assets/fortress-slime.glb');
   });
 

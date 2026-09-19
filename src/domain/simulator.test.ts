@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addItemInstance, applyRewards, grantToken } from 'idle-game-kit';
-import { ids, resolveCurrencyDefinition, weaponDefinitions } from './definitions';
+import { fusionStepDefinitions, ids, resolveCurrencyDefinition, weaponDefinitions } from './definitions';
 import { firstSlimeIdByType } from './roster';
 import { highestStageClearedForArea, createInitialSlimeMercenariesState } from './state';
 import {
@@ -82,7 +82,7 @@ describe('same-core first-loop simulation', () => {
   });
 });
 
-it('exposes forge/equip/promote/dispatch through the same simulator command adapter', () => {
+it('exposes forge/equip/fuse/dispatch through the same simulator command adapter', () => {
   let state = createInitialSlimeMercenariesState(0, 17);
   let result = slimeSimulatorAdapter.executeCommand(state, { type: 'craft-plain', count: 1 });
   if (!result.accepted) throw new Error(`craft rejected: ${result.reason}`);
@@ -95,16 +95,20 @@ it('exposes forge/equip/promote/dispatch through the same simulator command adap
   if (swordId === null) throw new Error('sword missing after creation');
 
   state = applyRewards(state, [{ type: 'currency', currencyId: ids.currency.gold, amount: 10_000, source: 'test' }], { resolveCurrencyDefinition }) as typeof state;
-  state = {
-    ...state,
-    tokens: grantToken(grantToken(state.tokens, ids.token.promotionMaterial, 10), ids.token.forgeKey, 1),
-  };
+  let tokens = grantToken(state.tokens, ids.token.forgeKey, 1);
+  const fusionSteps = fusionStepDefinitions.sword.slice(0, 2);
+  for (const step of fusionSteps) {
+    for (const requirement of step.recipe) tokens = grantToken(tokens, requirement.tokenId, requirement.count);
+  }
+  state = { ...state, tokens };
   result = slimeSimulatorAdapter.executeCommand(state, { type: 'level', slimeId: swordId, count: 19 });
   if (!result.accepted) throw new Error(`level rejected: ${result.reason}`);
   state = result.state;
-  result = slimeSimulatorAdapter.executeCommand(state, { type: 'promote', slimeId: swordId });
-  if (!result.accepted) throw new Error(`promotion rejected: ${result.reason}`);
-  state = result.state;
+  for (const step of fusionSteps) {
+    result = slimeSimulatorAdapter.executeCommand(state, { type: 'fuse', slimeId: swordId, fusionStepId: step.id });
+    if (!result.accepted) throw new Error(`fusion rejected: ${result.reason}`);
+    state = result.state;
+  }
 
   result = slimeSimulatorAdapter.executeCommand(state, { type: 'forge', drawCount: 1 });
   if (!result.accepted) throw new Error(`forge rejected: ${result.reason}`);

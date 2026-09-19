@@ -31,7 +31,6 @@ const BATTLE_REWARD_LABELS: Readonly<Record<string, string>> = {
   [ids.token.hardeningGel]: '硬化ジェル',
   [ids.token.temperedSteel]: '鍛鋼',
   [ids.token.forgeKey]: '鍛造鍵',
-  [ids.token.promotionMaterial]: '進化素材',
   [ids.token.swordWeaponMaterial]: '剣素材',
   [ids.token.bowWeaponMaterial]: '弓素材',
 };
@@ -150,11 +149,6 @@ export function toPresentationNotices(events: readonly DomainEvent[]): readonly 
       case 'slimeFused':
         return [{
           ...notice(event, '合成完了', '新しい戦闘挙動を解放しました', 'milestone', 85),
-          presentationPreemption: 'resume-current' as const,
-        }];
-      case 'slimePromoted':
-        return [{
-          ...notice(event, '昇格完了', '職業ランクが上昇しました', 'milestone', 85),
           presentationPreemption: 'resume-current' as const,
         }];
       case 'slimeMutated': {

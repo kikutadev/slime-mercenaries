@@ -3,66 +3,48 @@ import { getSlimePresentation } from './slimes';
 import type { JobSlimeId } from '../domain/definitions';
 import type { SlimeProgress } from '../domain/state';
 
-function slime(typeId: 'sword' | 'bow', promotionPathId: string | null, fusionRank = 1): SlimeProgress {
+function fusedSlime(
+  typeId: JobSlimeId,
+  fusionFormId: string,
+  jobTier: number,
+  fusionRank: number,
+): SlimeProgress {
   return {
-    id: `test.${typeId}`,
+    id: 'test.' + typeId + '.' + fusionFormId,
     serial: 1,
-    typeId,
-    level: 20,
-    jobTier: promotionPathId ? 2 : 1,
-    promotionPathId,
-    fusionRank,
-    fusionFormId: typeId === 'sword' && fusionRank >= 2 ? 'greatsword' : 'base',
-    mutationId: null,
-    assignment: 'battle',
-  };
-}
-
-function promotedSlime(typeId: JobSlimeId, promotionPathId: string, jobTier = 3): SlimeProgress {
-  return {
-    id: `test.${typeId}.${promotionPathId}`,
-    serial: 2,
     typeId,
     level: 40,
     jobTier,
-    promotionPathId,
-    fusionRank: 1,
-    fusionFormId: 'base',
+    fusionRank,
+    fusionFormId,
     mutationId: null,
     assignment: 'battle',
   };
 }
 
-describe('promoted slime battle presentation', () => {
-  it('switches Fighter to its Tier-2 model and combo behavior', () => {
-    const fighter = getSlimePresentation(slime('sword', 'fighter'));
+describe('Fusion-form battle presentation', () => {
+  it('switches the Rank-3 Sword result to the Fighter model and combo behavior', () => {
+    const fighter = getSlimePresentation(fusedSlime('sword', 'fighter', 2, 3));
     expect(fighter.asset).toBe('assets/fighter-slime.glb');
     expect(fighter.battle.behaviorId).toBe('fighter-combo');
     expect(fighter.battle.equipmentAnchorName).toBe('WeaponAnchor');
     expect(fighter.battle.weaponTipName).toBe('WeaponTip');
   });
 
-  it('switches Ranger to its Tier-2 model and double-shot behavior', () => {
-    const ranger = getSlimePresentation(slime('bow', 'ranger'));
+  it('switches the Rank-3 Bow result to the Ranger model and double-shot behavior', () => {
+    const ranger = getSlimePresentation(fusedSlime('bow', 'ranger', 2, 3));
     expect(ranger.asset).toBe('assets/ranger-slime.glb');
     expect(ranger.battle.behaviorId).toBe('ranger-double-shot');
     expect(ranger.battle.equipmentAnchorName).toBe('RangerBowAnchor');
   });
 
-  it('keeps promoted Fighter identity when the same instance also has Greatsword Fusion state', () => {
-    const fighter = getSlimePresentation(slime('sword', 'fighter', 2));
-    expect(fighter.asset).toBe('assets/fighter-slime.glb');
-    expect(fighter.battle.behaviorId).toBe('fighter-combo');
-    expect(fighter.form).toBe('fighter');
-  });
-
-  it('uses Greatsword presentation for an unpromoted Tier-1 Sword at the Fusion milestone', () => {
-    const greatsword = getSlimePresentation(slime('sword', null, 2));
+  it('uses Greatsword presentation for the first Sword Fusion milestone', () => {
+    const greatsword = getSlimePresentation(fusedSlime('sword', 'greatsword', 1, 2));
     expect(greatsword.asset).toBe('assets/greatsword-slime.glb');
     expect(greatsword.battle.behaviorId).toBe('sword-melee');
   });
 
-  it('assigns every Tier-3 specialization its own battle behavior instead of reusing Tier-2 behavior', () => {
+  it('assigns every Rank-4 specialization its own battle behavior', () => {
     const cases = [
       ['sword', 'blademaster', 'blademaster-dash'],
       ['sword', 'berserker', 'berserker-heavy'],
@@ -77,9 +59,11 @@ describe('promoted slime battle presentation', () => {
       ['gun', 'cannoneer', 'cannoneer-shell'],
       ['gun', 'engineer', 'engineer-turret'],
     ] as const;
-    const behaviorIds = cases.map(([typeId, path]) => getSlimePresentation(promotedSlime(typeId, path)).battle.behaviorId);
+
+    const behaviorIds = cases.map(([typeId, formId]) => (
+      getSlimePresentation(fusedSlime(typeId, formId, 3, 4)).battle.behaviorId
+    ));
     expect(behaviorIds).toEqual(cases.map(([, , behaviorId]) => behaviorId));
     expect(new Set(behaviorIds).size).toBe(cases.length);
   });
-
 });

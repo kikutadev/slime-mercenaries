@@ -1,19 +1,19 @@
 # Evolution, Fusion & Roster
 
 Status: Current
-Date: 2026-09-16
+Date: 2026-09-19
 
 ## 1. Roster model
 
 The roster is a collection of **persistent slime instances**. A job type describes an instance's family/form, but does not uniquely identify the owned slime.
 
-Each created combat slime receives a stable instance ID and owns its own level, promotion path, fusion rank/form, equipment loadout, and assignment. Plain Slime stock remains the renewable untrained body resource used to create normal jobs; stock itself is not individually managed.
+Each created combat slime receives a stable instance ID and owns its own level, fusion rank/form, derived job tier, equipment loadout, and assignment. Plain Slime stock remains the renewable untrained body resource used to create normal jobs; stock itself is not individually managed.
 
 Multiple instances of the same job type may exist, fight in different formation slots, or split between battle, reserve, and Dispatch.
 
 ## 2. Growth axes
 
-The core growth model uses three distinct concepts.
+The core growth model intentionally has two normal character-growth axes plus equipment/mutation.
 
 ### Type level
 
@@ -21,26 +21,23 @@ Frequent Gold-spend growth on one selected slime instance. Primarily increases c
 
 ### Fusion
 
-Repeated job creation adds another persistent slime instance. Fusion input is produced only when the player explicitly converts a spare **reserve** instance into that family's Slime Core.
+Fusion is the sole normal form-growth system. Repeated job creation adds another persistent slime instance; a spare **reserve** instance may be explicitly converted into that family's Slime Core when the player wants Fusion input.
 
-Fusion remains recipe-based.
+Fusion is recipe-based and advances the selected persistent instance:
 
 - same-job duplicates remain assignable bodies by default
 - a reserve duplicate may be explicitly converted into a Slime Core / equivalent branch item
 - the last owned instance of a type cannot be consumed this way
 - battle or Dispatch instances cannot be consumed
-- fusion recipes may combine Slime Core + weapon ingredient + ordinary material
-- exact recipe quantities and rank cap are balance data
-- fusion may unlock visible combat behavior or a linear upgraded form at milestones
-- the first Sword fusion milestone at Lv.10 unlocks the `Greatsword` fusion form on the selected Sword instance while preserving its promotion tier
+- recipes may combine Slime Core + weapon ingredient + ordinary material
+- exact quantities and rank cap are balance data
+- Rank 2 is the first family enhancement/form
+- Rank 3 becomes the authored Tier-2 job form
+- Rank 4 requires the player to choose one of two authored Tier-3 specializations
+- Fusion updates `fusionRank`, `fusionFormId`, and derived `jobTier` atomically
+- the selected Fusion form determines the battle model, motion profile, and signature behavior
 
-### Promotion / evolution
-
-Changes the job form itself and therefore the attack identity.
-
-Promotion is not the same as fusion. Fusion strengthens the selected slime instance and may change its fusion presentation/form, such as Sword Slime -> Greatsword fusion form, without consuming a promotion tier. Promotion changes the actual job tier and later specialization according to progression requirements.
-
-Canonical state therefore keeps these axes separate: `jobTier/promotionPath` and `fusionRank/fusionForm`. Greatsword is not the Tier-2 job that competes with Fighter; Fighter remains the Tier-2 promotion of the Sword branch.
+`fusionFormId` is the branch identity; `jobTier` is derived metadata used for content gates and presentation. All normal form/tier growth is resolved by Fusion.
 
 ## 3. Body-size invariant
 
@@ -54,7 +51,7 @@ Across low/high fusion ranks of the same form:
 
 Strength can be expressed through weapon finish, small accessories, attack pattern, VFX, projectile behavior, timing, or skill unlocks.
 
-A fusion-milestone or promoted form may have a distinct weapon/accessory silhouette while keeping the slime body dimensions stable. “Stronger = simply bigger slime” is not the progression language. Bosses/enemies are not bound by this player-character rule.
+A Fusion milestone form may have a distinct weapon/accessory silhouette while keeping the slime body dimensions stable. “Stronger = simply bigger slime” is not the progression language. Bosses/enemies are not bound by this player-character rule.
 
 
 ## 4. Plain Slime supply and normal-job creation
@@ -183,7 +180,7 @@ Rare mutations are horizontally special rather than universal upgrades.
 
 No Codex completion should require indefinite luck.
 
-## 8. Promotion rules
+## 8. Fusion tier and branch rules
 
 ### Plain -> Tier 1
 
@@ -197,25 +194,19 @@ Requirements:
 
 The first Sword and Bow family access is tutorial-guaranteed. Other normal families become deterministically accessible as areas unlock.
 
-### Tier 1 -> Tier 2
+### Tier 1 / Rank 1 -> Rank 2
 
-Requirements may include:
+The first family-specific Fusion introduces a readable form or combat enhancement. Example: Sword Slime -> Greatsword Slime at Lv.10.
 
-- type level threshold
-- common promotion material
-- Gold
+### Rank 2 -> Tier 2 / Rank 3
 
-Tier 2 is a clear branch upgrade, not a random result.
+Advanced Fusion consumes authored family/core materials and a level threshold. It changes the visible job form and combat identity, for example Greatsword Slime -> Fighter Slime.
 
-### Tier 2 -> Tier 3
+### Tier 2 / Rank 3 -> Tier 3 / Rank 4
 
-Requirements may include:
+The player chooses one of two authored specializations in the Fusion UI. The branch is explicit and deterministic; it is never a random result.
 
-- type level threshold
-- branch crest from relevant area/boss
-- player selects one of two specializations
-
-Exact thresholds are balance data.
+Exact level thresholds and recipes are balance data.
 
 ## 9. Fusion behavior
 
@@ -235,7 +226,7 @@ When a normal job is created from Plain Slime + Job Gear:
 
 Fusion is recipe-based. A recipe may consume the type-specific Slime Core together with a weapon ingredient and ordinary material, and may also require a level threshold. A Slime Core is obtained by an explicit conversion of an eligible spare reserve instance, never by automatic duplicate resolution.
 
-The first Sword milestone requires Lv.10 plus `Sword Slime Core x1 + Greatsword Blank x1 + Hardening Gel x2`. The fusion presentation still shows two Sword Slime models merging for readability and fantasy, but the durable inventory cost is the recipe items. The result unlocks the Greatsword fusion form on the Sword branch: same promotion tier, same slime-body scale, visibly broader greatsword, and a fast half-turn horizontal sweep that damages nearby enemies.
+The first Sword milestone requires Lv.10 plus `Sword Slime Core x1 + Greatsword Blank x1 + Hardening Gel x2`. The Fusion presentation shows two Sword Slime models merging for readability and fantasy, while the durable inventory cost is the recipe items. The result unlocks the Greatsword form on the same persistent Sword instance: same slime-body scale, visibly broader greatsword, and a fast half-turn horizontal sweep that damages nearby enemies. Later Fusion steps continue into Fighter and then one selected Tier-3 specialization.
 
 Fusion preserves the selected instance's already-earned level and identity. A milestone may replace the equipped weapon/form presentation as part of the upgrade; it is not a reset and does not create another persistent body.
 
