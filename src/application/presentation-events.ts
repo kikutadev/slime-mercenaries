@@ -1,6 +1,6 @@
 import type { DomainEvent, PresentationQueueItem } from 'idle-game-kit';
 import { ids, jobCreationDefinitions, type JobSlimeId, type SlimeMutationId } from '../domain';
-import type { BattleRewardCue, BattleRewardItem } from '../game/battle-reward';
+import type { BattleRewardCue, BattleRewardItem, BattleRewardTarget } from '../game/battle-reward';
 
 export type PresentationTone = 'reward' | 'milestone' | 'warning' | 'system';
 
@@ -18,6 +18,30 @@ export type SlimePresentationNotice = PresentationQueueItem & Readonly<{
   body?: string;
   tone: PresentationTone;
 }>;
+
+
+export type RoutedPresentationEvents = Readonly<{
+  notices: readonly SlimePresentationNotice[];
+  battleRewardCue: BattleRewardCue | null;
+}>;
+
+/**
+ * Route one authoritative event batch to exactly one routine reward surface.
+ * Battle keeps its compact receipt; non-battle screens keep the global notice.
+ * Milestones/warnings remain global on every screen.
+ */
+export function routePresentationEvents(
+  events: readonly DomainEvent[],
+  battleVisible: boolean,
+): RoutedPresentationEvents {
+  const notices = toPresentationNotices(events);
+  return {
+    notices: battleVisible
+      ? notices.filter((notice) => notice.presentationCoalescingKey !== 'combat-reward')
+      : notices,
+    battleRewardCue: battleVisible ? toBattleRewardCue(events) : null,
+  };
+}
 
 
 const BATTLE_REWARD_LABELS: Readonly<Record<string, string>> = {
@@ -38,8 +62,23 @@ const BATTLE_REWARD_LABELS: Readonly<Record<string, string>> = {
 export function toBattleRewardCue(events: readonly DomainEvent[]): BattleRewardCue | null {
   const aggregated = new Map<string, BattleRewardItem>();
   const contributingIds: string[] = [];
+  let target: BattleRewardTarget | null = null;
 
   for (const event of events) {
+    if (event.type === 'combatWaveCleared') {
+      const stageNumber = numberPayload(event, 'stageNumber');
+      const waveNumber = numberPayload(event, 'waveNumber');
+      if (stageNumber !== null && waveNumber !== null) {
+        target = {
+          kind: 'wave',
+          stageNumber,
+          waveIndex: Math.max(0, Math.floor(waveNumber) - 1),
+        };
+      }
+    } else if (event.type === 'bossDefeated') {
+      const stageNumber = numberPayload(event, 'stageNumber');
+      if (stageNumber !== null) target = { kind: 'boss', stageNumber };
+    }
     if (event.type !== 'combatWaveCleared' && event.type !== 'bossDefeated' && event.type !== 'stageCleared') continue;
     const rewards = event.payload?.grantedRewards;
     if (!Array.isArray(rewards)) continue;
@@ -86,6 +125,7 @@ export function toBattleRewardCue(events: readonly DomainEvent[]): BattleRewardC
   return {
     id: `battle-reward:${contributingIds.join('|')}`,
     importance: events.some((event) => event.type === 'bossDefeated') ? 'boss' : 'normal',
+    target,
     items,
   };
 }

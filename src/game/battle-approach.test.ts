@@ -2,13 +2,20 @@ import { describe, expect, it } from 'vitest';
 import {
   BOSS_APPROACH_SECONDS,
   BOSS_LANDING_SECONDS,
+  NORMAL_APPROACH_SECONDS,
   getApproachCameraRetreat,
   getBossApproachPresentation,
   getEnemyApproachEntryPose,
+  approachDurationSeconds,
   getSceneryApproachOffset,
 } from './battle-approach';
 
 describe('battle approach presentation', () => {
+  it('keeps authored approach timing independent from Domain deadline pressure', () => {
+    expect(approachDurationSeconds(false)).toBe(NORMAL_APPROACH_SECONDS);
+    expect(approachDurationSeconds(true)).toBe(BOSS_APPROACH_SECONDS);
+  });
+
   it('moves enemies from behind their authored slot into a stable terminal pose', () => {
     const start = getEnemyApproachEntryPose(0, 0, 'front-center', 'fodder');
     const mid = getEnemyApproachEntryPose(0.32, 0, 'front-center', 'fodder');

@@ -1,7 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { battleRewardParticleCount, battleRewardVisual, type BattleRewardItem } from './battle-reward';
+import { battleRewardCueMatchesEncounter, battleRewardParticleCount, battleRewardVisual, type BattleRewardCue, type BattleRewardItem } from './battle-reward';
 
 describe('battle reward visuals', () => {
+  it('matches reward cues only to their authoritative visual encounter', () => {
+    const waveCue: BattleRewardCue = {
+      id: 'wave',
+      importance: 'normal',
+      target: { kind: 'wave', stageNumber: 3, waveIndex: 1 },
+      items: [],
+    };
+    const bossCue: BattleRewardCue = {
+      id: 'boss',
+      importance: 'boss',
+      target: { kind: 'boss', stageNumber: 5 },
+      items: [],
+    };
+
+    expect(battleRewardCueMatchesEncounter(waveCue, 3, 1, false)).toBe(true);
+    expect(battleRewardCueMatchesEncounter(waveCue, 3, 2, false)).toBe(false);
+    expect(battleRewardCueMatchesEncounter(bossCue, 5, 3, true)).toBe(true);
+    expect(battleRewardCueMatchesEncounter(bossCue, 5, 3, false)).toBe(false);
+  });
+
   it('uses a coin presentation for Gold and caps particle density', () => {
     const item: BattleRewardItem = { kind: 'gold', id: 'currency.gold', label: 'G', amount: 999_999 };
     expect(battleRewardVisual(item).shape).toBe('coin');

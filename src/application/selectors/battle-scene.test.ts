@@ -74,14 +74,22 @@ describe('battle scene projection', () => {
     expect(after.visualKey).toBe(before.visualKey);
   });
 
+  it('projects a stable absolute wall-clock deadline for the current Domain boundary', () => {
+    const state = createSwordBattleState();
+    const model = selectBattleSceneModel(state);
+
+    expect(model.authoritativeResultDeadlineMs).toBe(state.lastWallClockMs + 6_000);
+  });
+
   it('projects the authored enemy encounter for the current wave', () => {
-    const model = selectBattleSceneModel(createSwordBattleState());
+    const state = createSwordBattleState();
+    const model = selectBattleSceneModel(state);
     expect(model.encounter?.id).toBe('encounter.clover-road.01.01');
     expect(model.encounter?.displayName).toBe('ちびキノコの群れ');
     expect(model.encounter?.enemies).toHaveLength(3);
     expect(model.encounter?.enemies.every((enemy) => enemy.id === 'tiny-mushroom')).toBe(true);
     expect(model.authoritativeResult).toBe('victory');
-    expect(model.authoritativeResultDelaySec).toBe(6);
+    expect(model.authoritativeResultDeadlineMs).toBe(state.lastWallClockMs + 6_000);
   });
 
   it('changes enemy composition with stage and wave progression', () => {
@@ -100,6 +108,29 @@ describe('battle scene projection', () => {
     expect(model.encounter?.enemies.filter((enemy) => enemy.id === 'bud-bloom')).toHaveLength(3);
     expect(model.encounter?.enemies.filter((enemy) => enemy.id === 'puff-flower').every((enemy) => enemy.formationSlot.startsWith('back-'))).toBe(true);
     expect(model.encounterKey).toContain('encounter.clover-road.03.02');
+  });
+
+  it('reconstructs the terminal boss encounter after the Domain reaches the content boundary', () => {
+    const state = createSwordBattleState();
+    const boundaryState = {
+      ...state,
+      gameData: {
+        ...state.gameData,
+        progression: { ...state.gameData.progression, currentStage: 5 },
+        combat: {
+          ...state.gameData.combat,
+          currentWaveIndex: 0,
+          contentBoundaryReached: true,
+        },
+      },
+    };
+
+    const model = selectBattleSceneModel(boundaryState);
+
+    expect(model.encounter?.id).toBe('encounter.clover-road.05.boss');
+    expect(model.encounter?.boss).toBe(true);
+    expect(model.authoritativeResult).toBe('victory');
+    expect(model.authoritativeResultDeadlineMs).toBe(boundaryState.lastWallClockMs);
   });
 
   it('projects the authored great mushroom boss encounter', () => {
@@ -154,7 +185,7 @@ describe('battle scene projection', () => {
     const model = selectBattleSceneModel(frontierState);
     expect(model.encounter?.id).toBe('encounter.clover-road.03.01');
     expect(model.authoritativeResult).toBe('defeat');
-    expect(model.authoritativeResultDelaySec).toBe(balance.combat.frontier.defeatDurationSec);
+    expect(model.authoritativeResultDeadlineMs).toBe(frontierState.lastWallClockMs + balance.combat.frontier.defeatDurationSec * 1_000);
   });
 
   it('projects an authored defeat for an underpowered frontier boss', () => {
@@ -170,6 +201,6 @@ describe('battle scene projection', () => {
     const model = selectBattleSceneModel(bossState);
     expect(model.encounter?.id).toBe('encounter.clover-road.05.boss');
     expect(model.authoritativeResult).toBe('defeat');
-    expect(model.authoritativeResultDelaySec).toBe(balance.combat.frontier.defeatDurationSec);
+    expect(model.authoritativeResultDeadlineMs).toBe(bossState.lastWallClockMs + balance.combat.frontier.defeatDurationSec * 1_000);
   });
 });

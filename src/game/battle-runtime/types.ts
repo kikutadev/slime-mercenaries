@@ -19,6 +19,7 @@ export interface BattleSnapshot {
   enemyAlive: number;
   enemyHp: number;
   enemyMaxHp: number;
+  presentationReady: boolean;
   allies: Readonly<Record<string, BattleSnapshotAlly>>;
 }
 

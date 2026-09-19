@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DomainEvent } from 'idle-game-kit';
-import { buildOfflineReturnView, toBattleRewardCue, toPresentationNotices } from './presentation-events';
+import { buildOfflineReturnView, routePresentationEvents, toBattleRewardCue, toPresentationNotices } from './presentation-events';
 
 function event(type: string, payload?: Readonly<Record<string, unknown>>): DomainEvent {
   return { id: `${type}:1`, type, simTimeSec: 12, ...(payload === undefined ? {} : { payload }) };
@@ -8,9 +8,43 @@ function event(type: string, payload?: Readonly<Record<string, unknown>>): Domai
 
 describe('presentation event policy', () => {
 
+  it('routes routine battle rewards to one surface when battle is visible', () => {
+    const batch = [
+      event('combatWaveCleared', {
+        stageNumber: 1,
+        waveNumber: 1,
+        grantedRewards: [{ kind: 'currency', id: 'currency.gold', amount: 12 }],
+      }),
+    ];
+
+    const inBattle = routePresentationEvents(batch, true);
+    expect(inBattle.battleRewardCue?.items[0]?.amount).toBe(12);
+    expect(inBattle.notices.some((notice) =>
+      notice.presentationCoalescingKey === 'combat-reward')).toBe(false);
+
+    const outsideBattle = routePresentationEvents(batch, false);
+    expect(outsideBattle.battleRewardCue).toBeNull();
+    expect(outsideBattle.notices.some((notice) =>
+      notice.presentationCoalescingKey === 'combat-reward')).toBe(true);
+  });
+
+  it('keeps milestone notices while routing a battle reward receipt', () => {
+    const routed = routePresentationEvents([
+      event('bossDefeated', {
+        stageNumber: 5,
+        grantedRewards: [{ kind: 'currency', id: 'currency.gold', amount: 80 }],
+      }),
+    ], true);
+
+    expect(routed.battleRewardCue?.importance).toBe('boss');
+    expect(routed.notices.some((notice) => notice.title === 'ボス撃破')).toBe(true);
+  });
+
   it('aggregates authoritative combat rewards into one battle cue', () => {
     const cue = toBattleRewardCue([
       event('combatWaveCleared', {
+        stageNumber: 2,
+        waveNumber: 3,
         grantedRewards: [
           { kind: 'currency', id: 'currency.gold', amount: 12 },
           { kind: 'token', id: 'token.material.slime-gel', amount: 1 },
@@ -25,6 +59,7 @@ describe('presentation event policy', () => {
     ]);
 
     expect(cue).not.toBeNull();
+    expect(cue?.target).toEqual({ kind: 'wave', stageNumber: 2, waveIndex: 2 });
     expect(cue?.items).toEqual([
       { kind: 'gold', id: 'currency.gold', label: 'G', amount: 12 },
       { kind: 'material', id: 'token.material.slime-gel', label: 'スライムジェル', amount: 3 },
@@ -50,10 +85,11 @@ describe('presentation event policy', () => {
 
   it('marks a reward cue as boss-grade when boss defeat contributed', () => {
     const cue = toBattleRewardCue([
-      event('bossDefeated', { grantedRewards: [{ kind: 'currency', id: 'currency.gold', amount: 80 }] }),
+      event('bossDefeated', { stageNumber: 5, grantedRewards: [{ kind: 'currency', id: 'currency.gold', amount: 80 }] }),
       event('stageCleared', { grantedRewards: [{ kind: 'token', id: 'token.material.life-water', amount: 1 }] }),
     ]);
     expect(cue?.importance).toBe('boss');
+    expect(cue?.target).toEqual({ kind: 'boss', stageNumber: 5 });
     expect(cue?.items).toHaveLength(2);
   });
 

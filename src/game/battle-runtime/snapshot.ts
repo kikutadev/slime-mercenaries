@@ -1,4 +1,5 @@
-import { getVictoryPresentationElapsed, victoryStatusLabel } from '../battle-transition';
+import { getVictoryPresentationElapsed, getVictoryTransitionPose, victoryStatusLabel } from '../battle-transition';
+import { SLIME_MOTION_TIMING } from '../slime-motion';
 import type { AllyUnit, BattleSnapshot, EnemyUnit } from './types';
 
 export interface BattleSnapshotInput {
@@ -27,6 +28,16 @@ export function createBattleSnapshot(input: BattleSnapshotInput): BattleSnapshot
               input.bossEncounter,
             ))
           : '敗北';
+  const resultElapsed = Math.max(0, input.simulationNow - input.phaseStartedAt);
+  const presentationReady = input.phase === 'result'
+    && input.result !== null
+    && (input.result === 'victory'
+      ? getVictoryTransitionPose(
+          getVictoryPresentationElapsed(resultElapsed, input.bossEncounter),
+          0,
+        ).stage === 'march'
+      : resultElapsed >= SLIME_MOTION_TIMING.allyDefeat);
+
   const allies = Object.fromEntries(input.allies.map((ally) => [ally.slimeId, {
     hp: ally.hp,
     maxHp: ally.maxHp,
@@ -40,6 +51,7 @@ export function createBattleSnapshot(input: BattleSnapshotInput): BattleSnapshot
     enemyAlive,
     enemyHp,
     enemyMaxHp,
+    presentationReady,
     allies,
   };
 }

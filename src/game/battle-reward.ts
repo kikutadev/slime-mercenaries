@@ -9,11 +9,29 @@ export type BattleRewardItem = Readonly<{
 
 export type BattleRewardImportance = 'normal' | 'boss';
 
+export type BattleRewardTarget =
+  | Readonly<{ kind: 'wave'; stageNumber: number; waveIndex: number }>
+  | Readonly<{ kind: 'boss'; stageNumber: number }>;
+
 export type BattleRewardCue = Readonly<{
   id: string;
   importance: BattleRewardImportance;
+  target: BattleRewardTarget | null;
   items: readonly BattleRewardItem[];
 }>;
+
+export function battleRewardCueMatchesEncounter(
+  cue: BattleRewardCue,
+  stageNumber: number,
+  waveIndex: number,
+  bossEncounter: boolean,
+): boolean {
+  if (cue.target === null) return true;
+  if (cue.target.stageNumber !== stageNumber) return false;
+  return cue.target.kind === 'boss'
+    ? bossEncounter
+    : !bossEncounter && cue.target.waveIndex === waveIndex;
+}
 
 export type BattleRewardVisual = Readonly<{
   shape: 'coin' | 'shard' | 'orb';

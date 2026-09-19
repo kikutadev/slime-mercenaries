@@ -18,7 +18,6 @@ import {
 export interface BattleEnemyCombatSystemOptions {
   projectileSystem: BattleProjectileSystem;
   phase: () => BattleSnapshot['phase'];
-  phaseStartedAt: () => number;
   getLivingAllies: () => AllyUnit[];
   applyDamage: (
     target: AllyUnit | EnemyUnit,
@@ -34,8 +33,12 @@ export class BattleEnemyCombatSystem {
 
   constructor(private readonly options: BattleEnemyCombatSystemOptions) {}
 
-  updateApproach(enemies: readonly EnemyUnit[], now: number): void {
-    enemies.forEach((enemy) => this.updateApproachIdle(enemy, now));
+  updateApproach(
+    enemies: readonly EnemyUnit[],
+    now: number,
+    presentationElapsed: number,
+  ): void {
+    enemies.forEach((enemy) => this.updateApproachIdle(enemy, now, presentationElapsed));
   }
 
   updateCombat(enemies: readonly EnemyUnit[], now: number): void {
@@ -50,10 +53,14 @@ export class BattleEnemyCombatSystem {
     return enemyTargetPosition(target, this.options.phase());
   }
 
-  private updateApproachIdle(enemy: EnemyUnit, now: number): void {
+  private updateApproachIdle(
+    enemy: EnemyUnit,
+    now: number,
+    presentationElapsed: number,
+  ): void {
     if (!enemy.alive || enemy.state === 'defeat' || enemy.state === 'dead') return;
     const entry = getEnemyApproachEntryPose(
-      now - this.options.phaseStartedAt(),
+      presentationElapsed,
       enemy.index,
       enemy.formationSlot,
       enemy.scaleClass,
@@ -63,7 +70,7 @@ export class BattleEnemyCombatSystem {
     const pose = enemy.motionProfile.idle(now, enemy.index * 0.73);
     enemy.root.position.y = pose.jump + entry.yOffset;
     const bossPresentation = enemy.scaleClass === 'boss'
-      ? getBossApproachPresentation(now - this.options.phaseStartedAt())
+      ? getBossApproachPresentation(presentationElapsed)
       : null;
     const bossSquash = bossPresentation?.squash ?? 0;
     enemy.root.scale.set(

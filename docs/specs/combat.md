@@ -262,7 +262,10 @@ src/domain/combat.ts
   -> authoritative encounter result / rewards / retreat / retry / stage-wave progression
 
 src/application/selectors/battle-scene.ts
-  -> projects Domain state into one visual encounter
+  -> projects Domain state into one visual encounter and its absolute Domain deadline
+
+battle-presentation-latch.ts
+  -> keeps an already-visible encounter on screen until its result is readable
 
 BattleRuntime.ts
   -> orchestration only: initialize, phase handoff, authoritative boundary, result/reset, snapshot
@@ -271,6 +274,7 @@ battle-runtime/
   scene-owner.ts          Three.js ownership and disposal
   clock.ts                presentation clock and hit-stop
   camera.ts               camera approach / victory / shake
+  asset-cache.ts          parsed GLTF template cache with per-runtime disposable clones
   unit-factory.ts         GLB loading and runtime unit construction
   unit-presentation.ts    shared pose / targeting helpers
   unit-visuals.ts         shadows, world HP and defeat eyes
@@ -290,6 +294,12 @@ Hard boundaries:
 - enemy combat follows the same rule: visual movement and attacks are allowed, progression mutation is not.
 - Three.js objects created for one encounter are owned by that runtime's BattleSceneOwner; a runtime may not remove or dispose objects owned by another encounter.
 - the React Canvas stays mounted across encounter changes. Runtime replacement, not WebGL-context replacement, is the normal wave/stage transition.
+- Domain progression may advance ahead of rendered combat. An encounter already on screen stays latched until its authored result presentation is readable, then presentation may jump directly to the latest Domain encounter rather than replaying stale intermediate state.
+- the final authored encounter is still presented before a content-boundary screen; a terminal boss must not disappear merely because Domain already reset its wave index after completion.
+- the Domain result deadline is projected as an absolute wall-clock deadline and sampled when the runtime is constructed. GLB loading, React scheduling, and visual hit-stop must not silently reset or extend that deadline.
+- approach choreography keeps its authored duration. If Domain has already advanced, presentation may lag briefly rather than compressing the character motion into an unreadable instant.
+- a completed result receives a short UI handoff hold before the next encounter replaces it, so defeat/victory state remains human-readable even when React batches several runtime snapshots.
+- parsed GLTF templates may be cached across encounters, but every runtime owns independent disposable geometry/material/texture clones so disposal cannot invalidate another encounter or the cache.
 - new jobs should extend the appropriate ally-*-combat.ts family rather than adding another large branch to BattleRuntime.
 - new generic VFX/lifecycle behavior belongs in a focused subsystem rather than accumulating in the orchestrator.
 

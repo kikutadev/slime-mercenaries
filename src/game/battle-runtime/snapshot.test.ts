@@ -22,6 +22,54 @@ function enemy(hp: number, maxHp: number, alive = true): EnemyUnit {
 }
 
 describe('createBattleSnapshot', () => {
+  it('marks victory ready only after the march handoff becomes readable', () => {
+    const before = createBattleSnapshot({
+      phase: 'result',
+      result: 'victory',
+      allies: [ally('a', 8)],
+      enemies: [enemy(0, 5, false)],
+      bossEncounter: false,
+      simulationNow: 0.8,
+      phaseStartedAt: 0,
+    });
+    const after = createBattleSnapshot({
+      phase: 'result',
+      result: 'victory',
+      allies: [ally('a', 8)],
+      enemies: [enemy(0, 5, false)],
+      bossEncounter: false,
+      simulationNow: 1.2,
+      phaseStartedAt: 0,
+    });
+
+    expect(before.presentationReady).toBe(false);
+    expect(after.presentationReady).toBe(true);
+  });
+
+  it('keeps defeat visible through the full ally collapse before allowing a swap', () => {
+    const before = createBattleSnapshot({
+      phase: 'result',
+      result: 'defeat',
+      allies: [ally('a', 0, false)],
+      enemies: [enemy(5, 5)],
+      bossEncounter: false,
+      simulationNow: 0.6,
+      phaseStartedAt: 0,
+    });
+    const after = createBattleSnapshot({
+      phase: 'result',
+      result: 'defeat',
+      allies: [ally('a', 0, false)],
+      enemies: [enemy(5, 5)],
+      bossEncounter: false,
+      simulationNow: 0.8,
+      phaseStartedAt: 0,
+    });
+
+    expect(before.presentationReady).toBe(false);
+    expect(after.presentationReady).toBe(true);
+  });
+
   it('projects presentation hp without owning progression state', () => {
     const snapshot = createBattleSnapshot({
       phase: 'combat',
