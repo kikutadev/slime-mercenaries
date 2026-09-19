@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import {
   createGuardPulseVfx,
   createMageCastSigil,
@@ -36,6 +35,7 @@ import {
 } from '../enemy-motion';
 import { getVictoryMarchSlot } from '../battle-transition';
 import { allyHome, enemyHome, meleeCombatAnchor, SCALE } from './layout';
+import { cloneBattleAssetTemplate, loadBattleAssetTemplate } from './asset-cache';
 import type { BattleSceneOwner } from './scene-owner';
 import type {
   AllyUnit,
@@ -58,14 +58,7 @@ export interface BattleUnitFactoryOptions {
 }
 
 export class BattleUnitFactory {
-  private readonly loader = new GLTFLoader();
-  private readonly enemyTemplatePromises = new Map<string, Promise<THREE.Group>>();
-
   constructor(private readonly options: BattleUnitFactoryOptions) {}
-
-  clearCache(): void {
-    this.enemyTemplatePromises.clear();
-  }
 
   async loadAllies(configs: readonly BattleRuntimeAllyConfig[]): Promise<AllyUnit[]> {
     return Promise.all(configs.map((config) => this.loadAlly(config)));
@@ -98,20 +91,10 @@ export class BattleUnitFactory {
     return mesh;
   }
 
-  private loadEnemyTemplate(asset: string): Promise<THREE.Group> {
-    const cached = this.enemyTemplatePromises.get(asset);
-    if (cached !== undefined) return cached;
-    const promise = this.loader
-      .loadAsync(this.options.baseUrl + asset)
-      .then((gltf) => gltf.scene as THREE.Group);
-    this.enemyTemplatePromises.set(asset, promise);
-    return promise;
-  }
-
   private async loadEnemy(config: BattleRuntimeEnemyConfig): Promise<EnemyUnit> {
     const home = enemyHome(config.formationSlot);
-    const template = await this.loadEnemyTemplate(config.asset);
-    const root = template.clone(true) as THREE.Group;
+    const template = await loadBattleAssetTemplate(this.options.baseUrl + config.asset);
+    const root = cloneBattleAssetTemplate(template);
     root.name = 'EnemyRuntime:' + config.enemyId + ':' + config.instanceIndex;
     root.position.copy(home);
     root.scale.setScalar(config.renderScale);
@@ -194,8 +177,8 @@ export class BattleUnitFactory {
     const approachOrigin = this.options.continuationEntryPending
       ? new THREE.Vector3(marchSlot.x, 0.02, marchSlot.z)
       : home.clone();
-    const gltf = await this.loader.loadAsync(this.options.baseUrl + config.asset);
-    const root = gltf.scene as THREE.Group;
+    const template = await loadBattleAssetTemplate(this.options.baseUrl + config.asset);
+    const root = cloneBattleAssetTemplate(template);
     root.name = 'SlimeRuntime:' + config.slimeId + ':' + config.slotIndex;
     root.scale.setScalar(SCALE);
     root.position.copy(approachOrigin);

@@ -4,6 +4,16 @@ import type { EnemyScaleClass } from './enemies';
 export const NORMAL_APPROACH_SECONDS = 1.55;
 export const BOSS_APPROACH_SECONDS = 1.90;
 export const BOSS_LANDING_SECONDS = 1.02;
+export const NORMAL_MIN_COMBAT_PREVIEW_SECONDS = 0.22;
+export const BOSS_MIN_COMBAT_PREVIEW_SECONDS = 0.28;
+
+export function minimumCombatPreviewSeconds(bossEncounter: boolean): number {
+  return bossEncounter ? BOSS_MIN_COMBAT_PREVIEW_SECONDS : NORMAL_MIN_COMBAT_PREVIEW_SECONDS;
+}
+
+export function approachDurationSeconds(bossEncounter: boolean): number {
+  return bossEncounter ? BOSS_APPROACH_SECONDS : NORMAL_APPROACH_SECONDS;
+}
 
 export interface BossApproachPresentation {
   cameraRetreat: number;

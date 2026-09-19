@@ -12,6 +12,7 @@ export interface BattleCameraFrame {
   phaseStartedAt: number;
   result: BattleSnapshot['result'];
   bossEncounter: boolean;
+  approachPresentationElapsed: number | null;
 }
 
 export class BattleCameraController {
@@ -38,7 +39,8 @@ export class BattleCameraController {
   update(frame: BattleCameraFrame): void {
     this.camera.position.copy(CAMERA_BASE_POSITION);
     if (frame.phase === 'approach') {
-      const approachElapsed = frame.simulationNow - frame.phaseStartedAt;
+      const approachElapsed = frame.approachPresentationElapsed
+        ?? frame.simulationNow - frame.phaseStartedAt;
       this.camera.position.z += frame.bossEncounter
         ? getBossApproachPresentation(approachElapsed).cameraRetreat
         : getApproachCameraRetreat(approachElapsed);

@@ -1,4 +1,4 @@
-import { currentCombatEncounter, equippedWeaponDefinition, nextCombatBoundarySec, partyCombatPower, type SlimeInstanceId, type SlimeMercenariesState } from '../../domain';
+import { currentCombatEncounter, equippedWeaponDefinition, nextCombatBoundarySec, partyCombatPower, resolveStageDefinition, type SlimeInstanceId, type SlimeMercenariesState } from '../../domain';
 import { resolveEncounterDefinition, type ResolvedEncounter } from '../../game/encounters';
 import { getSlimePresentation, type BattleBehaviorId } from '../../game/slimes';
 
@@ -31,7 +31,7 @@ export type BattleSceneModel = Readonly<{
   waveIndex: number;
   encounter: ResolvedEncounter | null;
   authoritativeResult: 'victory' | 'defeat' | null;
-  authoritativeResultDelaySec: number | null;
+  authoritativeResultDeadlineMs: number | null;
   allies: readonly BattleSceneAlly[];
 }>;
 
@@ -69,20 +69,34 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
   const stageNumber = state.gameData.progression.currentStage;
   const waveIndex = state.gameData.combat.currentWaveIndex;
   const combatEncounter = currentCombatEncounter(state);
+  const terminalStage = state.gameData.combat.contentBoundaryReached
+    ? resolveStageDefinition(state.gameData.progression.currentAreaId, stageNumber)
+    : null;
+  const terminalEncounterId = terminalStage === null
+    ? undefined
+    : terminalStage.boss?.encounterId
+      ?? terminalStage.waves[Math.max(0, terminalStage.waves.length - 1)]?.encounterId;
   const encounterId = combatEncounter?.kind === 'wave'
     ? combatEncounter.wave?.encounterId
-    : combatEncounter?.boss?.encounterId;
+    : combatEncounter?.boss?.encounterId ?? terminalEncounterId;
   const encounter = encounterId === undefined ? null : resolveEncounterDefinition(encounterId);
-  const authoritativeResult = combatEncounter === null
-    ? null
-    : combatEncounter.requiredPartyPower !== null
-      && partyCombatPower(state).compare(combatEncounter.requiredPartyPower) < 0
-      ? 'defeat'
-      : 'victory';
+  const terminalVictory = combatEncounter === null
+    && state.gameData.combat.contentBoundaryReached
+    && encounter !== null;
+  const authoritativeResult = terminalVictory
+    ? 'victory'
+    : combatEncounter === null
+      ? null
+      : combatEncounter.requiredPartyPower !== null
+        && partyCombatPower(state).compare(combatEncounter.requiredPartyPower) < 0
+        ? 'defeat'
+        : 'victory';
   const nextBoundarySec = nextCombatBoundarySec(state);
-  const authoritativeResultDelaySec = authoritativeResult === null || nextBoundarySec === null
-    ? null
-    : Math.max(0, nextBoundarySec - state.simTimeSec);
+  const authoritativeResultDeadlineMs = terminalVictory
+    ? state.lastWallClockMs
+    : authoritativeResult === null || nextBoundarySec === null
+      ? null
+      : state.lastWallClockMs + Math.max(0, nextBoundarySec - state.simTimeSec) * 1_000;
   const encounterKey = `${state.gameData.progression.currentAreaId}:${stageNumber}:${waveIndex}:${encounter?.id ?? 'none'}`;
   const visualKey = allies
     .map((ally) => [
@@ -98,5 +112,5 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
     .join('|');
   const runtimeVisualKey = `${visualKey}|result:${authoritativeResult ?? '-'}`;
 
-  return { encounterKey, visualKey: runtimeVisualKey, stageNumber, waveIndex, encounter, authoritativeResult, authoritativeResultDelaySec, allies };
+  return { encounterKey, visualKey: runtimeVisualKey, stageNumber, waveIndex, encounter, authoritativeResult, authoritativeResultDeadlineMs, allies };
 }

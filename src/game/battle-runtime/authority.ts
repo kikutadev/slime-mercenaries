@@ -18,3 +18,24 @@ export function resolvePresentationHpAfterDamage(input: PresentationDamageInput)
   if (input.authoritativeResult !== null && input.isLastLivingUnit && nextHp <= 0) return 1;
   return nextHp;
 }
+export function authoritativePresentationTriggerSec(
+  result: 'victory' | 'defeat',
+  authoritativeResultDelaySec: number,
+): number {
+  const safeDelay = Math.max(0, authoritativeResultDelaySec);
+  const leadSeconds = result === 'defeat'
+    ? AUTHORITATIVE_DEFEAT_LEAD_SECONDS
+    : AUTHORITATIVE_VICTORY_LEAD_SECONDS;
+  return Math.max(0, safeDelay - leadSeconds);
+}
+
+export function readableAuthoritativeResultSec(
+  preferredTriggerSec: number,
+  combatEnteredAtSec: number,
+  minimumCombatPreviewSec: number,
+): number {
+  return Math.max(
+    Math.max(0, preferredTriggerSec),
+    Math.max(0, combatEnteredAtSec) + Math.max(0, minimumCombatPreviewSec),
+  );
+}

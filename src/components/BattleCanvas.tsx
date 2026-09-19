@@ -33,6 +33,9 @@ function BattleRuntimeScene({ model, onSnapshot, onRuntimeError, rewardCue }: Ba
     gl.shadowMap.type = THREE.PCFSoftShadowMap;
 
     let cancelled = false;
+    const authoritativeResultDelaySec = model.authoritativeResultDeadlineMs === null
+      ? null
+      : Math.max(0, (model.authoritativeResultDeadlineMs - Date.now()) / 1_000);
     const runtime = new BattleRuntime({
       scene,
       camera,
@@ -51,7 +54,7 @@ function BattleRuntimeScene({ model, onSnapshot, onRuntimeError, rewardCue }: Ba
         formationRole: ally.formationRole,
       })),
       authoritativeResult: model.authoritativeResult,
-      authoritativeResultDelaySec: model.authoritativeResultDelaySec,
+      authoritativeResultDelaySec,
       enemies: model.encounter?.enemies.map((enemy) => ({
         enemyId: enemy.id,
         name: enemy.name,

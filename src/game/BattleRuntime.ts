@@ -9,9 +9,9 @@ import { resolveTimedMultiplier } from './combat-effects';
 import { resetEnemySecondaryPose } from './enemy-motion';
 import { createBattleEnvironment } from './battle-environment';
 import {
-  BOSS_APPROACH_SECONDS,
   BOSS_LANDING_SECONDS,
-  NORMAL_APPROACH_SECONDS,
+  approachDurationSeconds,
+  minimumCombatPreviewSeconds,
   getSceneryApproachOffset,
 } from './battle-approach';
 import {
@@ -28,9 +28,9 @@ import {
 import { BattleClock } from './battle-runtime/clock';
 import { BattleCameraController } from './battle-runtime/camera';
 import {
-  AUTHORITATIVE_DEFEAT_LEAD_SECONDS,
-  AUTHORITATIVE_VICTORY_LEAD_SECONDS,
   RESULT_HOLD_SECONDS,
+  authoritativePresentationTriggerSec,
+  readableAuthoritativeResultSec,
   resolvePresentationHpAfterDamage,
 } from './battle-runtime/authority';
 import { SCALE, TARGET_HOME } from './battle-runtime/layout';
@@ -81,6 +81,9 @@ export class BattleRuntime {
   private readonly authoritativeResultDelaySec: number | null;
   private readonly onSnapshot: (snapshot: BattleSnapshot) => void;
   private readonly bossEncounter: boolean;
+  private approachDurationSec: number;
+  private authoritativeResultTriggerSec: number | null;
+  private combatEnteredAtRaw: number | null = null;
   private readonly tempVector = new THREE.Vector3();
   private readonly tempVector2 = new THREE.Vector3();
   private readonly tempVector3 = new THREE.Vector3();
@@ -103,7 +106,6 @@ export class BattleRuntime {
   private initialized = false;
   private phase: BattleSnapshot['phase'] = 'loading';
   private phaseStartedAt = 0;
-  private battleStartedAt = 0;
   private result: BattleSnapshot['result'] = null;
   private lastSnapshotKey = '';
   private continuationEntryPending: boolean;
@@ -134,7 +136,6 @@ export class BattleRuntime {
     this.enemyCombatSystem = new BattleEnemyCombatSystem({
       projectileSystem: this.projectileSystem,
       phase: () => this.phase,
-      phaseStartedAt: () => this.phaseStartedAt,
       getLivingAllies: () => this.getLivingAllies(),
       applyDamage: (target, amount, source, sourcePosition) =>
         this.applyDamage(target, amount, source, sourcePosition),
@@ -148,6 +149,14 @@ export class BattleRuntime {
     this.authoritativeResultDelaySec = options.authoritativeResultDelaySec;
     this.onSnapshot = options.onSnapshot;
     this.bossEncounter = options.enemies.some((enemy) => enemy.scaleClass === 'boss');
+    this.approachDurationSec = approachDurationSeconds(this.bossEncounter);
+    this.authoritativeResultTriggerSec = options.authoritativeResult === null
+      || options.authoritativeResultDelaySec === null
+      ? null
+      : authoritativePresentationTriggerSec(
+          options.authoritativeResult,
+          options.authoritativeResultDelaySec,
+        );
     this.continuationEntryPending = shouldUseMarchEntry(options.stageNumber, options.waveIndex);
     this.unitFactory = new BattleUnitFactory({
       sceneOwner: this.sceneOwner,
@@ -189,30 +198,31 @@ export class BattleRuntime {
         this.pendingRewardCue = null;
         this.createVictoryLootMotes(cue);
       }
-      this.startBattle(this.rawNow + 0.15);
+      this.startBattle(this.rawNow);
       this.emitSnapshot(true);
     } catch (cause) {
+      this.disposed = true;
       this.cleanupRuntimeResources();
       throw cause;
     }
   }
 
-  tick(rawNow: number): void {
-    if (!this.initialized || this.disposed) return;
-    const { hitStopActive, simulationNow } = this.clock.advance(rawNow);
-    if (this.allies.length === 0) return;
+  tick(hostRawNow: number): void {
+    if (this.disposed) return;
+    const { rawNow, hitStopActive, simulationNow } = this.clock.advance(hostRawNow);
+    if (!this.initialized || this.allies.length === 0) return;
 
     if (!hitStopActive) {
       if (this.phase === 'approach') this.updateApproach(simulationNow);
       else if (this.phase === 'combat') this.updateCombat(simulationNow);
       else if (this.phase === 'result') this.updateResult(simulationNow);
 
-      this.enforceAuthoritativeResult(simulationNow);
       this.allies.forEach((ally) => this.updateAllyDefeat(ally, simulationNow));
       this.projectileSystem.update(simulationNow);
       this.updateVictoryLootMotes(simulationNow);
       this.evaluateBattleOutcome(simulationNow);
     }
+    this.enforceAuthoritativeResult(rawNow, simulationNow);
     this.updateHealthBars();
     this.updateCamera(rawNow);
     this.emitSnapshot();
@@ -230,7 +240,6 @@ export class BattleRuntime {
     this.allies.length = 0;
     this.enemies.length = 0;
     this.victoryLootMotes.length = 0;
-    this.unitFactory.clearCache();
     this.environmentSceneryRoot = null;
     this.environmentTravel = null;
     this.pendingRewardCue = null;
@@ -508,11 +517,11 @@ export class BattleRuntime {
   private startBattle(now: number): void {
     this.phase = 'approach';
     this.phaseStartedAt = now;
+    this.combatEnteredAtRaw = null;
     this.bossLandingTriggered = false;
     if (this.environmentSceneryRoot) this.environmentSceneryRoot.position.z = getSceneryApproachOffset(0);
     this.environmentTravel?.(0);
     this.clearVictoryLootMotes();
-    this.battleStartedAt = now;
     this.result = null;
     this.allies.forEach((ally) => {
       ally.attackStartedAt = -Infinity;
@@ -531,9 +540,12 @@ export class BattleRuntime {
   }
 
   private updateApproach(now: number): void {
-    const duration = this.bossEncounter ? BOSS_APPROACH_SECONDS : NORMAL_APPROACH_SECONDS;
+    const duration = this.approachDurationSec;
     const approachElapsed = now - this.phaseStartedAt;
-    if (this.environmentSceneryRoot) this.environmentSceneryRoot.position.z = getSceneryApproachOffset(approachElapsed);
+    const presentationElapsed = approachElapsed;
+    if (this.environmentSceneryRoot) {
+      this.environmentSceneryRoot.position.z = getSceneryApproachOffset(presentationElapsed);
+    }
     this.allies.forEach((ally) => {
       if (!ally.alive) return;
       const destination = this.isMeleeBehavior(ally) ? ally.combatAnchor : ally.home;
@@ -548,8 +560,8 @@ export class BattleRuntime {
         if (target) this.facePoint(ally, target.root.position);
       }
     });
-    this.enemyCombatSystem.updateApproach(this.enemies, now);
-    if (this.bossEncounter && !this.bossLandingTriggered && approachElapsed >= BOSS_LANDING_SECONDS) {
+    this.enemyCombatSystem.updateApproach(this.enemies, now, presentationElapsed);
+    if (this.bossEncounter && !this.bossLandingTriggered && presentationElapsed >= BOSS_LANDING_SECONDS) {
       const boss = this.enemies.find((enemy) => enemy.scaleClass === 'boss');
       if (boss !== undefined) {
         const impactPosition = boss.root.position.clone();
@@ -567,6 +579,7 @@ export class BattleRuntime {
       if (this.environmentSceneryRoot) this.environmentSceneryRoot.position.z = 0;
       this.phase = 'combat';
       this.phaseStartedAt = now;
+      this.combatEnteredAtRaw = this.rawNow;
       this.continuationEntryPending = false;
       this.enemies.forEach((enemy) => {
         enemy.attackStartedAt = -Infinity;
@@ -584,14 +597,20 @@ export class BattleRuntime {
     this.enemyCombatSystem.updateCombat(this.enemies, now);
   }
 
-  private enforceAuthoritativeResult(now: number): void {
+  private enforceAuthoritativeResult(
+    authoritativeNow: number,
+    presentationNow: number,
+  ): void {
     if (this.authoritativeResult === null || this.authoritativeResultDelaySec === null) return;
-    if (this.phase === 'loading' || this.phase === 'result') return;
-    const leadSeconds = this.authoritativeResult === 'defeat'
-      ? AUTHORITATIVE_DEFEAT_LEAD_SECONDS
-      : AUTHORITATIVE_VICTORY_LEAD_SECONDS;
-    const triggerDelay = Math.max(0.8, this.authoritativeResultDelaySec - leadSeconds);
-    if (now - this.battleStartedAt < triggerDelay) return;
+    if (this.phase !== 'combat' || this.combatEnteredAtRaw === null) return;
+    const preferredTriggerSec = this.authoritativeResultTriggerSec;
+    if (preferredTriggerSec === null) return;
+    const readableTriggerSec = readableAuthoritativeResultSec(
+      preferredTriggerSec,
+      this.combatEnteredAtRaw,
+      minimumCombatPreviewSeconds(this.bossEncounter),
+    );
+    if (authoritativeNow < readableTriggerSec) return;
 
     if (this.authoritativeResult === 'defeat') {
       const livingAllies = this.getLivingAllies();
@@ -600,7 +619,7 @@ export class BattleRuntime {
         ally.hp = 0;
         this.beginAllyDefeat(ally);
       });
-      this.enterResult('defeat', now);
+      this.enterResult('defeat', presentationNow);
       return;
     }
 
@@ -610,7 +629,7 @@ export class BattleRuntime {
       enemy.hp = 0;
       this.beginEnemyDefeat(enemy);
     });
-    this.enterResult('victory', now);
+    this.enterResult('victory', presentationNow);
   }
 
   private evaluateBattleOutcome(now: number): void {
@@ -748,6 +767,9 @@ export class BattleRuntime {
       phaseStartedAt: this.phaseStartedAt,
       result: this.result,
       bossEncounter: this.bossEncounter,
+      approachPresentationElapsed: this.phase === 'approach'
+        ? this.simulationNow - this.phaseStartedAt
+        : null,
     });
   }
 
