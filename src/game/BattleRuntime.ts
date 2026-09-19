@@ -67,9 +67,10 @@ export interface BattleSnapshotAlly {
 }
 
 export interface BattleSnapshot {
-  phase: 'loading' | 'approach' | 'combat' | 'result';
+  phase: 'loading' | 'transition' | 'approach' | 'combat' | 'result' | 'complete';
   label: string;
   result: 'victory' | 'defeat' | null;
+  resultScope: 'encounter' | 'stage' | null;
   enemyAlive: number;
   enemyHp: number;
   enemyMaxHp: number;
@@ -118,6 +119,7 @@ interface AllyUnit {
   healthBar: HealthBarGroup;
   home: THREE.Vector3;
   combatAnchor: THREE.Vector3;
+  approachStart: THREE.Vector3;
   maxHp: number;
   hp: number;
   alive: boolean;
@@ -262,15 +264,19 @@ export interface BattleRuntimeEnemyConfig {
   instanceIndex: number;
 }
 
-export interface BattleRuntimeOptions {
+export interface BattleEncounterUpdate {
+  encounterKey: string;
+  enemies: readonly BattleRuntimeEnemyConfig[];
+  authoritativeResult: 'victory' | 'defeat' | null;
+  authoritativeResultDelaySec: number | null;
+  shouldCelebrateVictory: boolean;
+}
+
+export interface BattleRuntimeOptions extends BattleEncounterUpdate {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   baseUrl: string;
   allies: readonly BattleRuntimeAllyConfig[];
-  enemies: readonly BattleRuntimeEnemyConfig[];
-  /** Domain-authored encounter result. Runtime presents it but never owns progression. */
-  authoritativeResult: 'victory' | 'defeat' | null;
-  authoritativeResultDelaySec: number | null;
   onSnapshot: (snapshot: BattleSnapshot) => void;
 }
 
@@ -302,6 +308,7 @@ const ENEMY_ATTACK_RANGE = 0.72;
 const ENEMY_MOVE_SPEED = 0.74;
 const MELEE_BODY_GAP = 0.58;
 const RESULT_HOLD_SECONDS = 1.85;
+const WAVE_TRANSITION_SECONDS = 0.95;
 const AUTHORITATIVE_DEFEAT_LEAD_SECONDS = 2.2;
 const AUTHORITATIVE_VICTORY_LEAD_SECONDS = 1.0;
 const CAMERA_BASE_POSITION = new THREE.Vector3(2.8, 5.35, 8.9);
@@ -319,8 +326,17 @@ export class BattleRuntime {
   private readonly baseUrl: string;
   private readonly allyConfigs: readonly BattleRuntimeAllyConfig[];
   private readonly enemyConfigs: readonly BattleRuntimeEnemyConfig[];
-  private readonly authoritativeResult: 'victory' | 'defeat' | null;
-  private readonly authoritativeResultDelaySec: number | null;
+  private authoritativeResult: 'victory' | 'defeat' | null;
+  private authoritativeResultDelaySec: number | null;
+  private currentEncounterKey: string;
+  private currentEncounterCelebratesVictory: boolean;
+  private encounterGeneration = 0;
+  private pendingEnemies: EnemyUnit[] | null = null;
+  private pendingEncounterHasCombat = true;
+  private transitionRecoversParty = false;
+  private queuedEncounter: BattleEncounterUpdate | null = null;
+  private readonly transitionStartPositions = new Map<string, THREE.Vector3>();
+  private readonly transitionStartHp = new Map<string, number>();
   private readonly onSnapshot: (snapshot: BattleSnapshot) => void;
   private readonly tempVector = new THREE.Vector3();
   private readonly tempVector2 = new THREE.Vector3();
@@ -347,6 +363,7 @@ export class BattleRuntime {
   private phaseStartedAt = 0;
   private battleStartedAt = 0;
   private result: BattleSnapshot['result'] = null;
+  private resultScope: BattleSnapshot['resultScope'] = null;
   private cameraShakeStartedAt = -Infinity;
   private cameraShakeEndsAt = -Infinity;
   private cameraShakeAmplitude = 0;
@@ -358,6 +375,8 @@ export class BattleRuntime {
     this.baseUrl = options.baseUrl;
     this.allyConfigs = options.allies;
     this.enemyConfigs = options.enemies;
+    this.currentEncounterKey = options.encounterKey;
+    this.currentEncounterCelebratesVictory = options.shouldCelebrateVictory;
     this.authoritativeResult = options.authoritativeResult;
     this.authoritativeResultDelaySec = options.authoritativeResultDelaySec;
     this.onSnapshot = options.onSnapshot;
@@ -398,12 +417,15 @@ export class BattleRuntime {
     this.simulationNow = simulationNow;
 
     if (!hitStopActive) {
-      if (this.phase === 'approach') this.updateApproach(simulationNow);
+      if (this.phase === 'transition') this.updateEncounterTransition(simulationNow);
+      else if (this.phase === 'approach') this.updateApproach(simulationNow);
       else if (this.phase === 'combat') this.updateCombat(simulationNow);
       else if (this.phase === 'result') this.updateResult(simulationNow);
 
       this.enforceAuthoritativeResult(simulationNow);
-      this.allies.forEach((ally) => this.updateAllyDefeat(ally, simulationNow));
+      if (this.phase !== 'transition') {
+        this.allies.forEach((ally) => this.updateAllyDefeat(ally, simulationNow));
+      }
       this.updateProjectiles(simulationNow);
       this.updateEnemyProjectiles(simulationNow);
       this.updateMuzzleFlashes(simulationNow);
@@ -441,6 +463,237 @@ export class BattleRuntime {
 
   dispose(): void {
     this.disposed = true;
+    this.encounterGeneration += 1;
+  }
+
+  /**
+   * Keep the Three scene and ally instances alive while Domain advances.
+   * Normal waves coalesce into one bounded march transition. Stage victory and defeat are held
+   * long enough to read even when the analytical Domain advances faster than the 3D presentation.
+   */
+  syncEncounter(options: BattleEncounterUpdate): void {
+    if (this.disposed) return;
+
+    if (options.encounterKey === this.currentEncounterKey) {
+      if (options.authoritativeResult !== this.authoritativeResult) {
+        this.authoritativeResult = options.authoritativeResult;
+        this.authoritativeResultDelaySec = options.authoritativeResultDelaySec;
+        this.currentEncounterCelebratesVictory = options.shouldCelebrateVictory;
+        this.battleStartedAt = this.simulationNow;
+        if (this.phase === 'result') {
+          this.allies.forEach((ally) => this.resetAlly(ally));
+          this.startBattle(this.simulationNow + 0.05);
+        }
+      }
+      return;
+    }
+
+    if (this.phase === 'result') {
+      // Domain may advance more than once while a stage-clear/defeat card is intentionally held.
+      // Keep only the latest authoritative target rather than restarting or stacking transitions.
+      this.queuedEncounter = options;
+      return;
+    }
+
+    const completedResult = this.authoritativeResult;
+    const completedStageShouldCelebrate = this.currentEncounterCelebratesVictory;
+    if (completedResult === 'defeat' || (completedResult === 'victory' && completedStageShouldCelebrate)) {
+      this.queuedEncounter = options;
+      this.forcePresentationResult(
+        completedResult,
+        this.simulationNow,
+        completedResult === 'victory' ? 'stage' : 'encounter',
+      );
+      return;
+    }
+
+    if (completedResult === 'victory') {
+      this.getLivingEnemies().forEach((enemy) => {
+        enemy.hp = 0;
+        this.beginEnemyDefeat(enemy);
+      });
+    }
+    this.targetEncounter(options, this.simulationNow, this.phase !== 'transition', false);
+  }
+
+  private forcePresentationResult(
+    result: 'victory' | 'defeat',
+    now: number,
+    scope: 'encounter' | 'stage',
+  ): void {
+    if (result === 'defeat') {
+      this.getLivingAllies().forEach((ally) => {
+        ally.hp = 0;
+        this.beginAllyDefeat(ally);
+      });
+    } else {
+      this.getLivingEnemies().forEach((enemy) => {
+        enemy.hp = 0;
+        this.beginEnemyDefeat(enemy);
+      });
+    }
+    this.enterResult(result, now, scope);
+  }
+
+  private targetEncounter(
+    options: BattleEncounterUpdate,
+    now: number,
+    restartTransition: boolean,
+    recoverParty: boolean,
+  ): void {
+    this.currentEncounterKey = options.encounterKey;
+    this.currentEncounterCelebratesVictory = options.shouldCelebrateVictory;
+    this.authoritativeResult = options.authoritativeResult;
+    this.authoritativeResultDelaySec = options.authoritativeResultDelaySec;
+    this.pendingEncounterHasCombat = options.enemies.length > 0;
+
+    const generation = ++this.encounterGeneration;
+    this.discardPendingEnemies();
+    if (restartTransition) this.beginEncounterTransition(now, recoverParty);
+    else if (recoverParty) this.transitionRecoversParty = true;
+
+    void Promise.all(options.enemies.map((config) => this.loadEnemy(config, false))).then((loadedEnemies) => {
+      if (this.disposed || generation !== this.encounterGeneration) {
+        loadedEnemies.forEach((enemy) => {
+          this.scene.remove(enemy.root);
+          this.scene.remove(enemy.shadow);
+        });
+        return;
+      }
+      this.pendingEnemies = loadedEnemies;
+    });
+  }
+
+  private discardPendingEnemies(): void {
+    this.pendingEnemies?.forEach((enemy) => {
+      this.scene.remove(enemy.root);
+      this.scene.remove(enemy.shadow);
+    });
+    this.pendingEnemies = null;
+  }
+
+  private beginEncounterTransition(now: number, recoverParty: boolean): void {
+    this.transitionRecoversParty = recoverParty;
+    this.phase = 'transition';
+    this.phaseStartedAt = now;
+    this.result = null;
+    this.resultScope = null;
+    this.transitionStartPositions.clear();
+    this.transitionStartHp.clear();
+    this.clearCombatEffects();
+
+    this.allies.forEach((ally) => {
+      this.transitionStartPositions.set(ally.slimeId, ally.root.position.clone());
+      this.transitionStartHp.set(ally.slimeId, ally.hp);
+      ally.attackStartedAt = -Infinity;
+      ally.attackTarget = null;
+      ally.hitsApplied = 0;
+      ally.shotApplied = false;
+    });
+    this.emitSnapshot(true);
+  }
+
+  private updateEncounterTransition(now: number): void {
+    const u = clamp01((now - this.phaseStartedAt) / WAVE_TRANSITION_SECONDS);
+    const eased = easeOutCubic(u);
+
+    this.enemies.forEach((enemy) => this.updateEnemyDefeat(enemy, now));
+    this.allies.forEach((ally) => {
+      const start = this.transitionStartPositions.get(ally.slimeId) ?? ally.home;
+      const startHp = this.transitionStartHp.get(ally.slimeId) ?? ally.hp;
+      const destination = this.isMeleeBehavior(ally) ? ally.combatAnchor : ally.home;
+      if (this.transitionRecoversParty) {
+        ally.hp = THREE.MathUtils.lerp(startHp, ally.maxHp, eased);
+      }
+
+      if (!ally.alive || ally.state === 'defeat') {
+        if (!this.transitionRecoversParty) {
+          this.updateAllyDefeat(ally, now);
+          return;
+        }
+        const side = ally.slotIndex % 2 === 0 ? -1 : 1;
+        const pose = getAllyDefeatMotion(1 - eased, side);
+        ally.root.position.lerpVectors(start, destination, eased);
+        ally.root.position.y = THREE.MathUtils.lerp(0.005, destination.y, eased);
+        ally.root.rotation.z = pose.rootRotationZ;
+        ally.body.scale.set(
+          ally.bodyBaseScale.x * pose.bodyScaleX,
+          ally.bodyBaseScale.y * pose.bodyScaleY,
+          ally.bodyBaseScale.z * pose.bodyScaleZ,
+        );
+        this.setEquipmentSwing(ally, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+        this.setDefeatEyes(ally, u < 0.52);
+        return;
+      }
+
+      this.updateHopTravel(ally, now, this.phaseStartedAt, start, destination, WAVE_TRANSITION_SECONDS);
+    });
+
+    if (u < 1 || this.pendingEnemies === null) return;
+
+    this.allies.forEach((ally) => {
+      const destination = this.isMeleeBehavior(ally) ? ally.combatAnchor : ally.home;
+      if (!ally.alive || ally.state === 'defeat') {
+        if (!this.transitionRecoversParty) return;
+        this.resetAlly(ally);
+      }
+      if (this.transitionRecoversParty) ally.hp = ally.maxHp;
+      ally.alive = true;
+      ally.state = 'idle';
+      ally.root.visible = true;
+      ally.root.position.copy(destination);
+      ally.root.rotation.set(0, 0, 0);
+      ally.root.scale.setScalar(SCALE);
+      ally.body.scale.copy(ally.bodyBaseScale);
+      this.setDefeatEyes(ally, false);
+    });
+    this.transitionStartPositions.clear();
+    this.transitionStartHp.clear();
+    this.clearEnemies();
+
+    if (!this.pendingEncounterHasCombat) {
+      this.pendingEnemies = null;
+      this.phase = 'complete';
+      this.phaseStartedAt = now;
+      this.result = null;
+      this.resultScope = null;
+      this.emitSnapshot(true);
+      return;
+    }
+
+    this.enemies.push(...this.pendingEnemies);
+    this.pendingEnemies = null;
+    this.enemies.forEach((enemy, index) => {
+      enemy.root.visible = true;
+      enemy.shadow.visible = true;
+      this.resetEnemy(enemy, now + index * 0.02);
+    });
+    this.startCombat(now + 0.05);
+  }
+
+  private clearEnemies(): void {
+    this.enemies.splice(0).forEach((enemy) => {
+      this.scene.remove(enemy.root);
+      this.scene.remove(enemy.shadow);
+    });
+  }
+
+  private clearTurrets(): void {
+    this.turrets.splice(0).forEach((turret) => {
+      this.scene.remove(turret.root);
+      turret.root.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+        object.geometry.dispose();
+        const material = object.material;
+        if (Array.isArray(material)) material.forEach((entry) => entry.dispose());
+        else material.dispose();
+      });
+    });
+  }
+
+  private clearCombatEffects(): void {
+    this.clearProjectiles();
+    this.clearTurrets();
   }
 
   private createEnvironment(): void {
@@ -568,13 +821,14 @@ export class BattleRuntime {
     return promise;
   }
 
-  private async loadEnemy(config: BattleRuntimeEnemyConfig): Promise<EnemyUnit> {
+  private async loadEnemy(config: BattleRuntimeEnemyConfig, initiallyVisible = true): Promise<EnemyUnit> {
     const home = this.enemyHome(config.instanceIndex);
     const template = await this.loadEnemyTemplate(config.asset);
     const root = template.clone(true) as THREE.Group;
     root.name = `EnemyRuntime:${config.enemyId}:${config.instanceIndex}`;
     root.position.copy(home);
     root.scale.setScalar(config.renderScale);
+    root.visible = initiallyVisible;
     root.traverse((object) => {
       if (object instanceof THREE.Mesh) {
         object.castShadow = true;
@@ -596,6 +850,7 @@ export class BattleRuntime {
     this.scene.add(root);
     const shadow = this.makeShadow(config.shadowRadius);
     shadow.position.set(home.x, 0.011, home.z);
+    shadow.visible = initiallyVisible;
 
     return {
       id: `enemy-${config.enemyId}-${config.instanceIndex + 1}`,
@@ -751,6 +1006,7 @@ export class BattleRuntime {
       healthBar,
       home,
       combatAnchor,
+      approachStart: home.clone(),
       maxHp: config.maxHp,
       hp: config.maxHp,
       alive: true,
@@ -1023,15 +1279,14 @@ export class BattleRuntime {
       ? amount * resolveTimedMultiplier(target.damageTakenEffect, this.simulationNow)
       : amount;
     let nextHp = Math.max(0, target.hp - effectiveAmount);
-    // Domain progression owns the encounter result. Keep the visual runtime from contradicting it:
-    // - a party that is authoritatively winning must not visibly lose members and revive on the next wave;
-    // - the final unit on either side is held at 1 HP until the authored boundary resolves the encounter.
+    // Domain progression owns only the encounter boundary, not each unit's visual HP.
+    // Individual units may fall and stay down while their allies continue fighting. Only the final
+    // living unit on a side is held at 1 HP so local timing cannot contradict the authored result.
     if (this.authoritativeResult !== null && nextHp <= 0) {
-      const winnerSide = this.authoritativeResult === 'victory' ? 'ally' : 'enemy';
       const isLast = target.side === 'enemy'
         ? this.getLivingEnemies().length === 1
         : this.getLivingAllies().length === 1;
-      if (target.side === winnerSide || isLast) nextHp = 1;
+      if (isLast) nextHp = 1;
     }
     target.hp = nextHp;
     target.hitStartedAt = this.simulationNow;
@@ -1127,12 +1382,42 @@ export class BattleRuntime {
     }
   }
 
+  private startCombat(now: number): void {
+    this.phase = 'combat';
+    this.phaseStartedAt = now;
+    this.battleStartedAt = now;
+    this.result = null;
+    this.resultScope = null;
+    this.allies.forEach((ally) => {
+      const destination = this.isMeleeBehavior(ally) ? ally.combatAnchor : ally.home;
+      ally.root.position.copy(destination);
+      ally.approachStart.copy(destination);
+      ally.attackStartedAt = -Infinity;
+      ally.attackTarget = null;
+      ally.hitsApplied = 0;
+      ally.shotApplied = false;
+      ally.nextAttackAt = now + (this.isMeleeBehavior(ally) ? 0.08 : 0.14 + ally.slotIndex * 0.04);
+      const firstEnemy = this.findNearest(ally, this.getLivingEnemies());
+      if (firstEnemy) this.facePoint(ally, firstEnemy.root.position);
+    });
+    this.enemies.forEach((enemy, index) => {
+      enemy.attackStartedAt = -Infinity;
+      enemy.attackTarget = null;
+      enemy.attackHitApplied = false;
+      enemy.nextAttackAt = now + 0.25 + index * 0.12;
+      enemy.lastUpdateAt = now;
+    });
+    this.emitSnapshot(true);
+  }
+
   private startBattle(now: number): void {
     this.phase = 'approach';
     this.phaseStartedAt = now;
     this.battleStartedAt = now;
     this.result = null;
+    this.resultScope = null;
     this.allies.forEach((ally) => {
+      ally.approachStart.copy(ally.root.position);
       ally.attackStartedAt = -Infinity;
       ally.attackTarget = null;
       ally.hitsApplied = 0;
@@ -1152,14 +1437,10 @@ export class BattleRuntime {
     const duration = 1.55;
     this.allies.forEach((ally) => {
       if (!ally.alive) return;
-      if (this.isMeleeBehavior(ally)) {
-        this.updateHopTravel(ally, now, this.phaseStartedAt, ally.home, ally.combatAnchor, duration);
-      } else {
-        ally.root.position.copy(ally.home);
-        this.updateIdle(ally, now, 1.1 + ally.slotIndex * 0.31);
-        const target = this.findNearest(ally, this.getLivingEnemies());
-        if (target) this.facePoint(ally, target.root.position);
-      }
+      const destination = this.isMeleeBehavior(ally) ? ally.combatAnchor : ally.home;
+      this.updateHopTravel(ally, now, this.phaseStartedAt, ally.approachStart, destination, duration);
+      const target = this.findNearest(ally, this.getLivingEnemies());
+      if (target) this.facePoint(ally, target.root.position);
     });
     this.enemies.forEach((enemy) => this.updateEnemyApproachIdle(enemy, now));
     if (now - this.phaseStartedAt >= duration) {
@@ -2473,7 +2754,7 @@ export class BattleRuntime {
 
   private enforceAuthoritativeResult(now: number): void {
     if (this.authoritativeResult === null || this.authoritativeResultDelaySec === null) return;
-    if (this.phase === 'loading' || this.phase === 'result') return;
+    if (this.phase === 'loading' || this.phase === 'transition' || this.phase === 'result') return;
     const leadSeconds = this.authoritativeResult === 'defeat'
       ? AUTHORITATIVE_DEFEAT_LEAD_SECONDS
       : AUTHORITATIVE_VICTORY_LEAD_SECONDS;
@@ -2487,33 +2768,39 @@ export class BattleRuntime {
         ally.hp = 0;
         this.beginAllyDefeat(ally);
       });
-      this.enterResult('defeat', now);
+      this.enterResult('defeat', now, 'encounter');
       return;
     }
 
+    if (!this.currentEncounterCelebratesVictory) return;
     const livingEnemies = this.getLivingEnemies();
     if (livingEnemies.length === 0) return;
     livingEnemies.forEach((enemy) => {
       enemy.hp = 0;
       this.beginEnemyDefeat(enemy);
     });
-    this.enterResult('victory', now);
+    this.enterResult('victory', now, 'stage');
   }
 
   private evaluateBattleOutcome(now: number): void {
-    if (this.phase === 'result' || this.phase === 'loading') return;
+    if (this.phase === 'result' || this.phase === 'loading' || this.phase === 'transition' || this.phase === 'complete') return;
     // When Domain supplied an authored result, only enforceAuthoritativeResult may end the encounter.
     // This prevents local HP timing from racing stage/wave progression and causing visual resets.
     if (this.authoritativeResult !== null) return;
-    if (this.getLivingEnemies().length === 0) this.enterResult('victory', now);
-    else if (this.getLivingAllies().length === 0) this.enterResult('defeat', now);
+    if (this.getLivingEnemies().length === 0) this.enterResult('victory', now, 'encounter');
+    else if (this.getLivingAllies().length === 0) this.enterResult('defeat', now, 'encounter');
   }
 
-  private enterResult(result: 'victory' | 'defeat', now: number): void {
+  private enterResult(
+    result: 'victory' | 'defeat',
+    now: number,
+    scope: 'encounter' | 'stage',
+  ): void {
     if (this.phase === 'result') return;
     this.phase = 'result';
     this.phaseStartedAt = now;
     this.result = result;
+    this.resultScope = scope;
     this.allies.forEach((ally) => {
       ally.attackStartedAt = -Infinity;
       ally.attackTarget = null;
@@ -2532,7 +2819,16 @@ export class BattleRuntime {
       if (ally.alive) this.updateIdle(ally, now, ally.slotIndex * 0.31);
     });
     this.enemies.forEach((enemy) => this.updateEnemyDefeat(enemy, now));
-    // Domain-owned results stay visible until the Domain advances/remounts the encounter.
+
+    if (this.queuedEncounter !== null && now - this.phaseStartedAt >= RESULT_HOLD_SECONDS) {
+      const next = this.queuedEncounter;
+      this.queuedEncounter = null;
+      if (this.result === 'defeat') this.clearEnemies();
+      this.targetEncounter(next, now, true, true);
+      return;
+    }
+
+    // Without a queued Domain target, an authoritative result remains on screen.
     if (this.authoritativeResult !== null) return;
     if (now - this.phaseStartedAt >= RESULT_HOLD_SECONDS) this.resetWave(now);
   }
@@ -2560,6 +2856,7 @@ export class BattleRuntime {
     unit.shotApplied = false;
     unit.root.visible = true;
     unit.root.position.copy(unit.home);
+    unit.approachStart.copy(unit.home);
     unit.root.rotation.set(0, 0, 0);
     unit.root.scale.setScalar(SCALE);
     unit.body.scale.copy(unit.bodyBaseScale);
@@ -2644,11 +2941,15 @@ export class BattleRuntime {
     const enemyAlive = this.getLivingEnemies().length;
     const label = this.phase === 'loading'
       ? '出撃準備中'
-      : this.phase === 'approach'
+      : this.phase === 'transition'
+        ? '次の敵部隊へ進軍中'
+        : this.phase === 'approach'
         ? '接敵中'
         : this.phase === 'combat'
           ? '交戦中'
-          : this.result === 'victory' ? '勝利' : '敗北';
+          : this.phase === 'complete'
+            ? '踏破完了'
+            : this.result === 'victory' ? '勝利' : '敗北';
     const allies = Object.fromEntries(this.allies.map((ally) => [ally.slimeId, {
       hp: ally.hp,
       maxHp: ally.maxHp,
@@ -2658,6 +2959,7 @@ export class BattleRuntime {
       phase: this.phase,
       label,
       result: this.result,
+      resultScope: this.resultScope,
       enemyAlive,
       enemyHp,
       enemyMaxHp,

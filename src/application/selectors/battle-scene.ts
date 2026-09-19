@@ -33,6 +33,7 @@ export type BattleSceneModel = Readonly<{
   authoritativeResult: 'victory' | 'defeat' | null;
   authoritativeResultDelaySec: number | null;
   isStageFinalEncounter: boolean;
+  shouldCelebrateVictory: boolean;
   allies: readonly BattleSceneAlly[];
 }>;
 
@@ -98,22 +99,24 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
       ally.behaviorId,
     ].join(':'))
     .join('|');
-  const runtimeVisualKey = `${visualKey}|result:${authoritativeResult ?? '-'}`;
   const isStageFinalEncounter = combatEncounter?.kind === 'boss'
     || (combatEncounter?.kind === 'wave'
       && stage !== null
       && stage.boss === undefined
       && combatEncounter.waveIndex === stage.waves.length - 1);
+  const shouldCelebrateVictory = isStageFinalEncounter
+    && state.gameData.combat.retryFarmClearsRemaining === 0;
 
   return {
     encounterKey,
-    visualKey: runtimeVisualKey,
+    visualKey,
     stageNumber,
     waveIndex,
     encounter,
     authoritativeResult,
     authoritativeResultDelaySec,
     isStageFinalEncounter,
+    shouldCelebrateVictory,
     allies,
   };
 }

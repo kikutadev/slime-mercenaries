@@ -83,6 +83,25 @@ describe('battle scene projection', () => {
     expect(model.authoritativeResult).toBe('victory');
     expect(model.authoritativeResultDelaySec).toBe(6);
     expect(model.isStageFinalEncounter).toBe(false);
+    expect(model.shouldCelebrateVictory).toBe(false);
+  });
+
+  it('keeps the persistent visual key stable when encounter/outcome change but ally visuals do not', () => {
+    const state = createSwordBattleState();
+    const winning = selectBattleSceneModel(state);
+    const losingState = {
+      ...state,
+      gameData: {
+        ...state.gameData,
+        progression: {
+          ...withHighestStageClearedForArea(state.gameData.progression, 'area.clover-road', 0),
+          currentStage: 3,
+        },
+      },
+    };
+    const losing = selectBattleSceneModel(losingState);
+    expect(losing.authoritativeResult).toBe('defeat');
+    expect(losing.visualKey).toBe(winning.visualKey);
   });
 
   it('changes enemy composition with stage and wave progression', () => {
@@ -95,12 +114,14 @@ describe('battle scene projection', () => {
         combat: { ...state.gameData.combat, currentWaveIndex: 1 },
       },
     };
+    const initial = selectBattleSceneModel(state);
     const model = selectBattleSceneModel(advanced);
     expect(model.encounter?.id).toBe('encounter.clover-road.03.02');
     expect(model.encounter?.enemies.filter((enemy) => enemy.id === 'puff-flower')).toHaveLength(2);
     expect(model.encounter?.enemies.filter((enemy) => enemy.id === 'bud-bloom')).toHaveLength(2);
     expect(model.encounter?.enemies.filter((enemy) => enemy.id === 'whirl-leaf')).toHaveLength(1);
     expect(model.encounterKey).toContain('encounter.clover-road.03.02');
+    expect(model.visualKey).toBe(initial.visualKey);
   });
 
   it('marks only the actual stage-closing encounter as final', () => {
@@ -113,7 +134,18 @@ describe('battle scene projection', () => {
         combat: { ...state.gameData.combat, currentWaveIndex: 2 },
       },
     };
-    expect(selectBattleSceneModel(stageOneFinalWave).isStageFinalEncounter).toBe(true);
+    const finalWave = selectBattleSceneModel(stageOneFinalWave);
+    expect(finalWave.isStageFinalEncounter).toBe(true);
+    expect(finalWave.shouldCelebrateVictory).toBe(true);
+
+    const farmingFinalWave = {
+      ...stageOneFinalWave,
+      gameData: {
+        ...stageOneFinalWave.gameData,
+        combat: { ...stageOneFinalWave.gameData.combat, retryFarmClearsRemaining: 2 },
+      },
+    };
+    expect(selectBattleSceneModel(farmingFinalWave).shouldCelebrateVictory).toBe(false);
 
     const stageFiveLastNormalWave = {
       ...state,
@@ -142,6 +174,7 @@ describe('battle scene projection', () => {
     expect(model.encounter?.enemies).toHaveLength(1);
     expect(model.encounter?.enemies[0]?.id).toBe('great-mushroom');
     expect(model.isStageFinalEncounter).toBe(true);
+    expect(model.shouldCelebrateVictory).toBe(true);
   });
 
   it('projects an authored defeat for an underpowered normal frontier stage', () => {

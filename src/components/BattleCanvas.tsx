@@ -28,6 +28,8 @@ function BattleRuntimeScene({ model, onSnapshot }: BattleCanvasProps) {
       scene,
       camera,
       baseUrl: import.meta.env.BASE_URL,
+      encounterKey: model.encounterKey,
+      shouldCelebrateVictory: model.shouldCelebrateVictory,
       allies: model.allies.map((ally) => ({
         slimeId: ally.slimeId,
         slotIndex: ally.slotIndex,
@@ -67,6 +69,30 @@ function BattleRuntimeScene({ model, onSnapshot }: BattleCanvasProps) {
     };
   }, [camera, gl, scene, model.visualKey]);
 
+  useEffect(() => {
+    runtimeRef.current?.syncEncounter({
+      encounterKey: model.encounterKey,
+      shouldCelebrateVictory: model.shouldCelebrateVictory,
+      authoritativeResult: model.authoritativeResult,
+      authoritativeResultDelaySec: model.authoritativeResultDelaySec,
+      enemies: model.encounter?.enemies.map((enemy) => ({
+        enemyId: enemy.id,
+        name: enemy.name,
+        asset: enemy.asset,
+        behaviorId: enemy.behaviorId,
+        maxHp: enemy.maxHp,
+        moveSpeed: enemy.moveSpeed,
+        attackRange: enemy.attackRange,
+        attackInterval: enemy.attackInterval,
+        attackDamage: enemy.attackDamage,
+        renderScale: enemy.renderScale,
+        scaleClass: enemy.scaleClass,
+        shadowRadius: enemy.shadowRadius,
+        instanceIndex: enemy.instanceIndex,
+      })) ?? [],
+    });
+  }, [model.encounterKey, model.authoritativeResult]);
+
   useFrame(({ clock }) => {
     runtimeRef.current?.tick(clock.elapsedTime);
   });
@@ -77,7 +103,7 @@ function BattleRuntimeScene({ model, onSnapshot }: BattleCanvasProps) {
 export function BattleCanvas(props: BattleCanvasProps) {
   return (
     <Canvas
-      key={`${props.model.encounterKey}:${props.model.visualKey}`}
+      key={props.model.visualKey}
       className="battle-canvas"
       camera={{ fov: 31, near: 0.1, far: 50, position: [2.8, 5.35, 8.9] }}
       dpr={[1, 2]}
