@@ -38,13 +38,13 @@ Generate one enemy:
 Generate the complete Mushroom family:
 
 ```bash
-npm run generate:enemies
+pnpm run generate:enemies
 ```
 
 Validate exported runtime contracts and bounds:
 
 ```bash
-npm run validate:enemies
+pnpm run validate:enemies
 ```
 
 The browser runtime loads the exported GLB. Production enemy geometry must not be reconstructed procedurally in `BattleRuntime.ts`. Game and gallery must share the same exported GLB and `src/game/enemy-motion.ts` motion/VFX source.

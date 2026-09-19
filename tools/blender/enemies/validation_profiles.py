@@ -19,10 +19,31 @@ COMMON_REQUIRED_NODES = (
 
 
 @dataclass(frozen=True)
+class ParentRule:
+    child: str
+    parent: str
+
+
+@dataclass(frozen=True)
+class RelativeSizeRule:
+    node: str
+    node_axis: str
+    min_ratio: float
+    max_ratio: float | None = None
+    character_axis: str | None = None
+
+
+@dataclass(frozen=True)
 class EnemyValidationProfile:
     required_nodes: tuple[str, ...] = COMMON_REQUIRED_NODES
     silhouette_rule: Callable[[Vector], bool] | None = None
     description: str = "common enemy"
+    min_meshes: int = 1
+    max_meshes: int | None = None
+    parent_rules: tuple[ParentRule, ...] = ()
+    relative_size_rules: tuple[RelativeSizeRule, ...] = ()
+    forbidden_nodes: tuple[str, ...] = ()
+    forbidden_prefixes: tuple[str, ...] = ()
 
 
 LEGACY_MUSHROOM_PROFILES: dict[str, EnemyValidationProfile] = {
@@ -50,7 +71,7 @@ LEGACY_MUSHROOM_PROFILES: dict[str, EnemyValidationProfile] = {
 
 
 def validation_profile_for_slug(slug: str) -> EnemyValidationProfile:
-    """Resolve validation beside the definition so lanes never edit validate.py."""
+    """Resolve validation beside the definition so each character owns its gates."""
     try:
         module = importlib.import_module(f"enemies.definitions.{slug.replace('-', '_')}")
     except ModuleNotFoundError:

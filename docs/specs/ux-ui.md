@@ -169,6 +169,7 @@ Movement semantics are explicit:
 - tapping the selected slime's current slot does not remove it
 - removing from battle requires the explicit **Return to reserve** action
 - dispatched slimes cannot be placed until they return
+- different owned instances of the same type may occupy separate slots; the exact same instance cannot occupy two slots
 
 The UI visually follows those semantics:
 
@@ -268,7 +269,7 @@ Material Gathering Fusion material
 Flow:
 
 1. choose contract
-2. choose one available reserve slime type
+2. choose one available reserve slime instance
 3. confirm duration/reward emphasis
 4. slime visibly departs
 5. return state shows compact reward

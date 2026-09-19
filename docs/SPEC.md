@@ -30,6 +30,7 @@ Detailed behavior is owned by:
 - progression / economy / loot / dispatch -> [`specs/progression-economy.md`](specs/progression-economy.md)
 - UX/UI -> [`specs/ux-ui.md`](specs/ux-ui.md)
 - art -> [`specs/art-direction.md`](specs/art-direction.md)
+- enemy content -> [`specs/enemies/README.md`](specs/enemies/README.md)
 
 This document owns only top-level contracts shared by multiple systems.
 

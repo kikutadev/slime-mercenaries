@@ -23,6 +23,19 @@ def object_world_size(obj: bpy.types.Object) -> Vector:
     return maximum - minimum
 
 
+
+def axis_value(size: Vector, axis: str) -> float:
+    if axis == "x":
+        return size.x
+    if axis == "y":
+        return size.y
+    if axis == "z":
+        return size.z
+    if axis == "max":
+        return max(size.x, size.y, size.z)
+    raise AssertionError(f"Unknown validation axis: {axis}")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Validate generated Slime Mercenaries enemy GLBs.")
     parser.add_argument("paths", nargs="+", help="GLB files to validate")
@@ -95,6 +108,53 @@ def validate(path: Path) -> None:
             raise AssertionError(f"{path.name}: {socket} has non-finite transform")
 
     meshes = [obj for obj in root.children_recursive if obj.type == "MESH"]
+    if len(meshes) < profile.min_meshes:
+        raise AssertionError(
+            f"{path.name}: insufficient authored geometry; meshes={len(meshes)} "
+            f"required>={profile.min_meshes} ({profile.description})"
+        )
+    if profile.max_meshes is not None and len(meshes) > profile.max_meshes:
+        raise AssertionError(
+            f"{path.name}: excessive geometry clutter; meshes={len(meshes)} "
+            f"required<={profile.max_meshes} ({profile.description})"
+        )
+
+    all_objects = {obj.name: obj for obj in (root, *root.children_recursive)}
+    forbidden = [name for name in profile.forbidden_nodes if name in all_objects]
+    forbidden += [
+        name
+        for name in all_objects
+        if any(name.startswith(prefix) for prefix in profile.forbidden_prefixes)
+    ]
+    if forbidden:
+        raise AssertionError(f"{path.name}: forbidden character structure present: {sorted(set(forbidden))}")
+
+    for rule in profile.parent_rules:
+        child = all_objects.get(rule.child)
+        if child is None:
+            raise AssertionError(f"{path.name}: parent rule child missing: {rule.child}")
+        actual_parent = child.parent.name if child.parent is not None else None
+        if actual_parent != rule.parent:
+            raise AssertionError(
+                f"{path.name}: {rule.child} must follow {rule.parent}, got {actual_parent}"
+            )
+
+    for rule in profile.relative_size_rules:
+        node = all_objects.get(rule.node)
+        if node is None:
+            raise AssertionError(f"{path.name}: relative-size node missing: {rule.node}")
+        node_size = object_world_size(node)
+        node_value = axis_value(node_size, rule.node_axis)
+        character_axis = rule.character_axis or rule.node_axis
+        character_value = axis_value(size, character_axis)
+        ratio = node_value / character_value
+        if ratio < rule.min_ratio or (rule.max_ratio is not None and ratio > rule.max_ratio):
+            upper = "∞" if rule.max_ratio is None else f"{rule.max_ratio:.3f}"
+            raise AssertionError(
+                f"{path.name}: {rule.node}.{rule.node_axis} ratio={ratio:.3f} "
+                f"outside [{rule.min_ratio:.3f}, {upper}] vs character.{character_axis}"
+            )
+
     missing_materials = [obj.name for obj in meshes if len(obj.data.materials) == 0]
     if missing_materials:
         raise AssertionError(f"{path.name}: meshes without materials: {missing_materials}")

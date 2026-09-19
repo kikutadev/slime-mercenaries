@@ -11,10 +11,16 @@ const MOTION_LABELS: Record<GalleryMotionId, string> = {
   defeat: 'Defeat',
 };
 
+const MOTIONS: readonly GalleryMotionId[] = ['idle', 'move', 'attack', 'hit', 'defeat'];
+const CAMERAS: readonly GalleryCameraId[] = ['inspection', 'gameplay', 'front'];
 const SPEEDS = [0.5, 1, 2] as const;
 
+function params(): URLSearchParams {
+  return new URLSearchParams(window.location.search);
+}
+
 function initialSlimeId(): string {
-  const requested = new URLSearchParams(window.location.search).get('slime');
+  const requested = params().get('slime');
   if (requested && slimeGalleryCatalog.some((item) => item.id === requested)) return requested;
   return slimeGalleryCatalog[0]?.id ?? '';
 }
