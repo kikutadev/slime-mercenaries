@@ -71,6 +71,7 @@ export interface BattleSnapshot {
   label: string;
   result: 'victory' | 'defeat' | null;
   resultScope: 'encounter' | 'stage' | null;
+  stageNumber: number;
   enemyAlive: number;
   enemyHp: number;
   enemyMaxHp: number;
@@ -266,6 +267,7 @@ export interface BattleRuntimeEnemyConfig {
 
 export interface BattleEncounterUpdate {
   encounterKey: string;
+  stageNumber: number;
   enemies: readonly BattleRuntimeEnemyConfig[];
   authoritativeResult: 'victory' | 'defeat' | null;
   authoritativeResultDelaySec: number | null;
@@ -329,6 +331,7 @@ export class BattleRuntime {
   private authoritativeResult: 'victory' | 'defeat' | null;
   private authoritativeResultDelaySec: number | null;
   private currentEncounterKey: string;
+  private currentStageNumber: number;
   private currentEncounterCelebratesVictory: boolean;
   private encounterGeneration = 0;
   private pendingEnemies: EnemyUnit[] | null = null;
@@ -376,6 +379,7 @@ export class BattleRuntime {
     this.allyConfigs = options.allies;
     this.enemyConfigs = options.enemies;
     this.currentEncounterKey = options.encounterKey;
+    this.currentStageNumber = options.stageNumber;
     this.currentEncounterCelebratesVictory = options.shouldCelebrateVictory;
     this.authoritativeResult = options.authoritativeResult;
     this.authoritativeResultDelaySec = options.authoritativeResultDelaySec;
@@ -542,6 +546,7 @@ export class BattleRuntime {
     recoverParty: boolean,
   ): void {
     this.currentEncounterKey = options.encounterKey;
+    this.currentStageNumber = options.stageNumber;
     this.currentEncounterCelebratesVictory = options.shouldCelebrateVictory;
     this.authoritativeResult = options.authoritativeResult;
     this.authoritativeResultDelaySec = options.authoritativeResultDelaySec;
@@ -2960,6 +2965,7 @@ export class BattleRuntime {
       label,
       result: this.result,
       resultScope: this.resultScope,
+      stageNumber: this.currentStageNumber,
       enemyAlive,
       enemyHp,
       enemyMaxHp,

@@ -29,6 +29,7 @@ function BattleRuntimeScene({ model, onSnapshot }: BattleCanvasProps) {
       camera,
       baseUrl: import.meta.env.BASE_URL,
       encounterKey: model.encounterKey,
+      stageNumber: model.stageNumber,
       shouldCelebrateVictory: model.shouldCelebrateVictory,
       allies: model.allies.map((ally) => ({
         slimeId: ally.slimeId,
@@ -72,6 +73,7 @@ function BattleRuntimeScene({ model, onSnapshot }: BattleCanvasProps) {
   useEffect(() => {
     runtimeRef.current?.syncEncounter({
       encounterKey: model.encounterKey,
+      stageNumber: model.stageNumber,
       shouldCelebrateVictory: model.shouldCelebrateVictory,
       authoritativeResult: model.authoritativeResult,
       authoritativeResultDelaySec: model.authoritativeResultDelaySec,

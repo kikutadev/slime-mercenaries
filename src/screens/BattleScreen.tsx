@@ -11,6 +11,7 @@ const INITIAL_BATTLE: BattleSnapshot = {
   label: '出撃準備中',
   result: null,
   resultScope: null,
+  stageNumber: 0,
   enemyAlive: 0,
   enemyHp: 0,
   enemyMaxHp: 0,
@@ -32,6 +33,7 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInst
   const hasBattleSlime = sceneModel.allies.length > 0;
   const enemyRatio = battle.enemyMaxHp > 0 ? battle.enemyHp / battle.enemyMaxHp : 0;
   const activeCount = sceneModel.allies.length;
+  const displayedStageLabel = battle.result !== null ? String(battle.stageNumber) : hud.stageLabel;
 
   const battleStatus = useMemo(() => {
     if (state.gameData.combat.contentBoundaryReached) return '現在のエリアを踏破しました';
@@ -67,7 +69,7 @@ export function BattleScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInst
 
       <header className="battle-topbar">
         <div>
-          <p className="eyebrow">{hud.areaLabel} · ステージ {hud.stageLabel}</p>
+          <p className="eyebrow">{hud.areaLabel} · ステージ {displayedStageLabel}</p>
         </div>
         <div className="resource-pill"><span className="resource-pill__coin">G</span><strong>{validationMode ? '∞' : hud.gold}</strong></div>
       </header>
