@@ -112,3 +112,10 @@ anticipation → release → primary impact → delayed secondary reaction → r
 の5区間で設計する。
 
 Boss defeatは通常敵より長く、最後に「可愛い抜け」を残す。
+
+## 9. Per-character motion contract
+Every production enemy MUST have a behavior-specific test that states its visible rhythm in character terms.
+
+Generic "finite values" coverage is only a safety net and does not count as completion. The test must assert the character's anticipation, release/contact, secondary reaction, projectile rule where applicable, and boss timing where applicable.
+
+Timed Gallery QA must wait for the model to load, Replay the motion, and capture the character-specific beat. A screenshot that does not prove the intended motion state is not evidence of completion.

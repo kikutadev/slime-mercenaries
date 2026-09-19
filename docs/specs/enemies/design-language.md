@@ -117,3 +117,12 @@ Bossに必要なのは:
 - melee telegraphはbody shape changeで読む
 - routine enemy VFXはfriendly signature attackより弱い
 - boss telegraphをnormal projectileが隠さない
+
+## 9. Per-character production contract
+Every production enemy MUST own a character contract before model work is accepted.
+
+- Contract SSOT: `tools/blender/enemies/definitions/<slug>.py::VALIDATION_PROFILE`
+- Family-level validation alone is insufficient.
+- The contract must define at least silhouette ratio, dominant hook size, mesh budget, required structure, forbidden structure, and any exact parent/secondary-motion roots.
+- A character that only passes generic eye/bounds/material checks is still **unfinished**.
+- See `character-production-contracts.md` for the current roster.

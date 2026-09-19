@@ -182,5 +182,12 @@ function EnemyModel({ definition, motion, speed, loop, showDummy, replayKey }: E
 }
 
 export function EnemyGalleryStage(props: EnemyGalleryStageProps) {
-  return <div className="gallery-stage" aria-label={`${props.definition.name} motion preview`}><Canvas camera={{ fov: 31, near: 0.05, far: 40, position: [1.25, 0.92, 2.0] }} dpr={[1, 2]} gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }} shadows><color attach="background" args={['#eff5e8']} /><fog attach="fog" args={['#eff5e8', 5.5, 11]} /><ambientLight intensity={2.0} /><directionalLight position={[-3, 5, 4]} intensity={4.1} castShadow /><CameraRig mode={props.cameraMode} definition={props.definition} /><Suspense fallback={null}><EnemyModel {...props} /></Suspense><mesh rotation={[-Math.PI / 2, 0, 0]} position={[0.15, -0.005, 0]} receiveShadow><circleGeometry args={[1.55, 64]} /><meshStandardMaterial color="#d8e8cd" roughness={1} /></mesh></Canvas><div className="gallery-stage__badge">PRODUCTION ENEMY MOTION</div></div>;
+  const profile = props.definition.enemyBehaviorId ? getEnemyMotionProfile(props.definition.enemyBehaviorId) : null;
+  return <div
+    className="gallery-stage"
+    aria-label={`${props.definition.name} motion preview`}
+    data-enemy-id={props.definition.id}
+    data-attack-duration={profile?.attackDuration}
+    data-defeat-duration={profile?.defeatDuration}
+  ><Canvas camera={{ fov: 31, near: 0.05, far: 40, position: [1.25, 0.92, 2.0] }} dpr={[1, 2]} gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }} shadows><color attach="background" args={['#eff5e8']} /><fog attach="fog" args={['#eff5e8', 5.5, 11]} /><ambientLight intensity={2.0} /><directionalLight position={[-3, 5, 4]} intensity={4.1} castShadow /><CameraRig mode={props.cameraMode} definition={props.definition} /><Suspense fallback={null}><EnemyModel {...props} /></Suspense><mesh rotation={[-Math.PI / 2, 0, 0]} position={[0.15, -0.005, 0]} receiveShadow><circleGeometry args={[1.55, 64]} /><meshStandardMaterial color="#d8e8cd" roughness={1} /></mesh></Canvas><div className="gallery-stage__badge">PRODUCTION ENEMY MOTION</div></div>;
 }
