@@ -152,13 +152,31 @@ During the short ceremony, roster switching and other Camp actions are locked so
 
 ## 7. Formation editing
 
-Formation editing is direct and small-party oriented.
+Formation editing mirrors the real battle layout instead of showing six abstract slots in one row.
 
-- tap a slot to select an owned available type
-- multiple owned instances of the same job type may occupy different slots
-- a dispatched instance cannot be selected until it returns
-- swapping should be immediate and visually clear
-- front/back recommendation may be shown as guidance, not as opaque penalty math
+- slots 1-3 are the front row
+- slots 4-6 are the back row
+- the enemy-facing direction is visible
+- each slot shows the actual member occupying it
+- the selected member's authored front/back role is shown as a recommendation
+- front/back recommendation is guidance only; do not invent a hidden combat penalty for off-role placement
+
+Movement semantics are explicit:
+
+- moving a fielded slime onto another occupied field slot swaps the two members
+- moving a reserve slime onto an occupied field slot sends the displaced member to reserve
+- moving onto an empty slot simply moves/fields the selected slime
+- tapping the selected slime's current slot does not remove it
+- removing from battle requires the explicit **Return to reserve** action
+- dispatched slimes cannot be placed until they return
+
+The UI visually follows those semantics:
+
+- a normal move hops from the old slot to the new slot
+- a swap shows both members crossing between their slots
+- reserve replacement shows the incoming member entering while the displaced member leaves
+- returning to reserve visibly exits the formation
+- controls are briefly locked during the movement so repeated taps cannot detach the animation from the state change
 
 Each slot always corresponds to one visible battle body.
 

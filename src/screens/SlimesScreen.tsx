@@ -13,6 +13,7 @@ import {
 } from '../application/selectors/ui-selectors';
 import type { CampSlimeReaction } from '../components/CampSlimeStage';
 import { CampStrengthenEffect, type StrengthenCeremony, type StrengthenVariant } from '../components/CampStrengthenEffect';
+import { CampFormationBoard, type CampFormationCeremony } from '../components/CampFormationBoard';
 import { CampStationIcon } from '../components/CampStationIcon';
 import { NurseryIcon } from '../components/NurseryIcon';
 import type { NurseryCeremony } from '../components/NurseryCeremonyStage';
@@ -90,10 +91,14 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   const [feedback, setFeedback] = useState<CampFeedback>({ key: 0, reaction: 'idle', title: '' });
   const [nurseryCeremony, setNurseryCeremony] = useState<NurseryCeremony | null>(null);
   const [strengthenCeremony, setStrengthenCeremony] = useState<StrengthenCeremony | null>(null);
+  const [formationCeremony, setFormationCeremony] = useState<CampFormationCeremony | null>(null);
   const nurseryCeremonyKey = useRef(0);
   const strengthenCeremonyKey = useRef(0);
+  const formationCeremonyKey = useRef(0);
   const nurseryBusy = nurseryCeremony !== null;
   const strengthenBusy = strengthenCeremony !== null;
+  const formationBusy = formationCeremony !== null;
+  const campInteractionBusy = strengthenBusy || formationBusy;
 
   const triggerFeedback = (
     reaction: CampSlimeReaction,
@@ -108,6 +113,73 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
       strength,
       ...(detail === undefined ? {} : { detail }),
     }));
+  };
+
+  const playFormationCeremony = (
+    ceremony: Omit<CampFormationCeremony, 'key'>,
+    title: string,
+    detailText: string,
+  ) => {
+    const key = ++formationCeremonyKey.current;
+    setFormationCeremony({ ...ceremony, key });
+    window.setTimeout(() => {
+      setFormationCeremony((current) => current?.key === key ? null : current);
+      triggerFeedback('formation', title, detailText);
+    }, 560);
+  };
+
+  const handleFormationSlot = (slotIndex: number) => {
+    if (selected === null || detail === null || formationBusy || detail.assignment === 'dispatch') return;
+    const fromSlot = formation.find((slot) => slot.slimeId === selected)?.slotIndex ?? null;
+    const target = formation[slotIndex];
+    if (target === undefined || target.slimeId === selected) return;
+
+    const result = controller.assignSlime(selected, slotIndex);
+    if (!result.accepted) {
+      setNotice(rejectionLabel(result.reason));
+      return;
+    }
+
+    setNotice(null);
+    const kind: CampFormationCeremony['kind'] = fromSlot !== null
+      ? target.slimeId === null ? 'move' : 'swap'
+      : target.slimeId === null ? 'move' : 'replace';
+    const rowLabel = slotIndex < 3 ? '前衛' : '後衛';
+    playFormationCeremony(
+      {
+        kind,
+        fromSlot,
+        toSlot: slotIndex,
+        selectedIcon: import.meta.env.BASE_URL + detail.icon,
+        ...(target.icon === null ? {} : { displacedIcon: import.meta.env.BASE_URL + target.icon }),
+      },
+      kind === 'swap' ? '配置を入れ替え' : '配置を変更',
+      rowLabel + 'へ移動しました',
+    );
+  };
+
+  const handleFormationReserve = () => {
+    if (selected === null || detail === null || formationBusy) return;
+    const fromSlot = formation.find((slot) => slot.slimeId === selected)?.slotIndex ?? null;
+    if (fromSlot === null) return;
+
+    const result = controller.removeSlime(fromSlot);
+    if (!result.accepted) {
+      setNotice(rejectionLabel(result.reason));
+      return;
+    }
+
+    setNotice(null);
+    playFormationCeremony(
+      {
+        kind: 'reserve',
+        fromSlot,
+        toSlot: null,
+        selectedIcon: import.meta.env.BASE_URL + detail.icon,
+      },
+      '控えへ移動',
+      '戦闘編成から外れました',
+    );
   };
 
   const handleStrengthen = (
@@ -316,7 +388,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                       className={id === selected ? 'is-selected' : ''}
                       type="button"
                       aria-label={`${p.name} Lv.${strengthenCeremony?.phase === 'charging' && id === selected ? strengthenCeremony.fromLevel : slime.level}`}
-                      disabled={strengthenBusy}
+                      disabled={campInteractionBusy}
                       onClick={() => {
                         onSelect(id);
                         setFeedback((current) => ({ key: current.key + 1, reaction: 'idle', title: '' }));
@@ -328,7 +400,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                     </button>
                   );
                 })}
-                <button className="camp-roster__add" type="button" disabled={strengthenBusy} onClick={() => setCreateOpen(true)} aria-label="仲間を増やす">
+                <button className="camp-roster__add" type="button" disabled={campInteractionBusy} onClick={() => setCreateOpen(true)} aria-label="仲間を増やす">
                   <span>＋</span><strong>追加</strong>
                 </button>
               </div>
@@ -361,7 +433,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
               <button
                 className={`camp-primary-action ${mode === 'train' ? 'is-active' : ''} ${state.gameData.combat.retryFarmClearsRemaining > 0 && selectedUpgrades.some((opportunity) => opportunity.kind === 'level') ? 'is-ready' : ''}`}
                 type="button"
-                disabled={strengthenBusy}
+                disabled={campInteractionBusy}
                 onClick={() => setMode(mode === 'train' ? 'none' : 'train')}
               >
                 <span><CampStationIcon kind="train" /></span>
@@ -370,7 +442,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
               <button
                 className={`camp-primary-action ${detail.fusionOptions.some((option) => option.canFuse) ? 'is-ready' : ''}`}
                 type="button"
-                disabled={strengthenBusy}
+                disabled={campInteractionBusy}
                 onClick={() => setMode('fusion')}
               >
                 <span><CampStationIcon kind="fusion" /></span>
@@ -379,13 +451,13 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
               <button
                 className={`camp-primary-action ${mode === 'formation' ? 'is-active' : ''}`}
                 type="button"
-                disabled={strengthenBusy}
+                disabled={campInteractionBusy}
                 onClick={() => setMode(mode === 'formation' ? 'none' : 'formation')}
               >
                 <span><CampStationIcon kind="formation" /></span>
                 <strong>編成</strong>
               </button>
-              <button className="camp-primary-action" type="button" disabled={strengthenBusy} onClick={() => setCreateOpen(true)}>
+              <button className="camp-primary-action" type="button" disabled={campInteractionBusy} onClick={() => setCreateOpen(true)}>
                 <span><CampStationIcon kind="nursery" /></span>
                 <strong>仲間</strong>
               </button>
@@ -398,7 +470,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                     <strong>{detail.name}を強化</strong>
                     <small>Lv.{strengthenCeremony?.phase === 'charging' ? strengthenCeremony.fromLevel : detail.level}</small>
                   </div>
-                  <button type="button" disabled={strengthenBusy} onClick={() => setMode('none')} aria-label="強化を閉じる">×</button>
+                  <button type="button" disabled={campInteractionBusy} onClick={() => setMode('none')} aria-label="強化を閉じる">×</button>
                 </div>
                 <div className={`camp-level-buttons ${strengthenBusy ? 'is-busy' : ''}`}>
                   {([
@@ -412,7 +484,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                         key={variant}
                         className={running ? 'is-running' : ''}
                         type="button"
-                        disabled={strengthenBusy || action === null || !action.available}
+                        disabled={campInteractionBusy || action === null || !action.available}
                         onClick={() => {
                           if (action === null) return;
                           handleStrengthen(action, variant);
@@ -445,35 +517,18 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
 
             {mode === 'formation' && (
               <div className="camp-inline-tool camp-inline-tool--formation">
-                <div className="camp-inline-tool__heading">
-                  <div><strong>{detail.name}の配置</strong><small>配置先をタップ</small></div>
-                  <button type="button" onClick={() => setMode('none')} aria-label="編成を閉じる">×</button>
-                </div>
-                <div className="camp-formation-strip">
-                  {formation.map((slot) => (
-                    <button
-                      key={slot.slotIndex}
-                      type="button"
-                      className={slot.slimeId === selected ? 'is-selected' : ''}
-                      onClick={() => {
-                        if (slot.slimeId === selected) {
-                          const result = controller.removeSlime(slot.slotIndex);
-                          if (!result.accepted) { setNotice(rejectionLabel(result.reason)); return; }
-                          setNotice(null);
-                          triggerFeedback('formation', '控えへ移動', '派遣に出せるようになりました');
-                        } else {
-                          const result = controller.assignSlime(selected, slot.slotIndex);
-                          if (!result.accepted) { setNotice(rejectionLabel(result.reason)); return; }
-                          setNotice(null);
-                          triggerFeedback('formation', `編成 ${slot.slotIndex + 1}へ`, '次の戦闘から反映されます');
-                        }
-                      }}
-                    >
-                      {slot.icon !== null ? <img src={`${import.meta.env.BASE_URL}${slot.icon}`} alt="" /> : <span>＋</span>}
-                      <small>{slot.slotIndex + 1}</small>
-                    </button>
-                  ))}
-                </div>
+                <CampFormationBoard
+                  slots={formation}
+                  selectedId={selected}
+                  selectedName={detail.name}
+                  selectedRole={detail.formationRole}
+                  selectedAssignment={detail.assignment}
+                  ceremony={formationCeremony}
+                  disabled={formationBusy || detail.assignment === 'dispatch'}
+                  onSlot={handleFormationSlot}
+                  onReserve={handleFormationReserve}
+                  onClose={() => setMode('none')}
+                />
               </div>
             )}
           </div>

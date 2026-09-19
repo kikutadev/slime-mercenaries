@@ -43,6 +43,38 @@ describe('multi-slime roster', () => {
     expect(partyCombatDps(secondAssigned.state).toNumber()).toBeGreaterThan(partyCombatDps(firstAssigned.state).toNumber());
   });
 
+  it('swaps two fielded slimes when one is moved onto the other slot', () => {
+    const setup = createTwoSwords();
+    const [firstId, secondId] = setup.ids;
+    if (firstId === undefined || secondId === undefined) throw new Error('duplicate IDs missing');
+
+    const firstAssigned = assignSlimeToFormation(setup.state, firstId, 0);
+    if (!firstAssigned.accepted) throw new Error(`first assign failed: ${firstAssigned.reason}`);
+    const secondAssigned = assignSlimeToFormation(firstAssigned.state, secondId, 1);
+    if (!secondAssigned.accepted) throw new Error(`second assign failed: ${secondAssigned.reason}`);
+    const swapped = assignSlimeToFormation(secondAssigned.state, firstId, 1);
+    if (!swapped.accepted) throw new Error(`swap failed: ${swapped.reason}`);
+
+    expect(swapped.state.gameData.roster.formationSlots.slice(0, 2)).toEqual([secondId, firstId]);
+    expect(swapped.state.gameData.roster.slimes[firstId]?.assignment).toBe('battle');
+    expect(swapped.state.gameData.roster.slimes[secondId]?.assignment).toBe('battle');
+  });
+
+  it('sends the displaced member to reserve when a reserve slime enters an occupied slot', () => {
+    const setup = createTwoSwords();
+    const [firstId, secondId] = setup.ids;
+    if (firstId === undefined || secondId === undefined) throw new Error('duplicate IDs missing');
+
+    const firstAssigned = assignSlimeToFormation(setup.state, firstId, 0);
+    if (!firstAssigned.accepted) throw new Error(`first assign failed: ${firstAssigned.reason}`);
+    const replaced = assignSlimeToFormation(firstAssigned.state, secondId, 0);
+    if (!replaced.accepted) throw new Error(`replace failed: ${replaced.reason}`);
+
+    expect(replaced.state.gameData.roster.formationSlots[0]).toBe(secondId);
+    expect(replaced.state.gameData.roster.slimes[firstId]?.assignment).toBe('reserve');
+    expect(replaced.state.gameData.roster.slimes[secondId]?.assignment).toBe('battle');
+  });
+
   it('keeps progression independent between same-type instances', () => {
     const setup = createTwoSwords();
     const [firstId, secondId] = setup.ids;

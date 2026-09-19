@@ -142,6 +142,7 @@ export function selectSlimeDetail(state: SlimeMercenariesState, slimeId: SlimeIn
     serial: slime.serial,
     name: sameTypeCount(state, slime.typeId) > 1 ? `${presentation.name} #${slime.serial}` : presentation.name,
     role: presentation.role,
+    formationRole: presentation.battle.formationRole,
     asset: presentation.asset,
     icon: presentation.icon,
     tier: slime.jobTier,
@@ -218,9 +219,9 @@ export function selectCreateSlimePanel(state: SlimeMercenariesState) {
 
 export function selectFormation(state: SlimeMercenariesState) {
   return state.gameData.roster.formationSlots.map((slimeId, slotIndex) => {
-    if (slimeId === null) return { slotIndex, slimeId: null, name: null, icon: null, assignment: null } as const;
+    if (slimeId === null) return { slotIndex, slimeId: null, name: null, icon: null, assignment: null, formationRole: null } as const;
     const slime = state.gameData.roster.slimes[slimeId];
-    if (slime === undefined) return { slotIndex, slimeId: null, name: null, icon: null, assignment: null } as const;
+    if (slime === undefined) return { slotIndex, slimeId: null, name: null, icon: null, assignment: null, formationRole: null } as const;
     const presentation = getSlimePresentation(slime);
     return {
       slotIndex,
@@ -228,6 +229,7 @@ export function selectFormation(state: SlimeMercenariesState) {
       name: sameTypeCount(state, slime.typeId) > 1 ? `${presentation.name} #${slime.serial}` : presentation.name,
       icon: presentation.icon,
       assignment: slime.assignment,
+      formationRole: presentation.battle.formationRole,
     } as const;
   });
 }

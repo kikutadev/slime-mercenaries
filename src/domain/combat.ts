@@ -54,14 +54,22 @@ export function assignSlimeToFormation(
   const previousSlot = slots.findIndex((candidate) => candidate === slimeId);
   const displacedId = slots[slotIndex] ?? null;
   if (previousSlot === slotIndex) return accept(state, []);
-  if (previousSlot >= 0) slots[previousSlot] = null;
-  slots[slotIndex] = slimeId;
 
   const slimes = { ...state.gameData.roster.slimes };
   slimes[slimeId] = { ...slime, assignment: 'battle' };
-  if (displacedId !== null && displacedId !== slimeId) {
-    const displaced = slimes[displacedId];
-    if (displaced !== undefined) slimes[displacedId] = { ...displaced, assignment: 'reserve' };
+
+  if (previousSlot >= 0) {
+    // Moving one fielded slime onto another is a true swap. The displaced slime
+    // stays in battle and takes the mover's previous slot.
+    slots[previousSlot] = displacedId;
+    slots[slotIndex] = slimeId;
+  } else {
+    // A reserve slime entering an occupied slot replaces that member.
+    slots[slotIndex] = slimeId;
+    if (displacedId !== null && displacedId !== slimeId) {
+      const displaced = slimes[displacedId];
+      if (displaced !== undefined) slimes[displacedId] = { ...displaced, assignment: 'reserve' };
+    }
   }
 
   const nextState: SlimeMercenariesState = {
@@ -71,7 +79,7 @@ export function assignSlimeToFormation(
       roster: { ...state.gameData.roster, slimes, formationSlots: slots },
     },
   };
-  return accept(nextState, [semanticEvent(nextState, 'formationChanged', `${slimeId}:${slotIndex}`, { slimeId, slotIndex })]);
+  return accept(nextState, [semanticEvent(nextState, 'formationChanged', `${slimeId}:${slotIndex}`, { slimeId, slotIndex, previousSlot, displacedId })]);
 }
 
 /** Remove a battle slime from its slot and return it to reserve. */
