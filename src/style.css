@@ -615,11 +615,6 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .camp-roster button > span { position: absolute; right: -3px; bottom: -3px; min-width: 18px; height: 16px; display: grid; place-items: center; padding: 0 3px; border: 2px solid rgba(242,250,237,.95); border-radius: 999px; background: #3f7950; color: #fff; font-size: 6px; font-weight: 900; }
 .camp-roster__add { color: #3f7950; font-size: 20px; font-weight: 800; }
 .camp-world { position: absolute; inset: 0; overflow: hidden; }
-.camp-world__sky { position: absolute; inset: 0 0 59%; background: linear-gradient(180deg,#a9e3f5,#d9f1d1); }
-.camp-world__hills { position: absolute; left: -12%; right: -12%; border-radius: 50% 50% 0 0; }
-.camp-world__hills--far { height: 34%; top: 20%; background: #a7d799; transform: rotate(-3deg); opacity: .8; }
-.camp-world__hills--near { height: 34%; top: 30%; background: #8fc77c; transform: rotate(4deg); }
-.camp-world__ground { position: absolute; inset: 42% -20% -15%; border-radius: 50% 50% 0 0; background: radial-gradient(ellipse at 48% 18%,#e5dea8 0 18%,transparent 19%), linear-gradient(180deg,#bee09f,#a6ce88); box-shadow: inset 0 18px 30px rgba(70,126,77,.08); }
 .camp-gold-flight { position:absolute; z-index:10; inset:0; pointer-events:none; }
 .camp-gold-flight i { position:absolute; right:30px; top:28px; width:11px; height:11px; border:2px solid rgba(255,244,180,.92); border-radius:50%; background:#f4c849; box-shadow:0 0 12px rgba(246,198,66,.45); animation:camp-gold-to-slime .68s cubic-bezier(.18,.76,.28,1) both; }
 .camp-gold-flight i:nth-child(2){ animation-delay:.04s; right:42px; top:34px; }
@@ -628,15 +623,6 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .camp-gold-flight i:nth-child(5){ animation-delay:.16s; right:34px; top:52px; }
 .camp-gold-flight i:nth-child(6){ animation-delay:.20s; right:18px; top:31px; }
 .camp-reward-ring { position:absolute; z-index:7; left:50%; top:48%; width:96px; height:44px; border:2px solid rgba(255,236,135,.78); border-radius:50%; transform:translate(-50%,-50%); box-shadow:0 0 22px rgba(255,214,80,.28); pointer-events:none; animation:camp-reward-ring .9s ease-out both; }
-.camp-world--formation .camp-prop--flag { animation:camp-flag-rally .7s cubic-bezier(.2,.8,.25,1) both; }
-.camp-world--level-up .camp-prop--dummy { animation:camp-dummy-react .5s ease-out both; }
-.camp-prop { position: absolute; z-index: 3; display: grid; place-items: center; filter: drop-shadow(0 12px 8px rgba(48,78,43,.15)); pointer-events: none; }
-.camp-prop--tent { left: 3%; top: 31%; width: 105px; height: 82px; color: #d98662; font-size: 93px; line-height: 1; transform: rotate(-4deg); }
-.camp-prop--tent::after { content:""; position:absolute; width:52px; height:42px; bottom:5px; left:28px; border-radius:50% 50% 8px 8px; background:#865945; }
-.camp-prop--dummy { right: 7%; top: 42%; width: 54px; height: 96px; color:#9a714e; font-size: 31px; border-bottom: 8px solid #75563c; }
-.camp-prop--dummy::before { content:""; position:absolute; width:29px; height:29px; top:8px; border-radius:50%; background:#d9b076; border:5px solid #9a714e; }
-.camp-prop--forge { left: 7%; bottom: 18%; width: 70px; height: 60px; border-radius: 36% 36% 12px 12px; background: linear-gradient(180deg,#5d6f65,#354b47); color:#ffd56c; font-size:28px; }
-.camp-prop--flag { right: 8%; bottom: 18%; width: 62px; height: 84px; color:#5c865f; font-size:64px; }
 .camp-slime-stage { position: absolute; z-index: 8; left: 50%; top: 47%; width: 260px; height: 270px; transform: translate(-50%,-50%); }
 .camp-resident-stage { position:relative; width:100%; height:235px; }
 .camp-resident-stage canvas { position:absolute !important; inset:0; width:100% !important; height:100% !important; }
@@ -651,29 +637,6 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .camp-slime-name span { color:rgba(24,50,72,.46); font-size:6px; font-weight:900; letter-spacing:.08em; }
 .camp-slime-name strong { font-size:12px; }
 .camp-slime-name small { color:rgba(24,50,72,.52); font-size:7px; font-weight:750; }
-.camp-hotspot { position:absolute; z-index:15; display:grid; grid-template-columns:34px auto; grid-template-areas:"icon name" "icon meta"; column-gap:7px; align-items:center; min-height:49px; padding:7px 10px; border:1px solid rgba(255,255,255,.64); border-radius:16px; background:rgba(248,253,243,.78); box-shadow:0 10px 24px rgba(40,73,45,.12); backdrop-filter:blur(10px); text-align:left; cursor:pointer; }
-.camp-hotspot > span { grid-area:icon; width:34px; height:34px; display:grid; place-items:center; border-radius:11px; background:rgba(50,104,61,.09); color:#397849; font-size:17px; }
-.camp-hotspot strong { grid-area:name; font-size:9px; }
-.camp-hotspot small { grid-area:meta; max-width:92px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:rgba(24,50,72,.48); font-size:6px; }
-.camp-hotspot.is-active { background:#fff; border-color:rgba(56,132,71,.4); transform:translateY(-2px); }
-.camp-hotspot.is-ready { animation: hotspot-ready 1.35s ease-in-out infinite; border-color:rgba(244,179,70,.72); background:rgba(255,246,207,.92); }
-.camp-hotspot--train { left:15px; top:22%; }
-.camp-hotspot--fusion { right:14px; top:25%; }
-.camp-hotspot--nursery { left:15px; bottom:10%; }
-.camp-hotspot--formation { right:14px; bottom:10%; }
-.camp-quest { position:absolute; z-index:20; left:50%; bottom:142px; width:min(310px,calc(100% - 80px)); min-height:37px; display:grid; grid-template-columns:auto 1fr auto; gap:8px; align-items:center; transform:translateX(-50%); padding:6px 10px; border:1px solid rgba(255,255,255,.35); border-radius:999px; background:rgba(31,66,57,.88); color:#fff; box-shadow:0 10px 26px rgba(26,58,46,.18); backdrop-filter:blur(9px); text-align:left; }
-.camp-quest span { color:#d3efa7; font-size:6px; font-weight:900; letter-spacing:.13em; }
-.camp-quest strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:8px; }
-.camp-quest em { font-style:normal; }
-.camp-upgrade-alert { position:absolute; z-index:21; left:50%; bottom:188px; width:min(310px,calc(100% - 80px)); min-height:39px; display:grid; grid-template-columns:auto 1fr auto; gap:8px; align-items:center; transform:translateX(-50%); padding:7px 11px; border:1px solid rgba(241,190,83,.48); border-radius:999px; background:rgba(64,91,55,.94); color:#fff; box-shadow:0 10px 28px rgba(34,65,42,.2); backdrop-filter:blur(10px); text-align:left; animation:camp-upgrade-pulse 1.8s ease-in-out infinite; }
-.camp-upgrade-alert span { color:#ffe39b; font-size:6px; font-weight:900; letter-spacing:.12em; }
-.camp-upgrade-alert strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:8px; }
-.camp-upgrade-alert em { font-style:normal; color:#ffe39b; font-size:14px; }
-@keyframes camp-upgrade-pulse { 0%,100% { box-shadow:0 10px 28px rgba(34,65,42,.2),0 0 0 0 rgba(243,188,73,0); } 50% { box-shadow:0 12px 30px rgba(34,65,42,.24),0 0 0 5px rgba(243,188,73,.10); } }
-.camp-action-dock { position:absolute; z-index:36; left:10px; right:10px; bottom:8px; min-height:145px; padding:13px; border:1px solid rgba(255,255,255,.75); border-radius:22px; background:rgba(244,250,238,.95); box-shadow:0 18px 46px rgba(28,61,45,.25); backdrop-filter:blur(16px); animation:dock-rise .2s ease-out both; }
-.camp-action-dock > div:first-child > span { display:block; color:#4c8258; font-size:7px; font-weight:900; letter-spacing:.13em; }
-.camp-action-dock > div:first-child > strong { display:block; margin-top:2px; font-size:14px; }
-.camp-action-dock > div:first-child > small { display:block; margin-top:2px; color:rgba(24,50,72,.48); font-size:7px; }
 .camp-level-buttons { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-top:10px; }
 .camp-level-buttons button { min-height:52px; border:1px solid rgba(50,106,61,.12); border-radius:14px; background:#e3f2d7; color:#356e43; }
 .camp-level-buttons button:disabled { opacity:.36; }
@@ -959,7 +922,6 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 @media (max-height: 760px) {
   .camp-slime-stage { top:45%; height:235px; }
   .camp-resident-stage { height:205px; }
-  .camp-hotspot--nursery,.camp-hotspot--formation { bottom:8%; }
   .fusion-workbench__stage { height:335px; }
   .fusion-workbench__console { min-height:265px; }
   .dispatch-map { bottom:245px; }
@@ -1200,18 +1162,6 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
   width: 100% !important;
   height: 100% !important;
 }
-.camp-hotspot {
-  grid-template-columns: 32px auto;
-  min-height: 52px;
-  padding: 7px 10px;
-  border-radius: 15px;
-  background: rgba(247,252,241,.83);
-}
-.camp-hotspot > span {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-}
 .camp-station-icon {
   width: 21px;
   height: 21px;
@@ -1221,8 +1171,6 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.camp-hotspot strong { font-size: 11px; line-height: 1.05; }
-.camp-hotspot small { max-width: 102px; font-size: 9px; line-height: 1.1; }
 .camp-slime-name { min-width: 190px; padding: 8px 13px; }
 .camp-slime-name span { font-size: 9px; letter-spacing: .05em; }
 .camp-slime-name strong { margin-top: 1px; font-size: 14px; }
@@ -1554,10 +1502,6 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .offline-summary__hero small { font-size:10px; }
 .offline-summary__grid span, .offline-summary__reward span { font-size:9px; }
 .camp-action-feedback small { font-size:9px; }
-.camp-quest span, .camp-upgrade-alert span { font-size:9px; letter-spacing:.08em; }
-.camp-quest strong, .camp-upgrade-alert strong { font-size:10px; }
-.camp-action-dock > div:first-child > span { font-size:9px; letter-spacing:.08em; }
-.camp-action-dock > div:first-child > small { font-size:9px; }
 .camp-level-buttons strong { font-size:10px; }
 .camp-weapon-strip strong, .camp-weapon-strip small { font-size:9px; }
 .camp-formation-strip small { font-size:9px; }
@@ -1575,3 +1519,234 @@ button:focus-visible { outline: 3px solid rgba(54,128,78,.3); outline-offset: 2p
 .fusion-path-choices button strong { font-size:10px; line-height:1.15; }
 .fusion-path-choices button small { font-size:7px; line-height:1.3; color:rgba(70,55,30,.56); }
 .fusion-path-choices button.is-selected { border-color:rgba(212,163,51,.65); background:linear-gradient(180deg,#fff5c9,#ead68e); box-shadow:0 5px 16px rgba(123,91,28,.16); }
+/* Camp command layout — world for presence, lower thumb zone for interaction */
+.camp-world { inset: 0; padding-bottom: 0; }
+.camp-slime-stage { top: 34%; width: 270px; height: 248px; }
+.camp-slime-name { bottom: 3px; }
+
+.camp-command-panel {
+  position: absolute;
+  z-index: 36;
+  left: 10px;
+  right: 10px;
+  bottom: 8px;
+  max-height: min(47%, 368px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,.76);
+  border-radius: 24px;
+  background: rgba(244,250,238,.94);
+  box-shadow: 0 18px 48px rgba(29,61,45,.24);
+  backdrop-filter: blur(18px);
+}
+.camp-command-panel::-webkit-scrollbar { display: none; }
+
+.camp-roster-block { min-width: 0; }
+.camp-roster-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 3px 6px;
+}
+.camp-roster-title strong { font-size: 12px; }
+.camp-roster-title span {
+  color: rgba(24,50,72,.48);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.camp-roster {
+  position: static;
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  padding: 1px 1px 5px;
+}
+.camp-roster::-webkit-scrollbar { display: none; }
+.camp-roster button {
+  position: relative;
+  flex: 0 0 62px;
+  width: 62px;
+  height: 67px;
+  display: grid;
+  grid-template-rows: 36px auto auto;
+  place-items: center;
+  gap: 0;
+  padding: 4px 4px 3px;
+  border: 1px solid rgba(61,104,69,.10);
+  border-radius: 15px;
+  background: rgba(255,255,255,.56);
+  box-shadow: none;
+  color: #274e34;
+  text-align: center;
+}
+.camp-roster button.is-selected {
+  transform: none;
+  border-color: rgba(55,132,73,.58);
+  background: #fff;
+  box-shadow: inset 0 0 0 2px rgba(76,153,89,.10), 0 5px 14px rgba(42,87,50,.08);
+}
+.camp-roster img { width: 36px; height: 36px; object-fit: contain; }
+.camp-roster button > strong {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9px;
+  line-height: 1.05;
+}
+.camp-roster button > small {
+  color: rgba(24,50,72,.50);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+}
+.camp-roster .camp-roster__add {
+  grid-template-rows: 37px auto;
+  align-content: center;
+  color: #397749;
+}
+.camp-roster .camp-roster__add > span {
+  position: static;
+  width: 34px;
+  height: 34px;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 11px;
+  background: rgba(62,128,76,.10);
+  color: #397749;
+  font-size: 22px;
+}
+.camp-roster .camp-roster__add > strong { font-size: 9px; }
+
+.camp-next-action {
+  width: 100%;
+  min-height: 43px;
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 7px 10px;
+  border: 1px solid rgba(66,116,71,.16);
+  border-radius: 14px;
+  background: rgba(48,88,57,.92);
+  color: #fff;
+  text-align: left;
+}
+.camp-next-action > span { color: #d9efa9; font-size: 9px; font-weight: 900; }
+.camp-next-action > strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.camp-next-action > em { color: #d9efa9; font-size: 18px; font-style: normal; }
+
+.camp-primary-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+.camp-primary-action {
+  position: relative;
+  min-width: 0;
+  min-height: 62px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  padding: 6px 3px;
+  border: 1px solid rgba(57,104,66,.11);
+  border-radius: 15px;
+  background: rgba(255,255,255,.70);
+  color: #356d43;
+}
+.camp-primary-action > span {
+  width: 29px;
+  height: 29px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(57,119,70,.09);
+}
+.camp-primary-action strong { font-size: 11px; }
+.camp-primary-action.is-active {
+  border-color: rgba(55,132,73,.48);
+  background: #e6f2dc;
+  box-shadow: inset 0 0 0 1px rgba(55,132,73,.10);
+}
+.camp-primary-action.is-ready:not(.is-active) {
+  border-color: rgba(220,164,55,.48);
+  background: #fff6d6;
+}
+.camp-primary-action.is-ready:not(.is-active)::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #e4a933;
+  box-shadow: 0 0 0 3px rgba(228,169,51,.13);
+}
+
+.camp-inline-tool {
+  margin-top: 8px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(50,91,57,.10);
+}
+.camp-inline-tool__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.camp-inline-tool__heading > div > strong,
+.camp-inline-tool__heading > div > small { display: block; }
+.camp-inline-tool__heading > div > strong { font-size: 12px; }
+.camp-inline-tool__heading > div > small {
+  margin-top: 1px;
+  color: rgba(24,50,72,.50);
+  font-size: 9px;
+  font-weight: 800;
+}
+.camp-inline-tool__heading > button {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(48,86,55,.08);
+  color: #42694a;
+  font-size: 18px;
+}
+
+.camp-command-panel .camp-level-buttons { margin-top: 8px; }
+.camp-command-panel .camp-level-buttons button { min-height: 48px; }
+.camp-command-panel .camp-promotion-action { margin-top: 7px; }
+.camp-command-panel .camp-formation-strip { margin-top: 8px; }
+.camp-command-panel .camp-formation-strip button { height: 49px; }
+.camp-command-panel .camp-validation-tools { margin-top: 8px; }
+
+.camp-empty-world { z-index: 2; }
+.camp-empty-world .camp-environment-stage { z-index: 0; }
+.camp-empty-world > button { position: relative; }
+
+@media (max-height: 720px) {
+  .camp-slime-stage { top: 29%; height: 210px; }
+  .camp-command-panel { max-height: 50%; }
+  .camp-roster button { height: 62px; grid-template-rows: 34px auto auto; }
+  .camp-roster img { width: 33px; height: 33px; }
+  .camp-primary-action { min-height: 56px; }
+}

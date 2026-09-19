@@ -1,7 +1,7 @@
 # UX / UI Specification
 
 Status: Current
-Date: 2026-09-16
+Date: 2026-09-19
 
 ## 1. UX goal
 
@@ -77,39 +77,45 @@ A chest drops into the field with a short bounce and rarity-specific glint.
 
 The chest never waits indefinitely for mandatory input.
 
-## 6. Slimes screen
+## 6. Camp / Slimes screen
 
-The Slimes screen replaces the old population/squad-management concept.
+The persistent navigation label is **Camp**. This is the roster/strengthening home, but it must still read as a physical camp rather than a management dashboard.
 
-Top area shows the active formation with up to six slots, one slime per slot.
+The screen is split by responsibility:
 
-The selected slime detail shows:
+- upper area: authored 3D camp + the currently selected slime; this is primarily a presence/reaction surface
+- lower thumb zone: roster selection and all routine player actions
+- do not scatter routine action buttons over the 3D world as spatial hotspots
 
-- type/form name and Tier
+The lower command area keeps the relationship between **which slime is selected** and **what the player can do to it** physically close:
+
+1. horizontally scrollable roster with portrait/job name/level
+2. at most one contextual “next action” row when guidance is useful
+3. four stable primary actions: **Strengthen / Fuse / Formation / Recruit**
+4. Strengthen and Formation expand inline in the same command area instead of opening another floating dock elsewhere on the screen
+5. Fuse may transition to its dedicated full-screen ceremony because it is a signature event
+
+Changing the selected slime while Strengthen or Formation is open keeps that mode open and immediately applies the panel to the newly selected slime.
+
+The selected slime presentation communicates:
+
+- type/form name and role
 - type level
 - fusion rank/progress
-- equipped weapon
-- current assignment: Battle / Dispatch / Reserve
-- next evolution or specialization opportunity
+- current assignment
+- fusion readiness when relevant
 
-Primary actions:
+Strengthen exposes Level +1 / +10 / Max. Job/form advancement is handled by Fusion. Formation exposes the six battle slots directly underneath the same action row.
 
-- Level Up
-- +10 / Max affordable after appropriate unlock
-- Fuse when enough same-type input exists
-- Evolve/Promote when requirements are met
-- Change weapon
-- Add/remove from battle formation
-
-Do not show a population count whose purpose is spawning more same-type bodies.
+Do not show a population count whose purpose is spawning more same-type bodies. Do not make players hunt across screen corners for Train/Fuse/Recruit/Formation controls.
 
 ## 7. Formation editing
 
 Formation editing is direct and small-party oriented.
 
 - tap a slot to select an owned available type
-- prevent duplicate type assignment
-- a dispatched type cannot be selected until it returns
+- multiple owned instances of the same job type may occupy different slots
+- a dispatched instance cannot be selected until it returns
 - swapping should be immediate and visually clear
 - front/back recommendation may be shown as guidance, not as opaque penalty math
 
