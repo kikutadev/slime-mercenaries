@@ -6,9 +6,7 @@ import {
   SLIME_MOTION_THRESHOLDS,
   applyMageRunePose,
   clamp01,
-  easeOutCubic,
   getAllyDefeatMotion,
-  getArrowArcHeight,
   getBowAttackMotion,
   getDaggerAttackMotion,
   getFighterAttackMotion,
@@ -34,13 +32,7 @@ import {
   createGreatswordSpinArc,
   createGuardPulseVfx,
   createMageCastSigil,
-  createMageOrbVfx,
   createRogueSlashArc,
-  createGunnerTracerMesh,
-  createGunBulletMesh,
-  createMagicOrbMesh,
-  createMuzzleFlashMesh,
-  createSlimeArrowMesh,
   createSwordSlashArc,
 } from './slime-vfx';
 import {
@@ -111,7 +103,8 @@ import {
   createEngineerSignatureVfx,
   createNinjaSignatureVfx,
 } from './slime-motions/tier3/effects';
-import { applyTimedMultiplier, distanceSqToSegment2D, resolveTimedMultiplier } from './combat-effects';
+import { resolveTimedMultiplier } from './combat-effects';
+import type { BattleBehaviorId } from './slimes';
 import {
   applyEnemyDefeatFacePose,
   applyEnemySecondaryPose,
@@ -132,10 +125,11 @@ import {
   getSceneryApproachOffset,
 } from './battle-approach';
 import { getVictoryMarchSlot, getVictoryPresentationElapsed, getVictoryTransitionPose, shouldUseMarchEntry } from './battle-transition';
-import { battleRewardParticleCount, battleRewardVisual, type BattleRewardCue } from './battle-reward';
+import type { BattleRewardCue } from './battle-reward';
 import { authoritativeResultTriggerDelay } from './battle-runtime-timing';
 import { BattleClock } from './battle-runtime/clock';
 import { BattleCameraController } from './battle-runtime/camera';
+import { BattleEffectsSystem } from './battle-runtime/effects-system';
 import { MELEE_BODY_GAP, SCALE, TARGET_HOME, allyHome, enemyHome, meleeCombatAnchor } from './battle-runtime/layout';
 import { createBattleSnapshot } from './battle-runtime/snapshot';
 import {
@@ -171,13 +165,7 @@ import type {
   BattleRuntimeEnemyConfig,
   BattleRuntimeOptions,
   BattleSnapshot,
-  EnemyProjectileRuntime,
   EnemyUnit,
-  ImpactRuntime,
-  MuzzleFlashRuntime,
-  ProjectileRuntime,
-  TracerRuntime,
-  VictoryLootMoteRuntime,
 } from './battle-runtime/types';
 
 export type {
@@ -197,6 +185,33 @@ export class BattleRuntime {
   private readonly camera: THREE.PerspectiveCamera;
   private readonly clock = new BattleClock();
   private readonly cameraController: BattleCameraController;
+  private readonly effects: BattleEffectsSystem;
+  private readonly allyCombatHandlers: Readonly<Record<BattleBehaviorId, (now: number, ally: AllyUnit) => void>> = {
+    'sword-melee': (now, ally) => this.updateSword(now, ally),
+    'fighter-combo': (now, ally) => this.updateFighter(now, ally),
+    'blademaster-dash': (now, ally) => this.updateBlademaster(now, ally),
+    'berserker-heavy': (now, ally) => this.updateBerserker(now, ally),
+    'bow-ranged': (now, ally) => this.updateBow(now, ally),
+    'ranger-double-shot': (now, ally) => this.updateRanger(now, ally),
+    'sniper-pierce': (now, ally) => this.updateSniper(now, ally),
+    'storm-archer-volley': (now, ally) => this.updateStormArcher(now, ally),
+    'shield-defender': (now, ally) => this.updateShield(now, ally),
+    'guardian-guard': (now, ally) => this.updateGuardian(now, ally),
+    'paladin-barrier': (now, ally) => this.updatePaladin(now, ally),
+    'fortress-plant': (now, ally) => this.updateFortress(now, ally),
+    'wand-magic': (now, ally) => this.updateWand(now, ally),
+    'mage-aoe': (now, ally) => this.updateMage(now, ally),
+    'archmage-burst': (now, ally) => this.updateArchmage(now, ally),
+    'frost-mage-control': (now, ally) => this.updateFrostMage(now, ally),
+    'dagger-skirmisher': (now, ally) => this.updateDagger(now, ally),
+    'rogue-twin-strike': (now, ally) => this.updateRogue(now, ally),
+    'ninja-vanish': (now, ally) => this.updateNinja(now, ally),
+    'assassin-execute': (now, ally) => this.updateAssassin(now, ally),
+    'gun-ranged': (now, ally) => this.updateGun(now, ally),
+    'gunner-burst': (now, ally) => this.updateGunner(now, ally),
+    'cannoneer-shell': (now, ally) => this.updateCannoneer(now, ally),
+    'engineer-turret': (now, ally) => this.updateEngineer(now, ally),
+  };
   private readonly loader = new GLTFLoader();
   private readonly enemyTemplatePromises = new Map<string, Promise<THREE.Group>>();
   private readonly baseUrl: string;
@@ -217,14 +232,6 @@ export class BattleRuntime {
 
   private readonly allies: AllyUnit[] = [];
   private readonly enemies: EnemyUnit[] = [];
-  private readonly projectiles: ProjectileRuntime[] = [];
-  private readonly enemyProjectiles: EnemyProjectileRuntime[] = [];
-  private readonly muzzleFlashes: MuzzleFlashRuntime[] = [];
-  private readonly tracers: TracerRuntime[] = [];
-  private readonly impacts: ImpactRuntime[] = [];
-  private readonly victoryLootMotes: VictoryLootMoteRuntime[] = [];
-  private pendingRewardCue: BattleRewardCue | null = null;
-  private lastRewardCueId: string | null = null;
   private slashArc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null = null;
   private spinArc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null = null;
   private environmentSceneryRoot: THREE.Group | null = null;
@@ -245,6 +252,17 @@ export class BattleRuntime {
     this.scene = options.scene;
     this.camera = options.camera;
     this.cameraController = new BattleCameraController(this.camera);
+    this.effects = new BattleEffectsSystem({
+      camera: this.camera,
+      addSceneObject: (object) => this.addSceneObject(object),
+      removeSceneObject: (object) => this.removeSceneObject(object),
+      getSimulationNow: () => this.simulationNow,
+      getAllies: () => this.allies,
+      getLivingEnemies: () => this.getLivingEnemies(),
+      applyDamage: (target, amount, source, sourcePosition) => {
+        this.applyDamage(target, amount, source, sourcePosition);
+      },
+    });
     this.baseUrl = options.baseUrl;
     this.stageNumber = options.stageNumber;
     this.waveIndex = options.waveIndex;
@@ -367,11 +385,7 @@ export class BattleRuntime {
     this.allies.push(...loadedAllies);
     this.enemies.push(...loadedEnemies);
     this.allies.forEach((ally) => facePoint(ally, TARGET_HOME));
-    if (this.pendingRewardCue !== null) {
-      const cue = this.pendingRewardCue;
-      this.pendingRewardCue = null;
-      this.createVictoryLootMotes(cue);
-    }
+    this.effects.flushPendingRewardCue();
     this.startBattle(this.rawNow + 0.15);
     this.emitSnapshot(true);
   }
@@ -388,12 +402,7 @@ export class BattleRuntime {
 
       this.enforceAuthoritativeResult(frame.simulationNow);
       this.allies.forEach((ally) => this.updateAllyDefeat(ally, frame.simulationNow));
-      this.updateProjectiles(frame.simulationNow);
-      this.updateEnemyProjectiles(frame.simulationNow);
-      this.updateMuzzleFlashes(frame.simulationNow);
-      this.updateTracers(frame.simulationNow);
-      this.updateImpacts(frame.simulationNow);
-      this.updateVictoryLootMotes(frame.simulationNow);
+      this.effects.update(frame.simulationNow);
       this.evaluateBattleOutcome(frame.simulationNow);
     }
     this.updateHealthBars();
@@ -582,125 +591,9 @@ export class BattleRuntime {
     this.spinArc = spinArc;
   }
 
-  private createArrowMesh(): THREE.Group {
-    return createSlimeArrowMesh();
-  }
-
-  private createImpact(position: THREE.Vector3, color = '#fff1a5', size = 0.11, duration = 0.28): void {
-    const group = new THREE.Group();
-    group.position.copy(position);
-    group.quaternion.copy(this.camera.quaternion);
-    const materials: THREE.MeshBasicMaterial[] = [];
-    const ringMaterial = new THREE.MeshBasicMaterial({
-      color,
-      transparent: true,
-      opacity: 0.92,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-      depthTest: false,
-      blending: THREE.AdditiveBlending,
-    });
-    materials.push(ringMaterial);
-    group.add(new THREE.Mesh(new THREE.RingGeometry(size * 0.52, size, 24), ringMaterial));
-    for (let i = 0; i < 7; i += 1) {
-      const angle = (i / 7) * Math.PI * 2 + 0.22;
-      const material = ringMaterial.clone();
-      materials.push(material);
-      const spark = new THREE.Mesh(new THREE.PlaneGeometry(size * 0.12, size * 0.78), material);
-      spark.position.set(Math.cos(angle) * size * 0.62, Math.sin(angle) * size * 0.62, 0.002);
-      spark.rotation.z = angle - Math.PI / 2;
-      group.add(spark);
-    }
-    this.addSceneObject(group);
-    this.impacts.push({ group, materials, startedAt: this.simulationNow, duration });
-  }
-
   public presentRewardCue(cue: BattleRewardCue): void {
-    if (this.disposed || this.lastRewardCueId === cue.id) return;
-    this.lastRewardCueId = cue.id;
-    if (this.allies.length === 0) {
-      this.pendingRewardCue = cue;
-      return;
-    }
-    this.createVictoryLootMotes(cue);
-  }
-
-  private createVictoryLootMotes(cue: BattleRewardCue): void {
-    this.clearVictoryLootMotes();
-    let particleIndex = 0;
-    for (const item of cue.items) {
-      const visual = battleRewardVisual(item);
-      const count = battleRewardParticleCount(item, cue.importance);
-      for (let localIndex = 0; localIndex < count; localIndex += 1) {
-        const geometry: THREE.BufferGeometry = visual.shape === 'coin'
-          ? new THREE.CylinderGeometry(0.048, 0.048, 0.018, 10)
-          : visual.shape === 'orb'
-            ? new THREE.IcosahedronGeometry(0.052, 1)
-            : new THREE.OctahedronGeometry(0.058, 0);
-        const material = new THREE.MeshBasicMaterial({
-          color: visual.color,
-          transparent: true,
-          opacity: 0,
-          depthWrite: false,
-        });
-        const mesh = new THREE.Mesh(geometry, material);
-        const angle = particleIndex * 2.399963229728653;
-        const lane = (particleIndex % 5) - 2;
-        const start = new THREE.Vector3(
-          lane * 0.15 + Math.cos(angle) * 0.08,
-          0.13 + (particleIndex % 3) * 0.035,
-          -1.02 + Math.sin(angle) * 0.1,
-        );
-        const targetAlly = this.allies[particleIndex % this.allies.length];
-        const end = targetAlly === undefined
-          ? new THREE.Vector3(0, 0.24, -0.2)
-          : targetAlly.root.position.clone().add(new THREE.Vector3(0, 0.22, 0.02));
-        mesh.position.copy(start);
-        mesh.visible = false;
-        if (visual.shape === 'coin') mesh.rotation.x = Math.PI / 2;
-        this.addSceneObject(mesh);
-        this.victoryLootMotes.push({
-          mesh,
-          start,
-          end,
-          delay: (particleIndex % 6) * 0.045,
-          startedAt: this.simulationNow,
-          duration: 0.86 + (particleIndex % 3) * 0.06,
-        });
-        particleIndex += 1;
-      }
-    }
-  }
-
-  private updateVictoryLootMotes(now: number): void {
-    let activeCount = 0;
-    for (let index = 0; index < this.victoryLootMotes.length; index += 1) {
-      const mote = this.victoryLootMotes[index]!;
-      const local = clamp01((now - mote.startedAt - mote.delay) / mote.duration);
-      const active = now >= mote.startedAt + mote.delay && local < 1;
-      mote.mesh.visible = active;
-      if (!active) continue;
-      activeCount += 1;
-      const eased = easeOutCubic(local);
-      mote.mesh.position.lerpVectors(mote.start, mote.end, eased);
-      mote.mesh.position.y += Math.sin(local * Math.PI) * 0.42;
-      mote.mesh.rotation.x += 0.13;
-      mote.mesh.rotation.y += 0.19;
-      mote.mesh.scale.setScalar(0.76 + Math.sin(local * Math.PI) * 0.5);
-      mote.mesh.material.opacity = Math.sin(local * Math.PI);
-    }
-    if (activeCount === 0 && this.victoryLootMotes.length > 0
-      && now > Math.max(...this.victoryLootMotes.map((mote) => mote.startedAt + mote.delay + mote.duration))) {
-      this.clearVictoryLootMotes();
-    }
-  }
-
-  private clearVictoryLootMotes(): void {
-    for (const mote of this.victoryLootMotes) {
-      this.removeSceneObject(mote.mesh);
-      disposeOwnedObjectResources(mote.mesh);
-    }
-    this.victoryLootMotes.length = 0;
+    if (this.disposed) return;
+    this.effects.presentRewardCue(cue);
   }
 
   private updateVictoryMarch(ally: AllyUnit, now: number): void {
@@ -899,7 +792,7 @@ export class BattleRuntime {
     this.tempVector.copy(target.root.position);
     this.tempVector.y += target.side === 'enemy' ? 0.28 : 0.22;
     const impactSize = target.side === 'enemy' ? (source === 'melee' ? 0.082 : 0.11) : 0.09;
-    this.createImpact(this.tempVector, target.side === 'enemy' ? '#fff0a0' : '#ffb4a8', impactSize);
+    this.effects.createImpact(this.tempVector, target.side === 'enemy' ? '#fff0a0' : '#ffb4a8', impactSize);
     this.startCameraShake(0.12, target.side === 'enemy' ? 0.025 : 0.017);
     if (source !== 'projectile') this.startHitStop(source === 'enemy' ? 0.028 : 0.038);
 
@@ -993,7 +886,7 @@ export class BattleRuntime {
     this.bossLandingTriggered = false;
     if (this.environmentSceneryRoot) this.environmentSceneryRoot.position.z = getSceneryApproachOffset(0);
     this.environmentTravel?.(0);
-    this.clearVictoryLootMotes();
+    this.effects.clearVictoryLootMotes();
     this.battleStartedAt = now;
     this.result = null;
     this.allies.forEach((ally) => {
@@ -1037,7 +930,7 @@ export class BattleRuntime {
       if (boss !== undefined) {
         const impactPosition = boss.root.position.clone();
         impactPosition.y += 0.16;
-        this.createImpact(impactPosition, '#ffd58a', 0.22, 0.38);
+        this.effects.createImpact(impactPosition, '#ffd58a', 0.22, 0.38);
         this.startCameraShake(0.22, 0.052);
       }
       this.bossLandingTriggered = true;
@@ -1064,32 +957,7 @@ export class BattleRuntime {
   }
 
   private updateCombat(now: number): void {
-    this.allies.forEach((ally) => {
-      if (ally.behaviorId === 'sword-melee') this.updateSword(now, ally);
-      else if (ally.behaviorId === 'fighter-combo') this.updateFighter(now, ally);
-      else if (ally.behaviorId === 'blademaster-dash') this.updateBlademaster(now, ally);
-      else if (ally.behaviorId === 'berserker-heavy') this.updateBerserker(now, ally);
-      else if (ally.behaviorId === 'bow-ranged') this.updateBow(now, ally);
-      else if (ally.behaviorId === 'ranger-double-shot') this.updateRanger(now, ally);
-      else if (ally.behaviorId === 'sniper-pierce') this.updateSniper(now, ally);
-      else if (ally.behaviorId === 'storm-archer-volley') this.updateStormArcher(now, ally);
-      else if (ally.behaviorId === 'shield-defender') this.updateShield(now, ally);
-      else if (ally.behaviorId === 'guardian-guard') this.updateGuardian(now, ally);
-      else if (ally.behaviorId === 'paladin-barrier') this.updatePaladin(now, ally);
-      else if (ally.behaviorId === 'fortress-plant') this.updateFortress(now, ally);
-      else if (ally.behaviorId === 'wand-magic') this.updateWand(now, ally);
-      else if (ally.behaviorId === 'mage-aoe') this.updateMage(now, ally);
-      else if (ally.behaviorId === 'archmage-burst') this.updateArchmage(now, ally);
-      else if (ally.behaviorId === 'frost-mage-control') this.updateFrostMage(now, ally);
-      else if (ally.behaviorId === 'dagger-skirmisher') this.updateDagger(now, ally);
-      else if (ally.behaviorId === 'rogue-twin-strike') this.updateRogue(now, ally);
-      else if (ally.behaviorId === 'ninja-vanish') this.updateNinja(now, ally);
-      else if (ally.behaviorId === 'assassin-execute') this.updateAssassin(now, ally);
-      else if (ally.behaviorId === 'gun-ranged') this.updateGun(now, ally);
-      else if (ally.behaviorId === 'gunner-burst') this.updateGunner(now, ally);
-      else if (ally.behaviorId === 'cannoneer-shell') this.updateCannoneer(now, ally);
-      else if (ally.behaviorId === 'engineer-turret') this.updateEngineer(now, ally);
-    });
+    this.allies.forEach((ally) => this.allyCombatHandlers[ally.behaviorId](now, ally));
     this.enemies.forEach((enemy) => this.updateEnemyUnit(enemy, now));
   }
 
@@ -1416,7 +1284,7 @@ export class BattleRuntime {
     applySniperSignatureVfx(unit.signatureVfx, pose, this.tempVector2, this.tempVector3, this.camera.quaternion);
     if (!unit.shotApplied && u >= TIER3_BOW_THRESHOLDS.sniperReleaseU) {
       unit.shotApplied = true;
-      this.fireArrowProfile(unit, target, TIER3_BOW_TIMING.sniperArrowFlight, 4, 0.10, 0.86);
+      this.effects.fireArrowProfile(unit, target, TIER3_BOW_TIMING.sniperArrowFlight, 4, 0.10, 0.86);
       this.startCameraShake(0.08, 0.028);
     }
     if (u >= 1) {
@@ -1485,7 +1353,7 @@ export class BattleRuntime {
       if (u >= getStormShotReleaseU(shotIndex) && (unit.hitsApplied & mask) === 0) {
         unit.hitsApplied |= mask;
         const shotTarget = impactTargets[shotIndex];
-        if (shotTarget?.alive) this.fireArrowProfile(unit, shotTarget, TIER3_BOW_TIMING.stormArrowFlight, 2, 0.45, 0.90);
+        if (shotTarget?.alive) this.effects.fireArrowProfile(unit, shotTarget, TIER3_BOW_TIMING.stormArrowFlight, 2, 0.45, 0.90);
       }
     }
     if (u >= 1) {
@@ -1539,7 +1407,7 @@ export class BattleRuntime {
         return this.tempVector.dot(this.tempVector2) >= cosHalfArc;
       });
       for (const enemy of targets) this.applyDamage(enemy, damage, 'melee', sword.root.position);
-      this.createImpact(sword.root.position.clone().add(new THREE.Vector3(0, 0.14, 0)), '#fff0a0', 0.10);
+      this.effects.createImpact(sword.root.position.clone().add(new THREE.Vector3(0, 0.14, 0)), '#fff0a0', 0.10);
       this.startCameraShake(0.11, 0.036);
     }
 
@@ -1692,7 +1560,7 @@ export class BattleRuntime {
     }
     if (!mage.shotApplied && u >= SLIME_MOTION_THRESHOLDS.mageReleaseU) {
       mage.shotApplied = true;
-      this.fireMagicOrb(mage, target, 0.58, true);
+      this.effects.fireMagicOrb(mage, target, 0.58, true);
     }
     if (u >= 1) {
       mage.attackStartedAt = -Infinity;
@@ -1826,7 +1694,7 @@ export class BattleRuntime {
       const mask = 1 << shotIndex;
       if (u >= getGunnerShotReleaseU(shotIndex) && (gunner.hitsApplied & mask) === 0) {
         gunner.hitsApplied |= mask;
-        this.fireBullet(gunner, target, true);
+        this.effects.fireBullet(gunner, target, true);
       }
     }
     if (u >= 1) {
@@ -2506,7 +2374,7 @@ export class BattleRuntime {
     setEquipmentSwing(wand, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     if (!wand.shotApplied && u >= SLIME_MOTION_THRESHOLDS.wandReleaseU) {
       wand.shotApplied = true;
-      this.fireMagicOrb(wand, target);
+      this.effects.fireMagicOrb(wand, target);
     }
     if (u >= 1) {
       wand.attackStartedAt = -Infinity;
@@ -2550,7 +2418,7 @@ export class BattleRuntime {
     setEquipmentSwing(gun, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     if (!gun.shotApplied && u >= SLIME_MOTION_THRESHOLDS.gunReleaseU) {
       gun.shotApplied = true;
-      this.fireBullet(gun, target);
+      this.effects.fireBullet(gun, target);
     }
     if (u >= 1) {
       gun.attackStartedAt = -Infinity;
@@ -2558,81 +2426,6 @@ export class BattleRuntime {
       gun.root.position.copy(gun.home);
       gun.nextAttackAt = now + 0.78;
       setEquipmentSwing(gun, 0);
-    }
-  }
-
-  private fireMagicOrb(
-    wand: AllyUnit,
-    target: EnemyUnit,
-    splashRadius = 0,
-    enhanced = false,
-    slowEffect?: Readonly<{ durationSec: number; multiplier: number; radius: number }>,
-    damage = 1,
-    splashDamage = splashRadius > 0 ? 1 : 0,
-  ): void {
-    const root = enhanced ? createMageOrbVfx() : createMagicOrbMesh();
-    (wand.spellOrigin ?? wand.equipmentAnchor).getWorldPosition(this.tempVector);
-    const start = this.tempVector.clone();
-    const end = target.root.position.clone().add(new THREE.Vector3(0, 0.28, 0));
-    root.position.copy(start);
-    root.visible = true;
-    this.addSceneObject(root);
-    this.projectiles.push({
-      root, start, end, target, startedAt: this.simulationNow,
-      duration: SLIME_MOTION_TIMING.magicOrbFlight, hitApplied: false,
-      damage, splashRadius, splashDamage, arcHeightScale: enhanced ? 0.58 : 0.45, orientToTravel: false, hitU: 0.92,
-      ...(slowEffect === undefined ? {} : { slowEffect }),
-    });
-  }
-
-  private fireBullet(
-    gun: AllyUnit,
-    target: EnemyUnit,
-    enhanced = false,
-    options: Readonly<{ damage?: number; splashRadius?: number; splashDamage?: number; arcHeightScale?: number; durationScale?: number }> = {},
-  ): void {
-    const root = createGunBulletMesh();
-    (gun.projectileOrigin ?? gun.equipmentAnchor).getWorldPosition(this.tempVector);
-    const start = this.tempVector.clone();
-    const end = target.root.position.clone().add(new THREE.Vector3(0, 0.25, 0));
-    root.position.copy(start);
-    root.visible = true;
-    this.addSceneObject(root);
-    this.projectiles.push({
-      root, start, end, target, startedAt: this.simulationNow,
-      duration: SLIME_MOTION_TIMING.bulletFlight * (options.durationScale ?? 1), hitApplied: false,
-      damage: options.damage ?? 1,
-      splashRadius: options.splashRadius ?? 0,
-      splashDamage: options.splashDamage ?? 0,
-      arcHeightScale: options.arcHeightScale ?? 0, orientToTravel: false, hitU: 0.88,
-    });
-
-    const flash = createMuzzleFlashMesh();
-    flash.visible = true;
-    flash.position.copy(start);
-    this.tempVector2.copy(end).sub(start).normalize();
-    flash.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), this.tempVector2);
-    flash.material.opacity = 0.95;
-    this.addSceneObject(flash);
-    this.muzzleFlashes.push({ mesh: flash, startedAt: this.simulationNow, duration: enhanced ? 0.14 : 0.11 });
-
-    if (enhanced) {
-      const tracer = createGunnerTracerMesh();
-      this.tempVector2.copy(end).sub(start);
-      const distance = this.tempVector2.length();
-      if (distance > 0.0001) {
-        tracer.visible = true;
-        const tracerLength = Math.min(0.72, distance * 0.58);
-        this.tempVector3.copy(this.tempVector2).normalize();
-        tracer.position.copy(start).addScaledVector(this.tempVector3, tracerLength * 0.5);
-        tracer.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), this.tempVector3);
-        tracer.scale.y = tracerLength / 0.20;
-        this.addSceneObject(tracer);
-        this.tracers.push({ mesh: tracer, startedAt: this.simulationNow, duration: 0.15 });
-      } else {
-        tracer.geometry.dispose();
-        tracer.material.dispose();
-      }
     }
   }
 
@@ -2666,7 +2459,7 @@ export class BattleRuntime {
     setEquipmentSwing(bow, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     if (!bow.shotApplied && u >= SLIME_MOTION_THRESHOLDS.bowReleaseU) {
       bow.shotApplied = true;
-      this.fireArrow(bow, bow.attackTarget);
+      this.effects.fireArrow(bow, bow.attackTarget);
     }
     if (u >= 1) {
       bow.attackStartedAt = -Infinity;
@@ -2723,7 +2516,7 @@ export class BattleRuntime {
     ) {
       ranger.hitsApplied += 1;
       ranger.root.updateMatrixWorld(true);
-      this.fireArrow(ranger, target);
+      this.effects.fireArrow(ranger, target);
     }
     if (u >= 1) {
       ranger.attackStartedAt = -Infinity;
@@ -2732,223 +2525,6 @@ export class BattleRuntime {
       ranger.root.position.copy(ranger.home);
       setEquipmentSwing(ranger, 0);
       ranger.nextAttackAt = now + 0.68;
-    }
-  }
-
-  private fireArrowProfile(
-    bow: AllyUnit,
-    target: EnemyUnit,
-    duration: number,
-    damage: number,
-    arcHeightScale: number,
-    hitU: number,
-  ): void {
-    this.fireArrow(bow, target, {
-      damage,
-      durationScale: duration / SLIME_MOTION_TIMING.arrowFlight,
-      arcHeightScale,
-      hitU,
-    });
-  }
-
-  private fireArrow(
-    bow: AllyUnit,
-    target: EnemyUnit,
-    options: Readonly<{
-      damage?: number;
-      durationScale?: number;
-      arcHeightScale?: number;
-      hitU?: number;
-      pierceDamage?: number;
-      pierceWidth?: number;
-    }> = {},
-  ): void {
-    const root = this.createArrowMesh();
-    (bow.projectileOrigin ?? bow.equipmentAnchor).getWorldPosition(this.tempVector);
-    const start = this.tempVector.clone();
-    const end = target.root.position.clone().add(new THREE.Vector3(0, 0.28, 0));
-    root.position.copy(start);
-    this.addSceneObject(root);
-    this.projectiles.push({
-      root,
-      start,
-      end,
-      target,
-      startedAt: this.simulationNow,
-      duration: SLIME_MOTION_TIMING.arrowFlight * (options.durationScale ?? 1),
-      hitApplied: false,
-      damage: options.damage ?? 1,
-      splashRadius: 0,
-      splashDamage: 0,
-      arcHeightScale: options.arcHeightScale ?? 1,
-      orientToTravel: true,
-      hitU: options.hitU ?? SLIME_MOTION_THRESHOLDS.arrowHitU,
-      ...(options.pierceDamage === undefined ? {} : { pierceDamage: options.pierceDamage }),
-      ...(options.pierceWidth === undefined ? {} : { pierceWidth: options.pierceWidth }),
-    });
-  }
-
-  private updateProjectiles(now: number): void {
-    for (let i = this.projectiles.length - 1; i >= 0; i -= 1) {
-      const projectile = this.projectiles[i]!;
-      const u = clamp01((now - projectile.startedAt) / projectile.duration);
-      const targetPosition = projectile.target.root.position.clone().add(new THREE.Vector3(0, 0.26, 0));
-      projectile.end.lerp(targetPosition, 0.22);
-      projectile.root.position.lerpVectors(projectile.start, projectile.end, u);
-      projectile.root.position.y += getArrowArcHeight(u) * projectile.arcHeightScale;
-      if (projectile.orientToTravel) {
-        this.tempVector.copy(projectile.end).sub(projectile.start).normalize();
-        projectile.root.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), this.tempVector);
-      }
-      if (!projectile.hitApplied && u >= projectile.hitU) {
-        projectile.hitApplied = true;
-        if (projectile.target.alive) {
-          this.applyDamage(projectile.target, projectile.damage, 'projectile', projectile.start);
-          if (projectile.pierceDamage !== undefined && projectile.pierceWidth !== undefined) {
-            const widthSq = projectile.pierceWidth ** 2;
-            for (const enemy of this.getLivingEnemies()) {
-              if (enemy === projectile.target) continue;
-              const distanceSq = distanceSqToSegment2D(
-                enemy.root.position.x, enemy.root.position.z,
-                projectile.start.x, projectile.start.z,
-                projectile.end.x, projectile.end.z,
-              );
-              if (distanceSq <= widthSq) this.applyDamage(enemy, projectile.pierceDamage, 'projectile', projectile.start);
-            }
-            this.createImpact(projectile.target.root.position.clone().add(new THREE.Vector3(0, 0.22, 0)), '#e8fbff', 0.10);
-          }
-          if (projectile.slowEffect !== undefined) {
-            const radiusSq = projectile.slowEffect.radius ** 2;
-            for (const enemy of this.getLivingEnemies()) {
-              this.tempVector.copy(enemy.root.position).sub(projectile.target.root.position).setY(0);
-              if (this.tempVector.lengthSq() > radiusSq) continue;
-              enemy.moveSpeedEffect = applyTimedMultiplier(
-                enemy.moveSpeedEffect,
-                now,
-                projectile.slowEffect.durationSec,
-                projectile.slowEffect.multiplier,
-              );
-            }
-            this.createImpact(projectile.target.root.position.clone().add(new THREE.Vector3(0, 0.16, 0)), '#9cecff', 0.16);
-          }
-          if ((projectile.splashRadius ?? 0) > 0) {
-            const splashRadiusSq = (projectile.splashRadius ?? 0) ** 2;
-            for (const enemy of this.getLivingEnemies()) {
-              if (enemy === projectile.target) continue;
-              this.tempVector.copy(enemy.root.position).sub(projectile.target.root.position).setY(0);
-              if (this.tempVector.lengthSq() <= splashRadiusSq) {
-                this.applyDamage(enemy, projectile.splashDamage, 'projectile', projectile.target.root.position);
-              }
-            }
-            this.createImpact(projectile.target.root.position.clone().add(new THREE.Vector3(0, 0.20, 0)), '#b88cff', 0.12);
-          }
-        }
-      }
-      if (u >= 1) {
-        this.removeSceneObject(projectile.root);
-        disposeOwnedObjectResources(projectile.root);
-        this.projectiles.splice(i, 1);
-      }
-    }
-  }
-
-
-
-
-
-
-
-  private updateMuzzleFlashes(now: number): void {
-    for (let i = this.muzzleFlashes.length - 1; i >= 0; i -= 1) {
-      const flash = this.muzzleFlashes[i]!;
-      const u = clamp01((now - flash.startedAt) / flash.duration);
-      flash.mesh.visible = u < 1;
-      flash.mesh.scale.setScalar(0.70 + u * 0.55);
-      flash.mesh.material.opacity = (1 - u) * 0.95;
-      if (u >= 1) {
-        this.removeSceneObject(flash.mesh);
-        disposeOwnedObjectResources(flash.mesh);
-        this.muzzleFlashes.splice(i, 1);
-      }
-    }
-  }
-
-  private updateTracers(now: number): void {
-    for (let i = this.tracers.length - 1; i >= 0; i -= 1) {
-      const tracer = this.tracers[i]!;
-      const u = clamp01((now - tracer.startedAt) / tracer.duration);
-      tracer.mesh.material.opacity = (1 - u) * 0.96;
-      tracer.mesh.scale.x = 1 + u * 0.55;
-      tracer.mesh.scale.z = 1 + u * 0.55;
-      if (u >= 1) {
-        this.removeSceneObject(tracer.mesh);
-        disposeOwnedObjectResources(tracer.mesh);
-        this.tracers.splice(i, 1);
-      }
-    }
-  }
-
-  private fireEnemyProjectile(enemy: EnemyUnit, target: AllyUnit): void {
-    const projectile = enemy.motionProfile.projectile;
-    if (!projectile) return;
-    const root = projectile.createMesh();
-    enemy.root.updateMatrixWorld(true);
-    if (enemy.effectOrigin) enemy.effectOrigin.getWorldPosition(this.tempVector);
-    else this.tempVector.copy(enemy.root.position).add(new THREE.Vector3(0, 0.34, 0));
-    const start = this.tempVector.clone();
-    const end = target.root.position.clone().add(new THREE.Vector3(0, 0.22, 0));
-    root.position.copy(start);
-    this.addSceneObject(root);
-    this.enemyProjectiles.push({
-      root,
-      start,
-      end,
-      target,
-      sourcePosition: enemy.root.position.clone(),
-      damage: enemy.attackDamage,
-      startedAt: this.simulationNow,
-      duration: projectile.flightSeconds,
-      hitApplied: false,
-      arcHeight: projectile.arcHeight,
-    });
-  }
-
-  private updateEnemyProjectiles(now: number): void {
-    for (let i = this.enemyProjectiles.length - 1; i >= 0; i -= 1) {
-      const spore = this.enemyProjectiles[i]!;
-      const u = clamp01((now - spore.startedAt) / spore.duration);
-      if (spore.target.alive) {
-        this.tempVector.copy(spore.target.root.position).add(new THREE.Vector3(0, 0.22, 0));
-        spore.end.lerp(this.tempVector, 0.2);
-      }
-      spore.root.position.lerpVectors(spore.start, spore.end, u);
-      spore.root.position.y += spore.arcHeight(u);
-      spore.root.rotation.y = now * 7.5;
-      spore.root.rotation.z = now * 4.2;
-      if (!spore.hitApplied && u >= 0.86) {
-        spore.hitApplied = true;
-        if (spore.target.alive) this.applyDamage(spore.target, spore.damage, 'enemy', spore.sourcePosition);
-      }
-      if (u >= 1) {
-        this.removeSceneObject(spore.root);
-        disposeOwnedObjectResources(spore.root);
-        this.enemyProjectiles.splice(i, 1);
-      }
-    }
-  }
-
-  private updateImpacts(now: number): void {
-    for (let i = this.impacts.length - 1; i >= 0; i -= 1) {
-      const impact = this.impacts[i]!;
-      const u = clamp01((now - impact.startedAt) / impact.duration);
-      impact.group.scale.setScalar(1 + u * 1.35);
-      impact.materials.forEach((material) => { material.opacity = (1 - u) * 0.92; });
-      impact.group.quaternion.copy(this.camera.quaternion);
-      if (u >= 1) {
-        this.removeSceneObject(impact.group);
-        disposeOwnedObjectResources(impact.group);
-        this.impacts.splice(i, 1);
-      }
     }
   }
 
@@ -3098,10 +2674,10 @@ export class BattleRuntime {
       if (attackVfx !== undefined) {
         const impactPosition = enemy.attackTelegraphPosition.clone();
         impactPosition.y = 0.10;
-        this.createImpact(impactPosition, attackVfx.impactColor, attackVfx.impactSize, 0.34);
+        this.effects.createImpact(impactPosition, attackVfx.impactColor, attackVfx.impactSize, 0.34);
         this.startCameraShake(attackVfx.cameraShakeDuration, attackVfx.cameraShakeAmplitude);
       }
-      if (enemy.motionProfile.projectile) this.fireEnemyProjectile(enemy, target);
+      if (enemy.motionProfile.projectile) this.effects.fireEnemyProjectile(enemy, target);
       else this.applyDamage(target, enemy.attackDamage, 'enemy', enemy.root.position);
     }
     if (u >= 1) {
@@ -3270,22 +2846,7 @@ export class BattleRuntime {
   }
 
   private clearFlightVfx(): void {
-    this.projectiles.splice(0).forEach((projectile) => {
-      this.removeSceneObject(projectile.root);
-      disposeOwnedObjectResources(projectile.root);
-    });
-    this.muzzleFlashes.splice(0).forEach((flash) => {
-      this.removeSceneObject(flash.mesh);
-      disposeOwnedObjectResources(flash.mesh);
-    });
-    this.tracers.splice(0).forEach((tracer) => {
-      this.removeSceneObject(tracer.mesh);
-      disposeOwnedObjectResources(tracer.mesh);
-    });
-    this.enemyProjectiles.splice(0).forEach((spore) => {
-      this.removeSceneObject(spore.root);
-      disposeOwnedObjectResources(spore.root);
-    });
+    this.effects.clearFlightVfx();
     this.enemies.forEach((enemy) => {
       if (enemy.attackTelegraph) enemy.attackTelegraph.visible = false;
     });
@@ -3294,12 +2855,12 @@ export class BattleRuntime {
   }
 
   private clearProjectiles(): void {
-    this.clearVictoryLootMotes();
-    this.clearFlightVfx();
-    this.impacts.splice(0).forEach((impact) => {
-      this.removeSceneObject(impact.group);
-      disposeOwnedObjectResources(impact.group);
+    this.effects.clearAll();
+    this.enemies.forEach((enemy) => {
+      if (enemy.attackTelegraph) enemy.attackTelegraph.visible = false;
     });
+    this.resetSlash();
+    this.resetSpinArc();
   }
 
   private startCameraShake(duration: number, amplitude: number): void {
