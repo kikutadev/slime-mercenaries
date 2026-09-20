@@ -53,21 +53,56 @@ export function GameProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (bootstrap.status !== 'ready') return undefined;
 
-    const intervalId = window.setInterval(() => controller.advanceToWallClock(Date.now()), 1_000);
+    let suspended = document.visibilityState === 'hidden';
+
+    const advanceVisibleTime = (nowMs = Date.now()) => {
+      controller.advanceToWallClock(nowMs);
+    };
+    const advanceBackgroundTime = (nowMs = Date.now()) => {
+      controller.advanceToWallClock(nowMs, { allowFrontierFirstClear: false });
+    };
     const checkpoint = () => {
-      controller.advanceToWallClock(Date.now());
       void controller.checkpointNow();
     };
+    const suspend = () => {
+      if (suspended) {
+        checkpoint();
+        return;
+      }
+      // Account for the final visible slice once, then freeze live ticking. Any time after this
+      // point is resolved with the same policy as a cold offline resume.
+      advanceVisibleTime();
+      suspended = true;
+      checkpoint();
+    };
+    const resume = () => {
+      if (!suspended) return;
+      advanceBackgroundTime();
+      suspended = false;
+      checkpoint();
+    };
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') checkpoint();
+      if (document.visibilityState === 'hidden') suspend();
+      else resume();
+    };
+    const onPageHide = () => suspend();
+    const onPageShow = () => {
+      if (document.visibilityState === 'visible') resume();
     };
 
+    const intervalId = window.setInterval(() => {
+      if (!suspended && document.visibilityState === 'visible') advanceVisibleTime();
+    }, 1_000);
+
     document.addEventListener('visibilitychange', onVisibilityChange);
-    window.addEventListener('pagehide', checkpoint);
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('pageshow', onPageShow);
     return () => {
       window.clearInterval(intervalId);
       document.removeEventListener('visibilitychange', onVisibilityChange);
-      window.removeEventListener('pagehide', checkpoint);
+      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('pageshow', onPageShow);
+      if (!suspended) advanceVisibleTime();
       checkpoint();
     };
   }, [bootstrap.status, controller]);

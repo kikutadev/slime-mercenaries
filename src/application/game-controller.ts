@@ -17,6 +17,7 @@ import {
   advanceSlimeWorldFromWallClock,
   createInitialSlimeMercenariesState,
   type CodexCategory,
+  type CombatAdvancePolicy,
   type DispatchContractId,
   type JobSlimeId,
   type SlimeInstanceId,
@@ -89,10 +90,13 @@ export class SlimeGameController {
     return () => this.#errorListeners.delete(listener);
   }
 
-  advanceToWallClock(nowMs = Date.now()): readonly DomainEvent[] {
+  advanceToWallClock(
+    nowMs = Date.now(),
+    combatPolicy: CombatAdvancePolicy = {},
+  ): readonly DomainEvent[] {
     if (!this.#initialized) return [];
     const current = this.store.getSnapshot();
-    const advanced = advanceSlimeWorldFromWallClock(current, nowMs);
+    const advanced = advanceSlimeWorldFromWallClock(current, nowMs, {}, combatPolicy);
     if (advanced.appliedOfflineSec <= 0) return [];
 
     const nextState = applyValidationSandboxResources(advanced.state);
