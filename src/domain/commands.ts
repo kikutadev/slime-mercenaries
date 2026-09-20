@@ -364,6 +364,8 @@ export type SlimeFusionPreview = Readonly<{
   slimeId: SlimeInstanceId;
   step: FusionStepDefinition | null;
   levelMet: boolean;
+  unlockAreaId: string | null;
+  unlocked: boolean;
   requirements: readonly TokenRequirementPreview[];
   canFuse: boolean;
 }>;
@@ -375,16 +377,20 @@ function fusionPreviewForStep(
 ): SlimeFusionPreview {
   const slime = state.gameData.roster.slimes[slimeId];
   if (slime === undefined) {
-    return { slimeId, step: null, levelMet: false, requirements: [], canFuse: false };
+    return { slimeId, step: null, levelMet: false, unlockAreaId: null, unlocked: false, requirements: [], canFuse: false };
   }
   const requirements = step.recipe.map((requirement) => previewRequirement(state, requirement));
   const levelMet = slime.level >= step.minLevel;
+  const unlockAreaId = step.unlockAreaId ?? null;
+  const unlocked = unlockAreaId === null || isAreaUnlocked(state.gameData.progression, unlockAreaId);
   return {
     slimeId,
     step,
     levelMet,
+    unlockAreaId,
+    unlocked,
     requirements,
-    canFuse: levelMet && requirements.every((requirement) => requirement.missing === 0),
+    canFuse: unlocked && levelMet && requirements.every((requirement) => requirement.missing === 0),
   };
 }
 
@@ -414,6 +420,8 @@ export function previewSlimeFusion(
     slimeId,
     step: null,
     levelMet: state.gameData.roster.slimes[slimeId] !== undefined,
+    unlockAreaId: null,
+    unlocked: false,
     requirements: [],
     canFuse: false,
   };
@@ -427,7 +435,7 @@ export function fuseSlime(
   state: SlimeMercenariesState,
   slimeId: SlimeInstanceId,
   fusionStepId?: string,
-): CommandResult<SlimeMercenariesState, 'not-owned' | 'max-rank' | 'fusion-choice-required' | 'invalid-fusion' | 'level-too-low' | 'insufficient-materials'> {
+): CommandResult<SlimeMercenariesState, 'not-owned' | 'max-rank' | 'fusion-choice-required' | 'invalid-fusion' | 'fusion-locked' | 'level-too-low' | 'insufficient-materials'> {
   const slime = state.gameData.roster.slimes[slimeId];
   if (slime === undefined) return reject(state, 'not-owned');
   const choices = previewSlimeFusions(state, slimeId);
@@ -437,6 +445,7 @@ export function fuseSlime(
     ? choices[0]!
     : choices.find((choice) => choice.step?.id === fusionStepId);
   if (preview === undefined || preview.step === null) return reject(state, 'invalid-fusion');
+  if (!preview.unlocked) return reject(state, 'fusion-locked');
   if (!preview.levelMet) return reject(state, 'level-too-low');
   if (!preview.canFuse) return reject(state, 'insufficient-materials');
 

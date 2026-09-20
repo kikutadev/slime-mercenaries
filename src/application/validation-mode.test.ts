@@ -56,6 +56,13 @@ describe('public validation sandbox', () => {
     }
     expect(getSlimePresentation(state.gameData.roster.slimes[shieldId]!).asset).toBe('assets/guardian-slime.glb');
 
+    state = {
+      ...state,
+      gameData: {
+        ...state.gameData,
+        progression: { ...state.gameData.progression, currentAreaId: 'area.sunken-marsh' },
+      },
+    };
     const choices = previewSlimeFusions(state, shieldId);
     expect(choices.map((choice) => choice.step?.id)).toEqual(['fusion.shield.03-paladin', 'fusion.shield.03-fortress']);
     expect(choices.every((choice) => choice.canFuse)).toBe(true);

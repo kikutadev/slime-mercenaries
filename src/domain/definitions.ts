@@ -250,6 +250,7 @@ export type FusionStepDefinition = Readonly<{
   resultDisplayName: string;
   resultJobTier: number;
   behaviorUnlockId: string;
+  unlockAreaId?: WorldAreaId;
   recipe: readonly TokenRequirement[];
 }>;
 
@@ -288,6 +289,7 @@ function advancedFusionStep(args: Readonly<{
   return {
     ...args,
     minLevel: balance.fusion.advanced[tier].minLevel,
+    ...(tier === 'tier3' ? { unlockAreaId: 'area.sunken-marsh' as const } : {}),
     recipe: advancedFusionRecipe(args.slimeId, tier),
   };
 }

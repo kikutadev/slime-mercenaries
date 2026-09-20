@@ -343,7 +343,21 @@ describe('advanced Fusion progression', () => {
     expect(ambiguous.accepted).toBe(false);
     if (!ambiguous.accepted) expect(ambiguous.reason).toBe('fusion-choice-required');
 
-    const branched = fuseSlime(current, swordId, berserkerStep.id);
+    expect(previewSlimeFusion(current, swordId, berserkerStep.id)).toMatchObject({
+      unlockAreaId: 'area.sunken-marsh',
+      unlocked: false,
+      canFuse: false,
+    });
+    expect(fuseSlime(current, swordId, berserkerStep.id)).toMatchObject({ accepted: false, reason: 'fusion-locked' });
+
+    const unlocked: SlimeMercenariesState = {
+      ...current,
+      gameData: {
+        ...current.gameData,
+        progression: { ...current.gameData.progression, currentAreaId: 'area.sunken-marsh' },
+      },
+    };
+    const branched = fuseSlime(unlocked, swordId, berserkerStep.id);
     expect(branched.accepted).toBe(true);
     if (!branched.accepted) return;
     expect(branched.state.gameData.roster.slimes[swordId]).toMatchObject({
