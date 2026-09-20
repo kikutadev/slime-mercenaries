@@ -12,14 +12,22 @@ export interface BattleSnapshotAlly {
   alive: boolean;
 }
 
+export interface BattleSnapshotEnemy {
+  enemyId: EnemyId;
+  name: string;
+  index: number;
+  hp: number;
+  maxHp: number;
+  alive: boolean;
+}
+
 export interface BattleSnapshot {
   phase: 'loading' | 'approach' | 'combat' | 'result';
   label: string;
   result: 'victory' | 'defeat' | null;
   enemyAlive: number;
-  enemyHp: number;
-  enemyMaxHp: number;
   presentationReady: boolean;
+  enemies: Readonly<Record<string, BattleSnapshotEnemy>>;
   allies: Readonly<Record<string, BattleSnapshotAlly>>;
 }
 

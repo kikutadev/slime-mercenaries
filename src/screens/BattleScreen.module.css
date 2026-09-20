@@ -167,6 +167,20 @@
   animation: bossHpReveal 1.42s cubic-bezier(.18, .72, .2, 1) both;
 }
 
+.enemyHpSegments {
+  display: flex;
+  gap: 4px;
+}
+
+.enemyHpSegment {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.enemyHpDepleted {
+  opacity: .44;
+}
+
 .hpTrack {
   position: relative;
   height: 5px;

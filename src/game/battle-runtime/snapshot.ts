@@ -13,8 +13,6 @@ export interface BattleSnapshotInput {
 }
 
 export function createBattleSnapshot(input: BattleSnapshotInput): BattleSnapshot {
-  const enemyMaxHp = input.enemies.reduce((sum, enemy) => sum + enemy.maxHp, 0);
-  const enemyHp = input.enemies.reduce((sum, enemy) => sum + enemy.hp, 0);
   const enemyAlive = input.enemies.filter((enemy) => enemy.alive).length;
   const label = input.phase === 'loading'
     ? '出撃準備中'
@@ -38,6 +36,14 @@ export function createBattleSnapshot(input: BattleSnapshotInput): BattleSnapshot
         ).stage === 'march'
       : resultElapsed >= SLIME_MOTION_TIMING.allyDefeat);
 
+  const enemies = Object.fromEntries(input.enemies.map((enemy) => [enemy.id, {
+    enemyId: enemy.enemyId,
+    name: enemy.name,
+    index: enemy.index,
+    hp: enemy.hp,
+    maxHp: enemy.maxHp,
+    alive: enemy.alive,
+  }]));
   const allies = Object.fromEntries(input.allies.map((ally) => [ally.slimeId, {
     hp: ally.hp,
     maxHp: ally.maxHp,
@@ -49,9 +55,8 @@ export function createBattleSnapshot(input: BattleSnapshotInput): BattleSnapshot
     label,
     result: input.result,
     enemyAlive,
-    enemyHp,
-    enemyMaxHp,
     presentationReady,
+    enemies,
     allies,
   };
 }

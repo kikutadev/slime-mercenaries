@@ -121,9 +121,8 @@ function BattleRuntimeScene({
         label: '戦闘データを再読込中',
         result: null,
         enemyAlive: 0,
-        enemyHp: 0,
-        enemyMaxHp: 0,
         presentationReady: false,
+        enemies: {},
         allies: {},
       });
     });

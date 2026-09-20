@@ -15,9 +15,8 @@ const INITIAL_BATTLE: BattleSnapshot = {
   label: '出撃準備中',
   result: null,
   enemyAlive: 0,
-  enemyHp: 0,
-  enemyMaxHp: 0,
   presentationReady: false,
+  enemies: {},
   allies: {},
 };
 
@@ -127,7 +126,8 @@ export function BattleScreen({
 
   const hasBattleSlime = sceneModel.allies.length > 0;
   const hasEncounter = sceneModel.encounter !== null;
-  const enemyRatio = battle.enemyMaxHp > 0 ? battle.enemyHp / battle.enemyMaxHp : 0;
+  const enemySnapshots = Object.entries(battle.enemies)
+    .sort(([, left], [, right]) => left.index - right.index);
   const activeCount = sceneModel.allies.length;
 
   const battleStatus = useMemo(() => {
@@ -190,7 +190,23 @@ export function BattleScreen({
       {hasBattleSlime && hasEncounter && (
         <div className={`${styles.enemy} ${sceneModel.encounter?.boss ? styles.boss : ''} ${sceneModel.encounter?.boss && battle.phase === 'approach' ? styles.entering : ''} ${battle.result === 'victory' ? styles.cleared : ''}`} aria-label="敵の体力">
           <div><strong>{sceneModel.encounter?.displayName ?? '敵部隊'}</strong><span>{sceneModel.encounter?.boss ? 'BOSS' : `残り${battle.enemyAlive}体`}</span></div>
-          <div className={styles.hpTrack}><div className={styles.hpFill} style={{ transform: `scaleX(${enemyRatio})` }} /></div>
+          <div className={styles.enemyHpSegments} aria-label="敵ごとの体力">
+            {enemySnapshots.map(([enemyInstanceId, enemy]) => {
+              const hpRatio = enemy.maxHp > 0 ? enemy.hp / enemy.maxHp : 0;
+              return (
+                <div
+                  className={[styles.hpTrack, styles.enemyHpSegment, enemy.alive ? '' : styles.enemyHpDepleted].filter(Boolean).join(' ')}
+                  key={enemyInstanceId}
+                  aria-label={`${enemy.name} ${Math.max(0, enemy.hp)} / ${enemy.maxHp}`}
+                >
+                  <div
+                    className={styles.hpFill}
+                    style={{ transform: `scaleX(${Math.max(0, Math.min(1, hpRatio))})` }}
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
