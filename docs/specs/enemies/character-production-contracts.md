@@ -127,7 +127,7 @@ Area 6の新要素は **elemental after-effect**。火炎particleを増やして
 - projectile禁止
 
 **すみころ**
-- limb / face accessory / crown禁止。炭球一個が主体
+- limb / face accessory / crown禁止。炭球一個が主体。輪郭上に一箇所だけ小さな欠けmassを許可し、完全な真円にはしない
 - `GlowRoot` にexactly 3 broad crack strips。細い多数線へ増殖しない
 - Attackのchargeは色・glowだけでなくbody compressも同期させる
 - crack 3段chargeの最後に0.10秒以上still hold

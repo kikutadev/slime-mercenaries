@@ -148,9 +148,9 @@ def build_enemy(d: EmberDefinition):
         effect_origin = (0.46, -0.18, 0.30)
 
     elif d.profile == "charcoal":
-        create_ellipsoid("CharcoalBody", (0.0, 0.010, 0.310), (0.350, 0.335, 0.315), body_mat, body, segments=28, rings=18)
+        create_ellipsoid("CharcoalBody", (0.0, 0.010, 0.310), (0.325, 0.335, 0.315), body_mat, body, segments=28, rings=18)
         create_ellipsoid("CharcoalBase", (0.0, 0.035, 0.095), (0.270, 0.255, 0.085), dark_mat, body, segments=20, rings=10)
-        create_ellipsoid("CharcoalChip", (0.260, 0.055, 0.405), (0.085, 0.100, 0.075), dark_mat, body, segments=14, rings=8)
+        create_ellipsoid("CharcoalChip", (0.315, 0.055, 0.650), (0.065, 0.095, 0.080), dark_mat, body, segments=14, rings=8)
 
         glow = create_empty("GlowRoot", body, (0.0, -0.310, 0.330))
         crack1 = create_ellipsoid("GlowCrack_1", (-0.080, 0.0, 0.050), (0.036, 0.018, 0.140), ember_mat, glow, segments=12, rings=8)
