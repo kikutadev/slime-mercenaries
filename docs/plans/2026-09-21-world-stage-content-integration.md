@@ -1,6 +1,6 @@
 # World Stage Content Integration
 
-Status: Production implementation complete locally — deploy verification pending
+Status: Production complete — public battle states verified
 Date: 2026-09-21
 
 ## Goal
@@ -63,9 +63,9 @@ Area 1の未制作Boss候補を仮アセットで代替しない。Mushroom fami
 - [x] every QA state loads one real Three.js battle canvas
 - [x] all 16 states display the expected area/stage label and authored enemy/boss
 - [x] browser/page/resource error list empty
-- [ ] commit / origin main
-- [ ] games.kikuta.dev deploy
-- [ ] public smoke for all 16 battle states
+- [x] implementation commit / origin main: `09460c9`
+- [x] games.kikuta.dev deploy: Worker `604ab0ae-0d22-41b8-80ff-3c3bfb224209`
+- [x] public smoke for all **16/16 battle states**, with one real battle canvas each and no browser/page/resource errors
 
 ## Balance note
 
