@@ -139,6 +139,10 @@ import { BattleCameraController } from './battle-runtime/camera';
 import { MELEE_BODY_GAP, SCALE, TARGET_HOME, allyHome, enemyHome, meleeCombatAnchor } from './battle-runtime/layout';
 import { createBattleSnapshot } from './battle-runtime/snapshot';
 import {
+  disposeObjectMaterials,
+  disposeOwnedObjectResources,
+} from './battle-runtime/resource-disposal';
+import {
   applyUnitDeformation,
   clearMorphs,
   enemyTargetPosition,
@@ -355,7 +359,11 @@ export class BattleRuntime {
       Promise.all(this.enemyConfigs.map((config) => this.loadEnemy(config))),
     ]);
 
-    if (this.disposed) return;
+    if (this.disposed) {
+      loadedAllies.forEach((ally) => this.disposeAlly(ally));
+      loadedEnemies.forEach((enemy) => this.disposeEnemy(enemy));
+      return;
+    }
     this.allies.push(...loadedAllies);
     this.enemies.push(...loadedEnemies);
     this.allies.forEach((ally) => facePoint(ally, TARGET_HOME));
@@ -403,13 +411,21 @@ export class BattleRuntime {
     this.encounterUpdateRevision += 1;
     this.clearProjectiles();
     this.enemies.splice(0).forEach((enemy) => this.disposeEnemy(enemy));
+    this.allies.splice(0).forEach((ally) => this.disposeAlly(ally));
     this.environmentDispose?.();
     this.environmentDispose = null;
     this.environmentSceneryRoot = null;
     this.environmentTravel = null;
-    for (const object of this.ownedSceneObjects) this.scene.remove(object);
-    this.ownedSceneObjects.clear();
-    this.allies.length = 0;
+    for (const object of [...this.ownedSceneObjects]) {
+      this.removeSceneObject(object);
+      disposeOwnedObjectResources(object);
+    }
+    for (const templatePromise of this.enemyTemplatePromises.values()) {
+      void templatePromise
+        .then((template) => disposeOwnedObjectResources(template))
+        .catch(() => undefined);
+    }
+    this.enemyTemplatePromises.clear();
   }
 
   private addSceneObject(object: THREE.Object3D): void {
@@ -521,25 +537,39 @@ export class BattleRuntime {
 
   private disposeEnemy(enemy: EnemyUnit): void {
     this.removeSceneObject(enemy.root);
+    // Enemy clone geometry is shared with the cached template; only its cloned
+    // per-instance materials are owned by this unit.
+    disposeObjectMaterials(enemy.root);
+
     this.removeSceneObject(enemy.shadow);
-    enemy.shadow.geometry.dispose();
-    enemy.shadow.material.dispose();
+    disposeOwnedObjectResources(enemy.shadow);
+
     if (enemy.attackTelegraph !== null) {
       this.removeSceneObject(enemy.attackTelegraph);
-      enemy.attackTelegraph.geometry.dispose();
-      enemy.attackTelegraph.material.dispose();
+      disposeOwnedObjectResources(enemy.attackTelegraph);
     }
 
-    const geometries = new Set<THREE.BufferGeometry>();
-    const materials = new Set<THREE.Material>();
+    const xEyeGeometries = new Set<THREE.BufferGeometry>();
     enemy.xEyes.forEach((root) => root.traverse((object) => {
-      if (!(object instanceof THREE.Mesh)) return;
-      geometries.add(object.geometry);
-      const objectMaterials = Array.isArray(object.material) ? object.material : [object.material];
-      objectMaterials.forEach((entry) => materials.add(entry));
+      if (object instanceof THREE.Mesh) xEyeGeometries.add(object.geometry);
     }));
-    geometries.forEach((geometry) => geometry.dispose());
-    materials.forEach((entry) => entry.dispose());
+    xEyeGeometries.forEach((geometry) => geometry.dispose());
+  }
+
+  private disposeAlly(ally: AllyUnit): void {
+    const ownedObjects = new Set<THREE.Object3D>([
+      ally.root,
+      ally.shadow,
+      ally.healthBar,
+      ...(ally.guardPulseVfx === null ? [] : [ally.guardPulseVfx]),
+      ...(ally.mageCastSigil === null ? [] : [ally.mageCastSigil]),
+      ...(ally.rogueSlashArc === null ? [] : [ally.rogueSlashArc]),
+      ...(ally.signatureVfx === null ? [] : [ally.signatureVfx]),
+    ]);
+    for (const object of ownedObjects) {
+      this.removeSceneObject(object);
+      disposeOwnedObjectResources(object);
+    }
   }
 
   private createSlashArc(): void {
@@ -668,8 +698,7 @@ export class BattleRuntime {
   private clearVictoryLootMotes(): void {
     for (const mote of this.victoryLootMotes) {
       this.removeSceneObject(mote.mesh);
-      mote.mesh.geometry.dispose();
-      mote.mesh.material.dispose();
+      disposeOwnedObjectResources(mote.mesh);
     }
     this.victoryLootMotes.length = 0;
   }
@@ -2817,6 +2846,7 @@ export class BattleRuntime {
       }
       if (u >= 1) {
         this.removeSceneObject(projectile.root);
+        disposeOwnedObjectResources(projectile.root);
         this.projectiles.splice(i, 1);
       }
     }
@@ -2837,6 +2867,7 @@ export class BattleRuntime {
       flash.mesh.material.opacity = (1 - u) * 0.95;
       if (u >= 1) {
         this.removeSceneObject(flash.mesh);
+        disposeOwnedObjectResources(flash.mesh);
         this.muzzleFlashes.splice(i, 1);
       }
     }
@@ -2851,8 +2882,7 @@ export class BattleRuntime {
       tracer.mesh.scale.z = 1 + u * 0.55;
       if (u >= 1) {
         this.removeSceneObject(tracer.mesh);
-        tracer.mesh.geometry.dispose();
-        tracer.mesh.material.dispose();
+        disposeOwnedObjectResources(tracer.mesh);
         this.tracers.splice(i, 1);
       }
     }
@@ -2901,6 +2931,7 @@ export class BattleRuntime {
       }
       if (u >= 1) {
         this.removeSceneObject(spore.root);
+        disposeOwnedObjectResources(spore.root);
         this.enemyProjectiles.splice(i, 1);
       }
     }
@@ -2915,6 +2946,7 @@ export class BattleRuntime {
       impact.group.quaternion.copy(this.camera.quaternion);
       if (u >= 1) {
         this.removeSceneObject(impact.group);
+        disposeOwnedObjectResources(impact.group);
         this.impacts.splice(i, 1);
       }
     }
@@ -3238,14 +3270,22 @@ export class BattleRuntime {
   }
 
   private clearFlightVfx(): void {
-    this.projectiles.splice(0).forEach((projectile) => this.removeSceneObject(projectile.root));
-    this.muzzleFlashes.splice(0).forEach((flash) => this.removeSceneObject(flash.mesh));
+    this.projectiles.splice(0).forEach((projectile) => {
+      this.removeSceneObject(projectile.root);
+      disposeOwnedObjectResources(projectile.root);
+    });
+    this.muzzleFlashes.splice(0).forEach((flash) => {
+      this.removeSceneObject(flash.mesh);
+      disposeOwnedObjectResources(flash.mesh);
+    });
     this.tracers.splice(0).forEach((tracer) => {
       this.removeSceneObject(tracer.mesh);
-      tracer.mesh.geometry.dispose();
-      tracer.mesh.material.dispose();
+      disposeOwnedObjectResources(tracer.mesh);
     });
-    this.enemyProjectiles.splice(0).forEach((spore) => this.removeSceneObject(spore.root));
+    this.enemyProjectiles.splice(0).forEach((spore) => {
+      this.removeSceneObject(spore.root);
+      disposeOwnedObjectResources(spore.root);
+    });
     this.enemies.forEach((enemy) => {
       if (enemy.attackTelegraph) enemy.attackTelegraph.visible = false;
     });
@@ -3256,7 +3296,10 @@ export class BattleRuntime {
   private clearProjectiles(): void {
     this.clearVictoryLootMotes();
     this.clearFlightVfx();
-    this.impacts.splice(0).forEach((impact) => this.removeSceneObject(impact.group));
+    this.impacts.splice(0).forEach((impact) => {
+      this.removeSceneObject(impact.group);
+      disposeOwnedObjectResources(impact.group);
+    });
   }
 
   private startCameraShake(duration: number, amplitude: number): void {
