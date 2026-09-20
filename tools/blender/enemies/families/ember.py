@@ -184,10 +184,10 @@ def build_enemy(d: EmberDefinition):
         create_ellipsoid("ShellGlow", (0.0, 0.0, -0.010), (0.105, 0.045, 0.070), ember_mat, glow, segments=16, rings=10)
 
         for name, x, y in (
-            ("Foot_FL", -0.370, -0.105),
-            ("Foot_FR", 0.370, -0.105),
-            ("Foot_BL", -0.370, 0.115),
-            ("Foot_BR", 0.370, 0.115),
+            ("Foot_FL", -0.378, -0.105),
+            ("Foot_FR", 0.378, -0.105),
+            ("Foot_BL", -0.378, 0.115),
+            ("Foot_BR", 0.378, 0.115),
         ):
             create_ellipsoid(name, (x, y, 0.045), (0.090, 0.095, 0.043), body_mat, body, segments=14, rings=8)
 
