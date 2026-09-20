@@ -1,14 +1,12 @@
-import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import {
   SLIME_MOTION_TIMING,
   SLIME_MOTION_THRESHOLDS,
-  applyDeformationPose,
   applyEquipmentPose,
   applyMageRunePose,
-  clearMorphs,
   clamp01,
   getAllyDefeatMotion,
   getArrowArcHeight,
@@ -31,8 +29,6 @@ import {
   getSwordAttackMotion,
   getWandAttackMotion,
   getSwordSlashVfxPose,
-  type MorphMesh,
-  type SlimeEquipmentMotionKind,
 } from '../game/slime-motion';
 import {
   applyGuardPulseVfx,
@@ -110,35 +106,18 @@ import {
   createEngineerSignatureVfx,
   createNinjaSignatureVfx,
 } from '../game/slime-motions/tier3/effects';
+import { disposeOwnedObjectResources } from '../game/battle-runtime/resource-disposal';
 import { EnemyGalleryStage } from './EnemyGalleryStage';
+import { GalleryCameraRig } from './GalleryCameraRig';
+import { GALLERY_HOME, GALLERY_PRODUCTION_SCALE } from './gallery-layout';
+import {
+  applyGalleryPose,
+  collectGalleryModelParts,
+  resetGalleryModelParts,
+  galleryEquipmentKind,
+} from './gallery-model-parts';
+import { galleryClipDuration, galleryTargetDistance } from './gallery-timing';
 import type { GalleryCameraId, GalleryMotionId, SlimeGalleryDefinition } from './types';
-
-interface ModelParts {
-  body: MorphMesh | null;
-  faceRoot: THREE.Object3D | null;
-  equipment: THREE.Object3D | null;
-  secondaryEquipment: THREE.Object3D | null;
-  mageRune: THREE.Object3D | null;
-  weaponTip: THREE.Object3D | null;
-  projectileOrigin: THREE.Object3D | null;
-  spellOrigin: THREE.Object3D | null;
-  auxiliaryRoot: THREE.Object3D | null;
-  auxiliaryMuzzle: THREE.Object3D | null;
-  normalEyes: THREE.Object3D[];
-  xEyes: THREE.Group[];
-  bodyBaseScale: THREE.Vector3;
-  faceBasePosition: THREE.Vector3;
-  faceBaseScale: THREE.Vector3;
-  equipmentBaseQuaternion: THREE.Quaternion;
-  equipmentBasePosition: THREE.Vector3;
-  secondaryEquipmentBaseQuaternion: THREE.Quaternion;
-  secondaryEquipmentBasePosition: THREE.Vector3;
-  mageRuneBaseQuaternion: THREE.Quaternion;
-  mageRuneBaseScale: THREE.Vector3;
-  auxiliaryBasePosition: THREE.Vector3;
-  auxiliaryBaseQuaternion: THREE.Quaternion;
-  auxiliaryBaseScale: THREE.Vector3;
-}
 
 interface StageProps {
   definition: SlimeGalleryDefinition;
@@ -150,11 +129,6 @@ interface StageProps {
   replayKey: number;
 }
 
-const PRODUCTION_SCALE = 0.19;
-const GALLERY_HOME = new THREE.Vector3(0, 0.02, 0.38);
-const BATTLE_CAMERA_POSITION = new THREE.Vector3(2.8, 5.35, 8.9);
-const BATTLE_CAMERA_LOOK_AT = new THREE.Vector3(0, 0.38, -1.05);
-const BATTLE_CAMERA_OFFSET = BATTLE_CAMERA_POSITION.clone().sub(BATTLE_CAMERA_LOOK_AT);
 const yAxis = new THREE.Vector3(0, 1, 0);
 const tempA = new THREE.Vector3();
 const tempB = new THREE.Vector3();
@@ -165,237 +139,10 @@ const tempF = new THREE.Vector3();
 const tempQ = new THREE.Quaternion();
 
 
-function disposeObjectResources(root: THREE.Object3D): void {
-  root.traverse((object) => {
-    if (!(object instanceof THREE.Mesh)) return;
-    object.geometry.dispose();
-    const materials = Array.isArray(object.material) ? object.material : [object.material];
-    materials.forEach((material) => material.dispose());
-  });
-}
-
-function buildDefeatEyes(model: THREE.Object3D): { normalEyes: THREE.Object3D[]; xEyes: THREE.Group[] } {
-  const normalEyes = ['Eye_L', 'Eye_R']
-    .map((name) => model.getObjectByName(name))
-    .filter((eye): eye is THREE.Object3D => Boolean(eye));
-  const xEyes: THREE.Group[] = [];
-  for (const eye of normalEyes) {
-    const group = new THREE.Group();
-    group.name = `${eye.name}_GalleryDefeatX`;
-    group.position.copy(eye.position);
-    group.position.z += 0.068;
-    const geometry = new THREE.BoxGeometry(0.28, 0.052, 0.034);
-    const material = new THREE.MeshBasicMaterial({ color: '#201925' });
-    for (const rotation of [-Math.PI / 4, Math.PI / 4]) {
-      const bar = new THREE.Mesh(geometry, material);
-      bar.rotation.z = rotation;
-      group.add(bar);
-    }
-    group.visible = false;
-    eye.parent?.add(group);
-    xEyes.push(group);
-  }
-  return { normalEyes, xEyes };
-}
-
-function collectParts(model: THREE.Object3D, definition: SlimeGalleryDefinition): ModelParts {
-  const body = model.getObjectByName('Body') as MorphMesh | null;
-  const faceRoot = model.getObjectByName('FaceRoot') ?? null;
-  const equipment = definition.equipmentAnchor ? model.getObjectByName(definition.equipmentAnchor) ?? null : null;
-  const secondaryEquipment = model.getObjectByName('OffhandAnchor') ?? null;
-  const mageRune = model.getObjectByName('MageRuneAnchor') ?? null;
-  const weaponTip = definition.weaponTipName ? model.getObjectByName(definition.weaponTipName) ?? null : null;
-  const projectileOrigin = model.getObjectByName('ProjectileOrigin') ?? null;
-  const spellOrigin = model.getObjectByName('SpellOrigin') ?? null;
-  const auxiliaryRoot = definition.id === 'engineer'
-    ? model.getObjectByName('EngineerTurretRoot') ?? null
-    : null;
-  const auxiliaryMuzzle = definition.id === 'engineer'
-    ? model.getObjectByName('EngineerTurretMuzzle') ?? null
-    : definition.id === 'cannoneer'
-      ? model.getObjectByName('CannoneerMuzzle') ?? null
-      : null;
-  const { normalEyes, xEyes } = buildDefeatEyes(model);
-  return {
-    body,
-    faceRoot,
-    equipment,
-    secondaryEquipment,
-    mageRune,
-    weaponTip,
-    projectileOrigin,
-    spellOrigin,
-    auxiliaryRoot,
-    auxiliaryMuzzle,
-    normalEyes,
-    xEyes,
-    bodyBaseScale: body?.scale.clone() ?? new THREE.Vector3(1, 1, 1),
-    faceBasePosition: faceRoot?.position.clone() ?? new THREE.Vector3(),
-    faceBaseScale: faceRoot?.scale.clone() ?? new THREE.Vector3(1, 1, 1),
-    equipmentBaseQuaternion: equipment?.quaternion.clone() ?? new THREE.Quaternion(),
-    equipmentBasePosition: equipment?.position.clone() ?? new THREE.Vector3(),
-    secondaryEquipmentBaseQuaternion: secondaryEquipment?.quaternion.clone() ?? new THREE.Quaternion(),
-    secondaryEquipmentBasePosition: secondaryEquipment?.position.clone() ?? new THREE.Vector3(),
-    mageRuneBaseQuaternion: mageRune?.quaternion.clone() ?? new THREE.Quaternion(),
-    mageRuneBaseScale: mageRune?.scale.clone() ?? new THREE.Vector3(1, 1, 1),
-    auxiliaryBasePosition: auxiliaryRoot?.position.clone() ?? new THREE.Vector3(),
-    auxiliaryBaseQuaternion: auxiliaryRoot?.quaternion.clone() ?? new THREE.Quaternion(),
-    auxiliaryBaseScale: auxiliaryRoot?.scale.clone() ?? new THREE.Vector3(1, 1, 1),
-  };
-}
-
-function equipmentKind(definition: SlimeGalleryDefinition): SlimeEquipmentMotionKind {
-  if (definition.modelKind === 'bow') return 'bow';
-  if (definition.modelKind === 'shield') return 'shield';
-  if (definition.modelKind === 'wand') return 'wand';
-  if (definition.modelKind === 'dagger') return 'dagger';
-  if (definition.modelKind === 'gun') return 'gun';
-  return 'sword';
-}
-
-function targetDistanceFor(definition: SlimeGalleryDefinition): number {
-  if (definition.id === 'sniper' || definition.id === 'storm-archer') return 1.42;
-  if (definition.modelKind === 'bow' || definition.modelKind === 'wand' || definition.modelKind === 'gun') return 1.55;
-  if (definition.modelKind === 'shield') return 0.82;
-  return 0.95;
-}
-
-function resetParts(parts: ModelParts): void {
-  clearMorphs(parts.body);
-  parts.body?.scale.copy(parts.bodyBaseScale);
-  if (parts.faceRoot) {
-    parts.faceRoot.position.copy(parts.faceBasePosition);
-    parts.faceRoot.scale.copy(parts.faceBaseScale);
-  }
-  parts.equipment?.quaternion.copy(parts.equipmentBaseQuaternion);
-  if (parts.equipment) parts.equipment.position.copy(parts.equipmentBasePosition);
-  parts.secondaryEquipment?.quaternion.copy(parts.secondaryEquipmentBaseQuaternion);
-  if (parts.secondaryEquipment) parts.secondaryEquipment.position.copy(parts.secondaryEquipmentBasePosition);
-  applyMageRunePose(parts.mageRune, parts.mageRuneBaseQuaternion, parts.mageRuneBaseScale, 0, 0);
-  if (parts.auxiliaryRoot) {
-    parts.auxiliaryRoot.position.copy(parts.auxiliaryBasePosition);
-    parts.auxiliaryRoot.quaternion.copy(parts.auxiliaryBaseQuaternion);
-    parts.auxiliaryRoot.scale.copy(parts.auxiliaryBaseScale);
-    parts.auxiliaryRoot.visible = false;
-  }
-  parts.normalEyes.forEach((eye) => { eye.visible = true; });
-  parts.xEyes.forEach((eye) => { eye.visible = false; });
-}
-
-function applyPose(parts: ModelParts, definition: SlimeGalleryDefinition, pose: ReturnType<typeof getIdleMotion>): void {
-  applyDeformationPose(parts.body, parts.faceRoot, pose.deformation);
-  applyEquipmentPose(
-    parts.equipment,
-    parts.equipmentBaseQuaternion,
-    parts.equipmentBasePosition,
-    equipmentKind(definition),
-    pose.equipment,
-  );
-}
-
-function clipDuration(motion: GalleryMotionId, definition: SlimeGalleryDefinition): number {
-  if (motion === 'move') return 1.55;
-  if (motion === 'defeat') return SLIME_MOTION_TIMING.allyDefeat;
-  if (motion === 'attack') {
-    if (definition.id === 'blademaster') return TIER3_SWORD_TIMING.blademasterAttack;
-    if (definition.id === 'berserker') return TIER3_SWORD_TIMING.berserkerAttack;
-    if (definition.id === 'sniper') return TIER3_BOW_TIMING.sniperAttack;
-    if (definition.id === 'storm-archer') return TIER3_BOW_TIMING.stormArcherAttack;
-    if (definition.id === 'paladin') return TIER3_DEFENSE_TIMING.paladinAttack;
-    if (definition.id === 'fortress') return TIER3_DEFENSE_TIMING.fortressAttack;
-    if (definition.id === 'archmage') return TIER3_MAGIC_TIMING.archmageAttack;
-    if (definition.id === 'frost-mage') return TIER3_MAGIC_TIMING.frostMageAttack;
-    if (definition.id === 'ninja') return NINJA_SIGNATURE_TIMING.duration;
-    if (definition.id === 'assassin') return ASSASSIN_SIGNATURE_TIMING.duration;
-    if (definition.id === 'cannoneer') return CANNONEER_SIGNATURE_TIMING.duration;
-    if (definition.id === 'engineer') return ENGINEER_SIGNATURE_TIMING.duration;
-    if (definition.id === 'fighter') return SLIME_MOTION_TIMING.fighterAttack;
-    if (definition.id === 'guardian') return SLIME_MOTION_TIMING.guardianAttack;
-    if (definition.id === 'mage') {
-      const releaseAt = SLIME_MOTION_TIMING.mageAttack * SLIME_MOTION_THRESHOLDS.mageReleaseU;
-      return releaseAt + SLIME_MOTION_TIMING.magicOrbFlight;
-    }
-    if (definition.id === 'rogue') return SLIME_MOTION_TIMING.rogueAttack;
-    if (definition.id === 'gunner') {
-      const releaseAt = SLIME_MOTION_TIMING.gunnerAttack * getGunnerShotReleaseU(2);
-      return releaseAt + SLIME_MOTION_TIMING.bulletFlight;
-    }
-
-    if (definition.id === 'ranger') {
-      return SLIME_MOTION_TIMING.rangerAttack * getRangerShotReleaseU(1) + SLIME_MOTION_TIMING.arrowFlight;
-    }
-    if (definition.modelKind === 'greatsword') return SLIME_MOTION_TIMING.greatswordAttack;
-    if (definition.modelKind === 'bow') {
-      const releaseAt = SLIME_MOTION_TIMING.bowAttack * SLIME_MOTION_THRESHOLDS.bowReleaseU;
-      return releaseAt + SLIME_MOTION_TIMING.arrowFlight;
-    }
-    if (definition.modelKind === 'shield') return SLIME_MOTION_TIMING.shieldAttack;
-    if (definition.modelKind === 'wand') {
-      const releaseAt = SLIME_MOTION_TIMING.wandAttack * SLIME_MOTION_THRESHOLDS.wandReleaseU;
-      return releaseAt + SLIME_MOTION_TIMING.magicOrbFlight;
-    }
-    if (definition.modelKind === 'dagger') return SLIME_MOTION_TIMING.daggerAttack;
-    if (definition.modelKind === 'gun') {
-      const releaseAt = SLIME_MOTION_TIMING.gunAttack * SLIME_MOTION_THRESHOLDS.gunReleaseU;
-      return releaseAt + SLIME_MOTION_TIMING.bulletFlight;
-    }
-    return SLIME_MOTION_TIMING.swordAttack;
-  }
-  return 2.4;
-}
-
-function CameraRig({ mode, motion, definition }: { mode: GalleryCameraId; motion: GalleryMotionId; definition: SlimeGalleryDefinition }) {
-  const { camera, size } = useThree();
-  useEffect(() => {
-    const compact = size.width < 620 ? 1.20 : 1;
-    const lookAt = GALLERY_HOME.clone().setY(0.28);
-    const yaw = THREE.MathUtils.degToRad(definition.inspectionFacingYawDegrees ?? 0);
-    const inspectForward = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).normalize();
-    const inspectRight = new THREE.Vector3(-inspectForward.z, 0, inspectForward.x).normalize();
-    const targetDistance = targetDistanceFor(definition);
-
-    if (mode === 'gameplay') {
-      camera.position.copy(lookAt).addScaledVector(BATTLE_CAMERA_OFFSET, 0.34 * compact);
-      camera.lookAt(lookAt);
-    } else if (mode === 'front') {
-      camera.position.set(0, 0.82, 2.15 * compact);
-      camera.lookAt(lookAt);
-    } else if (motion === 'attack') {
-      const ranged = targetDistance >= 1.4;
-      const cinematicTier3 = [
-        'blademaster', 'berserker', 'sniper', 'storm-archer',
-        'paladin', 'fortress', 'archmage', 'frost-mage',
-        'ninja', 'assassin', 'cannoneer', 'engineer',
-      ].includes(definition.id);
-      const focusFraction = cinematicTier3 ? (definition.id === 'blademaster' ? 0.84 : ranged ? 0.50 : 0.58) : (ranged ? 0.44 : 0.42);
-      const midpoint = GALLERY_HOME.clone().addScaledVector(inspectForward, targetDistance * focusFraction);
-      midpoint.y = cinematicTier3 ? 0.24 : 0.26;
-      const sideDistance = (cinematicTier3 ? (ranged ? 2.88 : definition.id === 'blademaster' ? 2.35 : 2.10) : (ranged ? 2.85 : 2.35)) * compact;
-      const forwardDistance = (cinematicTier3 ? (ranged ? 0.72 : 0.68) : (ranged ? 0.92 : 0.82)) * compact;
-      const height = (cinematicTier3 ? (ranged ? 0.82 : 0.78) : (ranged ? 0.96 : 0.88)) * compact;
-      camera.position.copy(midpoint)
-        .addScaledVector(inspectRight, sideDistance)
-        .addScaledVector(inspectForward, forwardDistance)
-        .add(new THREE.Vector3(0, height, 0));
-      camera.lookAt(midpoint);
-    } else {
-      // Inspection is a front-biased 3/4 view. The previous 1.5:0.5 side/forward
-      // ratio was effectively a profile view and hid faces/equipment on asymmetric slimes.
-      camera.position.copy(GALLERY_HOME)
-        .addScaledVector(inspectRight, (definition.inspectionSideDistance ?? 1.52) * 0.55 * compact)
-        .addScaledVector(inspectForward, 1.05 * compact)
-        .add(new THREE.Vector3(0, 0.78 * compact, 0));
-      camera.lookAt(lookAt);
-    }
-    camera.updateProjectionMatrix();
-  }, [camera, definition, mode, motion, size.width]);
-  return null;
-}
-
 function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, replayKey }: StageProps) {
   const gltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}${definition.asset}`);
   const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
-  const parts = useMemo(() => collectParts(model, definition), [definition, model]);
+  const parts = useMemo(() => collectGalleryModelParts(model, definition), [definition, model]);
   const rootRef = useRef<THREE.Group>(null);
   const dummyRef = useRef<THREE.Group>(null);
   const slash = useMemo(() => createSwordSlashArc(), []);
@@ -454,9 +201,9 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
     slash.material.dispose();
     spin.geometry.dispose();
     spin.material.dispose();
-    disposeObjectResources(guardPulse);
-    disposeObjectResources(mageCastSigil);
-    disposeObjectResources(mageOrb);
+    disposeOwnedObjectResources(guardPulse);
+    disposeOwnedObjectResources(mageCastSigil);
+    disposeOwnedObjectResources(mageOrb);
     rogueSlash.geometry.dispose();
     rogueSlash.material.dispose();
     gunnerTracer.geometry.dispose();
@@ -467,24 +214,25 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
     bullet.material.dispose();
     muzzleFlash.geometry.dispose();
     muzzleFlash.material.dispose();
-    disposeObjectResources(blademasterSignature);
-    disposeObjectResources(berserkerSignature);
-    disposeObjectResources(sniperSignature);
-    disposeObjectResources(stormSignature);
-    disposeObjectResources(paladinSignature);
-    disposeObjectResources(fortressSignature);
-    disposeObjectResources(archmageSignature);
-    disposeObjectResources(frostMageSignature);
-    disposeObjectResources(ninjaSignature);
-    disposeObjectResources(assassinSignature);
-    disposeObjectResources(cannoneerSignature);
-    disposeObjectResources(engineerSignature);
-    stormArrows.forEach((stormArrow) => disposeObjectResources(stormArrow));
+    disposeOwnedObjectResources(blademasterSignature);
+    disposeOwnedObjectResources(berserkerSignature);
+    disposeOwnedObjectResources(sniperSignature);
+    disposeOwnedObjectResources(stormSignature);
+    disposeOwnedObjectResources(paladinSignature);
+    disposeOwnedObjectResources(fortressSignature);
+    disposeOwnedObjectResources(archmageSignature);
+    disposeOwnedObjectResources(frostMageSignature);
+    disposeOwnedObjectResources(ninjaSignature);
+    disposeOwnedObjectResources(assassinSignature);
+    disposeOwnedObjectResources(cannoneerSignature);
+    disposeOwnedObjectResources(engineerSignature);
+    stormArrows.forEach((stormArrow) => disposeOwnedObjectResources(stormArrow));
+    parts.xEyes.forEach((eye) => disposeOwnedObjectResources(eye));
   }, [
     archmageSignature, assassinSignature, berserkerSignature, blademasterSignature, bullet,
     cannoneerSignature, engineerSignature, fortressSignature, frostMageSignature, guardPulse,
     gunnerTracer, mageCastSigil, mageOrb, magicOrb, muzzleFlash, ninjaSignature, paladinSignature,
-    rogueSlash, slash, sniperSignature, spin, stormArrows, stormSignature,
+    parts, rogueSlash, slash, sniperSignature, spin, stormArrows, stormSignature,
   ]);
 
   useFrame(({ clock, camera }) => {
@@ -495,13 +243,13 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       startedAt.current = clock.elapsedTime;
     }
 
-    resetParts(parts);
+    resetGalleryModelParts(parts);
     root.visible = true;
     root.position.copy(GALLERY_HOME);
     root.rotation.set(0, baseYaw, 0);
-    root.scale.setScalar(PRODUCTION_SCALE);
+    root.scale.setScalar(GALLERY_PRODUCTION_SCALE);
 
-    const targetDistance = targetDistanceFor(definition);
+    const targetDistance = galleryTargetDistance(definition);
     const dummyHome = tempA.copy(GALLERY_HOME).addScaledVector(forward, targetDistance).clone();
     if (dummyRef.current) {
       dummyRef.current.visible = showDummy && cameraMode !== 'front' && motion === 'attack';
@@ -535,13 +283,13 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
     engineerSignature.visible = false;
     stormArrows.forEach((stormArrow) => { stormArrow.visible = false; });
 
-    const duration = clipDuration(motion, definition);
+    const duration = galleryClipDuration(motion, definition);
     const elapsed = Math.max(0, (clock.elapsedTime - startedAt.current) * speed);
     const local = loop ? elapsed % duration : Math.min(elapsed, duration);
 
     if (motion === 'idle') {
       const phase = definition.modelKind === 'bow' ? 1.1 : 0.2;
-      applyPose(parts, definition, getIdleMotion(local, phase));
+      applyGalleryPose(parts, definition, getIdleMotion(local, phase));
       return;
     }
 
@@ -550,7 +298,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const pose = getHopTravelMotion(u);
       root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.eased * 0.74);
       root.position.y = GALLERY_HOME.y + pose.deformation.jump;
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       return;
     }
 
@@ -572,7 +320,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
         parts.equipment,
         parts.equipmentBaseQuaternion,
         parts.equipmentBasePosition,
-        equipmentKind(definition),
+        galleryEquipmentKind(definition),
         pose.equipment,
       );
       return;
@@ -582,7 +330,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const u = clamp01(local / TIER3_SWORD_TIMING.blademasterAttack);
       const pose = getBlademasterAttackMotion(u);
       root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       tempC.copy(dummyHome);
       tempC.y = 0.28;
       applyBlademasterSignatureVfx(blademasterSignature, pose, camera.quaternion, tempC);
@@ -593,7 +341,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const u = clamp01(local / TIER3_SWORD_TIMING.berserkerAttack);
       const pose = getBerserkerAttackMotion(u);
       root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       tempC.copy(dummyHome);
       tempC.y = 0.13;
       applyBerserkerSignatureVfx(berserkerSignature, pose, camera.quaternion, tempC);
@@ -604,7 +352,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const attackTime = Math.min(local, TIER3_BOW_TIMING.sniperAttack);
       const u = clamp01(attackTime / TIER3_BOW_TIMING.sniperAttack);
       const pose = getSniperAttackMotion(u);
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       root.updateMatrixWorld(true);
       if (parts.projectileOrigin) parts.projectileOrigin.getWorldPosition(tempA);
       else if (parts.equipment) parts.equipment.getWorldPosition(tempA);
@@ -630,7 +378,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const pose = getStormArcherAttackMotion(u);
       tempC.set(-forward.z, 0, forward.x);
       root.position.copy(GALLERY_HOME).addScaledVector(tempC, pose.bodyOffset);
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       root.updateMatrixWorld(true);
       if (parts.projectileOrigin) parts.projectileOrigin.getWorldPosition(tempA);
       else if (parts.equipment) parts.equipment.getWorldPosition(tempA);
@@ -658,7 +406,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const u = clamp01(local / TIER3_DEFENSE_TIMING.paladinAttack);
       const pose = getPaladinAttackMotion(u);
       root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       root.updateMatrixWorld(true);
       if (parts.equipment) parts.equipment.getWorldPosition(tempA);
       else tempA.copy(root.position);
@@ -670,7 +418,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const u = clamp01(local / TIER3_DEFENSE_TIMING.fortressAttack);
       const pose = getFortressAttackMotion(u);
       root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       applyFortressSignatureVfx(fortressSignature, pose, camera.quaternion, root.position);
       return;
     }
@@ -679,7 +427,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const u = clamp01(local / TIER3_MAGIC_TIMING.archmageAttack);
       const pose = getArchmageAttackMotion(u);
       root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       applyMageRunePose(
         parts.mageRune,
         parts.mageRuneBaseQuaternion,
@@ -697,7 +445,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const u = clamp01(local / TIER3_MAGIC_TIMING.frostMageAttack);
       const pose = getFrostMageAttackMotion(u);
       root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       root.updateMatrixWorld(true);
       if (parts.spellOrigin) parts.spellOrigin.getWorldPosition(tempA);
       else if (parts.equipment) parts.equipment.getWorldPosition(tempA);
@@ -716,7 +464,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
         .addScaledVector(forward, pose.bodyOffset)
         .addScaledVector(tempC, pose.lateralOffset);
       root.visible = pose.bodyAlpha > 0.08;
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       applyEquipmentPose(
         parts.secondaryEquipment,
         parts.secondaryEquipmentBaseQuaternion,
@@ -740,7 +488,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       root.position.lerpVectors(GALLERY_HOME, tempD, pose.behindTargetProgress)
         .addScaledVector(tempC, pose.lateralOffset);
       root.visible = pose.bodyAlpha > 0.08;
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       applyEquipmentPose(
         parts.secondaryEquipment,
         parts.secondaryEquipmentBaseQuaternion,
@@ -758,7 +506,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const u = clamp01(local / CANNONEER_SIGNATURE_TIMING.duration);
       const pose = getCannoneerSignatureMotion(u);
       root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       root.updateMatrixWorld(true);
       if (parts.auxiliaryMuzzle) parts.auxiliaryMuzzle.getWorldPosition(tempA);
       else if (parts.projectileOrigin) parts.projectileOrigin.getWorldPosition(tempA);
@@ -774,7 +522,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const u = clamp01(local / ENGINEER_SIGNATURE_TIMING.duration);
       const pose = getEngineerSignatureMotion(u);
       root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
 
       if (parts.auxiliaryRoot) {
         parts.auxiliaryRoot.visible = pose.turret.visibility > 0.01;
@@ -813,9 +561,9 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
         const pose = getRangerAttackMotion(attackU);
         tempB.set(-forward.z, 0, forward.x);
         root.position.copy(GALLERY_HOME).addScaledVector(tempB, pose.lateralOffset);
-        applyPose(parts, definition, pose);
+        applyGalleryPose(parts, definition, pose);
       } else {
-        applyPose(parts, definition, getIdleMotion(local, 1.32));
+        applyGalleryPose(parts, definition, getIdleMotion(local, 1.32));
       }
       for (const shotIndex of [0, 1] as const) {
         const releaseAt = SLIME_MOTION_TIMING.rangerAttack * getRangerShotReleaseU(shotIndex);
@@ -840,9 +588,9 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const attackTime = Math.min(local, SLIME_MOTION_TIMING.bowAttack);
       const attackU = clamp01(attackTime / SLIME_MOTION_TIMING.bowAttack);
       if (attackTime < SLIME_MOTION_TIMING.bowAttack) {
-        applyPose(parts, definition, getBowAttackMotion(attackU));
+        applyGalleryPose(parts, definition, getBowAttackMotion(attackU));
       } else {
-        applyPose(parts, definition, getIdleMotion(local, 1.1));
+        applyGalleryPose(parts, definition, getIdleMotion(local, 1.1));
       }
       const releaseAt = SLIME_MOTION_TIMING.bowAttack * SLIME_MOTION_THRESHOLDS.bowReleaseU;
       if (local >= releaseAt) {
@@ -864,7 +612,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const u = clamp01(local / SLIME_MOTION_TIMING.guardianAttack);
       const pose = getGuardianAttackMotion(u);
       root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       guardPulse.position.copy(root.position);
       guardPulse.position.y = 0.025;
       applyGuardPulseVfx(guardPulse, pose.guardPulse, pose.guardPulseProgress);
@@ -876,7 +624,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const u = clamp01(attackTime / SLIME_MOTION_TIMING.mageAttack);
       const pose = getMageAttackMotion(u);
       root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       applyMageRunePose(parts.mageRune, parts.mageRuneBaseQuaternion, parts.mageRuneBaseScale, pose.runeRotation, pose.runePulse);
       root.updateMatrixWorld(true);
       if (parts.spellOrigin) parts.spellOrigin.getWorldPosition(tempA);
@@ -903,7 +651,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       root.position.copy(GALLERY_HOME)
         .addScaledVector(forward, pose.bodyOffset)
         .addScaledVector(tempB, pose.lateralOffset);
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       applyEquipmentPose(
         parts.secondaryEquipment,
         parts.secondaryEquipmentBaseQuaternion,
@@ -924,7 +672,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const u = clamp01(attackTime / SLIME_MOTION_TIMING.gunnerAttack);
       const pose = getGunnerAttackMotion(u);
       root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       root.updateMatrixWorld(true);
       for (const shotIndex of [0, 1, 2] as const) {
         const releaseAt = SLIME_MOTION_TIMING.gunnerAttack * getGunnerShotReleaseU(shotIndex);
@@ -966,14 +714,14 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const u = clamp01(local / SLIME_MOTION_TIMING.shieldAttack);
       const pose = getShieldAttackMotion(u);
       root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       return;
     }
 
     if (definition.modelKind === 'wand') {
       const attackTime = Math.min(local, SLIME_MOTION_TIMING.wandAttack);
       const attackU = clamp01(attackTime / SLIME_MOTION_TIMING.wandAttack);
-      applyPose(parts, definition, getWandAttackMotion(attackU));
+      applyGalleryPose(parts, definition, getWandAttackMotion(attackU));
       root.updateMatrixWorld(true);
       const releaseAt = SLIME_MOTION_TIMING.wandAttack * SLIME_MOTION_THRESHOLDS.wandReleaseU;
       if (local >= releaseAt) {
@@ -992,7 +740,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const u = clamp01(local / SLIME_MOTION_TIMING.daggerAttack);
       const pose = getDaggerAttackMotion(u);
       root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       return;
     }
 
@@ -1001,7 +749,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const attackU = clamp01(attackTime / SLIME_MOTION_TIMING.gunAttack);
       const pose = getGunAttackMotion(attackU);
       root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       root.updateMatrixWorld(true);
       const releaseAt = SLIME_MOTION_TIMING.gunAttack * SLIME_MOTION_THRESHOLDS.gunReleaseU;
       if (local >= releaseAt) {
@@ -1027,7 +775,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const u = clamp01(local / SLIME_MOTION_TIMING.fighterAttack);
       const pose = getFighterAttackMotion(u);
       root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       root.updateMatrixWorld(true);
       if (pose.releaseProgress >= 0 && parts.weaponTip) {
         parts.weaponTip.getWorldPosition(tempA);
@@ -1047,7 +795,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const u = clamp01(local / SLIME_MOTION_TIMING.greatswordAttack);
       const pose = getGreatswordAttackMotion(u);
       root.rotation.y = baseYaw + pose.rootYawOffset;
-      applyPose(parts, definition, pose);
+      applyGalleryPose(parts, definition, pose);
       const spinVfx = getGreatswordSpinVfxPose(pose, 2);
       if (spinVfx.visible) {
         spin.visible = true;
@@ -1064,7 +812,7 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
     const u = clamp01(local / SLIME_MOTION_TIMING.swordAttack);
     const pose = getSwordAttackMotion(u);
     root.position.copy(GALLERY_HOME).addScaledVector(forward, pose.bodyOffset);
-    applyPose(parts, definition, pose);
+    applyGalleryPose(parts, definition, pose);
     root.updateMatrixWorld(true);
     if (pose.releaseProgress >= 0 && parts.weaponTip) {
       parts.weaponTip.getWorldPosition(tempA);
@@ -1132,7 +880,7 @@ export function GalleryStage(props: StageProps) {
         <fog attach="fog" args={['#eff5e8', 5.5, 11]} />
         <ambientLight intensity={2.0} />
         <directionalLight position={[-3, 5, 4]} intensity={4.1} castShadow />
-        <CameraRig mode={props.cameraMode} motion={props.motion} definition={props.definition} />
+        <GalleryCameraRig mode={props.cameraMode} motion={props.motion} definition={props.definition} />
         <Suspense fallback={null}>
           <GalleryModel {...props} />
         </Suspense>
