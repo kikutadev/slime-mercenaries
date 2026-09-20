@@ -1,6 +1,6 @@
 # Plain Slime — Rive Spike
 
-Status: prototype  
+Status: prototype
 Date: 2026-09-17
 
 ## Goal
