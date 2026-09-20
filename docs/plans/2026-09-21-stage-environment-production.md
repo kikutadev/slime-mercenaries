@@ -1,6 +1,6 @@
 # Stage Environment Production Roadmap
 
-Status: Production implementation complete locally — 8 Area kits / 40 Stage layouts verified; public deploy pending
+Status: Production complete — 8 Area kits / 40 Stage layouts publicly verified
 Date: 2026-09-21
 
 ## Goal
@@ -120,9 +120,10 @@ Stage progression:
 - [x] full Vitest gate passes: **58 files / 365 tests**
 - [x] TypeScript typecheck passes
 - [x] production build passes
-- [ ] production deploy to `games.kikuta.dev`
-- [ ] public 8-kit SHA-256 verification
-- [ ] public 40-stage Gallery recapture / browser-error verification
+- [x] production deploy to `games.kikuta.dev`
+- [x] public **8/8 kit SHA-256 hashes** match committed local artifacts byte-for-byte
+- [x] public **8 Areas × 5 Stages = 40-frame** Gallery recapture passes with 40 unique hashes and no browser/page/resource errors
+- [x] deployment Worker version: `99fddc71-62e7-49ad-ba20-c4497944ccdb`
 
 ### Generated kits
 
