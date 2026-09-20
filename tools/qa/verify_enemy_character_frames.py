@@ -13,6 +13,7 @@ IDS = (
     "puff-frog","marsh-sprout","bubble-snail","skimming-lily","great-marsh-frog",
     "snow-roller","ice-bug","scarf-snowman","icicle-lantern","snow-statue-guardian",
     "ember-gecko","charcoal-roller","crackle-bug","magma-crab","furnace-turtle",
+    "round-sentry","shield-sentry","bell-mage","windup-bat","moon-crown-knight",
 )
 MOTIONS = ("idle","attack","defeat")
 BACKGROUND = (239,245,232)

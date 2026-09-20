@@ -157,6 +157,63 @@ Area 6の新要素は **elemental after-effect**。火炎particleを増やして
 - Secondaryはshell vent → short `furnace-flame` → recoil。広い持続beam禁止
 - Defeatはfurnace close → core fade → turtle heavy sit。通常亀のroll defeat禁止
 
+## Area 7 — Moonlit Castle contracts
+
+Area 7の新要素は **stop → burst と装備の慣性差**。装飾量で強く見せるのではなく、玩具のような大きい一個の装備massと「止まってから一気に動く」リズムを主役にする。現実的な甲冑人体・細い手足・多数の装飾は使わない。
+
+| Character | First read | Geometry hard gate | Motion hard gate |
+| --- | --- | --- | --- |
+| **ころ兵** `round-sentry` | 全高の大半を占める丸helmet + tiny body + 一個の短槍 | z/x 1.05–1.35、Helmet高58–72%、Body高24–38%、SpearTip必須、13–16 meshes、shield/cape/wing禁止 | spear pullback → **0.10s以上still** → fast thrust → helmet delayed catch-up。Attack 0.92–1.08s |
+| **たて兵** `shield-sentry` | 前面のほとんどを覆う一枚のround shield + 上から覗く小さいhelmet | x/z 1.10–1.42、RoundShield幅94–101%、Body幅32–50%、13–16 meshes、spear/cape禁止 | plant → shield brace → still hold → short bash → shield rebound。Attack 1.00–1.18s |
+| **ベル魔導兵** `bell-mage` | 足のない縦長bell body + 一個のclapper | z/x 1.28–1.58、BellBody高58–70%、Clapper高12–22%、10–13 meshes、feet/held weapon禁止 | swing left → swing right → **center stop** → sound ring 1発 → clapper after-ring。Attack 1.18–1.38s |
+| **ぜんまいコウモリ** `windup-bat` | 極端に横長のtoy bat + 片側へ飛び出す大きいwinding key | x/z 2.10–2.75、WingPair全幅88–101%、Key幅22–36%、13–16 meshes、realistic 6-joint wing禁止 | full stop → key reverse-wind → hold → release → burst / moon bolt 1発 → wing catch-up。Attack 0.98–1.14s |
+| **月冠の騎士** `moon-crown-knight` | giant helmet + broad cape + 頭上の一個のcrescent crown。short bodyのBoss | x/z 1.08–1.38、全幅≥1.35 / 全高≥1.25、Cape幅80–96%、Helmet幅52–68%、16–20 meshes、Arm/Leg/Hand/Foot禁止 | low stance → cape nearly still → instant dash → stop → **0.10–0.16s delayed slash line** → cape catch-up。Attack ≥1.65s / Defeat ≥1.75s |
+
+### Area 7 per-character detail
+
+**ころ兵**
+- `HeadRoot` = helmet mass。FaceRootもHeadRoot配下に置き、helmetの遅れと顔を一体化する
+- `PrimaryRoot` = SpearRoot。槍は一本だけ、細い長槍ではなく短く太いtoy spear
+- bodyはhelmetより明確に小さく、肩・腕・脚を追加してhuman proportionへ寄せない
+- Moveは左右step cycleではなく短いtoy hop
+- Hitはhelmetが先に傾き、bodyが一拍遅れて戻る
+- Defeatはhelmetがbodyへ被さるようにtip over。×目はhelmet面に残る
+- projectile禁止
+
+**たて兵**
+- `ShellRoot` = ShieldRoot。RoundShield一枚がfirst read
+- shield rim / center bossは許可するが、小盾や二枚盾は禁止
+- bodyは盾上から顔が見えるだけの小mass。手足を盾脇へ伸ばさない
+- Attackはbrace中に0.10秒以上静止してから一歩だけbash
+- Hitはbodyを飛ばさず、shieldが一度だけ受けて戻る
+- Defeatはshieldが前へ倒れ、body/×目が上から少し見える
+- projectile禁止
+
+**ベル魔導兵**
+- `PrimaryRoot` = BellRoot、`SecondaryRoot` = ClapperRoot。外殻とclapperの位相差を必須にする
+- bellは一体の台形mass + rounded crown。robe / feet / wandを付けない
+- Idleは非常に遅いpendulum。Moveは上下floatのみ
+- Attackは左右一往復を読ませた後、中央で完全停止してから一個の`castle-sound-ring`
+- Defeatは弱い一振りだけ残して接地。violent spin禁止
+
+**ぜんまいコウモリ**
+- `WingPairRoot`がwing silhouette、`TailRoot`がwinding key。keyは片側に寄せて左右対称にしない
+- wingは左右一枚ずつの大きなtoy plate。finger boneや膜の細分化は禁止
+- keyはstem + 横bar + 2丸knobまで。gear teethを増やさない
+- Attack前半はbody/wingをほぼ止め、keyだけreverse-windする
+- release後に一個の`castle-moon-bolt`を飛ばし、その後wingが遅れて開く
+- Defeatはkey停止 → wing fold → body soft drop
+
+**月冠の騎士**
+- tall humanoid禁止。helmetとcapeが全体massの大半を占め、bodyは短い
+- `HeadRoot` = giant helmet、`TailRoot` = cape root、`PrimaryRoot` = MoonBlade
+- crescent crownは頭上に一個だけ。horn / feather / crown jewelの追加で豪華さを作らない
+- Moveはslow entrance相当の短いglide + cape lag
+- Signature Attackはdash contactとslash-line releaseを分離し、slash lineはstop後0.10–0.16秒遅らせる
+- capeはdash中はほぼ静止し、slash後に追いつく。速度だけ上げたBossは禁止
+- Defeatはweapon lower → cape tension loss → helmet/body sit。violent collapse / weapon separation禁止
+
+
 ## Executable sources
 
 - Geometry contract: `tools/blender/enemies/definitions/*.py`

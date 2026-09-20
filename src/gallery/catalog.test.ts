@@ -58,6 +58,11 @@ const EXPECTED_MOTIONS: Readonly<Record<string, readonly string[]>> = {
   'crackle-bug': ['idle', 'move', 'attack', 'hit', 'defeat'],
   'magma-crab': ['idle', 'move', 'attack', 'hit', 'defeat'],
   'furnace-turtle': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'round-sentry': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'shield-sentry': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'bell-mage': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'windup-bat': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'moon-crown-knight': ['idle', 'move', 'attack', 'hit', 'defeat'],
 };
 
 describe('slime gallery catalog', () => {
