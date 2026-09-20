@@ -14,23 +14,23 @@ import {
 } from './simulator';
 
 describe('same-core first-loop simulation', () => {
-  it('reaches first Fusion and the Clover Road boss through production commands', () => {
+  it('reaches first Fusion and clears Clover Road through production commands', () => {
     const result = runFirstLoopSimulation(11, 900);
     const hits = Object.fromEntries(result.milestoneHits.map((hit) => [hit.id, hit.simTimeSec]));
 
     expect(hits['first-sword']).toBeDefined();
     expect(hits['first-sword-core']).toBeDefined();
     expect(hits['first-fusion']).toBeDefined();
-    expect(hits['clover-road-boss']).toBeDefined();
-    expect(highestStageClearedForArea(result.finalState.gameData.progression)).toBe(5);
-    expect(result.stopReason).toBe('content-boundary');
+    expect(hits['clover-road-clear']).toBeDefined();
+    expect(highestStageClearedForArea(result.finalState.gameData.progression, 'area.clover-road')).toBe(5);
+    expect(result.stopReason).toBe('clover-road-clear');
   });
 
   it('exercises defeat -> retreat -> farm -> strengthen -> retry through the same production domain', () => {
     const result = runDefeatLoopSimulation(11, 900);
     const summary = summarizeFirstLoopSimulation(11, 'defeat-loop', result);
 
-    expect(summary.stopReason).toBe('content-boundary');
+    expect(summary.stopReason).toBe('clover-road-clear');
     expect(summary.highestStageCleared).toBe(5);
     expect(summary.firstDefeatSec).not.toBeNull();
     expect(summary.defeats).toBeGreaterThanOrEqual(1);
@@ -39,8 +39,8 @@ describe('same-core first-loop simulation', () => {
     expect(summary.retries).toBeGreaterThanOrEqual(1);
     expect(summary.levelUps).toBeGreaterThan(0);
     expect(summary.defeatsByStage['3']).toBeGreaterThanOrEqual(1);
-    expect(summary.cloverRoadBossSec).not.toBeNull();
-    expect(summary.firstDefeatSec!).toBeLessThan(summary.cloverRoadBossSec!);
+    expect(summary.cloverRoadClearSec).not.toBeNull();
+    expect(summary.firstDefeatSec!).toBeLessThan(summary.cloverRoadClearSec!);
   });
 
   it('keeps the defeat-loop simulator deterministic for the same seed', () => {

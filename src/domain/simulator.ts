@@ -78,6 +78,7 @@ export function createFirstLoopPolicy(
     id: `slime-mercenaries.first-loop-${profileId}`,
     version: '2',
     chooseAction: (state) => {
+      if (state.gameData.progression.currentAreaId !== 'area.clover-road') return { kind: 'stop', reason: 'clover-road-clear' };
       if (state.gameData.combat.contentBoundaryReached) return { kind: 'stop', reason: 'content-boundary' };
 
       const sword = firstSlimeByType(state, 'sword');
@@ -150,7 +151,7 @@ export const firstLoopMilestones: readonly SimulatorMilestone<SlimeMercenariesSt
   { id: 'first-sword-core', reached: (state) => readToken(state.tokens, ids.token.swordCore) > 0 },
   { id: 'first-fusion', reached: (state) => (firstSlimeByType(state, 'sword')?.fusionRank ?? 0) >= 2 },
   { id: 'first-defeat', reached: (state) => state.gameData.combat.retryFarmClearsRemaining > 0 },
-  { id: 'clover-road-boss', reached: (state) => highestStageClearedForArea(state.gameData.progression) >= 5 },
+  { id: 'clover-road-clear', reached: (state) => highestStageClearedForArea(state.gameData.progression, 'area.clover-road') >= 5 },
 ];
 
 export function runFirstLoopSimulation(
@@ -178,7 +179,7 @@ export type FirstLoopSimulationSummary = Readonly<{
   simTimeSec: number;
   highestStageCleared: number;
   firstFusionSec: number | null;
-  cloverRoadBossSec: number | null;
+  cloverRoadClearSec: number | null;
   firstDefeatSec: number | null;
   firstFarmClearSec: number | null;
   firstRetrySec: number | null;
@@ -235,9 +236,9 @@ export function summarizeFirstLoopSimulation(
     profileId,
     stopReason: run.stopReason,
     simTimeSec: run.finalState.simTimeSec,
-    highestStageCleared: highestStageClearedForArea(run.finalState.gameData.progression),
+    highestStageCleared: highestStageClearedForArea(run.finalState.gameData.progression, 'area.clover-road'),
     firstFusionSec: milestoneTime('first-fusion'),
-    cloverRoadBossSec: milestoneTime('clover-road-boss'),
+    cloverRoadClearSec: milestoneTime('clover-road-clear'),
     firstDefeatSec,
     firstFarmClearSec,
     firstRetrySec,
@@ -277,13 +278,13 @@ export const firstLoopBalanceTargets: readonly BalanceTargetDefinition[] = [
     maxSec: balance.targets.firstFusion.maxSec,
   },
   {
-    id: 'target.clover-road-boss.p90',
+    id: 'target.clover-road-clear.p90',
     kind: 'milestone-time',
     profileId: FIRST_LOOP_PROFILE_ID,
-    milestoneId: 'clover-road-boss',
+    milestoneId: 'clover-road-clear',
     percentile: 'p90',
-    minSec: balance.targets.cloverRoadBoss.minSec,
-    maxSec: balance.targets.cloverRoadBoss.maxSec,
+    minSec: balance.targets.cloverRoadClear.minSec,
+    maxSec: balance.targets.cloverRoadClear.maxSec,
   },
   {
     id: 'target.first-loop-no-action.p90',
@@ -305,13 +306,13 @@ export const defeatLoopBalanceTargets: readonly BalanceTargetDefinition[] = [
     maxSec: balance.targets.defeatLoop.firstDefeat.maxSec,
   },
   {
-    id: 'target.defeat-loop.clover-road-boss.p90',
+    id: 'target.defeat-loop.clover-road-clear.p90',
     kind: 'milestone-time',
     profileId: DEFEAT_LOOP_PROFILE_ID,
-    milestoneId: 'clover-road-boss',
+    milestoneId: 'clover-road-clear',
     percentile: 'p90',
-    minSec: balance.targets.defeatLoop.cloverRoadBoss.minSec,
-    maxSec: balance.targets.defeatLoop.cloverRoadBoss.maxSec,
+    minSec: balance.targets.defeatLoop.cloverRoadClear.minSec,
+    maxSec: balance.targets.defeatLoop.cloverRoadClear.maxSec,
   },
   {
     id: 'target.defeat-loop.defeats.p90',
@@ -361,13 +362,13 @@ export const pacedDefeatBalanceTargets: readonly BalanceTargetDefinition[] = [
     maxSec: balance.targets.pacedDefeat.firstDefeat.maxSec,
   },
   {
-    id: 'target.paced-defeat.clover-road-boss.p90',
+    id: 'target.paced-defeat.clover-road-clear.p90',
     kind: 'milestone-time',
     profileId: PACED_DEFEAT_PROFILE_ID,
-    milestoneId: 'clover-road-boss',
+    milestoneId: 'clover-road-clear',
     percentile: 'p90',
-    minSec: balance.targets.pacedDefeat.cloverRoadBoss.minSec,
-    maxSec: balance.targets.pacedDefeat.cloverRoadBoss.maxSec,
+    minSec: balance.targets.pacedDefeat.cloverRoadClear.minSec,
+    maxSec: balance.targets.pacedDefeat.cloverRoadClear.maxSec,
   },
   {
     id: 'target.paced-defeat.defeats.p90',
@@ -407,16 +408,16 @@ export const pacedDefeatBalanceTargets: readonly BalanceTargetDefinition[] = [
 
 /** Evaluate authored efficient first-loop target bands across deterministic seeds. */
 export function evaluateFirstLoopBalance(seeds: readonly number[] = Array.from({ length: 20 }, (_, index) => index + 1)) {
-  return evaluateProfileBalance('efficient', seeds, firstLoopBalanceTargets, balance.targets.cloverRoadBoss.maxSec * 3);
+  return evaluateProfileBalance('efficient', seeds, firstLoopBalanceTargets, balance.targets.cloverRoadClear.maxSec * 3);
 }
 
 /** Evaluate the authored defeat -> retreat -> farm -> retry loop across deterministic seeds. */
 export function evaluateDefeatLoopBalance(seeds: readonly number[] = Array.from({ length: 20 }, (_, index) => index + 1)) {
-  return evaluateProfileBalance('defeat-loop', seeds, defeatLoopBalanceTargets, balance.targets.defeatLoop.cloverRoadBoss.maxSec * 3);
+  return evaluateProfileBalance('defeat-loop', seeds, defeatLoopBalanceTargets, balance.targets.defeatLoop.cloverRoadClear.maxSec * 3);
 }
 
 export function evaluatePacedDefeatBalance(seeds: readonly number[] = Array.from({ length: 20 }, (_, index) => index + 1)) {
-  return evaluateProfileBalance('paced-defeat', seeds, pacedDefeatBalanceTargets, balance.targets.pacedDefeat.cloverRoadBoss.maxSec * 2);
+  return evaluateProfileBalance('paced-defeat', seeds, pacedDefeatBalanceTargets, balance.targets.pacedDefeat.cloverRoadClear.maxSec * 2);
 }
 
 function evaluateProfileBalance(

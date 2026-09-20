@@ -256,6 +256,7 @@ function resolveNormalWave(
   nextState = random.state;
   const waveNumber = state.gameData.combat.currentWaveIndex + 1;
   const events: DomainEvent[] = [semanticEvent(nextState, 'combatWaveCleared', `${stage.id}:${waveNumber}`, {
+    areaId: stage.areaId,
     stageId: stage.id,
     stageNumber: stage.stageNumber,
     waveNumber,
@@ -288,6 +289,7 @@ function resolveBoss(
     state: completed.state,
     events: [
       semanticEvent(nextState, 'bossDefeated', stage.id, {
+        areaId: stage.areaId,
         stageId: stage.id,
         stageNumber: stage.stageNumber,
         grantedRewards: describeSlimeProductRewards(boss.rewards),
@@ -335,6 +337,7 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
     };
 
     const events: DomainEvent[] = [semanticEvent(nextState, 'stageCleared', stage.id, {
+      areaId: stage.areaId,
       stageId: stage.id,
       stageNumber: stage.stageNumber,
       nextAreaId: stage.areaId,
@@ -345,6 +348,7 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
     })];
     if (retryingFrontier) {
       events.push(semanticEvent(nextState, 'frontierRetryStarted', `${frontierStage.stageNumber}`, {
+        areaId: frontierStage.areaId,
         stageId: frontierStage.id,
         stageNumber: frontierStage.stageNumber,
       }));
@@ -442,6 +446,7 @@ function resolveFrontierBreakthroughDeferred(
   return {
     state: nextState,
     events: [semanticEvent(nextState, 'frontierBreakthroughDeferred', `${frontierStage}:${farmStage}`, {
+      areaId: state.gameData.progression.currentAreaId,
       frontierStageNumber: frontierStage,
       farmStageNumber: farmStage,
       retryFarmClears: balance.combat.frontier.retryFarmClears,
@@ -477,11 +482,13 @@ function resolveFrontierDefeat(
     state: nextState,
     events: [
       semanticEvent(nextState, 'partyDefeated', `${failedStage}`, {
+        areaId: state.gameData.progression.currentAreaId,
         stageNumber: failedStage,
         requiredPartyPower,
         currentPartyPower,
       }),
       semanticEvent(nextState, 'stageRetreated', `${failedStage}:${farmStage}`, {
+        areaId: state.gameData.progression.currentAreaId,
         failedStageNumber: failedStage,
         farmStageNumber: farmStage,
         retryFarmClears: balance.combat.frontier.retryFarmClears,

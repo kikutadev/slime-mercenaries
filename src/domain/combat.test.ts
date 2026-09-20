@@ -10,7 +10,7 @@ import {
   partyCombatPower,
 } from './combat';
 import { balance } from './balance';
-import { cloverRoadStageDefinitions, ids } from './definitions';
+import { areaDefinitions, ids } from './definitions';
 import { firstSlimeIdByType } from './roster';
 import { createInitialSlimeMercenariesState, highestStageClearedForArea, type SlimeMercenariesState } from './state';
 
@@ -89,7 +89,7 @@ describe('analytical combat progression', () => {
     expect(nextCombatBoundarySec(defeated.state)).not.toBeNull();
   });
 
-  it('uses the same retreat loop for the stage-5 boss frontier', () => {
+  it('uses the same retreat loop for the stage-5 frontier', () => {
     const defeated = advanceUntilEvent(withSwordLevel(createSwordParty(), 4), 'partyDefeated');
 
     expect(highestStageClearedForArea(defeated.state.gameData.progression)).toBe(4);
@@ -139,8 +139,8 @@ describe('analytical combat progression', () => {
 
   it('breaks through the frontier after growth during the retreat farm cycle', () => {
     let state = advanceUntilEvent(createSwordParty(), 'partyDefeated').state;
-    const requiredPower = cloverRoadStageDefinitions[4]?.boss?.requiredPartyPower;
-    if (requiredPower === undefined) throw new Error('test setup: missing stage-5 boss');
+    const requiredPower = areaDefinitions['area.clover-road'].stages[4]?.requiredPartyPower;
+    if (requiredPower === undefined) throw new Error('test setup: missing stage-5 frontier gate');
 
     while (partyCombatPower(state).compare(requiredPower) < 0) {
       const swordId = firstSlimeIdByType(state, 'sword');
@@ -151,11 +151,13 @@ describe('analytical combat progression', () => {
     }
 
     state = advanceUntilFrontierRetry(state);
-    state = advanceUntilHighestStageCleared(state, 5);
+    state = advanceUntilHighestStageCleared(state, 5, 'area.clover-road');
 
-    expect(highestStageClearedForArea(state.gameData.progression)).toBe(5);
+    expect(highestStageClearedForArea(state.gameData.progression, 'area.clover-road')).toBe(5);
+    expect(state.gameData.progression.currentAreaId).toBe('area.mushroom-forest');
+    expect(state.gameData.progression.currentStage).toBe(1);
     expect(state.gameData.combat.retryFarmClearsRemaining).toBe(0);
-    expect(state.gameData.combat.contentBoundaryReached).toBe(true);
+    expect(state.gameData.combat.contentBoundaryReached).toBe(false);
   });
 
   it('resolves the same frontier defeat under one-second live ticks', () => {
@@ -239,10 +241,14 @@ function advanceUntilFrontierRetry(initial: SlimeMercenariesState): SlimeMercena
   throw new Error('frontier retry was not reached within the test guard');
 }
 
-function advanceUntilHighestStageCleared(initial: SlimeMercenariesState, targetStage: number): SlimeMercenariesState {
+function advanceUntilHighestStageCleared(
+  initial: SlimeMercenariesState,
+  targetStage: number,
+  areaId = initial.gameData.progression.currentAreaId,
+): SlimeMercenariesState {
   let state = initial;
   for (let guard = 0; guard < 300; guard += 1) {
-    if (highestStageClearedForArea(state.gameData.progression) >= targetStage) return state;
+    if (highestStageClearedForArea(state.gameData.progression, areaId) >= targetStage) return state;
     state = advanceCombatTo(state, requireCombatBoundary(state)).state;
   }
   throw new Error(`stage ${targetStage} was not cleared within the test guard`);

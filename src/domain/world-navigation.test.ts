@@ -21,20 +21,24 @@ describe('world navigation', () => {
     expect(enterAreaStage(state, 'area.clover-road', 4)).toMatchObject({ accepted: false, reason: 'locked-stage' });
   });
 
-  it('keeps future areas inaccessible until both unlocked and backed by stage content', () => {
+  it('unlocks the next authored area only after the preceding area is fully cleared', () => {
     const initial = createInitialSlimeMercenariesState(0, 42);
     expect(enterAreaStage(initial, 'area.mushroom-forest', 1)).toMatchObject({ accepted: false, reason: 'locked-area' });
-    const unlocked = {
+
+    const clearedClover = {
       ...initial,
       gameData: {
         ...initial.gameData,
-        progression: {
-          ...initial.gameData.progression,
-          currentAreaId: 'area.mushroom-forest',
-          currentStage: 1,
-        },
+        progression: withHighestStageClearedForArea(initial.gameData.progression, 'area.clover-road', 5),
       },
     };
-    expect(enterAreaStage(unlocked, 'area.mushroom-forest', 1)).toMatchObject({ accepted: false, reason: 'no-content' });
+    expect(maxSelectableStageForArea(clearedClover, 'area.mushroom-forest')).toBe(1);
+
+    const entered = enterAreaStage(clearedClover, 'area.mushroom-forest', 1);
+    expect(entered.accepted).toBe(true);
+    if (!entered.accepted) return;
+    expect(entered.state.gameData.progression.currentAreaId).toBe('area.mushroom-forest');
+    expect(entered.state.gameData.progression.currentStage).toBe(1);
+    expect(entered.state.gameData.combat.contentBoundaryReached).toBe(false);
   });
 });

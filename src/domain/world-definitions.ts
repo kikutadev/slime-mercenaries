@@ -33,38 +33,69 @@ export type StageDefinition = Readonly<{
   clearRewards: readonly SlimeProductReward[];
 }>;
 
-function stageClearRewards(clearReward: Readonly<Record<string, number>>): readonly SlimeProductReward[] {
+type ClearRewardKey =
+  | 'slimeGel'
+  | 'lifeWater'
+  | 'trainingSword'
+  | 'trainingBow'
+  | 'greatswordBlank'
+  | 'hardeningGel'
+  | 'forgeKey'
+  | 'reinforcedBow'
+  | 'temperedSteel';
+
+const TOKEN_BY_CLEAR_REWARD_KEY: Readonly<Record<ClearRewardKey, string>> = {
+  slimeGel: ids.token.slimeGel,
+  lifeWater: ids.token.lifeWater,
+  trainingSword: ids.token.trainingSword,
+  trainingBow: ids.token.trainingBow,
+  greatswordBlank: ids.token.greatswordBlank,
+  hardeningGel: ids.token.hardeningGel,
+  forgeKey: ids.token.forgeKey,
+  reinforcedBow: ids.token.reinforcedBow,
+  temperedSteel: ids.token.temperedSteel,
+};
+
+function stageClearRewards(clearReward: Readonly<Partial<Record<ClearRewardKey, number>>>): readonly SlimeProductReward[] {
   const rewards: SlimeProductReward[] = [];
-  const tokenByKey: Readonly<Record<string, string>> = {
-    slimeGel: ids.token.slimeGel,
-    lifeWater: ids.token.lifeWater,
-    trainingSword: ids.token.trainingSword,
-    trainingBow: ids.token.trainingBow,
-    greatswordBlank: ids.token.greatswordBlank,
-    hardeningGel: ids.token.hardeningGel,
-    forgeKey: ids.token.forgeKey,
-    reinforcedBow: ids.token.reinforcedBow,
-    temperedSteel: ids.token.temperedSteel,
-  };
-  for (const [key, count] of Object.entries(clearReward)) {
-    const tokenId = tokenByKey[key];
+  for (const [key, count] of Object.entries(clearReward) as [ClearRewardKey, number][]) {
+    const tokenId = TOKEN_BY_CLEAR_REWARD_KEY[key];
     if (tokenId === undefined || count <= 0) continue;
     rewards.push({ type: 'token', tokenId, count });
   }
   return rewards;
 }
 
-/**
- * First-area headless progression definitions. Battle presentation may use richer enemy data,
- * but offline/simulator progression reads these same work/reward values.
- */
-export const cloverRoadStageDefinitions: readonly StageDefinition[] = balance.combat.cloverRoad.stages.map((stage, index) => ({
+function normalWaveRandomDrops(areaOrder: number): StageWaveDefinition['randomDrops'] {
+  const lateAreaBonus = Math.max(0, areaOrder - 2);
+  return [
+    {
+      tokenId: ids.token.slimeGel,
+      chance: Math.min(0.48, balance.loot.normalWave.slimeGelChance + lateAreaBonus * 0.025),
+      count: balance.loot.normalWave.slimeGelCount,
+    },
+    {
+      tokenId: ids.token.hardeningGel,
+      chance: Math.min(0.28, balance.loot.normalWave.hardeningGelChance + lateAreaBonus * 0.02),
+      count: balance.loot.normalWave.hardeningGelCount,
+    },
+  ];
+}
+
+function encounterId(areaSlug: string, stageNumber: number, wave: number | 'boss'): string {
+  const stagePart = String(stageNumber).padStart(2, '0');
+  const encounterPart = wave === 'boss' ? 'boss' : String(wave).padStart(2, '0');
+  return `encounter.${areaSlug}.${stagePart}.${encounterPart}`;
+}
+
+/** Area 1 keeps hand-authored onboarding work/reward values. */
+const cloverRoadStages: readonly StageDefinition[] = balance.combat.cloverRoad.stages.map((stage, index) => ({
   id: `stage.clover-road.${String(index + 1).padStart(2, '0')}`,
   areaId: 'area.clover-road',
   stageNumber: index + 1,
   ...(!('requiredPartyPower' in stage) ? {} : { requiredPartyPower: stage.requiredPartyPower }),
   waves: stage.waveWork.map((work, waveIndex) => ({
-    encounterId: `encounter.clover-road.${String(index + 1).padStart(2, '0')}.${String(waveIndex + 1).padStart(2, '0')}`,
+    encounterId: encounterId('clover-road', index + 1, waveIndex + 1),
     work,
     rewards: [{
       type: 'currency',
@@ -72,34 +103,103 @@ export const cloverRoadStageDefinitions: readonly StageDefinition[] = balance.co
       amount: stage.waveGold[waveIndex] ?? 0,
       source: `stage.clover-road.${index + 1}.wave.${waveIndex + 1}`,
     }],
-    randomDrops: [
-      {
-        tokenId: ids.token.slimeGel,
-        chance: balance.loot.normalWave.slimeGelChance,
-        count: balance.loot.normalWave.slimeGelCount,
-      },
-      {
-        tokenId: ids.token.hardeningGel,
-        chance: balance.loot.normalWave.hardeningGelChance,
-        count: balance.loot.normalWave.hardeningGelCount,
-      },
-    ],
+    randomDrops: normalWaveRandomDrops(1),
   })),
-  ...(!('bossWork' in stage) ? {} : {
-    boss: {
-      encounterId: `encounter.clover-road.${String(index + 1).padStart(2, '0')}.boss`,
-      work: stage.bossWork,
-      requiredPartyPower: stage.bossRequiredPower,
+  clearRewards: stageClearRewards(stage.clearReward),
+}));
+
+type CurvedAreaPlan = Readonly<{
+  id: AreaId;
+  order: number;
+  slug: string;
+}>;
+
+const CURVED_AREA_PLANS: readonly CurvedAreaPlan[] = [
+  { id: 'area.mushroom-forest', order: 2, slug: 'mushroom-forest' },
+  { id: 'area.amber-mine', order: 3, slug: 'amber-mine' },
+  { id: 'area.sunken-marsh', order: 4, slug: 'sunken-marsh' },
+  { id: 'area.frost-ruins', order: 5, slug: 'frost-ruins' },
+  { id: 'area.ember-canyon', order: 6, slug: 'ember-canyon' },
+  { id: 'area.moonlit-castle', order: 7, slug: 'moonlit-castle' },
+  { id: 'area.dragon-crater', order: 8, slug: 'dragon-crater' },
+];
+
+function curvedStageClearRewards(areaOrder: number, stageNumber: number): readonly SlimeProductReward[] {
+  if (stageNumber === 1) {
+    return stageClearRewards({ slimeGel: 8 + areaOrder * 2, lifeWater: areaOrder % 2 === 0 ? 1 : 0 });
+  }
+  if (stageNumber === 2) {
+    return stageClearRewards({ hardeningGel: 2 + Math.floor(areaOrder / 3) });
+  }
+  if (stageNumber === 3) {
+    return stageClearRewards({ slimeGel: 6 + areaOrder, temperedSteel: 1 + Math.floor(areaOrder / 4) });
+  }
+  if (stageNumber === 4) {
+    return stageClearRewards({ hardeningGel: 2 + Math.floor(areaOrder / 2), temperedSteel: 2 });
+  }
+  return stageClearRewards({
+    forgeKey: 2 + Math.floor(areaOrder / 3),
+    hardeningGel: 3 + Math.floor(areaOrder / 2),
+    temperedSteel: 2 + Math.floor(areaOrder / 3),
+  });
+}
+
+function buildCurvedAreaStages(plan: CurvedAreaPlan): readonly StageDefinition[] {
+  const curve = balance.combat.worldAreaCurve;
+  const baseWork = curve.baseWaveWorkByAreaOrder[plan.order];
+  const baseGold = curve.baseWaveGoldByAreaOrder[plan.order];
+  const basePower = curve.stagePowerBaseByAreaOrder[plan.order];
+  if (baseWork === undefined || baseGold === undefined || basePower === undefined) {
+    throw new Error(`Missing world-area combat curve values for order ${plan.order}`);
+  }
+
+  return Array.from({ length: 5 }, (_unused, stageIndex): StageDefinition => {
+    const stageNumber = stageIndex + 1;
+    const stageWork = baseWork + stageIndex * curve.stageWorkStep;
+    const stageGold = baseGold + stageIndex * curve.stageGoldStep;
+    const stagePower = basePower + Math.max(0, stageNumber - 3) * curve.stagePowerStep;
+    const waves = curve.waveWorkMultipliers.map((multiplier, waveIndex): StageWaveDefinition => ({
+      encounterId: encounterId(plan.slug, stageNumber, waveIndex + 1),
+      work: Math.round(stageWork * multiplier),
       rewards: [{
         type: 'currency',
         currencyId: ids.currency.gold,
-        amount: stage.bossGold,
-        source: `stage.clover-road.${index + 1}.boss`,
+        amount: Math.round(stageGold * curve.waveGoldMultipliers[waveIndex]!),
+        source: `stage.${plan.slug}.${stageNumber}.wave.${waveIndex + 1}`,
       }],
-    },
-  }),
-  clearRewards: stageClearRewards(stage.clearReward),
-}));
+      randomDrops: normalWaveRandomDrops(plan.order),
+    }));
+
+    const requiredPartyPower = stageNumber >= 3 && stageNumber < 5 ? stagePower : undefined;
+    const boss = stageNumber === 5
+      ? {
+          encounterId: encounterId(plan.slug, stageNumber, 'boss'),
+          work: Math.round(waves[2]!.work * curve.bossWorkMultiplier),
+          requiredPartyPower: basePower + curve.stagePowerStep * 2 + curve.bossPowerBonus,
+          rewards: [{
+            type: 'currency' as const,
+            currencyId: ids.currency.gold,
+            amount: Math.round(stageGold * curve.bossGoldMultiplier),
+            source: `stage.${plan.slug}.5.boss`,
+          }],
+        }
+      : undefined;
+
+    return {
+      id: `stage.${plan.slug}.${String(stageNumber).padStart(2, '0')}`,
+      areaId: plan.id,
+      stageNumber,
+      ...(requiredPartyPower === undefined ? {} : { requiredPartyPower }),
+      waves,
+      ...(boss === undefined ? {} : { boss }),
+      clearRewards: curvedStageClearRewards(plan.order, stageNumber),
+    };
+  });
+}
+
+const curvedStagesByArea = Object.fromEntries(
+  CURVED_AREA_PLANS.map((plan) => [plan.id, buildCurvedAreaStages(plan)]),
+) as Readonly<Record<Exclude<AreaId, 'area.clover-road'>, readonly StageDefinition[]>>;
 
 export type AreaDefinition = Readonly<{
   id: AreaId;
@@ -109,44 +209,67 @@ export type AreaDefinition = Readonly<{
   stages: readonly StageDefinition[];
 }>;
 
-/**
- * Stable first-world area manifest. Planned areas are registered before their combat content so
- * save/progression code never needs area-specific branches when later stages are authored.
- */
 export const areaDefinitions: Readonly<Record<AreaId, AreaDefinition>> = {
   'area.clover-road': {
-    id: 'area.clover-road', order: 1, displayName: 'クローバー街道',
-    nextAreaId: 'area.mushroom-forest', stages: cloverRoadStageDefinitions,
+    id: 'area.clover-road',
+    order: 1,
+    displayName: 'クローバー街道',
+    nextAreaId: 'area.mushroom-forest',
+    stages: cloverRoadStages,
   },
   'area.mushroom-forest': {
-    id: 'area.mushroom-forest', order: 2, displayName: 'Mushroom Forest',
-    nextAreaId: 'area.amber-mine', stages: [],
+    id: 'area.mushroom-forest',
+    order: 2,
+    displayName: 'キノコの森',
+    nextAreaId: 'area.amber-mine',
+    stages: curvedStagesByArea['area.mushroom-forest'],
   },
   'area.amber-mine': {
-    id: 'area.amber-mine', order: 3, displayName: 'Amber Mine',
-    nextAreaId: 'area.sunken-marsh', stages: [],
+    id: 'area.amber-mine',
+    order: 3,
+    displayName: '琥珀鉱山',
+    nextAreaId: 'area.sunken-marsh',
+    stages: curvedStagesByArea['area.amber-mine'],
   },
   'area.sunken-marsh': {
-    id: 'area.sunken-marsh', order: 4, displayName: 'Sunken Marsh',
-    nextAreaId: 'area.frost-ruins', stages: [],
+    id: 'area.sunken-marsh',
+    order: 4,
+    displayName: '沈み沼',
+    nextAreaId: 'area.frost-ruins',
+    stages: curvedStagesByArea['area.sunken-marsh'],
   },
   'area.frost-ruins': {
-    id: 'area.frost-ruins', order: 5, displayName: 'Frost Ruins',
-    nextAreaId: 'area.ember-canyon', stages: [],
+    id: 'area.frost-ruins',
+    order: 5,
+    displayName: '氷雪遺跡',
+    nextAreaId: 'area.ember-canyon',
+    stages: curvedStagesByArea['area.frost-ruins'],
   },
   'area.ember-canyon': {
-    id: 'area.ember-canyon', order: 6, displayName: 'Ember Canyon',
-    nextAreaId: 'area.moonlit-castle', stages: [],
+    id: 'area.ember-canyon',
+    order: 6,
+    displayName: '灼熱峡谷',
+    nextAreaId: 'area.moonlit-castle',
+    stages: curvedStagesByArea['area.ember-canyon'],
   },
   'area.moonlit-castle': {
-    id: 'area.moonlit-castle', order: 7, displayName: 'Moonlit Castle',
-    nextAreaId: 'area.dragon-crater', stages: [],
+    id: 'area.moonlit-castle',
+    order: 7,
+    displayName: '月夜の城',
+    nextAreaId: 'area.dragon-crater',
+    stages: curvedStagesByArea['area.moonlit-castle'],
   },
   'area.dragon-crater': {
-    id: 'area.dragon-crater', order: 8, displayName: 'Dragon Crater',
-    nextAreaId: null, stages: [],
+    id: 'area.dragon-crater',
+    order: 8,
+    displayName: '竜の火口',
+    nextAreaId: null,
+    stages: curvedStagesByArea['area.dragon-crater'],
   },
 };
+
+export const WORLD_STAGE_COUNT = Object.values(areaDefinitions)
+  .reduce((total, area) => total + area.stages.length, 0);
 
 export function resolveAreaDefinition(areaId: string): AreaDefinition | undefined {
   return areaDefinitions[areaId as AreaId];

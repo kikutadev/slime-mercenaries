@@ -6,7 +6,7 @@ import { validationToolsVisible } from '../application/validation-mode';
 import { selectBattleSceneModel, type BattleSceneModel } from '../application/selectors/battle-scene';
 import { selectFormation, selectGlobalHud } from '../application/selectors/ui-selectors';
 import type { BattleSnapshot } from '../game/BattleRuntime';
-import type { SlimeInstanceId } from '../domain';
+import { resolveAreaDefinition, type SlimeInstanceId } from '../domain';
 import type { BattleRewardCue } from '../game/battle-reward';
 import styles from './BattleScreen.module.css';
 
@@ -37,13 +37,14 @@ export function BattleScreen({
   const [sceneModel, setSceneModel] = useState(authoritativeSceneModel);
   const [pendingSceneModel, setPendingSceneModel] = useState<BattleSceneModel | null>(null);
   const [battle, setBattle] = useState<BattleSnapshot>(INITIAL_BATTLE);
-  const [stageArrival, setStageArrival] = useState<number | null>(null);
+  const [stageArrival, setStageArrival] = useState<string | null>(null);
   const latestSceneModelRef = useRef(authoritativeSceneModel);
   const presentedSceneModelRef = useRef(sceneModel);
   const pendingSceneModelRef = useRef<BattleSceneModel | null>(pendingSceneModel);
-  const previousStageRef = useRef(sceneModel.stageNumber);
+  const previousStageRef = useRef({ areaId: sceneModel.areaId, stageNumber: sceneModel.stageNumber });
   const hud = selectGlobalHud(state);
   const formation = selectFormation(state);
+  const sceneAreaLabel = resolveAreaDefinition(sceneModel.areaId)?.displayName ?? sceneModel.areaId;
 
   latestSceneModelRef.current = authoritativeSceneModel;
   presentedSceneModelRef.current = sceneModel;
@@ -113,11 +114,12 @@ export function BattleScreen({
   }, []);
 
   useEffect(() => {
-    const previousStage = previousStageRef.current;
-    previousStageRef.current = sceneModel.stageNumber;
-    if (sceneModel.stageNumber <= previousStage) return;
-    setStageArrival(sceneModel.stageNumber);
-  }, [sceneModel.stageNumber]);
+    const previous = previousStageRef.current;
+    previousStageRef.current = { areaId: sceneModel.areaId, stageNumber: sceneModel.stageNumber };
+    const advanced = sceneModel.areaId !== previous.areaId || sceneModel.stageNumber > previous.stageNumber;
+    if (!advanced) return;
+    setStageArrival(`${sceneModel.areaId}:${sceneModel.stageNumber}`);
+  }, [sceneModel.areaId, sceneModel.stageNumber]);
 
   useEffect(() => {
     if (rewardCue === null) return;
@@ -182,7 +184,7 @@ export function BattleScreen({
 
       <header className={styles.topbar}>
         <div>
-          <p className="eyebrow">{hud.areaLabel} · ステージ {sceneModel.stageNumber}</p>
+          <p className="eyebrow">{sceneAreaLabel} · ステージ {sceneModel.stageNumber}</p>
         </div>
         <div className={styles.resource}><span className={styles.resourceCoin}>G</span><strong>{validationMode ? '∞' : hud.gold}</strong></div>
       </header>

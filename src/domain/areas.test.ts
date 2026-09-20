@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   AREA_IDS,
+  WORLD_STAGE_COUNT,
   areaDefinitions,
   resolveNextAreaDefinition,
   resolveNextWorldStageDefinition,
@@ -23,21 +24,30 @@ describe('first-world area manifest', () => {
     expect(Object.keys(areaDefinitions)).toEqual([...AREA_IDS]);
   });
 
-  it('keeps unauthored areas registered without inventing combat content', () => {
-    for (const areaId of AREA_IDS.slice(1)) {
-      expect(areaDefinitions[areaId].stages).toEqual([]);
+  it('authors five playable stages for every area', () => {
+    expect(WORLD_STAGE_COUNT).toBe(40);
+    for (const areaId of AREA_IDS) {
+      const area = areaDefinitions[areaId];
+      expect(area.stages).toHaveLength(5);
+      expect(area.stages.map((stage) => stage.stageNumber)).toEqual([1, 2, 3, 4, 5]);
+      expect(area.stages.every((stage) => stage.areaId === areaId)).toBe(true);
+      expect(area.stages.every((stage) => stage.waves.length === 3)).toBe(true);
     }
   });
 
-  it('resolves sequential area order without skipping an unauthored area', () => {
+  it('resolves sequential area order through the whole authored world', () => {
     expect(resolveNextAreaDefinition('area.clover-road')?.id).toBe('area.mushroom-forest');
     expect(resolveNextAreaDefinition('area.dragon-crater')).toBeNull();
     expect(resolveNextAreaDefinition('area.unknown')).toBeNull();
-  });
 
-  it('advances within authored content and stops cleanly before unauthored Area 2', () => {
-    expect(resolveNextWorldStageDefinition('area.clover-road', 4)?.stageNumber).toBe(5);
-    expect(resolveNextWorldStageDefinition('area.clover-road', 5)).toBeNull();
+    for (let index = 0; index < AREA_IDS.length - 1; index += 1) {
+      const current = AREA_IDS[index]!;
+      const next = AREA_IDS[index + 1]!;
+      const stage = resolveNextWorldStageDefinition(current, 5);
+      expect(stage?.areaId).toBe(next);
+      expect(stage?.stageNumber).toBe(1);
+    }
+    expect(resolveNextWorldStageDefinition('area.dragon-crater', 5)).toBeNull();
   });
 
   it('initializes per-area save progress for the full registered world', () => {

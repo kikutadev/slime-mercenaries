@@ -98,7 +98,8 @@
     "validate:environment:dragon": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/environments/validate.py -- --area dragon-crater --asset public/assets/environments/dragon-crater-kit.glb",
     "validate:environments": "pnpm run validate:environment:clover && pnpm run validate:environment:mushroom && pnpm run validate:environment:mine && pnpm run validate:environment:marsh && pnpm run validate:environment:frost && pnpm run validate:environment:ember && pnpm run validate:environment:castle && pnpm run validate:environment:dragon",
     "qa:environment:capture": "node tools/qa/capture-stage-environments.cjs",
-    "qa:environment:verify": "python3 tools/qa/verify-stage-environment-frames.py"
+    "qa:environment:verify": "python3 tools/qa/verify-stage-environment-frames.py",
+    "qa:world-battle": "node tools/qa/capture-world-battle-states.cjs"
   },
   "dependencies": {
     "@react-three/fiber": "^9.7.0",

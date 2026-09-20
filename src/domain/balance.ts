@@ -54,6 +54,21 @@ export const balance = {
     },
     fusionPowerMultiplierByRank: [1, 1.55, 2.55, 4.35],
     fusionDpsMultiplierByRank: [1, 1.45, 2.35, 3.75],
+    worldAreaCurve: {
+      // Area 1 retains separate hand-tuned onboarding values. Areas 2-8 use this authored
+      // progression curve until economy/balance tuning is run against real telemetry.
+      baseWaveWorkByAreaOrder: [0, 0, 520, 760, 1040, 1380, 1780, 2240, 2780],
+      stageWorkStep: 145,
+      waveWorkMultipliers: [1, 1.14, 1.31],
+      baseWaveGoldByAreaOrder: [0, 0, 96, 126, 160, 198, 240, 288, 342],
+      stageGoldStep: 14,
+      waveGoldMultipliers: [1, 1.15, 1.34],
+      stagePowerBaseByAreaOrder: [0, 0, 15.5, 20, 27, 36, 48, 64, 84],
+      stagePowerStep: 2.4,
+      bossWorkMultiplier: 2.05,
+      bossPowerBonus: 4.2,
+      bossGoldMultiplier: 2.4,
+    },
     cloverRoad: {
       stages: [
         { waveWork: [60, 70, 80], waveGold: [22, 26, 32], clearReward: { slimeGel: 8, lifeWater: 1, trainingSword: 1 } },
@@ -61,11 +76,9 @@ export const balance = {
         { requiredPartyPower: 10.8, waveWork: [180, 210, 240], waveGold: [44, 52, 62], clearReward: { slimeGel: 8, lifeWater: 1, trainingBow: 1 } },
         { requiredPartyPower: 11.5, waveWork: [260, 300, 340], waveGold: [58, 68, 80], clearReward: { reinforcedBow: 1, temperedSteel: 2 } },
         {
+          requiredPartyPower: 12.5,
           waveWork: [330, 380, 430],
           waveGold: [72, 84, 98],
-          bossWork: 750,
-          bossRequiredPower: 12.5,
-          bossGold: 180,
           clearReward: { forgeKey: 2, hardeningGel: 3, temperedSteel: 2 },
         },
       ],
@@ -86,18 +99,18 @@ export const balance = {
   },
   targets: {
     firstFusion: { minSec: 60, maxSec: 180 },
-    cloverRoadBoss: { minSec: 180, maxSec: 300 },
+    cloverRoadClear: { minSec: 150, maxSec: 280 },
     maxNoActionWindowSec: 35,
     defeatLoop: {
       firstDefeat: { minSec: 45, maxSec: 90 },
-      cloverRoadBoss: { minSec: 220, maxSec: 360 },
+      cloverRoadClear: { minSec: 190, maxSec: 340 },
       defeats: { minCount: 1, maxCount: 2 },
       farmClears: { minCount: 3, maxCount: 6 },
       retries: { minCount: 1, maxCount: 2 },
     },
     pacedDefeat: {
       firstDefeat: { minSec: 45, maxSec: 90 },
-      cloverRoadBoss: { minSec: 480, maxSec: 900 },
+      cloverRoadClear: { minSec: 420, maxSec: 820 },
       defeats: { minCount: 2, maxCount: 3 },
       farmClears: { minCount: 6, maxCount: 9 },
       retries: { minCount: 2, maxCount: 3 },

@@ -77,17 +77,17 @@ describe('battle scene projection', () => {
   it('projects a stable absolute wall-clock deadline for the current Domain boundary', () => {
     const state = createSwordBattleState();
     const model = selectBattleSceneModel(state);
-
     expect(model.authoritativeResultDeadlineMs).toBe(state.lastWallClockMs + 6_000);
   });
 
-  it('projects the authored enemy encounter for the current wave', () => {
+  it('projects the authored Clover Road encounter without leaking Mushroom Forest enemies', () => {
     const state = createSwordBattleState();
     const model = selectBattleSceneModel(state);
+    expect(model.areaId).toBe('area.clover-road');
     expect(model.encounter?.id).toBe('encounter.clover-road.01.01');
-    expect(model.encounter?.displayName).toBe('ちびキノコの群れ');
+    expect(model.encounter?.displayName).toBe('ちびリーフ');
     expect(model.encounter?.enemies).toHaveLength(3);
-    expect(model.encounter?.enemies.every((enemy) => enemy.id === 'tiny-mushroom')).toBe(true);
+    expect(model.encounter?.enemies.every((enemy) => enemy.id === 'leafling')).toBe(true);
     expect(model.authoritativeResult).toBe('victory');
     expect(model.authoritativeResultDeadlineMs).toBe(state.lastWallClockMs + 6_000);
   });
@@ -104,59 +104,50 @@ describe('battle scene projection', () => {
     };
     const model = selectBattleSceneModel(advanced);
     expect(model.encounter?.id).toBe('encounter.clover-road.03.02');
-    expect(model.encounter?.enemies.filter((enemy) => enemy.id === 'puff-flower')).toHaveLength(2);
-    expect(model.encounter?.enemies.filter((enemy) => enemy.id === 'bud-bloom')).toHaveLength(3);
-    expect(model.encounter?.enemies.filter((enemy) => enemy.id === 'puff-flower').every((enemy) => enemy.formationSlot.startsWith('back-'))).toBe(true);
+    expect(model.encounter?.enemies).toHaveLength(3);
+    expect(model.encounter?.enemies.every((enemy) => enemy.id === 'puff-flower')).toBe(true);
+    expect(model.encounter?.enemies.every((enemy) => enemy.formationSlot.startsWith('back-'))).toBe(true);
     expect(model.encounterKey).toContain('encounter.clover-road.03.02');
   });
 
-  it('reconstructs the terminal boss encounter after the Domain reaches the content boundary', () => {
-    const state = createSwordBattleState();
-    const boundaryState = {
-      ...state,
-      gameData: {
-        ...state.gameData,
-        progression: { ...state.gameData.progression, currentStage: 5 },
-        combat: {
-          ...state.gameData.combat,
-          currentWaveIndex: 0,
-          contentBoundaryReached: true,
-        },
-      },
-    };
-
-    const model = selectBattleSceneModel(boundaryState);
-
-    expect(model.encounter?.id).toBe('encounter.clover-road.05.boss');
-    expect(model.encounter?.boss).toBe(true);
-    expect(model.authoritativeResult).toBe('victory');
-    expect(model.authoritativeResultDeadlineMs).toBe(boundaryState.lastWallClockMs);
-  });
-
-  it('projects the authored great mushroom boss encounter', () => {
+  it('projects the authored Mushroom Forest boss encounter', () => {
     const state = createSwordBattleState();
     const bossState = {
       ...state,
       gameData: {
         ...state.gameData,
-        progression: { ...state.gameData.progression, currentStage: 5 },
+        progression: {
+          ...state.gameData.progression,
+          currentAreaId: 'area.mushroom-forest',
+          currentStage: 5,
+        },
         combat: { ...state.gameData.combat, currentWaveIndex: 3 },
       },
     };
     const model = selectBattleSceneModel(bossState);
-    expect(model.encounter?.id).toBe('encounter.clover-road.05.boss');
+    expect(model.areaId).toBe('area.mushroom-forest');
+    expect(model.encounter?.id).toBe('encounter.mushroom-forest.05.boss');
     expect(model.encounter?.boss).toBe(true);
     expect(model.encounter?.enemies).toHaveLength(1);
     expect(model.encounter?.enemies[0]?.id).toBe('great-mushroom');
   });
 
-  it('keeps a real enemy encounter visible at the authored content boundary', () => {
+  it('keeps the final real boss visible after Dragon Crater reaches the world boundary', () => {
     const state = createSwordBattleState();
+    const dragonProgress = withHighestStageClearedForArea(
+      state.gameData.progression,
+      'area.dragon-crater',
+      5,
+    );
     const boundaryState = {
       ...state,
       gameData: {
         ...state.gameData,
-        progression: { ...withHighestStageClearedForArea(state.gameData.progression, 'area.clover-road', 5), currentStage: 5 },
+        progression: {
+          ...dragonProgress,
+          currentAreaId: 'area.dragon-crater',
+          currentStage: 5,
+        },
         combat: {
           ...state.gameData.combat,
           currentWaveIndex: 0,
@@ -166,8 +157,10 @@ describe('battle scene projection', () => {
     };
 
     const model = selectBattleSceneModel(boundaryState);
-    expect(model.encounter?.id).toBe('encounter.clover-road.05.boss');
-    expect(model.encounter?.enemies.length).toBeGreaterThan(0);
+    expect(model.areaId).toBe('area.dragon-crater');
+    expect(model.encounter?.id).toBe('encounter.dragon-crater.05.boss');
+    expect(model.encounter?.boss).toBe(true);
+    expect(model.encounter?.enemies[0]?.id).toBe('star-eater-dragon');
     expect(model.authoritativeResult).toBe('victory');
     expect(model.authoritativeResultDeadlineMs).toBe(boundaryState.lastWallClockMs);
   });
@@ -178,29 +171,38 @@ describe('battle scene projection', () => {
       ...state,
       gameData: {
         ...state.gameData,
-        progression: { ...withHighestStageClearedForArea(state.gameData.progression, 'area.clover-road', 2), currentStage: 3 },
+        progression: {
+          ...withHighestStageClearedForArea(state.gameData.progression, 'area.clover-road', 2),
+          currentStage: 3,
+        },
         combat: { ...state.gameData.combat, currentWaveIndex: 0 },
       },
     };
     const model = selectBattleSceneModel(frontierState);
     expect(model.encounter?.id).toBe('encounter.clover-road.03.01');
     expect(model.authoritativeResult).toBe('defeat');
-    expect(model.authoritativeResultDeadlineMs).toBe(frontierState.lastWallClockMs + balance.combat.frontier.defeatDurationSec * 1_000);
+    expect(model.authoritativeResultDeadlineMs)
+      .toBe(frontierState.lastWallClockMs + balance.combat.frontier.defeatDurationSec * 1_000);
   });
 
-  it('projects an authored defeat for an underpowered frontier boss', () => {
+  it('uses the stage-5 Clover gauntlet itself as the final Area 1 frontier', () => {
     const state = createSwordBattleState();
-    const bossState = {
+    const frontierState = {
       ...state,
       gameData: {
         ...state.gameData,
-        progression: { ...withHighestStageClearedForArea(state.gameData.progression, 'area.clover-road', 4), currentStage: 5 },
-        combat: { ...state.gameData.combat, currentWaveIndex: 3 },
+        progression: {
+          ...withHighestStageClearedForArea(state.gameData.progression, 'area.clover-road', 4),
+          currentStage: 5,
+        },
+        combat: { ...state.gameData.combat, currentWaveIndex: 0 },
       },
     };
-    const model = selectBattleSceneModel(bossState);
-    expect(model.encounter?.id).toBe('encounter.clover-road.05.boss');
+    const model = selectBattleSceneModel(frontierState);
+    expect(model.encounter?.id).toBe('encounter.clover-road.05.01');
+    expect(model.encounter?.boss).toBe(false);
     expect(model.authoritativeResult).toBe('defeat');
-    expect(model.authoritativeResultDeadlineMs).toBe(bossState.lastWallClockMs + balance.combat.frontier.defeatDurationSec * 1_000);
+    expect(model.authoritativeResultDeadlineMs)
+      .toBe(frontierState.lastWallClockMs + balance.combat.frontier.defeatDurationSec * 1_000);
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  cloverRoadStageDefinitions,
+  areaDefinitions,
   fusionStepDefinitions,
   jobCreationDefinitions,
   NORMAL_JOB_SLIME_IDS,
@@ -18,7 +18,7 @@ describe('released fusion content', () => {
       obtainable.add(definition.fusionCoreTokenId);
     });
 
-    cloverRoadStageDefinitions.forEach((stage) => {
+    Object.values(areaDefinitions).flatMap((area) => area.stages).forEach((stage) => {
       stage.clearRewards.forEach((reward) => {
         if (reward.type === 'token') obtainable.add(reward.tokenId);
       });

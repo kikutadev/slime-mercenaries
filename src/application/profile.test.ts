@@ -71,7 +71,12 @@ it('keeps an uncleared major frontier locked during offline resume while farming
     gameData: {
       ...base.gameData,
       progression: {
-        ...withHighestStageClearedForArea(base.gameData.progression, 'area.clover-road', 4),
+        ...withHighestStageClearedForArea(
+          withHighestStageClearedForArea(base.gameData.progression, 'area.clover-road', 5),
+          'area.mushroom-forest',
+          4,
+        ),
+        currentAreaId: 'area.mushroom-forest',
         currentStage: 5,
       },
       combat: { currentWaveIndex: 3, waveWorkRemaining: null, retryFarmClearsRemaining: 0, frontierDefeatTimeRemainingSec: null, contentBoundaryReached: false },
@@ -81,7 +86,7 @@ it('keeps an uncleared major frontier locked during offline resume while farming
   await saveSlimeProfile(repository, 'default', state, 1_000);
   const loaded = await loadOrCreateSlimeProfile({ repository, nowMs: 121_000 });
   expect(loaded.appliedOfflineSec).toBe(120);
-  expect(highestStageClearedForArea(loaded.state.gameData.progression)).toBe(4);
+  expect(highestStageClearedForArea(loaded.state.gameData.progression, 'area.mushroom-forest')).toBe(4);
   expect(loaded.offlineEvents.some((event) => event.type === 'bossDefeated')).toBe(false);
   expect(loaded.offlineEvents.some((event) => event.type === 'frontierBreakthroughDeferred')).toBe(true);
   expect(loaded.offlineEvents.some((event) => event.type === 'stageCleared' && event.payload?.farming === true)).toBe(true);
@@ -95,7 +100,12 @@ it('preserves a partially elapsed frontier defeat across reloads without restart
     gameData: {
       ...base.gameData,
       progression: {
-        ...withHighestStageClearedForArea(base.gameData.progression, 'area.clover-road', 4),
+        ...withHighestStageClearedForArea(
+          withHighestStageClearedForArea(base.gameData.progression, 'area.clover-road', 5),
+          'area.mushroom-forest',
+          4,
+        ),
+        currentAreaId: 'area.mushroom-forest',
         currentStage: 5,
       },
       combat: { currentWaveIndex: 3, waveWorkRemaining: null, retryFarmClearsRemaining: 0, frontierDefeatTimeRemainingSec: 3, contentBoundaryReached: false },
