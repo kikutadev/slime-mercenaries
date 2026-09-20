@@ -183,10 +183,10 @@ def build_enemy(d: EmberDefinition):
         )
 
     elif d.profile == "bug":
-        create_ellipsoid("Body", (0.0, 0.010, 0.160), (0.460, 0.300, 0.125), dark_mat, body, segments=28, rings=18)
-        create_ellipsoid("Underbody", (0.0, 0.025, 0.060), (0.360, 0.235, 0.052), body_mat, body, segments=20, rings=10)
+        create_ellipsoid("Body", (0.0, 0.010, 0.150), (0.460, 0.300, 0.090), dark_mat, body, segments=28, rings=18)
+        create_ellipsoid("Underbody", (0.0, 0.025, 0.050), (0.360, 0.235, 0.040), body_mat, body, segments=20, rings=10)
 
-        create_ellipsoid("ShellMount", (0.0, 0.115, 0.327), (0.125, 0.115, 0.052), body_mat, body, segments=16, rings=9)
+        create_ellipsoid("ShellMount", (0.0, 0.115, 0.330), (0.105, 0.105, 0.095), body_mat, body, segments=16, rings=9)
         shell = create_empty("ShellRoot", body, (0.0, 0.205, 0.565))
         create_ellipsoid("ChargeShell", (0.0, 0.0, 0.0), (0.340, 0.285, 0.150), accent_mat, shell, segments=26, rings=16)
         create_ellipsoid("ShellRim", (0.0, -0.245, -0.010), (0.190, 0.045, 0.078), body_mat, shell, segments=18, rings=10)
@@ -210,7 +210,7 @@ def build_enemy(d: EmberDefinition):
         _face(
             face,
             front_y=-0.292,
-            eye_z=0.180,
+            eye_z=0.165,
             eye_gap=0.072,
             face_material=face_mat,
             mouth_material=mouth_mat,
