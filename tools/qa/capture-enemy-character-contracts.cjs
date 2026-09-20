@@ -8,6 +8,7 @@ const CHARACTER_IDS = [
   'crystal-beetle','drill-nose-mole','crystal-bat','pebble-golem','amber-turtle',
   'puff-frog','marsh-sprout','bubble-snail','skimming-lily','great-marsh-frog',
   'snow-roller','ice-bug','scarf-snowman','icicle-lantern','snow-statue-guardian',
+  'ember-gecko','charcoal-roller','crackle-bug','magma-crab','furnace-turtle',
 ];
 
 const ATTACK_FRAME_U = {
@@ -17,6 +18,7 @@ const ATTACK_FRAME_U = {
   'crystal-bat':0.62,'pebble-golem':0.60,'amber-turtle':0.70,'puff-frog':0.78,
   'marsh-sprout':0.60,'bubble-snail':0.56,'skimming-lily':0.50,'great-marsh-frog':0.80,
   'snow-roller':0.64,'ice-bug':0.50,'scarf-snowman':0.64,'icicle-lantern':0.56,'snow-statue-guardian':0.80,
+  'ember-gecko':0.78,'charcoal-roller':0.70,'crackle-bug':0.64,'magma-crab':0.63,'furnace-turtle':0.84,
 };
 
 const DEFEAT_FRAME_U = {
@@ -26,6 +28,7 @@ const DEFEAT_FRAME_U = {
   'crystal-bat':0.72,'pebble-golem':0.72,'amber-turtle':0.78,'puff-frog':0.72,
   'marsh-sprout':0.72,'bubble-snail':0.76,'skimming-lily':0.72,'great-marsh-frog':0.76,
   'snow-roller':0.72,'ice-bug':0.72,'scarf-snowman':0.76,'icicle-lantern':0.72,'snow-statue-guardian':0.78,
+  'ember-gecko':0.76,'charcoal-roller':0.76,'crackle-bug':0.74,'magma-crab':0.76,'furnace-turtle':0.80,
 };
 
 const baseUrl = process.env.ENEMY_GALLERY_URL || 'http://127.0.0.1:4183/slime-mercenaries/gallery/';

@@ -104,6 +104,59 @@ Area 5の新要素は **slide / inertia / bounded glow**。氷パーツを増や
 - projectile/VFXは一回のsnow pulse + 一個のbounded icicle。連射禁止
 - Defeatはupper massが「ぽすっ」と落ち、crestが最後に遅れて倒れる
 
+## Area 6 — Ember Canyon contracts
+
+Area 6の新要素は **elemental after-effect**。火炎particleを増やして強く見せるのではなく、charcoal / stone massに対して一個のcontrolled emissive cueを持たせ、Attack後の遅延反応をArea 5より一段強くする。
+
+| Character | First read | Geometry hard gate | Motion hard gate |
+| --- | --- | --- | --- |
+| **ひのこヤモリ** `ember-gecko` | 低く横長の丸ヤモリ + 尻尾先端の一個のflame mass | x/z 1.65–2.05、TailRoot必須、FlameTip高20–34%、4 foot pads、12–15 meshes、背中spike禁止 | crouch → flame grow → fast dash → body stop → **tail whip after-stop**。Attack 0.84–1.00s |
+| **すみころ** `charcoal-roller` | 一個の炭球 + 表面を横切る太い発光crack 3本 | x/z 0.95–1.12、CharcoalBody幅92–101%、GlowCrack_1..3必須、9–12 meshes、limb禁止 | almost still → crack red → orange → yellow hold → burst bump → glow decay。Attack 1.00–1.18s |
+| **ぱちパチムシ** `crackle-bug` | 低い虫body + 背中をほぼ覆う一個の丸いcharge shell | x/z 1.28–1.60、ChargeShell幅72–90%、4 foot pads + 短いantenna 2本、14–15 meshes、6-leg cycle用joint禁止 | shell shake #1 → shake #2 → short still → spark 1発 → shell close/recoil。Attack 1.02–1.20s |
+| **マグマガニ** `magma-crab` | 極端に横長のbody + 左右二個の丸いclaw | x/z 2.15–2.75、Claw_L/R必須、各claw幅18–28%、Body幅48–64%、11–14 meshes、細脚禁止 | one-claw weight → body snap opposite → shoulder/claw bump → **opposite claw delayed settle**。Attack 0.94–1.10s |
+| **炉心ガメ** `furnace-turtle` | 縦厚の亀mass + 正面中央の一個のfurnace shell/core | z/x 1.05–1.30、全幅≥1.10 / 全高≥1.20、FurnaceShell幅62–80%、Core高18–30%、15–19 meshes | furnace open → red/orange/white 3-step charge → compress → heavy jump/impact → **0.15s delayed ring**。Attack ≥1.60s / Defeat ≥1.65s |
+
+### Area 6 per-character detail
+
+**ひのこヤモリ**
+- bodyは細い爬虫類にしない。低いbean mass + 4 short pads
+- `TailRoot` がidentity。TailBase + FlameTipを一群としてbodyより0.10–0.18秒遅らせる
+- flameは一個のrounded emissive mass。particle plume / multiple flame tongues禁止
+- Moveは短いscurry。realistic limb cycleは禁止
+- Defeatはflame縮小 → bodyが横へsoft flop。×目はbody追従
+- projectile禁止
+
+**すみころ**
+- limb / face accessory / crown禁止。炭球一個が主体
+- `GlowRoot` にexactly 3 broad crack strips。細い多数線へ増殖しない
+- Attackのchargeは色・glowだけでなくbody compressも同期させる
+- crack 3段chargeの最後に0.10秒以上still hold
+- Defeatは発光が先に冷え、その後ballが短くsettle
+- projectile禁止
+
+**ぱちパチムシ**
+- `ShellRoot` = ChargeShell。低いbodyとの間は細いShellMountだけで繋ぎ、側面にくびれが読める一個の上側humpにする
+- exactly 4 foot pads + short rounded antenna 2本。6本脚アニメーションへ寄せない
+- Attack前半はbodyよりshellのdouble shakeを読ませる
+- projectileは一個のcompact `ember-spark`。連射禁止
+- Defeatはshell close → 一個だけ弱いspark → body collapse
+
+**マグマガニ**
+- `PrimaryRoot` = Claw_L、`SecondaryRoot` = Claw_R
+- clawsは丸いmass。ハサミ歯 / 細い腕 / realistic crab legs禁止
+- bodyを横長にして、claw込みの全幅で他Area 6と明確に分離
+- Attackは片側anticipationと逆側snapで方向差を作る
+- Defeatはbody low → both claws inward settle
+- projectile禁止
+
+**炉心ガメ**
+- shellは琥珀ガメの横広甲羅を再利用しない。縦厚bodyに正面furnaceを埋め込む
+- `ShellRoot` = FurnaceShell、`GlowRoot` = CoreRoot、`HeadRoot` を独立
+- coreは一個。周囲に複数lava gemを足さない
+- Attackは最低6beat。impact後のringは必ずbody contactより遅れる
+- Secondaryはshell vent → short `furnace-flame` → recoil。広い持続beam禁止
+- Defeatはfurnace close → core fade → turtle heavy sit。通常亀のroll defeat禁止
+
 ## Executable sources
 
 - Geometry contract: `tools/blender/enemies/definitions/*.py`
