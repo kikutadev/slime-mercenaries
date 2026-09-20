@@ -1,7 +1,7 @@
 # Area 3–8 Enemy Asset & Gallery Production Roadmap
 
-Status: Active — Area 6 production complete and publicly verified; next production target is Area 7
-Date: 2026-09-20
+Status: Active — Area 7 production complete and publicly verified; next production target is Area 8
+Date: 2026-09-21
 
 ## Scope
 
@@ -236,6 +236,35 @@ Area 5 V2 baseline was verified, then produced under the contract-first workflow
   - `magma-crab` 1.02s / 1.30s
   - `furnace-turtle` 1.68s / 1.78s
 - [x] deployment Worker version: `d434f722-a26a-4db0-85fe-935dfde476f9`
+
+## Area 7 progress — Moonlit Castle
+
+- [x] all 5 contracts written before Blender implementation: `round-sentry`, `shield-sentry`, `bell-mage`, `windup-bat`, `moon-crown-knight`
+- [x] separate `castle` Blender family with character-specific semantic roots for helmet / shield / clapper / winding-key / cape / blade
+- [x] 5 generated production GLBs with per-character geometry gates and forbidden-structure rules
+- [x] stop → burst and equipment-inertia motion language implemented as character-specific Idle / Move / Attack / Hit / Defeat
+- [x] `round-sentry`: spear pullback → readable stop → burst thrust → delayed helmet catch-up
+- [x] `shield-sentry`: shield plant → still hold → one short bash → rebound
+- [x] `bell-mage`: left/right bell swing → center stop → one sound ring → delayed clapper after-ring
+- [x] `windup-bat`: body/wing stop → key reverse-wind → hold → moon-bolt release → delayed wing catch-up
+- [x] `moon-crown-knight`: low stance → dash → full stop → delayed slash line → cape catch-up; attack / defeat use boss-length timing
+- [x] 128px monochrome Area 7 silhouette gate passes; max pairwise IoU = **0.602** (< 0.62)
+- [x] 35 current production GLBs pass the Blender character validator
+- [x] targeted enemy motion / face / Gallery gate passes: **59 tests**
+- [x] TypeScript typecheck passes
+- [x] production build passes
+- [x] local Area 7 real-UI capture: **5 characters / 90 timed frames** across Idle / Move / Attack / Hit / Defeat with no browser errors
+- [x] full local Gallery production gate: **35 characters / 105 unique timed frames**
+- [x] production deploy verified at `https://games.kikuta.dev/slime-mercenaries/`
+- [x] all 5 Area 7 public GLB SHA-256 hashes match the committed local artifacts byte-for-byte
+- [x] public Area 7 Gallery smoke: **5 characters / 15 unique timed frames** with model-load, occupancy, Attack, and Defeat duration checks
+- [x] public Area 7 production durations verified:
+  - `round-sentry` 1.00s / 1.30s
+  - `shield-sentry` 1.10s / 1.36s
+  - `bell-mage` 1.28s / 1.42s
+  - `windup-bat` 1.08s / 1.38s
+  - `moon-crown-knight` 1.72s / 1.84s
+- [x] deployment Worker version: `a4c1c509-0309-4872-9303-014360fb7884`
 
 ## Per-character contract baseline — 2026-09-20
 
