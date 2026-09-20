@@ -173,28 +173,28 @@ def build_enemy(d: EmberDefinition):
         )
 
     elif d.profile == "bug":
-        create_ellipsoid("Body", (0.0, 0.010, 0.160), (0.395, 0.300, 0.125), dark_mat, body, segments=28, rings=18)
-        create_ellipsoid("Underbody", (0.0, 0.025, 0.060), (0.315, 0.235, 0.052), body_mat, body, segments=20, rings=10)
+        create_ellipsoid("Body", (0.0, 0.010, 0.160), (0.460, 0.300, 0.125), dark_mat, body, segments=28, rings=18)
+        create_ellipsoid("Underbody", (0.0, 0.025, 0.060), (0.360, 0.235, 0.052), body_mat, body, segments=20, rings=10)
 
-        create_ellipsoid("ShellMount", (0.0, 0.115, 0.302), (0.125, 0.115, 0.032), body_mat, body, segments=16, rings=9)
-        shell = create_empty("ShellRoot", body, (0.0, 0.205, 0.470))
-        create_ellipsoid("ChargeShell", (0.0, 0.0, 0.0), (0.295, 0.285, 0.150), accent_mat, shell, segments=26, rings=16)
+        create_ellipsoid("ShellMount", (0.0, 0.115, 0.327), (0.125, 0.115, 0.052), body_mat, body, segments=16, rings=9)
+        shell = create_empty("ShellRoot", body, (0.0, 0.205, 0.565))
+        create_ellipsoid("ChargeShell", (0.0, 0.0, 0.0), (0.340, 0.285, 0.150), accent_mat, shell, segments=26, rings=16)
         create_ellipsoid("ShellRim", (0.0, -0.245, -0.010), (0.190, 0.045, 0.078), body_mat, shell, segments=18, rings=10)
         glow = create_empty("GlowRoot", shell, (0.0, -0.220, 0.015))
         create_ellipsoid("ShellGlow", (0.0, 0.0, -0.010), (0.105, 0.045, 0.070), ember_mat, glow, segments=16, rings=10)
 
         for name, x, y in (
-            ("Foot_FL", -0.315, -0.105),
-            ("Foot_FR", 0.315, -0.105),
-            ("Foot_BL", -0.315, 0.115),
-            ("Foot_BR", 0.315, 0.115),
+            ("Foot_FL", -0.370, -0.105),
+            ("Foot_FR", 0.370, -0.105),
+            ("Foot_BL", -0.370, 0.115),
+            ("Foot_BR", 0.370, 0.115),
         ):
             create_ellipsoid(name, (x, y, 0.045), (0.090, 0.095, 0.043), body_mat, body, segments=14, rings=8)
 
-        antenna_l = create_ellipsoid("Antenna_L", (-0.145, -0.285, 0.230), (0.050, 0.070, 0.105), body_mat, body, segments=14, rings=8)
+        antenna_l = create_ellipsoid("Antenna_L", (-0.205, -0.255, 0.615), (0.050, 0.060, 0.100), body_mat, body, segments=14, rings=8)
         antenna_l.rotation_euler.x = -0.28
         antenna_l.rotation_euler.z = -0.22
-        antenna_r = create_ellipsoid("Antenna_R", (0.145, -0.285, 0.230), (0.050, 0.070, 0.105), body_mat, body, segments=14, rings=8)
+        antenna_r = create_ellipsoid("Antenna_R", (0.205, -0.255, 0.615), (0.050, 0.060, 0.100), body_mat, body, segments=14, rings=8)
         antenna_r.rotation_euler.x = -0.28
         antenna_r.rotation_euler.z = 0.22
         _face(
