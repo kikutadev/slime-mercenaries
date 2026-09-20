@@ -49,7 +49,9 @@ import {
 import type { BattleBehaviorId } from './slimes';
 import { applyTimedMultiplier, distanceSqToSegment2D, isExecuteThreshold, resolveTimedMultiplier, type TimedMultiplierEffect } from './combat-effects';
 import {
+  applyEnemyDefeatFacePose,
   applyEnemySecondaryPose,
+  buildEnemyDefeatEyes,
   captureEnemyRigRestPose,
   getEnemyMotionProfile,
   resetEnemySecondaryPose,
@@ -847,10 +849,7 @@ export class BattleRuntime {
     const motionProfile = getEnemyMotionProfile(config.behaviorId);
     const rigParts = resolveEnemyRigParts(root);
     const rigRest = captureEnemyRigRestPose(rigParts);
-    const normalEyes = ['Eye_L', 'Eye_R']
-      .map((name) => root.getObjectByName(name))
-      .filter((eye): eye is THREE.Object3D => Boolean(eye));
-    const xEyes = this.createEnemyDefeatEyes(normalEyes);
+    const { normalEyes, xEyes } = buildEnemyDefeatEyes(root);
     this.setEnemyDefeatEyes(normalEyes, xEyes, false);
     this.scene.add(root);
     const shadow = this.makeShadow(config.shadowRadius);
@@ -871,27 +870,6 @@ export class BattleRuntime {
       attackStartedAt: -Infinity, attackOrigin: home.clone(), attackTarget: null, attackHitApplied: false,
       nextAttackAt: 0, lastUpdateAt: 0, normalEyes, xEyes, moveSpeedEffect: null,
     };
-  }
-
-  private createEnemyDefeatEyes(normalEyes: readonly THREE.Object3D[]): THREE.Object3D[] {
-    if (normalEyes.length !== 2) return [];
-    const material = new THREE.MeshBasicMaterial({ color: '#261d2b' });
-    const geometry = new THREE.BoxGeometry(0.072, 0.020, 0.018);
-    return normalEyes.flatMap((eye) => {
-      if (eye.parent === null) return [];
-      const group = new THREE.Group();
-      group.name = `${eye.name}_DefeatX`;
-      group.position.copy(eye.position);
-      group.position.z += 0.022;
-      for (const rotation of [-Math.PI / 4, Math.PI / 4]) {
-        const bar = new THREE.Mesh(geometry, material);
-        bar.rotation.z = rotation;
-        group.add(bar);
-      }
-      group.visible = false;
-      eye.parent.add(group);
-      return [group];
-    });
   }
 
   private setEnemyDefeatEyes(normalEyes: readonly THREE.Object3D[], xEyes: readonly THREE.Object3D[], defeated: boolean): void {
@@ -1363,9 +1341,6 @@ export class BattleRuntime {
     enemy.root.position.x = enemy.attackOrigin.x + pose.lateralDrift;
     enemy.root.position.z = enemy.attackOrigin.z - pose.backwardDrift;
     enemy.root.position.y = pose.yOffset;
-    // Collapse the mushroom body only. FaceRoot is a sibling of BodyRoot in the authored GLB,
-    // so keeping the root uniformly scaled preserves the tiny embroidered face while the cap/body
-    // visibly squashes into the ground.
     enemy.root.scale.setScalar(enemy.baseScale * pose.opacity);
     enemy.bodyRoot.scale.set(
       enemy.bodyBaseScale.x * pose.scaleX,
@@ -1373,12 +1348,13 @@ export class BattleRuntime {
       enemy.bodyBaseScale.z * pose.scaleZ,
     );
     applyEnemySecondaryPose(enemy.rigParts, enemy.rigRest, pose.secondary);
-    if (enemy.faceRoot) {
-      enemy.faceRoot.position.copy(enemy.faceBasePosition);
-      enemy.faceRoot.position.y += 0.055 * Math.sin(Math.min(1, u / 0.72) * Math.PI * 0.5);
-      enemy.faceRoot.position.z += 0.38 * Math.sin(Math.min(1, u / 0.72) * Math.PI * 0.5);
-      enemy.faceRoot.scale.copy(enemy.faceBaseScale);
-    }
+    applyEnemyDefeatFacePose(
+      enemy.faceRoot,
+      enemy.bodyRoot,
+      enemy.faceBasePosition,
+      enemy.faceBaseScale,
+      pose,
+    );
     enemy.shadow.material.opacity = 0.22 * pose.opacity;
     if (u >= 1) {
       enemy.root.visible = false;

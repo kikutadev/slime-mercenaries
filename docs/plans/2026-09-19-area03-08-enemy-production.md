@@ -1,6 +1,6 @@
 # Area 3–8 Enemy Asset & Gallery Production Roadmap
 
-Status: Active — current 20-enemy character contracts enforced and publicly verified; Area 5 is contract-first and remains unstarted
+Status: Active — Area 5 production complete locally under per-character gates; deployment verification pending
 Date: 2026-09-20
 
 ## Scope
@@ -166,7 +166,40 @@ V2 changes:
 - [x] public Gallery model-load probes pass for Area 3/4 representative Attack / Defeat states
 - [x] deployed to games.kikuta.dev, Worker version `20523648-888f-446e-9561-4700ec6fa552`
 
-Area 5 stays paused until this V2 set is verified in the public Gallery.
+Area 5 V2 baseline was verified, then produced under the contract-first workflow below.
+
+## Area 5 progress — Frost Ruins
+
+- [x] all 5 character contracts written before Blender implementation
+- [x] separate `frost` Blender family
+- [x] 5 Blender Python definitions with character-specific `VALIDATION_PROFILE`
+- [x] 5 generated GLBs: `snow-roller`, `ice-bug`, `scarf-snowman`, `icicle-lantern`, `snow-statue-guardian`
+- [x] per-character silhouette / hook-size / mesh-budget / required-node / forbidden-node gates
+- [x] eye-size hard cap retained; `ice-bug` was corrected rather than relaxing the 12% gate
+- [x] 5 character-specific Idle / Move / Attack / Hit / Defeat profiles
+- [x] `ice-shard`, `ice-ray`, `frost-icicle` projectile families
+- [x] `snow-roller`: low roll → bump → delayed one-nub overshoot
+- [x] `ice-bug`: exactly 3 broad spikes → hold → snap → one shard → recoil
+- [x] `scarf-snowman`: scarf anticipation precedes body dash; scarf owns follow-through
+- [x] `icicle-lantern`: bounded core glow → thin ray → recoil/flicker
+- [x] `snow-statue-guardian`: upper mass leads → lower follows → full spin → release → delayed crest settle
+- [x] model-collision failures were fixed in geometry rather than by weakening gates
+- [x] 128px monochrome Area 5 pairwise silhouette gate passes, max IoU = **0.592** (< 0.62)
+- [x] problematic `snow-roller vs ice-bug` reduced to IoU **0.560**
+- [x] problematic `snow-roller vs snow-statue-guardian` reduced from 0.780 first pass to **0.592**
+- [x] true Three.js camera-projected 1x framing replaces color-based screenshot occupancy measurement
+- [x] `icicle-lantern` failed projected area at 2.9%; production scale raised instead of lowering the gate; final area = **3.3%**
+- [x] 25 current production GLBs pass Blender validation
+- [x] 25 characters × Idle / Attack / Defeat = **75 unique timed Gallery frames**
+- [x] all 25 pass true camera-projected 1x framing gate
+- [x] Gallery and BattleRuntime now share eye-footprint-scaled defeat × eyes
+- [x] legacy sibling `FaceRoot` follows defeat deformation; descendant faces avoid double deformation
+- [x] removed BattleRuntime's old independent face escape offsets that could visually detach eyes/face on defeat
+- [x] enemy/Gallery/defeat-face targeted test gate: **62 tests pass**
+- [x] TypeScript typecheck passes
+- [x] production build passes
+- [ ] public deploy + five-GLB byte verification
+- [ ] public Gallery model-load / production-duration verification
 
 ## Per-character contract baseline — 2026-09-20
 

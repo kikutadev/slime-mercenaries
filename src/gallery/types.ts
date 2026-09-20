@@ -5,9 +5,10 @@ export type GalleryCameraId = 'inspection' | 'gameplay' | 'front';
 export type GalleryEnemyBehaviorId =
   | import('../game/enemies').EnemyBehaviorId
   | import('../game/enemy-motion/mine').MineBehaviorId
-  | import('../game/enemy-motion/marsh').MarshBehaviorId;
+  | import('../game/enemy-motion/marsh').MarshBehaviorId
+  | import('../game/enemy-motion/frost').FrostBehaviorId;
 
-export type GalleryModelKind = 'plain' | 'sword' | 'greatsword' | 'bow' | 'shield' | 'wand' | 'dagger' | 'gun' | 'tiny-mushroom' | 'plump-mushroom' | 'spore-mushroom' | 'great-mushroom' | 'leafling' | 'whirl-leaf' | 'bud-bloom' | 'puff-flower' | 'round-hedgehog' | 'acorn-squirrel' | 'crystal-beetle' | 'drill-nose-mole' | 'crystal-bat' | 'pebble-golem' | 'amber-turtle' | 'puff-frog' | 'marsh-sprout' | 'bubble-snail' | 'skimming-lily' | 'great-marsh-frog';
+export type GalleryModelKind = 'plain' | 'sword' | 'greatsword' | 'bow' | 'shield' | 'wand' | 'dagger' | 'gun' | 'tiny-mushroom' | 'plump-mushroom' | 'spore-mushroom' | 'great-mushroom' | 'leafling' | 'whirl-leaf' | 'bud-bloom' | 'puff-flower' | 'round-hedgehog' | 'acorn-squirrel' | 'crystal-beetle' | 'drill-nose-mole' | 'crystal-bat' | 'pebble-golem' | 'amber-turtle' | 'puff-frog' | 'marsh-sprout' | 'bubble-snail' | 'skimming-lily' | 'great-marsh-frog' | 'snow-roller' | 'ice-bug' | 'scarf-snowman' | 'icicle-lantern' | 'snow-statue-guardian';
 
 export interface SlimeGalleryDefinition {
   id: string;

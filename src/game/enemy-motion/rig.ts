@@ -15,6 +15,7 @@ export interface EnemyRigParts {
 
 export interface EnemyRigRestPose {
   primaryRotation: THREE.Euler | null;
+  primaryPosition: THREE.Vector3 | null;
   secondaryRotation: THREE.Euler | null;
   headRotation: THREE.Euler | null;
   headPosition: THREE.Vector3 | null;
@@ -45,13 +46,14 @@ export function resolveEnemyRigParts(root: THREE.Object3D): EnemyRigParts {
     earR: first(root, ['Ear_R']),
     shell: first(root, ['ShellRoot']),
     openRoot: first(root, ['WingPairRoot', 'RockClusterRoot', 'LeafPairRoot', 'PadRoot', 'PetalRoot', 'PuffRoot']),
-    inflateRoot: first(root, ['ThroatRoot', 'BubbleShellRoot']),
+    inflateRoot: first(root, ['ThroatRoot', 'BubbleShellRoot', 'GlowRoot']),
   };
 }
 
 export function captureEnemyRigRestPose(parts: EnemyRigParts): EnemyRigRestPose {
   return {
     primaryRotation: parts.primary?.rotation.clone() ?? null,
+    primaryPosition: parts.primary?.position.clone() ?? null,
     secondaryRotation: parts.secondary?.rotation.clone() ?? null,
     headRotation: parts.head?.rotation.clone() ?? null,
     headPosition: parts.head?.position.clone() ?? null,
@@ -71,6 +73,7 @@ function restoreRotation(part: THREE.Object3D | null, rest: THREE.Euler | null):
 
 export function resetEnemySecondaryPose(parts: EnemyRigParts, rest: EnemyRigRestPose): void {
   restoreRotation(parts.primary, rest.primaryRotation);
+  if (parts.primary && rest.primaryPosition) parts.primary.position.copy(rest.primaryPosition);
   restoreRotation(parts.secondary, rest.secondaryRotation);
   restoreRotation(parts.head, rest.headRotation);
   if (parts.head && rest.headPosition) parts.head.position.copy(rest.headPosition);
@@ -95,6 +98,9 @@ export function applyEnemySecondaryPose(
   if (parts.primary && rest.primaryRotation) {
     parts.primary.rotation.x = rest.primaryRotation.x + (pose.primaryBend ?? 0);
     parts.primary.rotation.z = rest.primaryRotation.z + (pose.twist ?? 0);
+  }
+  if (parts.primary && rest.primaryPosition) {
+    parts.primary.position.z = rest.primaryPosition.z + Math.max(-0.28, Math.min(0.22, pose.primaryLift ?? 0));
   }
   if (parts.secondary && rest.secondaryRotation) {
     parts.secondary.rotation.x = rest.secondaryRotation.x + (pose.secondaryBend ?? 0);
