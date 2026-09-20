@@ -148,7 +148,17 @@ def build_enemy(d: EmberDefinition):
         effect_origin = (0.46, -0.18, 0.30)
 
     elif d.profile == "charcoal":
-        create_ellipsoid("CharcoalBody", (0.0, 0.010, 0.310), (0.325, 0.335, 0.315), body_mat, body, segments=28, rings=18)
+        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=2, radius=1.0, location=(0.0, 0.010, 0.310))
+        charcoal_body = bpy.context.active_object
+        assert charcoal_body is not None
+        charcoal_body.name = "CharcoalBody"
+        charcoal_body.parent = body
+        charcoal_body.scale = (0.347, 0.345, 0.325)
+        charcoal_body.data.materials.append(body_mat)
+        # Keep the geometric facets: this is a rounded coal nugget, not another smooth creature sphere.
+        for polygon in charcoal_body.data.polygons:
+            polygon.use_smooth = False
+
         create_ellipsoid("CharcoalBase", (0.0, 0.035, 0.095), (0.270, 0.255, 0.085), dark_mat, body, segments=20, rings=10)
         create_ellipsoid("CharcoalChip", (0.315, 0.055, 0.650), (0.065, 0.095, 0.080), dark_mat, body, segments=14, rings=8)
 
