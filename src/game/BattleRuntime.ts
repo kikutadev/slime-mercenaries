@@ -47,7 +47,7 @@ import {
   resolveEnemyRigParts,
   type EnemyMotionProfile,
 } from './enemy-motion';
-import { createBattleEnvironment } from './battle-environment';
+import { createStageEnvironment, type StageEnvironmentRuntime } from './stage-environment';
 import {
   BOSS_APPROACH_SECONDS,
   BOSS_LANDING_SECONDS,
@@ -133,6 +133,7 @@ export class BattleRuntime {
   private readonly loader = new GLTFLoader();
   private readonly enemyTemplatePromises = new Map<string, Promise<THREE.Group>>();
   private readonly baseUrl: string;
+  private areaId: string;
   private stageNumber: number;
   private waveIndex: number;
   private readonly allyConfigs: readonly BattleRuntimeAllyConfig[];
@@ -152,6 +153,7 @@ export class BattleRuntime {
   private readonly enemies: EnemyUnit[] = [];
   private environmentSceneryRoot: THREE.Group | null = null;
   private environmentTravel: ((distance: number) => void) | null = null;
+  private environmentWave: ((waveIndex: number) => void) | null = null;
   private environmentDispose: (() => void) | null = null;
   private encounterUpdateRevision = 0;
   private disposed = false;
@@ -191,6 +193,7 @@ export class BattleRuntime {
       startHitStop: (durationSeconds) => this.startHitStop(durationSeconds),
     });
     this.baseUrl = options.baseUrl;
+    this.areaId = options.areaId;
     this.stageNumber = options.stageNumber;
     this.waveIndex = options.waveIndex;
     this.allyConfigs = options.allies;
@@ -210,12 +213,17 @@ export class BattleRuntime {
     return this.clock.simulationNow;
   }
 
-  private installEnvironment(stageNumber: number, waveIndex: number): void {
+  private applyEnvironment(environment: StageEnvironmentRuntime): void {
     this.environmentDispose?.();
-    const environment = createBattleEnvironment(this.scene, stageNumber, waveIndex);
+    environment.activate();
     this.environmentSceneryRoot = environment.sceneryRoot;
     this.environmentTravel = environment.setTravelDistance;
+    this.environmentWave = environment.setWaveIndex;
     this.environmentDispose = environment.dispose;
+  }
+
+  private async prepareEnvironment(areaId: string, stageNumber: number, waveIndex: number): Promise<StageEnvironmentRuntime> {
+    return createStageEnvironment(this.scene, this.baseUrl, areaId, stageNumber, waveIndex);
   }
 
   public updateAuthoritativeResult(
@@ -229,13 +237,21 @@ export class BattleRuntime {
   public async updateEncounter(update: BattleRuntimeEncounterUpdate): Promise<void> {
     if (this.disposed) return;
     const revision = ++this.encounterUpdateRevision;
+    const previousAreaId = this.areaId;
     const previousStageNumber = this.stageNumber;
     const previousWaveIndex = this.waveIndex;
     const previousResult = this.result;
-    const loadedEnemies = await Promise.all(update.enemies.map((config) => this.loadEnemy(config, false)));
+    const environmentChanged = update.areaId !== previousAreaId || update.stageNumber !== previousStageNumber;
+    const [loadedEnemies, preparedEnvironment] = await Promise.all([
+      Promise.all(update.enemies.map((config) => this.loadEnemy(config, false))),
+      environmentChanged
+        ? this.prepareEnvironment(update.areaId, update.stageNumber, update.waveIndex)
+        : Promise.resolve<StageEnvironmentRuntime | null>(null),
+    ]);
 
     if (this.disposed || revision !== this.encounterUpdateRevision) {
       loadedEnemies.forEach((enemy) => this.disposeEnemy(enemy));
+      preparedEnvironment?.dispose();
       return;
     }
 
@@ -243,9 +259,11 @@ export class BattleRuntime {
     this.enemies.splice(0).forEach((enemy) => this.disposeEnemy(enemy));
 
     const recoverParty = previousResult === 'defeat'
+      || update.areaId !== previousAreaId
       || update.stageNumber !== previousStageNumber
       || update.waveIndex <= previousWaveIndex;
 
+    this.areaId = update.areaId;
     this.stageNumber = update.stageNumber;
     this.waveIndex = update.waveIndex;
     this.enemyConfigs = update.enemies;
@@ -253,7 +271,8 @@ export class BattleRuntime {
     this.authoritativeResultDelaySec = update.authoritativeResultDelaySec;
     this.bossEncounter = update.enemies.some((enemy) => enemy.scaleClass === 'boss');
     this.continuationEntryPending = shouldUseMarchEntry(update.stageNumber, update.waveIndex);
-    this.installEnvironment(update.stageNumber, update.waveIndex);
+    if (preparedEnvironment !== null) this.applyEnvironment(preparedEnvironment);
+    else this.environmentWave?.(update.waveIndex);
 
     loadedEnemies.forEach((enemy) => this.attachEnemy(enemy));
     this.enemies.push(...loadedEnemies);
@@ -296,19 +315,21 @@ export class BattleRuntime {
 
     this.cameraController.reset();
 
-    this.installEnvironment(this.stageNumber, this.waveIndex);
     this.allyCombat.initializePresentationVfx();
 
-    const [loadedAllies, loadedEnemies] = await Promise.all([
+    const [environment, loadedAllies, loadedEnemies] = await Promise.all([
+      this.prepareEnvironment(this.areaId, this.stageNumber, this.waveIndex),
       Promise.all(this.allyConfigs.map((config) => this.loadUnit(config))),
       Promise.all(this.enemyConfigs.map((config) => this.loadEnemy(config))),
     ]);
 
     if (this.disposed) {
+      environment.dispose();
       loadedAllies.forEach((ally) => this.disposeAlly(ally));
       loadedEnemies.forEach((enemy) => this.disposeEnemy(enemy));
       return;
     }
+    this.applyEnvironment(environment);
     this.allies.push(...loadedAllies);
     this.enemies.push(...loadedEnemies);
     this.allies.forEach((ally) => facePoint(ally, TARGET_HOME));
@@ -352,6 +373,7 @@ export class BattleRuntime {
     this.environmentDispose = null;
     this.environmentSceneryRoot = null;
     this.environmentTravel = null;
+    this.environmentWave = null;
     for (const object of [...this.ownedSceneObjects]) {
       this.removeSceneObject(object);
       disposeOwnedObjectResources(object);

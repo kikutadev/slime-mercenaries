@@ -236,6 +236,7 @@ export interface BattleRuntimeOptions {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   baseUrl: string;
+  areaId: string;
   stageNumber: number;
   waveIndex: number;
   allies: readonly BattleRuntimeAllyConfig[];
@@ -247,6 +248,7 @@ export interface BattleRuntimeOptions {
 }
 
 export type BattleRuntimeEncounterUpdate = Readonly<{
+  areaId: string;
   stageNumber: number;
   waveIndex: number;
   enemies: readonly BattleRuntimeEnemyConfig[];

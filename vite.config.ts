@@ -13,6 +13,7 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         gallery: fileURLToPath(new URL('./gallery/index.html', import.meta.url)),
+        environmentGallery: fileURLToPath(new URL('./environment-gallery/index.html', import.meta.url)),
       },
     },
   },

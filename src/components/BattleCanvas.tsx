@@ -46,6 +46,7 @@ function authoritativeDelaySec(model: BattleSceneModel): number | null {
 
 function encounterUpdate(model: BattleSceneModel): BattleRuntimeEncounterUpdate {
   return {
+    areaId: model.areaId,
     stageNumber: model.stageNumber,
     waveIndex: model.waveIndex,
     enemies: enemyConfigs(model),
@@ -90,6 +91,7 @@ function BattleRuntimeScene({
       scene,
       camera,
       baseUrl: import.meta.env.BASE_URL,
+      areaId: initialModel.areaId,
       stageNumber: initialModel.stageNumber,
       waveIndex: initialModel.waveIndex,
       allies: initialModel.allies.map((ally) => ({
