@@ -5,6 +5,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { isGreatswordRank } from '../../game/fusion';
 import { type FusionCeremonyPreset } from '../../game/fusion-presentation';
 import { type SlimeId, type SlimePresentation } from '../../game/slimes';
+import styles from './FusionWorkbench.module.css';
 
 type MorphMesh = THREE.Mesh & {
   morphTargetDictionary?: Record<string, number>;
@@ -282,7 +283,7 @@ export function FusionStage(props: FusionStageProps) {
   const current = props.currentPresentation;
   const result = props.resultPresentation;
   return (
-    <div className={`fusion-stage-shell fusion-stage ${props.isFusing ? 'is-fusing' : ''} ${props.fusionReady ? 'is-ready' : ''}`} aria-label={`${current.name} 合成プレビュー`}>
+    <div className={styles.stage} aria-label={`${current.name} 合成プレビュー`}>
       <Canvas
         camera={{ fov: 28, near: 0.1, far: 30, position: [0, 1.8, 6.3] }}
         dpr={[1, 2]}
@@ -311,12 +312,19 @@ export function FusionStage(props: FusionStageProps) {
         </mesh>
       </Canvas>
       {props.fusionReady && !props.isFusing && (
-        <div className={`fusion-stage__merge-mark fusion-stage__merge-mark--${props.ceremony}`} aria-hidden="true">
+        <div className={`${styles.mergeMark} ${ceremonyClass(props.ceremony)}`} aria-hidden="true">
           <span><i /><i /><i /></span><small>{props.ceremony === 'major-form' ? '合成' : '強化'}</small>
         </div>
       )}
-      {props.isFusing && <div className="fusion-stage__flash" key={props.sequenceKey} aria-hidden="true" />}
-      {props.isFusing && <div className="fusion-stage__result" key={`result-${props.sequenceKey}`}><span>進化</span><strong>{result.name}</strong></div>}
+      {props.isFusing && <div className={styles.flash} key={props.sequenceKey} aria-hidden="true" />}
+      {props.isFusing && <div className={styles.stageResult} key={`result-${props.sequenceKey}`}><span>進化</span><strong>{result.name}</strong></div>}
     </div>
   );
+}
+function ceremonyClass(ceremony: FusionCeremonyPreset): string {
+  switch (ceremony) {
+    case 'enhancement': return styles.enhancement;
+    case 'major-behavior': return styles.majorBehavior;
+    default: return '';
+  }
 }

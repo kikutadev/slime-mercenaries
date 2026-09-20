@@ -6,6 +6,7 @@ import { getSlimePresentation } from '../../game/slimes';
 import { getNextFusionSteps } from '../../game/fusion';
 import { getFusionIngredientPresentation, getFusionStepPresentation } from '../../game/fusion-presentation';
 import { FusionStage } from './FusionStage';
+import styles from './FusionWorkbench.module.css';
 
 interface FusionWorkbenchProps {
   slimeId: SlimeInstanceId;
@@ -96,9 +97,9 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
     || (!completed && run === null && selectedFusion === null)
   ) {
     return (
-      <div className="fusion-workbench fusion-workbench--empty">
-        <button className="world-close" type="button" onClick={onClose}>×</button>
-        <div className="fusion-complete-panel">
+      <div className={styles.workbench}>
+        <button className={styles.close} type="button" onClick={onClose}>×</button>
+        <div className={styles.completePanel}>
           <span>合成</span>
           <strong>現在の合成段階は上限です</strong>
           <button type="button" onClick={onClose}>キャンプへ戻る</button>
@@ -138,20 +139,20 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
   };
 
   return (
-    <div className={`fusion-workbench ${run !== null ? 'is-running' : ''} ${completed ? 'is-complete' : ''}`} aria-label="合成祭壇">
-      <button className="world-close" type="button" disabled={run !== null} onClick={onClose} aria-label="合成画面を閉じる">×</button>
+    <div className={`${styles.workbench} ${run !== null ? styles.running : ''}`} aria-label="合成祭壇">
+      <button className={styles.close} type="button" disabled={run !== null} onClick={onClose} aria-label="合成画面を閉じる">×</button>
 
-      <div className="fusion-workbench__header">
+      <div className={styles.header}>
         <span>合成祭壇</span>
         <strong>{run?.fromName ?? (completed ? completedName ?? detail.name : detail.name)}</strong>
         <small>合成ランク {displayFromRank} → {displayFromRank + 1}</small>
       </div>
 
-      <div className="fusion-workbench__stage">
-        <div className="fusion-rune fusion-rune--outer" />
-        <div className="fusion-rune fusion-rune--inner" />
+      <div className={styles.stageArea}>
+        <div className={`${styles.rune} ${styles.runeOuter}`} />
+        <div className={`${styles.rune} ${styles.runeInner}`} />
         {run !== null && (
-          <div className="fusion-absorb-layer" key={`absorb-${sequenceKey}`} aria-hidden="true">
+          <div className={styles.absorbLayer} key={`absorb-${sequenceKey}`} aria-hidden="true">
             {requirements.map((requirement) => {
               const meta = getFusionIngredientPresentation(requirement.tokenId);
               return (
@@ -178,20 +179,20 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
             setRun(null);
           }}
         />
-        {!completed && run === null && <div className="fusion-stage-caption">同じ職の力と素材をひとつにする</div>}
+        {!completed && run === null && <div className={styles.stageCaption}>同じ職の力と素材をひとつにする</div>}
       </div>
 
       {!completed ? (
-        <div className="fusion-workbench__console">
+        <div className={styles.console}>
           {run === null && nextChoices.length > 1 && (
-            <div className="fusion-path-choices" aria-label="合成先を選ぶ">
+            <div className={styles.pathChoices} aria-label="合成先を選ぶ">
               <span>合成先を選択</span>
               <div>
                 {nextChoices.map((choice) => (
                   <button
                     key={choice.id}
                     type="button"
-                    className={choice.id === next.id ? 'is-selected' : ''}
+                    className={choice.id === next.id ? styles.selected : ''}
                     onClick={() => setSelectedStepId(choice.id)}
                   >
                     <strong>{choice.resultName}</strong>
@@ -202,19 +203,19 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
             </div>
           )}
 
-          <div className="fusion-result-tease">
+          <div className={styles.resultTease}>
             <span>次の形態</span>
             <strong>{next.resultName}</strong>
             <small>{next.description}</small>
           </div>
 
-          <div className="fusion-recipe-orbit">
+          <div className={styles.recipe}>
             {requirements.map((requirement) => {
               const meta = getFusionIngredientPresentation(requirement.tokenId);
               return (
                 <button
                   type="button"
-                  className={`fusion-ingredient ${requirement.missing === 0 ? 'is-ready' : 'is-missing'}`}
+                  className={`${styles.ingredient} ${requirement.missing === 0 ? styles.ready : styles.missing}`}
                   key={requirement.tokenId}
                   onClick={() => {
                     if (requirement.missing === 0) return;
@@ -222,7 +223,7 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
                     else onBattle();
                   }}
                 >
-                  <span className={`fusion-ingredient__icon fusion-ingredient__icon--${meta.kind}`} aria-hidden="true"><img src={`${import.meta.env.BASE_URL}${meta.asset}`} alt="" /></span>
+                  <span className={`${styles.ingredientIcon} ${ingredientKindClass(meta.kind)}`} aria-hidden="true"><img src={`${import.meta.env.BASE_URL}${meta.asset}`} alt="" /></span>
                   <span><strong>{requirement.label}</strong><small>{validationMode ? '∞' : requirement.owned} / {requirement.required}</small></span>
                   {requirement.missing > 0 && <em>{meta.sourceLabel} ›</em>}
                 </button>
@@ -231,12 +232,12 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
           </div>
 
           {fusionCoreTokenId !== null && requirements.some((requirement) => requirement.tokenId === fusionCoreTokenId && requirement.missing > 0) && spareDuplicates.length > 0 && (
-            <div className="fusion-spare-list" aria-label="合成の核に変換する控えスライム">
+            <div className={styles.spareList} aria-label="合成の核に変換する控えスライム">
               {spareDuplicates.map((candidate) => {
                 const candidatePresentation = getSlimePresentation(candidate);
                 return (
                   <button
-                    className="fusion-trigger"
+                    className={styles.trigger}
                     type="button"
                     key={candidate.id}
                     onClick={() => {
@@ -255,11 +256,11 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
           )}
 
           {run === null && !levelMet && (
-            <div className="fusion-level-lock">Lv.{minLevel}で合成陣が安定します。現在 Lv.{detail.level}</div>
+            <div className={styles.levelLock}>Lv.{minLevel}で合成陣が安定します。現在 Lv.{detail.level}</div>
           )}
 
           <button
-            className={`fusion-trigger ${canFuse ? 'is-ready' : ''}`}
+            className={`${styles.trigger} ${canFuse ? styles.ready : ''}`}
             type="button"
             disabled={!canFuse || run !== null}
             onClick={beginFusion}
@@ -269,21 +270,30 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
           </button>
         </div>
       ) : (
-        <div className="fusion-complete-panel">
+        <div className={styles.completePanel}>
           <span>合成完了</span>
           <strong>{completedName ?? resultPresentation.name}</strong>
           <p>{completedDescription ?? next.description}</p>
-          <div className="fusion-unlock-badge">新攻撃 · {completedBehavior ?? '新しい戦闘挙動'}</div>
-          <div className="fusion-result-actions">
+          <div className={styles.unlockBadge}>新攻撃 · {completedBehavior ?? '新しい戦闘挙動'}</div>
+          <div className={styles.resultActions}>
             <button type="button" onClick={onClose}>キャンプで見る</button>
-            <button className="is-primary" type="button" onClick={onBattle}>戦闘で試す</button>
+            <button className={styles.primary} type="button" onClick={onBattle}>戦闘で試す</button>
           </div>
         </div>
       )}
 
-      {notice !== null && <button className="toast-notice" type="button" onClick={() => setNotice(null)}>{notice}</button>}
+      {notice !== null && <button className={styles.toast} type="button" onClick={() => setNotice(null)}>{notice}</button>}
     </div>
   );
+}
+
+function ingredientKindClass(kind: string): string {
+  switch (kind) {
+    case 'weapon': return styles.weapon;
+    case 'steel': return styles.steel;
+    case 'gel': return styles.gel;
+    default: return '';
+  }
 }
 
 function rejectionLabel(reason: string | undefined): string {

@@ -19,6 +19,7 @@ import { NurseryIcon } from '../components/NurseryIcon';
 import type { NurseryCeremony } from '../components/NurseryCeremonyStage';
 import { ids, sameTypeCount, slimeInstanceIdForSerial, type JobSlimeId, type SlimeInstanceId } from '../domain';
 import { getSlimePresentation } from '../game/slimes';
+import styles from './SlimesScreen.module.css';
 
 const CampSlimeStage = lazy(async () => {
   const module = await import('../components/CampSlimeStage');
@@ -296,7 +297,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
 
   if (mode === 'fusion' && selected !== null) {
     return (
-      <Suspense fallback={<div className="fusion-workbench fusion-workbench--empty" aria-label="合成画面を読み込み中" />}>
+      <Suspense fallback={<div className={styles.fusionLoading} aria-label="合成画面を読み込み中" />}>
         <FusionWorkbench
           slimeId={selected}
           onClose={() => setMode('none')}
@@ -308,7 +309,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   }
 
   return (
-    <section className="screen screen--camp screen--active" aria-label="キャンプ">
+    <section className={`screen screen--active ${styles.root}`} aria-label="キャンプ">
       <header className="camp-topbar">
         <div className="camp-resources"><span>G</span><strong>{validationMode ? '∞' : hud.gold}</strong></div>
         {showValidationTools && (
@@ -464,7 +465,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
             </div>
 
             {mode === 'train' && (
-              <div className="camp-inline-tool camp-inline-tool--train">
+              <div className="camp-inline-tool">
                 <div className="camp-inline-tool__heading">
                   <div>
                     <strong>{detail.name}を強化</strong>
@@ -516,7 +517,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
             )}
 
             {mode === 'formation' && (
-              <div className="camp-inline-tool camp-inline-tool--formation">
+              <div className="camp-inline-tool">
                 <CampFormationBoard
                   slots={formation}
                   selectedId={selected}
@@ -535,16 +536,16 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
         </>
       )}
 
-      {notice !== null && <button className="toast-notice" type="button" onClick={() => setNotice(null)}>{notice}</button>}
+      {notice !== null && <button className={styles.toast} type="button" onClick={() => setNotice(null)}>{notice}</button>}
 
       {createOpen && (
         <BottomSheet
           title="仲間を増やす"
           onClose={() => { if (!nurseryBusy) setCreateOpen(false); }}
-          backdropClassName="sheet-backdrop"
-          sheetClassName={`sheet-panel nursery-sheet ${nurseryBusy ? 'is-busy' : ''}`}
-          headerClassName="sheet-header"
-          closeButtonClassName="sheet-close"
+          backdropClassName={styles.sheetBackdrop}
+          sheetClassName={`${styles.nurserySheet} ${nurseryBusy ? styles.busy : ''}`}
+          headerClassName={styles.sheetHeader}
+          closeButtonClassName={styles.sheetClose}
         >
           <div className="nursery-world">
             <Suspense fallback={<div className="nursery-stage nursery-stage--loading" aria-hidden="true" />}>

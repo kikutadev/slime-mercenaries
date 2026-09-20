@@ -1,0 +1,58 @@
+:root {
+  --font-family-ui: Inter, ui-rounded, "Hiragino Sans", "Yu Gothic", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --font-size-caption: 10px;
+  --font-size-label: 11px;
+  --font-size-body: 13px;
+  --font-size-title: 18px;
+  --font-size-screen-title: 24px;
+
+  --line-height-tight: 1.15;
+  --line-height-body: 1.45;
+
+  --text-primary: #183248;
+  --text-secondary: rgb(24 50 72 / 62%);
+  --text-muted: rgb(24 50 72 / 50%);
+  --text-faint: rgb(24 50 72 / 44%);
+
+  --surface-page: #dcefcf;
+  --surface-shell: #e8f2dc;
+  --surface-glass: rgb(248 252 244 / 88%);
+  --surface-panel: #f3f8ee;
+  --surface-strong: rgb(31 61 58 / 94%);
+
+  --accent-green: #397c48;
+  --accent-green-strong: #347145;
+  --accent-green-soft: rgb(55 119 70 / 10%);
+  --accent-gold: #f5ca52;
+  --accent-warning: #7f4339;
+
+  --border-soft: rgb(62 98 69 / 12%);
+  --border-glass: rgb(255 255 255 / 68%);
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 19px;
+  --radius-xl: 24px;
+
+  --shadow-shell: 0 28px 80px rgb(41 72 54 / 22%);
+  --shadow-dock: 0 14px 36px rgb(25 58 45 / 18%);
+  --shadow-panel: 0 14px 34px rgb(25 55 45 / 23%);
+
+  --touch-target-min: 44px;
+  --safe-area-top: env(safe-area-inset-top);
+  --safe-area-bottom: env(safe-area-inset-bottom);
+  --bottom-nav-height: 58px;
+  --bottom-nav-edge-gap: 8px;
+  --bottom-nav-horizontal-gap: 12px;
+  --screen-bottom-reserve: calc(
+    var(--bottom-nav-height)
+    + max(var(--bottom-nav-edge-gap), var(--safe-area-bottom))
+    + var(--bottom-nav-edge-gap)
+  );
+
+  --layer-screen: 1;
+  --layer-dock: 50;
+  --layer-notice: 90;
+  --layer-sheet: 120;
+}

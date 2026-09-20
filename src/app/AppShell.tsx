@@ -8,6 +8,7 @@ import { SlimesScreen } from '../screens/SlimesScreen';
 import type { SlimeInstanceId } from '../domain';
 import { NavIcon, type NavIconKind } from '../components/navigation/NavIcon';
 import { SlimeMark } from '../components/SlimeMark';
+import styles from './AppShell.module.css';
 
 const BattleScreen = lazy(async () => {
   const module = await import('../screens/BattleScreen');
@@ -95,9 +96,9 @@ export function AppShell() {
 
   if (bootstrap.status === 'loading') {
     return (
-      <main className="page">
-        <section className="game-shell game-shell--loading">
-          <SlimeMark className="loading-slime" />
+      <main className={styles.page}>
+        <section className={`${styles.gameShell} ${styles.loading}`}>
+          <SlimeMark className={styles.loadingSlime} />
           <span>セーブデータを読み込み中…</span>
         </section>
       </main>
@@ -106,12 +107,12 @@ export function AppShell() {
 
   if (bootstrap.status === 'error') {
     return (
-      <main className="page">
-        <section className="game-shell game-shell--loading">
-          <div className="error-mark">!</div>
+      <main className={styles.page}>
+        <section className={`${styles.gameShell} ${styles.loading}`}>
+          <div className={styles.errorMark}>!</div>
           <strong>セーブデータを読み込めませんでした</strong>
           <span>{bootstrap.error.message}</span>
-          <button className="secondary-button" type="button" onClick={() => window.location.reload()}>再読み込み</button>
+          <button className={styles.reloadButton} type="button" onClick={() => window.location.reload()}>再読み込み</button>
         </section>
       </main>
     );
@@ -122,9 +123,9 @@ export function AppShell() {
     setScreen('slimes');
   };
   return (
-    <main className="page">
-      <section className="game-shell" aria-label="ゲーム画面">
-        <div className="app-content">
+    <main className={styles.page}>
+      <section className={styles.gameShell} aria-label="ゲーム画面">
+        <div className={styles.appContent}>
           <Suspense fallback={<section className="screen screen--active" aria-label="画面を読み込み中" />}>
             {activeScreen === 'battle' && (
               <BattleScreen
@@ -143,41 +144,41 @@ export function AppShell() {
           <BottomSheet
             title="おかえりなさい"
             onClose={() => setOfflineDismissed(true)}
-            backdropClassName="sheet-backdrop"
-            sheetClassName="sheet-panel offline-sheet"
-            headerClassName="sheet-header"
-            closeButtonClassName="sheet-close"
+            backdropClassName={styles.sheetBackdrop}
+            sheetClassName={`${styles.sheetPanel} ${styles.offlineSheet}`}
+            headerClassName={styles.sheetHeader}
+            closeButtonClassName={styles.sheetClose}
           >
-            <div className="offline-summary">
-              <div className="offline-summary__hero">
+            <div className={styles.offlineSummary}>
+              <div className={styles.offlineHero}>
                 <span>放置進行</span>
                 <strong>{offlineReturn.elapsedLabel}</strong>
                 <small>放置中も傭兵団は進み続けました。</small>
               </div>
-              <div className="offline-summary__grid">
+              <div className={styles.offlineGrid}>
                 <div><span>到達</span><strong>ステージ {offlineReturn.furthestStage}</strong></div>
                 <div><span>ステージ突破</span><strong>{offlineReturn.stageClearCount}</strong></div>
                 <div><span>ボス撃破</span><strong>{offlineReturn.bossDefeatedCount}</strong></div>
                 <div><span>派遣帰還</span><strong>{offlineReturn.dispatchCompletedCount}</strong></div>
               </div>
               {offlineReturn.frontierStageReached !== null && (
-                <div className="offline-summary__reward"><span>最前線</span><strong>ステージ {offlineReturn.frontierStageReached} 到達 · 周回継続中</strong></div>
+                <div className={styles.offlineReward}><span>最前線</span><strong>ステージ {offlineReturn.frontierStageReached} 到達 · 周回継続中</strong></div>
               )}
               {offlineReturn.materialDropCount > 0 && (
-                <div className="offline-summary__reward"><span>戦闘ドロップ</span><strong>素材 +{offlineReturn.materialDropCount}</strong></div>
+                <div className={styles.offlineReward}><span>戦闘ドロップ</span><strong>素材 +{offlineReturn.materialDropCount}</strong></div>
               )}
-              <button className="primary-button" type="button" onClick={() => { setOfflineDismissed(true); setScreen('battle'); }}>戦闘へ戻る</button>
+              <button className={styles.primaryButton} type="button" onClick={() => { setOfflineDismissed(true); setScreen('battle'); }}>戦闘へ戻る</button>
             </div>
           </BottomSheet>
         )}
 
         {bootstrap.error !== null && (
-          <div className="save-warning">セーブに失敗しました。接続を確認してください。</div>
+          <div className={styles.saveWarning}>セーブに失敗しました。接続を確認してください。</div>
         )}
 
         {presentation.current !== null && (
           <div
-            className={`global-event-notice global-event-notice--${presentation.current.tone}`}
+            className={`${styles.eventNotice} ${styles[presentation.current.tone]}`}
             role="status"
             aria-live="polite"
           >
@@ -187,7 +188,7 @@ export function AppShell() {
           </div>
         )}
 
-        <nav className="bottom-nav bottom-nav--four" aria-label="メインメニュー">
+        <nav className={styles.bottomNav} aria-label="メインメニュー">
           <NavButton id="battle" label="戦闘" icon="battle" active={activeScreen === 'battle'} attention={false} onClick={setScreen} />
           <NavButton id="slimes" label="キャンプ" icon="camp" active={activeScreen === 'slimes'} attention={attention.has('slimes')} onClick={setScreen} />
           <NavButton id="dispatch" label="派遣" icon="dispatch" active={activeScreen === 'dispatch'} attention={attention.has('dispatch')} onClick={setScreen} />
@@ -214,10 +215,10 @@ function NavButton({
   onClick: (screen: ScreenId) => void;
 }) {
   return (
-    <button className={active ? 'is-active' : ''} type="button" onClick={() => onClick(id)}>
-      <span className="nav-icon"><NavIcon kind={icon} /></span>
+    <button className={`${styles.navButton} ${active ? styles.navButtonActive : ''}`} type="button" onClick={() => onClick(id)}>
+      <span className={styles.navIcon}><NavIcon kind={icon} /></span>
       <span>{label}</span>
-      {attention && <span className="nav-notice" aria-label="実行できる項目があります" />}
+      {attention && <span className={styles.navNotice} aria-label="実行できる項目があります" />}
     </button>
   );
 }

@@ -1,0 +1,477 @@
+.root {
+  overflow: hidden;
+  background: #263c42;
+  color: #fff;
+}
+
+.topbar {
+  position: absolute;
+  z-index: 30;
+  top: max(14px, var(--safe-area-top));
+  left: 16px;
+  right: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.topbar :global(.eyebrow) {
+  color: rgb(255 255 255 / 58%);
+}
+
+.topbar h1 {
+  margin: 1px 0 0;
+  font-size: var(--font-size-screen-title);
+  letter-spacing: -.05em;
+}
+
+.keys {
+  min-width: 72px;
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas: "icon value" "icon label";
+  column-gap: 6px;
+  padding: 7px 10px;
+  border: 1px solid rgb(255 255 255 / 13%);
+  border-radius: 15px;
+  background: rgb(15 34 39 / 62%);
+}
+
+.keys > span {
+  grid-area: icon;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  color: #e9b74f;
+}
+
+.keys strong {
+  grid-area: value;
+  font-size: 12px;
+}
+
+.keys small {
+  grid-area: label;
+  color: rgb(255 255 255 / 58%);
+  font-size: var(--font-size-caption);
+  font-weight: 900;
+}
+
+.keys :global(.forge-key-icon) {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.room {
+  position: absolute;
+  inset: 0 0 255px;
+  overflow: hidden;
+  background: #172c31;
+}
+
+.room :global(.forge-stage) {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+}
+
+.room :global(.forge-stage canvas) {
+  position: absolute !important;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.prompt {
+  position: absolute;
+  z-index: 12;
+  left: 50%;
+  bottom: 18px;
+  width: 260px;
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 16px;
+  background: rgb(12 30 34 / 62%);
+  text-align: center;
+  backdrop-filter: blur(9px);
+}
+
+.prompt span,
+.prompt strong,
+.prompt small {
+  display: block;
+}
+
+.prompt span {
+  color: #efc968;
+  font-size: var(--font-size-caption);
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.prompt strong {
+  margin-top: 2px;
+  font-size: 17px;
+}
+
+.prompt small {
+  margin-top: 3px;
+  color: rgb(255 255 255 / 66%);
+  font-size: var(--font-size-caption);
+}
+
+.reveal {
+  position: absolute;
+  z-index: 16;
+  left: 50%;
+  bottom: 18px;
+  width: 260px;
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  border: 1px solid rgb(255 255 255 / 13%);
+  border-radius: 16px;
+  background: rgb(12 30 34 / 68%);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 18%);
+  backdrop-filter: blur(10px);
+  text-align: center;
+  animation: weaponReveal .42s cubic-bezier(.15, .75, .3, 1.2) both;
+}
+
+.reveal span,
+.reveal strong,
+.reveal small {
+  display: block;
+}
+
+.reveal span {
+  color: #f1ce78;
+  font-size: var(--font-size-caption);
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.reveal strong {
+  margin-top: 2px;
+  font-size: 17px;
+}
+
+.reveal small {
+  margin-top: 2px;
+  color: rgb(255 255 255 / 70%);
+  font-size: var(--font-size-caption);
+  font-weight: 800;
+}
+
+.rarityRare.reveal span {
+  color: #9fe2ff;
+}
+
+.rarityMythic.reveal span {
+  color: #f4d77d;
+}
+
+.console {
+  position: absolute;
+  z-index: 20;
+  left: 10px;
+  right: 10px;
+  bottom: 8px;
+  min-height: 235px;
+  padding: 13px;
+  border: 1px solid rgb(255 255 255 / 11%);
+  border-radius: 23px;
+  background: rgb(15 34 39 / 91%);
+  box-shadow: 0 -14px 40px rgb(5 20 24 / 28%);
+  backdrop-filter: blur(16px);
+}
+
+.pity > div:first-child {
+  display: flex;
+  justify-content: space-between;
+}
+
+.pity span,
+.pity strong {
+  font-size: var(--font-size-caption);
+}
+
+.pity span {
+  color: rgb(255 255 255 / 58%);
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.pityTrack {
+  position: relative;
+  height: 5px;
+  overflow: hidden;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 8%);
+}
+
+.pityTrack i {
+  position: absolute;
+  inset: 0;
+  transform-origin: left;
+  background: linear-gradient(90deg, #6fca7f, #efd06f);
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.actions button {
+  min-height: 56px;
+  border: 1px solid rgb(255 255 255 / 11%);
+  border-radius: 15px;
+  background: rgb(255 255 255 / 5.5%);
+  color: #fff;
+}
+
+.actions button:disabled {
+  opacity: .34;
+}
+
+.actions button.ten {
+  border-color: rgb(231 185 72 / 25%);
+  background: linear-gradient(180deg, rgb(192 137 47 / 65%), rgb(119 83 38 / 72%));
+}
+
+.actions span,
+.actions strong,
+.actions small {
+  display: block;
+}
+
+.actions span {
+  color: rgb(255 255 255 / 62%);
+  font-size: var(--font-size-label);
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+
+.actions strong {
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.actions small {
+  margin-top: 2px;
+  color: rgb(255 255 255 / 56%);
+  font-size: var(--font-size-caption);
+}
+
+.actions strong :global(.forge-key-icon) {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: #f0cb67;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.resultRack {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.resultRack > div {
+  min-width: 0;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 6%);
+}
+
+.resultRack > div.rarityRare {
+  background: rgb(94 151 220 / 16%);
+}
+
+.resultRack > div.rarityMythic {
+  background: rgb(237 189 73 / 20%);
+  box-shadow: 0 0 12px rgb(237 189 73 / 12%);
+}
+
+.resultRack small {
+  display: none;
+}
+
+.resultRack :global(.weapon-family-icon) {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.resultRack > div.rarityRare :global(.weapon-family-icon) {
+  color: #a6dcff;
+}
+
+.resultRack > div.rarityMythic :global(.weapon-family-icon) {
+  color: #f3d47d;
+}
+
+.collection {
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid rgb(255 255 255 / 8%);
+}
+
+.collection summary {
+  display: flex;
+  justify-content: space-between;
+  min-height: 26px;
+  align-items: center;
+  list-style: none;
+  cursor: pointer;
+  color: rgb(255 255 255 / 66%);
+  font-size: var(--font-size-caption);
+  font-weight: 900;
+  letter-spacing: .05em;
+}
+
+.collection summary::-webkit-details-marker {
+  display: none;
+}
+
+.collectionEmpty {
+  margin-top: 7px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 4%);
+  color: rgb(255 255 255 / 56%);
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-body);
+}
+
+.collectionList {
+  max-height: 115px;
+  overflow: auto;
+  margin-top: 7px;
+  display: grid;
+  gap: 4px;
+}
+
+.collectionList > div {
+  display: grid;
+  grid-template-columns: 62px 1fr auto;
+  gap: 6px;
+  align-items: center;
+  min-height: var(--touch-target-min);
+  padding: 6px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 4.5%);
+}
+
+.collectionList strong,
+.collectionList small {
+  display: block;
+}
+
+.collectionList strong {
+  color: #fff;
+  font-size: var(--font-size-label);
+}
+
+.collectionList small {
+  margin-top: 2px;
+  color: rgb(255 255 255 / 54%);
+  font-size: var(--font-size-caption);
+}
+
+.collectionList em {
+  color: #efd378;
+  font-size: var(--font-size-caption);
+  font-style: normal;
+  font-weight: 900;
+}
+
+.weaponRarity {
+  display: inline-flex !important;
+  width: fit-content;
+  min-height: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: var(--font-size-caption) !important;
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+
+.rarityCommon.weaponRarity {
+  background: #e7ece7;
+  color: #607064;
+}
+
+.rarityRare.weaponRarity {
+  background: #dcecff;
+  color: #43689d;
+}
+
+.rarityMythic.weaponRarity {
+  background: #fff0cb;
+  color: #9c671a;
+}
+
+@keyframes weaponReveal {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px) scale(.94);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.toast {
+  position: fixed;
+  z-index: 100;
+  left: 50%;
+  bottom: calc(90px + var(--safe-area-bottom));
+  max-width: min(360px, calc(100vw - 36px));
+  min-height: var(--touch-target-min);
+  transform: translateX(-50%);
+  padding: 9px 13px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 999px;
+  background: rgb(29 57 54 / 92%);
+  color: #fff;
+  box-shadow: 0 12px 30px rgb(25 48 42 / 22%);
+  font-size: var(--font-size-caption);
+  font-weight: 800;
+  cursor: pointer;
+  animation: toastIn 180ms ease-out both;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translate(-50%, 7px) scale(.97); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}

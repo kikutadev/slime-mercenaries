@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { SlimeInstanceId } from '../domain';
+import styles from './CampFormationBoard.module.css';
 
 export type CampFormationSlotView = Readonly<{
   slotIndex: number;
@@ -107,7 +108,7 @@ export function CampFormationBoard({
     : new Set([ceremony.fromSlot, ceremony.toSlot].filter((value): value is number => value !== null));
 
   return (
-    <div className="camp-formation-board">
+    <div className={`${styles.root} camp-formation-board`}>
       <div className="camp-formation-board__summary">
         <div>
           <span>選択中</span>

@@ -1,3 +1,4 @@
+import styles from './CampStrengthenEffect.module.css';
 export type StrengthenVariant = 'one' | 'ten' | 'max';
 export type StrengthenPhase = 'charging' | 'result';
 
@@ -26,7 +27,7 @@ export function CampStrengthenEffect({ ceremony }: { ceremony: StrengthenCeremon
 
   return (
     <div
-      className={`camp-strengthen-effect camp-strengthen-effect--${ceremony.phase} camp-strengthen-effect--${ceremony.variant}`}
+      className={`${styles.root} camp-strengthen-effect camp-strengthen-effect--${ceremony.phase} camp-strengthen-effect--${ceremony.variant}`}
       key={ceremony.key}
       aria-live="polite"
     >

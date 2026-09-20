@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "check:bundle": "node scripts/check-initial-bundle.mjs",
-    "verify:release": "pnpm run typecheck && pnpm test && pnpm run build && pnpm run check:bundle && pnpm run simulate:balance && pnpm run simulate:check && pnpm run simulate:paced",
+    "verify:release": "pnpm run typecheck && pnpm run check:ui && pnpm test && pnpm run build && pnpm run check:bundle && pnpm run simulate:balance && pnpm run simulate:check && pnpm run simulate:paced",
     "preview": "vite preview",
     "generate:model": "pnpm run generate:sword && pnpm run generate:greatsword && pnpm run generate:archer",
     "generate:sword": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant sword --output public/assets/sword-slime.glb",
@@ -66,7 +66,8 @@
     "generate:enemy:crackle-bug": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/build.py -- --slug crackle-bug --output public/assets/enemies/crackle-bug.glb",
     "generate:enemy:magma-crab": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/build.py -- --slug magma-crab --output public/assets/enemies/magma-crab.glb",
     "generate:enemy:furnace-turtle": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/enemies/build.py -- --slug furnace-turtle --output public/assets/enemies/furnace-turtle.glb",
-    "generate:enemy:area6": "pnpm run generate:enemy:ember-gecko && pnpm run generate:enemy:charcoal-roller && pnpm run generate:enemy:crackle-bug && pnpm run generate:enemy:magma-crab && pnpm run generate:enemy:furnace-turtle"
+    "generate:enemy:area6": "pnpm run generate:enemy:ember-gecko && pnpm run generate:enemy:charcoal-roller && pnpm run generate:enemy:crackle-bug && pnpm run generate:enemy:magma-crab && pnpm run generate:enemy:furnace-turtle",
+    "check:ui": "node scripts/check-ui-contract.mjs"
   },
   "dependencies": {
     "@react-three/fiber": "^9.7.0",

@@ -6,6 +6,7 @@ import { DispatchMapStage, type DispatchTraveler } from '../components/DispatchM
 import { dispatchRoutePresentation } from '../game/dispatch-presentation';
 import { getSlimePresentation } from '../game/slimes';
 import type { DispatchContractId, SlimeInstanceId } from '../domain';
+import styles from './DispatchScreen.module.css';
 
 export function DispatchScreen() {
   const state = useGameState();
@@ -47,15 +48,15 @@ export function DispatchScreen() {
   }), [state.gameData.roster.slimes, view.contracts]);
 
   return (
-    <section className="screen screen--dispatch-world screen--active" aria-label="派遣">
-      <header className="dispatch-world__topbar">
+    <section className={`screen screen--active ${styles.root}`} aria-label="派遣">
+      <header className={styles.topbar}>
         <div><p className="eyebrow">遠征地図</p><h1>派遣</h1></div>
-        <div className="dispatch-world__stats"><span>G {validationMode ? '∞' : hud.gold}</span><strong>{activeCount} / 3</strong></div>
+        <div className={styles.stats}><span>G {validationMode ? '∞' : hud.gold}</span><strong>{activeCount} / 3</strong></div>
       </header>
 
-      <div className="dispatch-map">
+      <div className={styles.map}>
         <DispatchMapStage travelers={travelers} />
-        <div className="dispatch-map__home">
+        <div className={styles.home}>
           <span><DispatchHomeIcon /></span>
           <small>キャンプ</small>
         </div>
@@ -66,12 +67,12 @@ export function DispatchScreen() {
             <button
               key={item.id}
               type="button"
-              className={`dispatch-map-node ${selectedContract === item.id ? 'is-selected' : ''} ${item.status === 'running' ? 'is-running' : ''}`}
+              className={`${styles.node} ${selectedContract === item.id ? styles.selected : ''} ${item.status === 'running' ? styles.running : ''}`}
               style={{ left: `${meta.x}%`, top: `${meta.y}%` }}
               onClick={() => setSelectedContract(item.id)}
             >
-              <span className="dispatch-map-node__marker"><DispatchLandmarkIcon kind={meta.landmark} /></span>
-              <span className="dispatch-map-node__copy">
+              <span className={styles.nodeMarker}><DispatchLandmarkIcon kind={meta.landmark} /></span>
+              <span className={styles.nodeCopy}>
                 <strong>{item.name}</strong>
                 <small>{item.status === 'running' ? formatDuration(item.remainingSec) : item.rewardLabel}</small>
               </span>
@@ -80,37 +81,37 @@ export function DispatchScreen() {
         })}
       </div>
 
-      <div className={`dispatch-console ${contract.status === 'running' ? 'is-running' : ''}`}>
-        <div className="dispatch-console__head">
+      <div className={styles.console}>
+        <div className={styles.consoleHead}>
           <div><span>{dispatchRoutePresentation[contract.id].subtitle}</span><strong>{contract.name}</strong></div>
-          <div className="dispatch-console__reward"><span>報酬</span><strong>{contract.rewardLabel}</strong></div>
+          <div className={styles.reward}><span>報酬</span><strong>{contract.rewardLabel}</strong></div>
         </div>
 
         {contract.status === 'running' ? (
           <RunningDispatch contract={contract} state={state} />
         ) : (
           <>
-            <div className="dispatch-console__mission">
+            <div className={styles.mission}>
               <span><small>時間</small><strong>{formatDuration(contract.durationSec)}</strong></span>
               <span><small>必要戦力</small><strong>{contract.requiredPower}</strong></span>
               <span><small>状態</small><strong>{contract.eligibleSlimes.length > 0 ? '出発可能' : '人員不足'}</strong></span>
             </div>
 
             {contract.eligibleSlimes.length > 0 ? (
-              <div className="dispatch-crew-strip">
+              <div className={styles.crew}>
                 {contract.eligibleSlimes.map((slime) => (
-                  <button key={slime.id} type="button" className={selectedSlime === slime.id ? 'is-selected' : ''} onClick={() => setSelectedSlime(slime.id)}>
+                  <button key={slime.id} type="button" className={selectedSlime === slime.id ? styles.selected : ''} onClick={() => setSelectedSlime(slime.id)}>
                     <img src={`${import.meta.env.BASE_URL}${slime.icon}`} alt="" />
                     <span><strong>{slime.name}</strong><small>戦力 {Math.floor(slime.power)}</small></span>
                   </button>
                 ))}
               </div>
             ) : (
-              <div className="dispatch-console__empty">控えのスライムが必要です。キャンプで主力から外すと派遣できます。</div>
+              <div className={styles.empty}>控えのスライムが必要です。キャンプで主力から外すと派遣できます。</div>
             )}
 
             <button
-              className="dispatch-send-button"
+              className={styles.sendButton}
               type="button"
               disabled={!canSend}
               onClick={() => {
@@ -125,7 +126,7 @@ export function DispatchScreen() {
         )}
       </div>
 
-      {notice !== null && <button className="toast-notice" type="button" onClick={() => setNotice(null)}>{notice}</button>}
+      {notice !== null && <button className={styles.toast} type="button" onClick={() => setNotice(null)}>{notice}</button>}
     </section>
   );
 }
@@ -135,13 +136,13 @@ function RunningDispatch({ contract, state }: { contract: ReturnType<typeof sele
   const presentation = slime === undefined || slime === null ? null : getSlimePresentation(slime);
   const progress = contract.durationSec <= 0 ? 0 : Math.max(0, Math.min(1, 1 - contract.remainingSec / contract.durationSec));
   return (
-    <div className="dispatch-running-panel">
-      <div className="dispatch-running-panel__slime">
+    <div className={styles.runningPanel}>
+      <div className={styles.runningSlime}>
         {presentation !== null && <img src={`${import.meta.env.BASE_URL}${presentation.icon}`} alt="" />}
         <span><strong>{presentation?.name ?? 'スライム'}</strong><small>任務遂行中</small></span>
       </div>
-      <div className="dispatch-running-panel__time"><span>帰還まで</span><strong>{formatDuration(contract.remainingSec)}</strong></div>
-      <div className="dispatch-running-panel__track"><i style={{ transform: `scaleX(${progress})` }} /></div>
+      <div className={styles.runningTime}><span>帰還まで</span><strong>{formatDuration(contract.remainingSec)}</strong></div>
+      <div className={styles.runningTrack}><i style={{ transform: `scaleX(${progress})` }} /></div>
       <small>帰還時に報酬は自動で受け取ります。</small>
     </div>
   );

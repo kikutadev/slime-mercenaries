@@ -1,0 +1,83 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  font-family: var(--font-family-ui);
+  color: var(--text-primary);
+  background: var(--surface-page);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 320px;
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% -10%, rgb(255 255 255 / 90%), transparent 42%),
+    linear-gradient(180deg, #dff4d4 0%, #b7dca8 100%);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+button,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible {
+  outline: 3px solid rgb(54 128 78 / 30%);
+  outline-offset: 2px;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+}
+
+.screen--active {
+  animation: screenEnter 180ms ease-out both;
+}
+
+.eyebrow {
+  margin: 0;
+  color: rgb(24 50 72 / 54%);
+  font-size: var(--font-size-caption);
+  font-weight: 900;
+  letter-spacing: .10em;
+  text-transform: uppercase;
+}
+
+@keyframes screenEnter {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}
