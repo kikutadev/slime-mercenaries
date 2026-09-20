@@ -1,5 +1,4 @@
 import { lazy, Suspense, useRef, useState } from 'react';
-import { BottomSheet } from 'idle-game-kit/react';
 import { useGameController, useGameState } from '../app/GameProvider';
 import { validationToolsVisible } from '../application/validation-mode';
 import {
@@ -15,9 +14,9 @@ import type { CampSlimeReaction } from '../components/CampSlimeStage';
 import { CampStrengthenEffect, type StrengthenCeremony, type StrengthenVariant } from '../components/CampStrengthenEffect';
 import { CampFormationBoard, type CampFormationCeremony } from '../components/CampFormationBoard';
 import { CampStationIcon } from '../components/CampStationIcon';
-import { NurseryIcon } from '../components/NurseryIcon';
 import type { NurseryCeremony } from '../components/NurseryCeremonyStage';
-import { ids, sameTypeCount, slimeInstanceIdForSerial, type JobSlimeId, type SlimeInstanceId } from '../domain';
+import { NurseryPanel } from '../components/NurseryPanel';
+import { sameTypeCount, slimeInstanceIdForSerial, type JobSlimeId, type SlimeInstanceId } from '../domain';
 import { getSlimePresentation } from '../game/slimes';
 import styles from './SlimesScreen.module.css';
 
@@ -34,11 +33,6 @@ const CampEnvironmentStage = lazy(async () => {
 const FusionWorkbench = lazy(async () => {
   const module = await import('../components/fusion/FusionWorkbench');
   return { default: module.FusionWorkbench };
-});
-
-const NurseryCeremonyStage = lazy(async () => {
-  const module = await import('../components/NurseryCeremonyStage');
-  return { default: module.NurseryCeremonyStage };
 });
 
 interface Props {
@@ -538,73 +532,17 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
 
       {notice !== null && <button className={styles.toast} type="button" onClick={() => setNotice(null)}>{notice}</button>}
 
-      {createOpen && (
-        <BottomSheet
-          title="仲間を増やす"
-          onClose={() => { if (!nurseryBusy) setCreateOpen(false); }}
-          backdropClassName={styles.sheetBackdrop}
-          sheetClassName={`${styles.nurserySheet} ${nurseryBusy ? styles.busy : ''}`}
-          headerClassName={styles.sheetHeader}
-          closeButtonClassName={styles.sheetClose}
-        >
-          <div className="nursery-world">
-            <Suspense fallback={<div className="nursery-stage nursery-stage--loading" aria-hidden="true" />}>
-              <NurseryCeremonyStage
-                ceremony={nurseryCeremony}
-                stockLabel={validationMode ? '∞' : String(nurseryCeremony?.beforeStock ?? createPanel.plainStock)}
-              />
-            </Suspense>
-
-            <section className="nursery-craft-panel" aria-label="素材からプレーンスライムを生み出す">
-              <div className="nursery-craft-panel__heading">
-                <span><NurseryIcon kind="craft" /></span>
-                <div><strong>素材から生み出す</strong><small>素材が生成槽に集まり、スライムになります</small></div>
-              </div>
-              <div className="nursery-materials">
-                {createPanel.craft.requirements.map((item) => (
-                  <div className={item.owned >= item.required || validationMode ? 'is-ready' : 'is-missing'} key={item.tokenId}>
-                    <span>
-                      <NurseryIcon kind={item.tokenId === ids.token.lifeWater ? 'water' : 'gel'} />
-                    </span>
-                    <div><strong>{resourceLabel(item.tokenId)}</strong><small>{validationMode ? '∞' : item.owned} / {item.required}</small></div>
-                  </div>
-                ))}
-              </div>
-              <button
-                className="nursery-craft-trigger"
-                type="button"
-                disabled={nurseryBusy || !createPanel.craft.canCraft}
-                onClick={handleCraftPlain}
-              >
-                <strong>{nurseryBusy && nurseryCeremony?.kind === 'craft' ? '生まれています…' : '生み出す'}</strong>
-                <small>プレーンスライム +1</small>
-              </button>
-            </section>
-
-            <button
-              className="nursery-shop-action"
-              type="button"
-              disabled={nurseryBusy || !createPanel.purchase.canAfford}
-              onClick={handlePurchasePlain}
-            >
-              <span><NurseryIcon kind="shop" /></span>
-              <div><strong>ショップから迎える</strong><small>すぐにキャンプへ仲間入り</small></div>
-              <em>{validationMode ? '∞' : createPanel.purchase.cost} G</em>
-            </button>
-
-            <div className="nursery-job-title"><span>職業を与える</span><strong>プレーンスライムに道具を渡す</strong></div>
-            <div className="nursery-jobs">
-              {createPanel.jobs.map((job) => (
-                <button key={job.id} type="button" disabled={nurseryBusy || !job.canCreate} onClick={() => handleCreateJob(job.id)}>
-                  <img src={`${import.meta.env.BASE_URL}${job.icon}`} alt="" />
-                  <span><strong>{job.name}</strong><small>{job.isNew ? 'はじめての職業' : '同じ職業の仲間を増やす'}</small></span>
-                  <em>{job.canCreate ? '道具を渡す' : '素材不足'}</em>
-                </button>
-              ))}
-            </div>
-          </div>
-        </BottomSheet>
-      )}
+      <NurseryPanel
+        open={createOpen}
+        busy={nurseryBusy}
+        ceremony={nurseryCeremony}
+        validationMode={validationMode}
+        panel={createPanel}
+        onClose={() => { if (!nurseryBusy) setCreateOpen(false); }}
+        onCraft={handleCraftPlain}
+        onPurchase={handlePurchasePlain}
+        onCreateJob={handleCreateJob}
+      />
 
     </section>
   );
@@ -622,10 +560,4 @@ function rejectionLabel(reason: string | undefined): string {
     case 'formation-failed': return '派遣中のスライムがいるため6職編成できません';
     default: return reason === undefined ? '実行できませんでした' : `実行できません: ${reason}`;
   }
-}
-
-function resourceLabel(tokenId: string): string {
-  if (tokenId === ids.token.slimeGel) return 'スライムジェル';
-  if (tokenId === ids.token.lifeWater) return '生命の水';
-  return tokenId;
 }
