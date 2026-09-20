@@ -11,8 +11,8 @@ VALIDATION_PROFILE=EnemyValidationProfile(
     min_meshes=16,max_meshes=18,
     parent_rules=(ParentRule('QuillLobe_2','ShellRoot'),ParentRule('Head','HeadRoot')),
     relative_size_rules=(
-        RelativeSizeRule('Body','x',0.80,0.90),
-        RelativeSizeRule('QuillLobe_2','x',0.52,0.64),
+        RelativeSizeRule('Body','x',0.64,0.76),
+        RelativeSizeRule('QuillLobe_2','x',0.30,0.42),
         RelativeSizeRule('Head','x',0.46,0.56),
     ),
     forbidden_nodes=('TailRoot','TailLobe_1'),

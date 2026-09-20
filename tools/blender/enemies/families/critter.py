@@ -54,24 +54,23 @@ def _build_hedgehog(
 ) -> None:
     # Low bean body with one continuous plush shell. The small rim lobes only break up the
     # outline enough to read as soft quills; the shell must never become a pile of spikes.
-    create_ellipsoid('Body', (0, .015, .235), (.41, .29, .215), body_mat, body, segments=28, rings=18)
+    create_ellipsoid('Body', (0, .015, .240), (.335, .275, .190), body_mat, body, segments=28, rings=18)
     # Keep the shell low and wrapped around the back. The broad mass carries the
     # silhouette; five shallow rim lobes suggest plush quills without becoming a crown.
-    shell = create_empty('ShellRoot', body, (0, .105, .205))
-    create_ellipsoid('ShellMass', (0, .035, .045), (.395, .235, .205), accent, shell, segments=28, rings=18)
+    shell = create_empty('ShellRoot', body, (0, .105, .185))
+    create_ellipsoid('ShellMass', (0, .055, .190), (.195, .180, .160), accent, shell, segments=22, rings=14)
     for index, (x, y, z, sx, sy, sz, rotation_y) in enumerate([
-        (-.315, .025, .010, .115, .145, .105, -.42),
-        (-.235, .035, .115, .130, .150, .115, -.25),
-        (0.000, .045, .155, .155, .155, .120,  .00),
-        (.235,  .035, .115, .130, .150, .115,  .25),
-        (.315,  .025, .010, .115, .145, .105,  .42),
+        (-.300, .025, .180, .170, .150, .185, -.10),
+        (-.105, .040, .405, .175, .160, .225, -.04),
+        (.105,  .040, .405, .175, .160, .225,  .04),
+        (.300,  .025, .180, .170, .150, .185,  .10),
     ]):
         _soft_lobe(f'QuillLobe_{index + 1}', (x, y, z), (sx, sy, sz), rotation_y, accent, shell)
 
-    head = create_empty('HeadRoot', body, (0, -.170, .245))
-    create_ellipsoid('Head', (0, -.015, .020), (.285, .195, .180), body_mat, head, segments=24, rings=16)
-    create_ellipsoid('Muzzle', (0, -.175, -.025), (.105, .070, .070), belly, head, segments=16, rings=10)
-    create_ellipsoid('Nose', (0, -.242, -.018), (.040, .026, .032), face_mat, head, segments=12, rings=8)
+    head = create_empty('HeadRoot', body, (0, -.250, .250))
+    create_ellipsoid('Head', (0, -.015, .020), (.240, .195, .200), body_mat, head, segments=24, rings=16)
+    create_ellipsoid('Snout', (0, -.210, -.025), (.115, .078, .075), belly, head, segments=16, rings=10)
+    create_ellipsoid('Nose', (0, -.292, -.018), (.042, .027, .033), face_mat, head, segments=12, rings=8)
 
     ear_l = create_ellipsoid('Ear_L', (-.145, -.020, .125), (.060, .045, .073), accent, head, segments=14, rings=8)
     ear_r = create_ellipsoid('Ear_R', (.145, -.020, .125), (.060, .045, .073), accent, head, segments=14, rings=8)
@@ -81,8 +80,8 @@ def _build_hedgehog(
     for name, x in [('Foot_L', -.145), ('Foot_R', .145)]:
         create_ellipsoid(name, (x, -.030, .055), (.105, .125, .058), body_mat, body, segments=14, rings=8)
 
-    eye_front = -.365
-    eye_z = .300
+    eye_front = -.425
+    eye_z = .290
     for name, x in [('Eye_L', -.073), ('Eye_R', .073)]:
         create_ellipsoid(name, (x, eye_front, eye_z), (.023, .011, .027), face_mat, face, segments=12, rings=8)
     create_ellipsoid('Mouth', (0, eye_front - .004, eye_z - .064), (.014, .007, .009), face_mat, face, segments=10, rings=6)
@@ -98,11 +97,11 @@ def _build_squirrel(
 ) -> None:
     # Compact pear body. The tail is deliberately one overlapping cloud/crescent mass rather
     # than separate balls, so it remains the dominant silhouette even in grayscale.
-    create_ellipsoid('Body', (0, .015, .285), (.295, .240, .350), body_mat, body, segments=28, rings=18)
+    create_ellipsoid('Body', (0, .015, .300), (.295, .240, .300), body_mat, body, segments=28, rings=18)
     create_ellipsoid('Belly', (0, -.205, .260), (.180, .066, .220), belly, body, segments=20, rings=12)
 
     head = create_empty('HeadRoot', body, (0, -.105, .485))
-    create_ellipsoid('Head', (0, -.025, .015), (.235, .190, .195), body_mat, head, segments=24, rings=16)
+    create_ellipsoid('Head', (0, -.025, .015), (.225, .190, .195), body_mat, head, segments=24, rings=16)
     create_ellipsoid('Muzzle', (0, -.165, -.030), (.092, .062, .060), belly, head, segments=16, rings=10)
     create_ellipsoid('Nose', (0, -.222, -.026), (.031, .022, .027), face_mat, head, segments=12, rings=8)
 
@@ -114,15 +113,15 @@ def _build_squirrel(
     # Oversized but rear-biased crescent tail. Keeping it behind the head prevents
     # the front view from turning into three unrelated circles while preserving a
     # dominant squirrel silhouette at grayscale thumbnail size.
-    tail = create_empty('TailRoot', body, (.220, .185, .175))
-    _soft_lobe('TailMass', (.115, .060, .180), (.235, .165, .300), .26, accent, tail)
-    _soft_lobe('TailCrown', (.235, .075, .385), (.205, .165, .245), -.28, accent, tail)
-    _soft_lobe('TailTip', (.120, .070, .565), (.145, .135, .165), -.58, accent, tail)
+    tail = create_empty('TailRoot', body, (.340, .185, .175))
+    _soft_lobe('TailLobe_2', (.115, .060, .180), (.235, .165, .300), .26, accent, tail)
+    _soft_lobe('TailLobe_1', (.235, .075, .385), (.205, .165, .245), -.28, accent, tail)
+    _soft_lobe('TailLobe_3', (.120, .070, .665), (.145, .135, .165), -.58, accent, tail)
 
     for name, x in [('Foot_L', -.135), ('Foot_R', .135)]:
         create_ellipsoid(name, (x, -.025, .055), (.095, .115, .058), body_mat, body, segments=14, rings=8)
-    for name, x in [('Paw_L', -.150), ('Paw_R', .150)]:
-        create_ellipsoid(name, (x, -.220, .300), (.064, .050, .060), body_mat, body, segments=14, rings=8)
+    create_ellipsoid('AcornCharm', (0.0, -.238, .300), (.072, .046, .086), accent, body, segments=14, rings=9)
+    create_ellipsoid('AcornCap', (0.0, -.244, .374), (.078, .049, .036), body_mat, body, segments=14, rings=8)
 
     eye_front = -.325
     eye_z = .515

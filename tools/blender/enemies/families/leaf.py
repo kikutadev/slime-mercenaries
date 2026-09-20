@@ -42,6 +42,7 @@ def _create_soft_leaf(
     height: float,
     thickness: float,
     location: tuple[float, float, float] = (0.0, 0.0, 0.0),
+    heart: bool = False,
 ) -> bpy.types.Object:
     """Create a broad, beveled teardrop leaf in the authored X/Z plane.
 
@@ -51,19 +52,39 @@ def _create_soft_leaf(
     """
 
     # Clockwise when viewed from authored local -Y (the character front).
+    # Leafling uses a heart notch; Whirl Leaf keeps the pointed teardrop blade.
     outline = (
-        (0.00, 0.00),
-        (-0.30, 0.08),
-        (-0.47, 0.24),
-        (-0.52, 0.48),
-        (-0.42, 0.72),
-        (-0.22, 0.94),
-        (0.00, 1.10),
-        (0.22, 0.94),
-        (0.42, 0.72),
-        (0.52, 0.48),
-        (0.47, 0.24),
-        (0.30, 0.08),
+        (
+            (0.00, 0.00),
+            (-0.30, 0.12),
+            (-0.50, 0.36),
+            (-0.52, 0.64),
+            (-0.40, 0.86),
+            (-0.23, 1.00),
+            (-0.08, 0.98),
+            (0.00, 0.82),
+            (0.08, 0.98),
+            (0.23, 1.00),
+            (0.40, 0.86),
+            (0.52, 0.64),
+            (0.50, 0.36),
+            (0.30, 0.12),
+        )
+        if heart
+        else (
+            (0.00, 0.00),
+            (-0.30, 0.08),
+            (-0.47, 0.24),
+            (-0.52, 0.48),
+            (-0.42, 0.72),
+            (-0.22, 0.94),
+            (0.00, 1.10),
+            (0.22, 0.94),
+            (0.42, 0.72),
+            (0.52, 0.48),
+            (0.47, 0.24),
+            (0.30, 0.08),
+        )
     )
     half_depth = thickness * 0.5
     front = [(x * width, -half_depth, z * height) for x, z in outline]
@@ -131,8 +152,8 @@ def _create_core(
     profile: str,
 ) -> None:
     if profile == "single":
-        core_scale = (0.255, 0.225, 0.245)
-        core_z = 0.245
+        core_scale = (0.235, 0.210, 0.220)
+        core_z = 0.220
         eye_spacing = 0.074
     else:
         core_scale = (0.235, 0.210, 0.225)
@@ -193,25 +214,25 @@ def _build_leafling(
     accent_mat: bpy.types.Material,
 ) -> None:
     # One broad upright leaf, deliberately not a horizontal cap.
-    leaf_root = create_empty("LeafRoot", body, (0.0, 0.020, 0.425))
+    leaf_root = create_empty("LeafRoot", body, (-0.120, 0.020, 0.425))
     leaf_root.rotation_euler.x = 0.055
-    leaf_root.rotation_euler.z = -0.105
+    leaf_root.rotation_euler.z = -0.68
 
-    width = 0.82
+    width = 1.30
     height = 0.465
     depth = 0.075
-    _create_soft_leaf("Leaf", leaf_root, leaf_mat, width=width, height=height, thickness=depth)
+    _create_soft_leaf("Leaf", leaf_root, leaf_mat, width=width, height=height, thickness=depth, heart=True)
     _create_leaf_vein("LeafVein", leaf_root, accent_mat, height=height, depth=depth)
 
     # A small terminal lobe gives the shared secondary channel something physical to
     # lag behind the broad leaf without introducing a segmented or blade-like body.
-    secondary = create_empty("LeafSecondary", leaf_root, (0.0, -0.002, height * 0.88))
+    secondary = create_empty("SecondaryRoot", leaf_root, (0.120, -0.002, height * 0.82))
     _create_soft_leaf(
         "LeafTipLobe",
         secondary,
         leaf_mat,
-        width=0.21,
-        height=0.14,
+        width=0.13,
+        height=0.09,
         thickness=0.060,
         location=(0.0, 0.0, -0.020),
     )
@@ -225,18 +246,18 @@ def _build_whirl_leaf(
 ) -> None:
     # Two broad teardrop leaves meet at one soft center. Their V/pinwheel silhouette
     # is intentionally much wider than Leafling before color is considered.
-    leaf_root = create_empty("LeafRoot", body, (0.0, 0.015, 0.405))
-    leaf_root.rotation_euler.y = -1.02
-    leaf_root.rotation_euler.z = -0.08
+    leaf_root = create_empty("LeafRoot", body, (-0.165, 0.015, 0.405))
+    leaf_root.rotation_euler.y = 0.0
+    leaf_root.rotation_euler.z = -0.92
 
-    blade_width = 0.46
+    blade_width = 0.90
     blade_height = 0.34
     blade_depth = 0.070
     _create_soft_leaf("Leaf", leaf_root, leaf_mat, width=blade_width, height=blade_height, thickness=blade_depth)
-    _create_leaf_vein("LeafVein", leaf_root, accent_mat, height=blade_height, depth=blade_depth)
 
-    secondary = create_empty("LeafSecondary", leaf_root, (0.0, 0.0, 0.0))
-    secondary.rotation_euler.y = 2.04
+    secondary = create_empty("LeafSecondary", leaf_root, (0.330, 0.0, 0.0))
+    secondary.rotation_euler.y = 0.0
+    secondary.rotation_euler.z = 1.84
     _create_soft_leaf(
         "Leaf_Secondary",
         secondary,
@@ -245,12 +266,11 @@ def _build_whirl_leaf(
         height=blade_height * 0.96,
         thickness=blade_depth,
     )
-    _create_leaf_vein("LeafVein_Secondary", secondary, leaf_mat, height=blade_height * 0.96, depth=blade_depth)
 
     # A plush center reads as a plant joint rather than a mechanical propeller hub.
     create_ellipsoid(
         "LeafHub",
-        (0.0, -0.005, 0.0),
+        (0.165, -0.005, 0.0),
         (0.115, 0.090, 0.105),
         accent_mat,
         leaf_root,

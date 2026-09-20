@@ -11,8 +11,8 @@ VALIDATION_PROFILE=EnemyValidationProfile(
     min_meshes=16,max_meshes=18,
     parent_rules=(ParentRule('Puff_1','PuffRoot'),ParentRule('Puff_6','PuffRoot')),
     relative_size_rules=(
-        RelativeSizeRule('Puff_1','x',0.45,0.56),
-        RelativeSizeRule('Puff_2','z',0.37,0.48),
+        RelativeSizeRule('Puff_1','x',0.28,0.38),
+        RelativeSizeRule('Puff_2','z',0.25,0.36),
     ),
     forbidden_nodes=('BudCore','Petal_1'),
 )

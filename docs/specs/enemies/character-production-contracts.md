@@ -36,11 +36,11 @@ Bossは通常敵の拡大版を禁止し、輪郭・attack rhythm・defeat durat
 | **ぷくキノコ** `plump-mushroom` | 横広dumpling + 3mass cloud cap | x/z 1.18–1.35、side body lobes必須、18–20 meshes | ちびより深いcrouch、遅く重いcontact、cap rebound。attack ≥0.70s |
 | **ほうしキノコ** `spore-mushroom` | 縦長lantern cap + 左右spore pouch | z/x 1.00–1.10、CapRim全幅92–102%、paired pouches必須、17–19 meshes | cap inflate → spore 1発 → recoil |
 | **オオキノコ** `great-mushroom` | 巨大layered reishi cap + 小さな子キノコ | x/z 1.24–1.38、全幅≥2.0、PrimaryRoot + SecondaryRoot、22–25 meshes | hold → slam → **upper shelf delayed reaction** → recovery。attack ≥1.20s / defeat ≥1.35s |
-| **ちびリーフ** `leafling` | 一枚の大きな葉 | x/z 1.05–1.28、Leaf全幅95–102%、secondary leaf禁止、9–11 meshes | one-leaf windback → slap → return。projectileなし |
-| **くるりリーフ** `whirl-leaf` | 2枚のpinwheel leaf | x/z 1.00–1.22、2枚ともdominant、LeafVein禁止、9–11 meshes | 2葉counter-bend → full twist → gust 1発 |
-| **つぼみん** `bud-bloom` | 閉じた縦長bud | z/x 1.08–1.20、BudCore + 4 petals、14–16 meshes | petals close/compress → head poke → recover |
-| **ぽふぽふ花** `puff-flower` | 6lobeの丸いpuff head | x/z 0.80–0.92、Puff_1..6必須、bud構造禁止、16–18 meshes | puff inflate → pollen 1発 → recoil |
-| **まるハリ** `round-hedgehog` | 4lobe soft-quill shell + 小さい顔 | x/z 1.08–1.22、ShellRoot + QuillLobe_1..4、tail禁止、16–18 meshes | curl → roll → uncurl。projectileなし |
+| **ちびリーフ** `leafling` | 中央notchのある一枚heart leaf + tiny core | x/z 1.05–1.28、Leaf全幅95–102%、Core全幅38–50%、2枚目のleaf禁止、主葉tipはSecondaryRoot配下、9–11 meshes | one-leaf windback → tip lag → slap → return。projectileなし |
+| **くるりリーフ** `whirl-leaf` | 左右へ開く2枚のpinwheel leaf | x/z 1.00–1.22、各bladeが全幅のおよそ60–78%、LeafVein禁止、9–11 meshes | 2葉counter-bend → full twist → gust 1発 |
+| **つぼみん** `bud-bloom` | 槍型に細長い閉じたbud | z/x 1.65–1.90、BudCore + 4 tapered petals、細い下半身、14–16 meshes | petals close/compress → head poke → recover |
+| **ぽふぽふ花** `puff-flower` | 外周が読める6lobeの丸いpuff head | x/z 0.80–0.92、Puff_1..6必須、各lobeは全幅28–38%程度、bud構造禁止、16–18 meshes | puff inflate → pollen 1発 → recoil |
+| **まるハリ** `round-hedgehog` | 幅の主役が4山soft-quill shell + 小さいbean body/顔 | x/z 1.08–1.22、ShellRoot + QuillLobe_1..4、各主lobe全幅30–42%、tail禁止、16–18 meshes | curl → roll → uncurl。projectileなし |
 | **どんぐりリス** `acorn-squirrel` | pear body + 巨大3lobe tail | x/z 0.92–1.08、全高≥1.05、TailLobe_1..3必須、15–17 meshes | tail windup → acorn 1発 → tail recoil |
 | **ころクリ** `crystal-beetle` | 低い虫bodyより先に一個の背中結晶 | x/z 1.05–1.35、BackCrystal高50–72%、4 feet、13–16 meshes | crouch → crystal lean → tackle → delayed crystal rebound |
 | **つるはしモグ** `drill-nose-mole` | 丸いモグラ + 短い鉱石鼻 | x/z 1.25–1.55、Muzzle 42–60%、held weapon禁止、13–16 meshes | visible dive → underground travel → fast pop |

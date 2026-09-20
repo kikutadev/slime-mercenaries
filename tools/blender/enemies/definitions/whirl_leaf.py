@@ -9,8 +9,8 @@ VALIDATION_PROFILE=EnemyValidationProfile(
     min_meshes=9,max_meshes=11,
     parent_rules=(ParentRule('Leaf','LeafRoot'),ParentRule('Leaf_Secondary','LeafSecondary')),
     relative_size_rules=(
-        RelativeSizeRule('Leaf','x',0.88,1.02),
-        RelativeSizeRule('Leaf_Secondary','x',0.82,1.02),
+        RelativeSizeRule('Leaf','x',0.60,0.78),
+        RelativeSizeRule('Leaf_Secondary','x',0.58,0.76),
     ),
     forbidden_nodes=('LeafVein',),
 )

@@ -54,7 +54,7 @@ def _create_lower_body(
     """
 
     is_puff = definition.profile == "puff"
-    body_scale = (0.205, 0.182, 0.205) if is_puff else (0.218, 0.190, 0.218)
+    body_scale = (0.170, 0.160, 0.175) if is_puff else (0.170, 0.165, 0.185)
     create_ellipsoid(
         "BodyBean",
         (0.0, 0.0, 0.225),
@@ -65,8 +65,8 @@ def _create_lower_body(
         rings=16,
     )
 
-    foot_x = 0.105 if is_puff else 0.112
-    foot_scale = (0.092, 0.120, 0.055) if is_puff else (0.098, 0.126, 0.058)
+    foot_x = 0.088 if is_puff else 0.090
+    foot_scale = (0.075, 0.100, 0.045) if is_puff else (0.075, 0.105, 0.048)
     for name, x in (("Foot_L", -foot_x), ("Foot_R", foot_x)):
         create_ellipsoid(
             name,
@@ -79,8 +79,8 @@ def _create_lower_body(
         )
 
     leaf_root = create_empty("LeafSecondary", body_root, (0.0, 0.0, 0.0))
-    leaf_x = 0.205 if is_puff else 0.220
-    leaf_scale = (0.130, 0.066, 0.078) if is_puff else (0.148, 0.070, 0.088)
+    leaf_x = 0.165 if is_puff else 0.145
+    leaf_scale = (0.095, 0.055, 0.060) if is_puff else (0.095, 0.060, 0.070)
     for name, side in (("Leaf_L", -1), ("Leaf_R", 1)):
         leaf = create_ellipsoid(
             name,
@@ -95,10 +95,11 @@ def _create_lower_body(
         leaf.rotation_euler.x = 0.06
 
     stem_root = create_empty("StemRoot", body_root, (0.0, 0.0, 0.305))
+    stem_scale = (0.075, 0.072, 0.165) if is_puff else (0.080, 0.080, 0.165)
     create_ellipsoid(
         "Stem",
         (0.0, 0.012, 0.095),
-        (0.105, 0.095, 0.155),
+        stem_scale,
         body_material,
         stem_root,
         segments=20,
@@ -124,41 +125,36 @@ def _create_bud_head(
     create_ellipsoid(
         "BudCore",
         (0.0, 0.010, 0.165),
-        (0.155, 0.132, 0.278),
+        (0.165, 0.130, 0.310),
         petal_material,
         head_root,
         segments=26,
         rings=17,
     )
-    create_ellipsoid(
-        "BudBase",
-        (0.0, 0.018, 0.020),
-        (0.166, 0.132, 0.112),
-        petal_material,
-        petal_root,
-        segments=20,
-        rings=12,
-    )
-
-    # Four large overlapping lobes create a closed vertical pear/tulip contour.
+    # Four softened tapered petals converge toward the top. Ellipsoids made the
+    # closed bud read as another round pom-pom in grayscale.
     petal_specs = (
-        ("Petal_Front", 0.0, -0.075, 0.150, 0.0, -0.08),
-        ("Petal_Left", -0.086, 0.000, 0.145, 0.21, 0.02),
-        ("Petal_Right", 0.086, 0.000, 0.145, -0.21, 0.02),
-        ("Petal_Back", 0.0, 0.052, 0.158, 0.0, 0.15),
+        ("Petal_1", 0.0, -0.070, 0.165, 0.0, -0.05),
+        ("Petal_2", -0.085, 0.000, 0.145, 0.06, 0.01),
+        ("Petal_3", 0.085, 0.000, 0.145, -0.06, 0.01),
+        ("Petal_4", 0.0, 0.050, 0.175, 0.0, 0.10),
     )
     for name, x, y, z, rot_y, rot_x in petal_specs:
-        petal = create_ellipsoid(
-            name,
-            (x, y, z),
-            (0.116, 0.073, 0.265),
-            petal_material,
-            petal_root,
-            segments=22,
-            rings=14,
-        )
+        bpy.ops.mesh.primitive_cone_add(vertices=14, radius1=0.170, radius2=0.038, depth=0.575)
+        petal = bpy.context.active_object
+        assert petal is not None
+        petal.name = name
+        petal.parent = petal_root
+        petal.location = (x, y, z)
+        petal.scale = (1.0, 0.58, 1.0)
         petal.rotation_euler.y = rot_y
         petal.rotation_euler.x = rot_x
+        petal.data.materials.append(petal_material)
+        bevel = petal.modifiers.new("SoftPetalEdge", "BEVEL")
+        bevel.width = 0.035
+        bevel.segments = 3
+        for polygon in petal.data.polygons:
+            polygon.use_smooth = True
 
 
 def _create_puff_head(
@@ -172,32 +168,21 @@ def _create_puff_head(
     `open` secondary-motion channel visibly inflates/deflates the actual crown.
     """
 
-    head_root = create_empty("HeadRoot", stem_root, (0.0, 0.0, 0.215))
+    head_root = create_empty("HeadRoot", stem_root, (0.0, 0.0, 0.278))
     petal_root = create_empty("PetalRoot", head_root, (0.0, 0.0, 0.0))
     puff_root = create_empty("PuffRoot", petal_root, (0.0, 0.0, 0.115))
 
-    # A central fill mass prevents the crown from reading as a ring of balls.
-    create_ellipsoid(
-        "PuffCore",
-        (0.0, 0.018, 0.012),
-        (0.220, 0.125, 0.178),
-        petal_material,
-        puff_root,
-        segments=24,
-        rings=15,
-    )
-
-    ring_radius_x = 0.250
-    ring_radius_z = 0.166
-    for index in range(7):
-        angle = math.pi / 2 + index * (math.pi * 2 / 7)
+    ring_radius_x = 0.322
+    ring_radius_z = 0.220
+    for index in range(6):
+        angle = math.pi / 2 + index * (math.pi * 2 / 6)
         x = math.cos(angle) * ring_radius_x
         z = math.sin(angle) * ring_radius_z
         vertical_bias = 0.010 if z > 0 else -0.004
         create_ellipsoid(
             f"Puff_{index + 1}",
             (x, -0.002, z),
-            (0.180, 0.118, 0.150 + vertical_bias),
+            (0.150, 0.105, 0.150 + vertical_bias),
             petal_material,
             puff_root,
             segments=22,
@@ -224,7 +209,7 @@ def _create_face(
 ) -> None:
     """Create a quiet bead-scale face on the lower plush body."""
 
-    front_y = -0.176 if definition.profile == "puff" else -0.184
+    front_y = -0.154 if definition.profile == "puff" else -0.184
     eye_z = 0.270
     for name, x in (("Eye_L", -0.062), ("Eye_R", 0.062)):
         create_ellipsoid(
