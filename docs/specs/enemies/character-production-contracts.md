@@ -1,7 +1,7 @@
 # Enemy Character Production Contracts
 
 Status: Current
-Updated: 2026-09-20
+Updated: 2026-09-21
 
 ## Purpose
 
@@ -212,6 +212,65 @@ Area 7の新要素は **stop → burst と装備の慣性差**。装飾量で強
 - Signature Attackはdash contactとslash-line releaseを分離し、slash lineはstop後0.10–0.16秒遅らせる
 - capeはdash中はほぼ静止し、slash後に追いつく。速度だけ上げたBossは禁止
 - Defeatはweapon lower → cape tension loss → helmet/body sit。violent collapse / weapon separation禁止
+
+
+## Area 8 — Dragon Crater contracts
+
+Area 8の新要素は **anticipation FX + delayed impact**。最終Areaでもrealistic dragon anatomyへ寄せず、large head / compact body / bounded wing-or-star hookを維持する。VFX量ではなく、光が「集まる → 完全に止まる → release → 遅れてsecondaryが反応する」順序を強さの主役にする。
+
+| Character | First read | Geometry hard gate | Motion hard gate |
+| --- | --- | --- | --- |
+| **たまごドラゴン** `egg-dragon` | giant round head + lower bodyを囲む一個のeggshell ring | x/z 1.38–1.58、Head幅42–50%、EggShellRing幅94–101%、14–17 meshes、large wing / back crystal禁止 | inhale → cheek/body inflate → **0.10s以上hold** → small fireball 1発 → recoil / sit → shell delayed shake。Attack 1.10–1.30s |
+| **こつばさ竜** `tiny-wing-dragon` | giant headに対して明らかに小さすぎる左右wing | z/x 1.20–1.48、Head幅72–82%、各wing幅14–20%、13–16 meshes、shell / back crystal禁止 | failed flap x3 → brief hover → wing fold → short flight → dive bump → delayed tiny-wing flutter。Attack 1.10–1.30s |
+| **星くいトカゲ** `star-eater-lizard` | low compact lizard + 背中の一個のoversized star crystal | x/z 1.65–2.10、BackStar高42–60%、Body幅62–80%、12–15 meshes、wing / shell禁止 | star glow drains → body charge light → still hold → charged dash → impact → **star delayed relight/rebound**。Attack 1.18–1.38s |
+| **りゅうせいヒナ** `meteor-hatchling` | round hatchling + **exactly 2** small orbiting star motes | x/z 1.25–1.50、Head幅44–52%、StarMote_L/R必須、各mote高14–22%、13–16 meshes、third mote禁止 | complete still → motes rise/orbit inward → merge hold → small meteor 1発 → orbit reforms。Attack 1.30–1.50s |
+| **星喰らい竜** `star-eater-dragon` | enormous head + broad readable wings + short body + bounded horns/tail | x/z 1.28–1.62、全幅≥1.70 / 全高≥1.38、Head幅48–64%、WingPair幅88–101%、18–22 meshes、realistic long neck / 4 long legs禁止 | crouch → wings fully close → star light pulls inward → **0.15s hold** → wings burst open → charge/contact → **0.12–0.18s delayed tail/wind ring** → recovery。Attack ≥1.90s / Defeat ≥2.00s |
+
+### Area 8 per-character detail
+
+**たまごドラゴン**
+- `HeadRoot`が最大mass。bodyはheadより短く低い
+- `ShellRoot` = eggshell ring。shellはbodyを囲む一個のbroken-crown ringとして読み、複数殻片を飛散させない
+- `InflateRoot` = cheek/throat cue。吸い込み中だけbounded inflate
+- projectileは一個のcompact `dragon-fireball`。continuous flame禁止
+- Hitはbody recoil後にshellだけ0.05–0.12秒遅れてshake
+- Defeatはbodyがshellへ沈み、×目だけ殻上から覗く
+
+**こつばさ竜**
+- `HeadRoot`がfirst mass、`WingPairRoot`は意図的にtiny
+- wingは左右一枚ずつのrounded plate。finger bones / membrane segmentation禁止
+- Idleで「飛べそうで飛べない」短いfailed flapを低頻度で入れる
+- Moveは3 quick flaps → brief hover → landing。realistic gait禁止
+- Attackはwing charge後だけ一度成功して短距離flight → dive bump
+- projectile禁止
+- Defeatはwingが一度だけ空振りしてsoft sit
+
+**星くいトカゲ**
+- low bean/lizard body + 4 short pads。long neck / thin tail / realistic quadruped gait禁止
+- `PrimaryRoot` = StarRoot、内部に`GlowRoot` = BackStar
+- exactly one oversized star crystal。small star decorationを追加しない
+- Attack前半でstar glowを明確に落とし、bodyがcompressしてからdash
+- contact後0.08–0.16秒遅れてstarがrelight/rebound
+- projectile禁止
+- Defeatはglow drain → bodyがstarを抱くようにcurl。crystal break禁止
+
+**りゅうせいヒナ**
+- `PrimaryRoot` / `SecondaryRoot` はbody中心に置き、各child star moteを左右offsetしてorbit可能にする
+- moteはexactly 2。3個目・星trailの常時表示は禁止
+- Idleは低速counter-orbit。Moveは短いfloat/hop
+- Attackはbody完全静止 → 2mote rise / inward orbit → merge位置で0.10秒以上hold → `dragon-meteor` 1発
+- release後に2moteが左右へ戻り、通常orbitへreformする
+- Defeatはmoteがbody脇へ降りてdim。mote disappearanceだけで終わらない
+
+**星喰らい竜**
+- realistic adult dragon禁止。enormous head / short torso / broad toy wingsが主mass
+- `HeadRoot`、`WingPairRoot`、`TailRoot`、`GlowRoot`を独立
+- hornは左右一対のみ、tailは一本。牙 / claw / spineを増殖させない
+- Signature Attackは最低7beat。wings close中にglowを内側へ集め、0.15秒hold後にburst open
+- contactと`dragon-star-ring` releaseを0.12–0.18秒分離し、tail/wind after-effectもcontact後に出す
+- Boss Moveはslow heavy glide + delayed wing settle
+- Defeatはfinal breath → glow off → wing droop → sit → oversized head soft drop → × eyes。violent collapse禁止
+- Meteor Dropはbattle-system integrationで第二Boss attackとして利用できるが、Gallery production signatureはStar Chargeを正本とする
 
 
 ## Executable sources

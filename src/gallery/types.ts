@@ -8,9 +8,10 @@ export type GalleryEnemyBehaviorId =
   | import('../game/enemy-motion/marsh').MarshBehaviorId
   | import('../game/enemy-motion/frost').FrostBehaviorId
   | import('../game/enemy-motion/ember').EmberBehaviorId
-  | import('../game/enemy-motion/castle').CastleBehaviorId;
+  | import('../game/enemy-motion/castle').CastleBehaviorId
+  | import('../game/enemy-motion/dragon').DragonBehaviorId;
 
-export type GalleryModelKind = 'plain' | 'sword' | 'greatsword' | 'bow' | 'shield' | 'wand' | 'dagger' | 'gun' | 'tiny-mushroom' | 'plump-mushroom' | 'spore-mushroom' | 'great-mushroom' | 'leafling' | 'whirl-leaf' | 'bud-bloom' | 'puff-flower' | 'round-hedgehog' | 'acorn-squirrel' | 'crystal-beetle' | 'drill-nose-mole' | 'crystal-bat' | 'pebble-golem' | 'amber-turtle' | 'puff-frog' | 'marsh-sprout' | 'bubble-snail' | 'skimming-lily' | 'great-marsh-frog' | 'snow-roller' | 'ice-bug' | 'scarf-snowman' | 'icicle-lantern' | 'snow-statue-guardian' | 'ember-gecko' | 'charcoal-roller' | 'crackle-bug' | 'magma-crab' | 'furnace-turtle' | 'round-sentry' | 'shield-sentry' | 'bell-mage' | 'windup-bat' | 'moon-crown-knight';
+export type GalleryModelKind = 'plain' | 'sword' | 'greatsword' | 'bow' | 'shield' | 'wand' | 'dagger' | 'gun' | 'tiny-mushroom' | 'plump-mushroom' | 'spore-mushroom' | 'great-mushroom' | 'leafling' | 'whirl-leaf' | 'bud-bloom' | 'puff-flower' | 'round-hedgehog' | 'acorn-squirrel' | 'crystal-beetle' | 'drill-nose-mole' | 'crystal-bat' | 'pebble-golem' | 'amber-turtle' | 'puff-frog' | 'marsh-sprout' | 'bubble-snail' | 'skimming-lily' | 'great-marsh-frog' | 'snow-roller' | 'ice-bug' | 'scarf-snowman' | 'icicle-lantern' | 'snow-statue-guardian' | 'ember-gecko' | 'charcoal-roller' | 'crackle-bug' | 'magma-crab' | 'furnace-turtle' | 'round-sentry' | 'shield-sentry' | 'bell-mage' | 'windup-bat' | 'moon-crown-knight' | 'egg-dragon' | 'tiny-wing-dragon' | 'star-eater-lizard' | 'meteor-hatchling' | 'star-eater-dragon';
 
 export interface SlimeGalleryDefinition {
   id: string;

@@ -18,6 +18,7 @@ export interface EnemyRigRestPose {
   primaryRotation: THREE.Euler | null;
   primaryPosition: THREE.Vector3 | null;
   secondaryRotation: THREE.Euler | null;
+  secondaryPosition: THREE.Vector3 | null;
   headRotation: THREE.Euler | null;
   headPosition: THREE.Vector3 | null;
   tailRotation: THREE.Euler | null;
@@ -76,6 +77,7 @@ export function captureEnemyRigRestPose(parts: EnemyRigParts): EnemyRigRestPose 
     primaryRotation: parts.primary?.rotation.clone() ?? null,
     primaryPosition: parts.primary?.position.clone() ?? null,
     secondaryRotation: parts.secondary?.rotation.clone() ?? null,
+    secondaryPosition: parts.secondary?.position.clone() ?? null,
     headRotation: parts.head?.rotation.clone() ?? null,
     headPosition: parts.head?.position.clone() ?? null,
     tailRotation: parts.tail?.rotation.clone() ?? null,
@@ -98,6 +100,7 @@ export function resetEnemySecondaryPose(parts: EnemyRigParts, rest: EnemyRigRest
   restoreRotation(parts.primary, rest.primaryRotation);
   if (parts.primary && rest.primaryPosition) parts.primary.position.copy(rest.primaryPosition);
   restoreRotation(parts.secondary, rest.secondaryRotation);
+  if (parts.secondary && rest.secondaryPosition) parts.secondary.position.copy(rest.secondaryPosition);
   restoreRotation(parts.head, rest.headRotation);
   if (parts.head && rest.headPosition) parts.head.position.copy(rest.headPosition);
   restoreRotation(parts.tail, rest.tailRotation);
@@ -132,6 +135,10 @@ export function applyEnemySecondaryPose(
   }
   if (parts.secondary && rest.secondaryRotation) {
     parts.secondary.rotation.x = rest.secondaryRotation.x + (pose.secondaryBend ?? 0);
+    parts.secondary.rotation.z = rest.secondaryRotation.z + (pose.secondaryTwist ?? 0);
+  }
+  if (parts.secondary && rest.secondaryPosition) {
+    parts.secondary.position.z = rest.secondaryPosition.z + Math.max(-0.28, Math.min(0.22, pose.secondaryLift ?? 0));
   }
   if (parts.head && rest.headRotation) {
     parts.head.rotation.x = rest.headRotation.x + (pose.headNod ?? 0);

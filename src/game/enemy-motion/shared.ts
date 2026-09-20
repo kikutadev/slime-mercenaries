@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 
-export type EnemyFamilyId = 'mushroom' | 'leaf' | 'flower' | 'critter' | 'mine' | 'marsh' | 'frost' | 'ember' | 'castle';
-export type EnemyProjectileKind = 'spore' | 'gust' | 'pollen' | 'acorn' | 'crystal-ring' | 'water-orb' | 'ice-shard' | 'ice-ray' | 'frost-icicle' | 'ember-spark' | 'fire-ring' | 'furnace-flame' | 'castle-sound-ring' | 'castle-moon-bolt' | 'castle-slash-line';
+export type EnemyFamilyId = 'mushroom' | 'leaf' | 'flower' | 'critter' | 'mine' | 'marsh' | 'frost' | 'ember' | 'castle' | 'dragon';
+export type EnemyProjectileKind = 'spore' | 'gust' | 'pollen' | 'acorn' | 'crystal-ring' | 'water-orb' | 'ice-shard' | 'ice-ray' | 'frost-icicle' | 'ember-spark' | 'fire-ring' | 'furnace-flame' | 'castle-sound-ring' | 'castle-moon-bolt' | 'castle-slash-line' | 'dragon-fireball' | 'dragon-meteor' | 'dragon-star-ring';
 
 export interface EnemySecondaryPose {
   primaryBend?: number;
   primaryLift?: number;
   secondaryBend?: number;
+  secondaryTwist?: number;
+  secondaryLift?: number;
   open?: number;
   twist?: number;
   wag?: number;

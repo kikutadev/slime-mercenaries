@@ -63,6 +63,11 @@ const EXPECTED_MOTIONS: Readonly<Record<string, readonly string[]>> = {
   'bell-mage': ['idle', 'move', 'attack', 'hit', 'defeat'],
   'windup-bat': ['idle', 'move', 'attack', 'hit', 'defeat'],
   'moon-crown-knight': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'egg-dragon': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'tiny-wing-dragon': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'star-eater-lizard': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'meteor-hatchling': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'star-eater-dragon': ['idle', 'move', 'attack', 'hit', 'defeat'],
 };
 
 describe('slime gallery catalog', () => {

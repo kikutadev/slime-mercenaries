@@ -9,6 +9,7 @@ import { getMarshMotionProfile } from './enemy-motion/marsh';
 import { getFrostMotionProfile } from './enemy-motion/frost';
 import { getEmberMotionProfile } from './enemy-motion/ember';
 import { getCastleMotionProfile } from './enemy-motion/castle';
+import { getDragonMotionProfile } from './enemy-motion/dragon';
 
 export * from './enemy-motion/shared';
 export * from './enemy-motion/rig';
@@ -22,6 +23,7 @@ export * from './enemy-motion/marsh';
 export * from './enemy-motion/frost';
 export * from './enemy-motion/ember';
 export * from './enemy-motion/castle';
+export * from './enemy-motion/dragon';
 
 export function getEnemyMotionProfile(behaviorId: EnemyBehaviorId | string): EnemyMotionProfile {
   if (behaviorId === 'mushroom-bump' || behaviorId === 'mushroom-heavy-bump' || behaviorId === 'mushroom-spore' || behaviorId === 'mushroom-boss') return getMushroomMotionProfile(behaviorId);
@@ -33,6 +35,7 @@ export function getEnemyMotionProfile(behaviorId: EnemyBehaviorId | string): Ene
   if (behaviorId === 'frost-snow-roll' || behaviorId === 'frost-ice-spike-shot' || behaviorId === 'frost-scarf-dash' || behaviorId === 'frost-lantern-ray' || behaviorId === 'frost-guardian-boss') return getFrostMotionProfile(behaviorId);
   if (behaviorId === 'ember-tail-dash' || behaviorId === 'ember-charcoal-burst' || behaviorId === 'ember-spark-shell' || behaviorId === 'ember-crab-snap' || behaviorId === 'ember-furnace-boss') return getEmberMotionProfile(behaviorId);
   if (behaviorId === 'castle-spear-thrust' || behaviorId === 'castle-shield-bash' || behaviorId === 'castle-bell-ring' || behaviorId === 'castle-windup-burst' || behaviorId === 'castle-moon-knight-boss') return getCastleMotionProfile(behaviorId);
+  if (behaviorId === 'dragon-egg-fire' || behaviorId === 'dragon-tiny-wing-dive' || behaviorId === 'dragon-star-lizard-charge' || behaviorId === 'dragon-meteor-cast' || behaviorId === 'dragon-star-eater-boss') return getDragonMotionProfile(behaviorId);
   throw new Error(`Unknown enemy motion behavior: ${behaviorId}`);
 }
 

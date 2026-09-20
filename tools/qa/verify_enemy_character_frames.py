@@ -14,6 +14,7 @@ IDS = (
     "snow-roller","ice-bug","scarf-snowman","icicle-lantern","snow-statue-guardian",
     "ember-gecko","charcoal-roller","crackle-bug","magma-crab","furnace-turtle",
     "round-sentry","shield-sentry","bell-mage","windup-bat","moon-crown-knight",
+    "egg-dragon","tiny-wing-dragon","star-eater-lizard","meteor-hatchling","star-eater-dragon",
 )
 MOTIONS = ("idle","attack","defeat")
 BACKGROUND = (239,245,232)
