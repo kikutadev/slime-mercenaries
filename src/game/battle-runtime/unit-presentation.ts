@@ -2,14 +2,13 @@ import * as THREE from 'three';
 import {
   applyDeformationPose,
   applyEquipmentPose,
-  applyGuardPulseVfx,
-  applyMageCastSigil,
   applyMageRunePose,
   clamp01,
   getHopTravelMotion,
   getIdleMotion,
   type SlimeEquipmentMotionKind,
 } from '../slime-motion';
+import { applyGuardPulseVfx, applyMageCastSigil } from '../slime-vfx';
 import { MELEE_BODY_GAP } from './layout';
 import type { AllyUnit, BattleSnapshot, EnemyUnit } from './types';
 

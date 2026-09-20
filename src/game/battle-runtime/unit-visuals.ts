@@ -1,12 +1,8 @@
 import * as THREE from 'three';
 import { clamp01 } from '../slime-motion';
-import type { BattleSceneOwner } from './scene-owner';
 import type { AllyUnit, BasicMaterial, BattleSnapshot, HealthBarGroup } from './types';
 
-export function createShadow(
-  sceneOwner: BattleSceneOwner,
-  radius = 0.3,
-): THREE.Mesh<THREE.CircleGeometry, BasicMaterial> {
+export function createShadow(radius = 0.3): THREE.Mesh<THREE.CircleGeometry, BasicMaterial> {
   const material = new THREE.MeshBasicMaterial({
     color: '#25462e',
     transparent: true,
@@ -17,11 +13,10 @@ export function createShadow(
   shadow.rotation.x = -Math.PI / 2;
   shadow.scale.set(1.35, 0.68, 1);
   shadow.position.y = 0.011;
-  sceneOwner.add(shadow);
   return shadow;
 }
 
-export function createWorldHealthBar(sceneOwner: BattleSceneOwner): HealthBarGroup {
+export function createWorldHealthBar(): HealthBarGroup {
   const group = new THREE.Group() as HealthBarGroup;
   group.renderOrder = 8;
   const backMaterial = new THREE.MeshBasicMaterial({
@@ -48,7 +43,6 @@ export function createWorldHealthBar(sceneOwner: BattleSceneOwner): HealthBarGro
   group.add(fill);
   group.userData.fill = fill;
   group.userData.fillWidth = fillWidth;
-  sceneOwner.add(group);
   return group;
 }
 
@@ -90,7 +84,7 @@ export function createAllyDefeatEyes(root: THREE.Object3D): {
   const xEyes: THREE.Object3D[] = [];
   for (const eye of normalEyes) {
     const group = new THREE.Group();
-    group.name = eye.name + '_DefeatX';
+    group.name = `${eye.name}_DefeatX`;
     group.position.copy(eye.position);
     group.position.z += 0.068;
     for (const rotation of [-Math.PI / 4, Math.PI / 4]) {
@@ -108,29 +102,6 @@ export function createAllyDefeatEyes(root: THREE.Object3D): {
 export function setAllyDefeatEyes(unit: AllyUnit, defeated: boolean): void {
   unit.normalEyes.forEach((eye) => { eye.visible = !defeated; });
   unit.xEyes.forEach((eye) => { eye.visible = defeated; });
-}
-
-export function createEnemyDefeatEyes(
-  normalEyes: readonly THREE.Object3D[],
-): THREE.Object3D[] {
-  if (normalEyes.length !== 2) return [];
-  const material = new THREE.MeshBasicMaterial({ color: '#261d2b' });
-  const geometry = new THREE.BoxGeometry(0.072, 0.020, 0.018);
-  return normalEyes.flatMap((eye) => {
-    if (eye.parent === null) return [];
-    const group = new THREE.Group();
-    group.name = eye.name + '_DefeatX';
-    group.position.copy(eye.position);
-    group.position.z += 0.022;
-    for (const rotation of [-Math.PI / 4, Math.PI / 4]) {
-      const bar = new THREE.Mesh(geometry, material);
-      bar.rotation.z = rotation;
-      group.add(bar);
-    }
-    group.visible = false;
-    eye.parent.add(group);
-    return [group];
-  });
 }
 
 export function setEnemyDefeatEyes(

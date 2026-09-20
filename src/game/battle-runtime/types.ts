@@ -237,3 +237,11 @@ export interface BattleRuntimeOptions {
   authoritativeResultDelaySec: number | null;
   onSnapshot: (snapshot: BattleSnapshot) => void;
 }
+
+export type BattleRuntimeEncounterUpdate = Readonly<{
+  stageNumber: number;
+  waveIndex: number;
+  enemies: readonly BattleRuntimeEnemyConfig[];
+  authoritativeResult: 'victory' | 'defeat' | null;
+  authoritativeResultDelaySec: number | null;
+}>;

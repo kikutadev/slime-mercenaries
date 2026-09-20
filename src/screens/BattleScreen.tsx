@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BattleCanvas } from '../components/BattleCanvas';
 import { useGameController, useGameState } from '../app/GameProvider';
-import { BATTLE_RESULT_HOLD_MS, canAdoptBattleSceneModel } from '../application/battle-presentation';
+import { canAdoptBattleSceneModel } from '../application/battle-presentation';
 import { validationToolsVisible } from '../application/validation-mode';
 import { selectBattleSceneModel, type BattleSceneModel } from '../application/selectors/battle-scene';
 import { selectFormation, selectGlobalHud } from '../application/selectors/ui-selectors';
@@ -17,6 +17,7 @@ const INITIAL_BATTLE: BattleSnapshot = {
   enemyAlive: 0,
   enemyHp: 0,
   enemyMaxHp: 0,
+  presentationReady: false,
   allies: {},
 };
 
@@ -41,7 +42,6 @@ export function BattleScreen({
   const latestSceneModelRef = useRef(authoritativeSceneModel);
   const presentedSceneModelRef = useRef(sceneModel);
   const pendingSceneModelRef = useRef<BattleSceneModel | null>(pendingSceneModel);
-  const presentationTimerRef = useRef<number | null>(null);
   const previousStageRef = useRef(sceneModel.stageNumber);
   const hud = selectGlobalHud(state);
   const formation = selectFormation(state);
@@ -62,22 +62,6 @@ export function BattleScreen({
     setPendingSceneModel(incoming);
   }, []);
 
-  const schedulePresentationAdvance = useCallback(() => {
-    if (presentationTimerRef.current !== null) return;
-
-    presentationTimerRef.current = window.setTimeout(() => {
-      presentationTimerRef.current = null;
-      const presented = presentedSceneModelRef.current;
-      const incoming = latestSceneModelRef.current;
-      if (!canAdoptBattleSceneModel(presented, incoming, 'result')) return;
-      queueSceneModel(incoming);
-    }, BATTLE_RESULT_HOLD_MS);
-  }, [queueSceneModel]);
-
-  useEffect(() => () => {
-    if (presentationTimerRef.current !== null) window.clearTimeout(presentationTimerRef.current);
-  }, []);
-
   useEffect(() => {
     const incoming = authoritativeSceneModel;
     const presented = presentedSceneModelRef.current;
@@ -95,10 +79,10 @@ export function BattleScreen({
       return;
     }
 
-    if (!canAdoptBattleSceneModel(presented, incoming, battle.phase)) return;
+    if (!canAdoptBattleSceneModel(presented, incoming, battle.presentationReady)) return;
     const encounterChanged = presented.encounterKey !== incoming.encounterKey;
     if (encounterChanged && presented.encounter !== null) {
-      schedulePresentationAdvance();
+      queueSceneModel(incoming);
       return;
     }
 
@@ -107,15 +91,13 @@ export function BattleScreen({
     authoritativeSceneModel.encounterKey,
     authoritativeSceneModel.visualKey,
     authoritativeSceneModel.encounter,
-    battle.phase,
+    battle.presentationReady,
     queueSceneModel,
-    schedulePresentationAdvance,
   ]);
 
   const handleSnapshot = useCallback((snapshot: BattleSnapshot) => {
     setBattle(snapshot);
-    if (snapshot.phase === 'result') schedulePresentationAdvance();
-  }, [schedulePresentationAdvance]);
+  }, []);
 
   const handleEncounterReady = useCallback((readyModel: BattleSceneModel) => {
     const pending = pendingSceneModelRef.current;

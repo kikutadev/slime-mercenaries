@@ -123,6 +123,7 @@ function BattleRuntimeScene({
         enemyAlive: 0,
         enemyHp: 0,
         enemyMaxHp: 0,
+        presentationReady: false,
         allies: {},
       });
     });

@@ -4,12 +4,7 @@ import { isGreatswordRank } from './fusion';
 import {
   SLIME_MOTION_TIMING,
   SLIME_MOTION_THRESHOLDS,
-  applyDeformationPose,
-  applyEquipmentPose,
   applyMageRunePose,
-  applyGuardPulseVfx,
-  applyMageCastSigil,
-  applyRogueSlashVfx,
   clamp01,
   easeOutCubic,
   getAllyDefeatMotion,
@@ -23,8 +18,6 @@ import {
   getGunAttackMotion,
   getGunnerAttackMotion,
   getGunnerShotReleaseU,
-  getHopTravelMotion,
-  getIdleMotion,
   getMageAttackMotion,
   getRangerAttackMotion,
   getRogueAttackMotion,
@@ -32,6 +25,12 @@ import {
   getSwordAttackMotion,
   getWandAttackMotion,
   getSwordSlashVfxPose,
+  type MorphMesh,
+} from './slime-motion';
+import {
+  applyGuardPulseVfx,
+  applyMageCastSigil,
+  applyRogueSlashVfx,
   createGreatswordSpinArc,
   createGuardPulseVfx,
   createMageCastSigil,
@@ -43,9 +42,7 @@ import {
   createMuzzleFlashMesh,
   createSlimeArrowMesh,
   createSwordSlashArc,
-  type MorphMesh,
-  type SlimeEquipmentMotionKind,
-} from './slime-motion';
+} from './slime-vfx';
 import {
   TIER3_SWORD_THRESHOLDS,
   TIER3_SWORD_TIMING,
@@ -114,8 +111,7 @@ import {
   createEngineerSignatureVfx,
   createNinjaSignatureVfx,
 } from './slime-motions/tier3/effects';
-import type { BattleBehaviorId } from './slimes';
-import { applyTimedMultiplier, distanceSqToSegment2D, resolveTimedMultiplier, type TimedMultiplierEffect } from './combat-effects';
+import { applyTimedMultiplier, distanceSqToSegment2D, resolveTimedMultiplier } from './combat-effects';
 import {
   applyEnemyDefeatFacePose,
   applyEnemySecondaryPose,
@@ -125,309 +121,78 @@ import {
   resetEnemySecondaryPose,
   resolveEnemyRigParts,
   type EnemyMotionProfile,
-  type EnemyRigParts,
-  type EnemyRigRestPose,
 } from './enemy-motion';
-import type { EnemyBehaviorId, EnemyId, EnemyScaleClass } from './enemies';
-import type { EnemyFormationSlot } from './encounters';
 import { createBattleEnvironment } from './battle-environment';
 import {
   BOSS_APPROACH_SECONDS,
   BOSS_LANDING_SECONDS,
   NORMAL_APPROACH_SECONDS,
-  getApproachCameraRetreat,
   getBossApproachPresentation,
   getEnemyApproachEntryPose,
   getSceneryApproachOffset,
 } from './battle-approach';
-import { getVictoryMarchSlot, getVictoryPresentationElapsed, getVictoryTransitionPose, shouldUseMarchEntry, victoryStatusLabel } from './battle-transition';
+import { getVictoryMarchSlot, getVictoryPresentationElapsed, getVictoryTransitionPose, shouldUseMarchEntry } from './battle-transition';
 import { battleRewardParticleCount, battleRewardVisual, type BattleRewardCue } from './battle-reward';
 import { authoritativeResultTriggerDelay } from './battle-runtime-timing';
+import { BattleClock } from './battle-runtime/clock';
+import { BattleCameraController } from './battle-runtime/camera';
+import { MELEE_BODY_GAP, SCALE, TARGET_HOME, allyHome, enemyHome, meleeCombatAnchor } from './battle-runtime/layout';
+import { createBattleSnapshot } from './battle-runtime/snapshot';
+import {
+  applyUnitDeformation,
+  clearMorphs,
+  enemyTargetPosition,
+  facePoint,
+  findNearest,
+  isMeleeBehavior,
+  resetBranchAccents,
+  safeMeleeForwardOffset,
+  setEquipmentSwing,
+  setSecondaryEquipmentSwing,
+  updateHopTravel,
+  updateIdle,
+} from './battle-runtime/unit-presentation';
+import {
+  createAllyDefeatEyes,
+  createShadow,
+  createWorldHealthBar,
+  setAllyDefeatEyes,
+  setEnemyDefeatEyes,
+  updateWorldHealthBar,
+} from './battle-runtime/unit-visuals';
+import type {
+  AllyUnit,
+  BattleRuntimeAllyConfig,
+  BattleRuntimeEncounterUpdate,
+  BattleRuntimeEnemyConfig,
+  BattleRuntimeOptions,
+  BattleSnapshot,
+  EnemyProjectileRuntime,
+  EnemyUnit,
+  ImpactRuntime,
+  MuzzleFlashRuntime,
+  ProjectileRuntime,
+  TracerRuntime,
+  VictoryLootMoteRuntime,
+} from './battle-runtime/types';
 
-export interface BattleSnapshotAlly {
-  hp: number;
-  maxHp: number;
-  alive: boolean;
-}
+export type {
+  BattleRuntimeAllyConfig,
+  BattleRuntimeEncounterUpdate,
+  BattleRuntimeEnemyConfig,
+  BattleRuntimeOptions,
+  BattleSnapshot,
+  BattleSnapshotAlly,
+} from './battle-runtime/types';
 
-export interface BattleSnapshot {
-  phase: 'loading' | 'approach' | 'combat' | 'result';
-  label: string;
-  result: 'victory' | 'defeat' | null;
-  enemyAlive: number;
-  enemyHp: number;
-  enemyMaxHp: number;
-  allies: Readonly<Record<string, BattleSnapshotAlly>>;
-}
-
-type UnitState = 'idle' | 'defeat' | 'dead';
-
-type BasicMaterial = THREE.MeshBasicMaterial;
-
-type HealthBarGroup = THREE.Group & {
-  userData: {
-    fill?: THREE.Mesh;
-    fillWidth?: number;
-  };
-};
-
-interface AllyUnit {
-  id: string;
-  slimeId: string;
-  slotIndex: number;
-  side: 'ally';
-  behaviorId: BattleBehaviorId;
-  fusionRank: number;
-  root: THREE.Group;
-  body: MorphMesh;
-  faceRoot: THREE.Object3D | null;
-  equipmentAnchor: THREE.Object3D;
-  secondaryEquipmentAnchor: THREE.Object3D | null;
-  mageRuneAnchor: THREE.Object3D | null;
-  guardPulseVfx: THREE.Group | null;
-  mageCastSigil: THREE.Group | null;
-  rogueSlashArc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null;
-  signatureVfx: THREE.Group | null;
-  auxiliaryRoot: THREE.Object3D | null;
-  auxiliaryMuzzle: THREE.Object3D | null;
-  auxiliaryBasePosition: THREE.Vector3;
-  auxiliaryBaseQuaternion: THREE.Quaternion;
-  auxiliaryBaseScale: THREE.Vector3;
-  weaponTip: THREE.Object3D | null;
-  projectileOrigin: THREE.Object3D | null;
-  spellOrigin: THREE.Object3D | null;
-  equipmentBaseQuaternion: THREE.Quaternion;
-  equipmentBasePosition: THREE.Vector3;
-  secondaryEquipmentBaseQuaternion: THREE.Quaternion;
-  secondaryEquipmentBasePosition: THREE.Vector3;
-  mageRuneBaseQuaternion: THREE.Quaternion;
-  mageRuneBaseScale: THREE.Vector3;
-  bodyBaseScale: THREE.Vector3;
-  faceBasePosition: THREE.Vector3;
-  shadow: THREE.Mesh<THREE.CircleGeometry, BasicMaterial>;
-  healthBar: HealthBarGroup;
-  home: THREE.Vector3;
-  combatAnchor: THREE.Vector3;
-  approachOrigin: THREE.Vector3;
-  resultOrigin: THREE.Vector3;
-  maxHp: number;
-  hp: number;
-  alive: boolean;
-  state: UnitState;
-  defeatStartedAt: number;
-  hitStartedAt: number;
-  nextAttackAt: number;
-  attackStartedAt: number;
-  attackTarget: EnemyUnit | null;
-  hitsApplied: number;
-  shotApplied: boolean;
-  normalEyes: THREE.Object3D[];
-  xEyes: THREE.Object3D[];
-  damageTakenEffect: TimedMultiplierEffect | null;
-}
-
-interface EnemyUnit {
-  id: string;
-  side: 'enemy';
-  enemyId: EnemyId;
-  name: string;
-  behaviorId: EnemyBehaviorId;
-  scaleClass: EnemyScaleClass;
-  formationSlot: EnemyFormationSlot;
-  index: number;
-  root: THREE.Group;
-  bodyRoot: THREE.Object3D;
-  bodyBaseScale: THREE.Vector3;
-  faceRoot: THREE.Object3D | null;
-  faceBasePosition: THREE.Vector3;
-  faceBaseScale: THREE.Vector3;
-  effectOrigin: THREE.Object3D | null;
-  motionProfile: EnemyMotionProfile;
-  attackTelegraph: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial> | null;
-  attackTelegraphPosition: THREE.Vector3;
-  rigParts: EnemyRigParts;
-  rigRest: EnemyRigRestPose;
-  shadow: THREE.Mesh<THREE.CircleGeometry, BasicMaterial>;
-  home: THREE.Vector3;
-  baseScale: number;
-  maxHp: number;
-  hp: number;
-  moveSpeed: number;
-  attackRange: number;
-  attackInterval: number;
-  attackDamage: number;
-  initialAttackDelay: number;
-  alive: boolean;
-  state: UnitState;
-  defeatStartedAt: number;
-  hitStartedAt: number;
-  attackStartedAt: number;
-  attackOrigin: THREE.Vector3;
-  attackTarget: AllyUnit | null;
-  attackHitApplied: boolean;
-  nextAttackAt: number;
-  lastUpdateAt: number;
-  normalEyes: THREE.Object3D[];
-  xEyes: THREE.Object3D[];
-  moveSpeedEffect: TimedMultiplierEffect | null;
-}
-
-interface ProjectileRuntime {
-  root: THREE.Object3D;
-  start: THREE.Vector3;
-  end: THREE.Vector3;
-  target: EnemyUnit;
-  startedAt: number;
-  duration: number;
-  hitApplied: boolean;
-  damage: number;
-  splashRadius: number;
-  splashDamage: number;
-  arcHeightScale: number;
-  orientToTravel: boolean;
-  hitU: number;
-  slowEffect?: Readonly<{ durationSec: number; multiplier: number; radius: number }>;
-  pierceDamage?: number;
-  pierceWidth?: number;
-}
-
-interface TracerRuntime {
-  mesh: THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>;
-  startedAt: number;
-  duration: number;
-}
-
-interface MuzzleFlashRuntime {
-  mesh: THREE.Mesh<THREE.ConeGeometry, THREE.MeshBasicMaterial>;
-  startedAt: number;
-  duration: number;
-}
-
-interface EnemyProjectileRuntime {
-  root: THREE.Object3D;
-  start: THREE.Vector3;
-  end: THREE.Vector3;
-  target: AllyUnit;
-  sourcePosition: THREE.Vector3;
-  damage: number;
-  startedAt: number;
-  duration: number;
-  hitApplied: boolean;
-  arcHeight: (u: number) => number;
-}
-
-interface ImpactRuntime {
-  group: THREE.Group;
-  materials: THREE.MeshBasicMaterial[];
-  startedAt: number;
-  duration: number;
-}
-
-interface VictoryLootMoteRuntime {
-  mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
-  start: THREE.Vector3;
-  end: THREE.Vector3;
-  delay: number;
-  startedAt: number;
-  duration: number;
-}
-
-export interface BattleRuntimeAllyConfig {
-  slimeId: string;
-  slotIndex: number;
-  asset: string;
-  behaviorId: BattleBehaviorId;
-  fusionRank: number;
-  equipmentAnchorName: string;
-  weaponTipName: string | null;
-  maxHp: number;
-  formationRole: 'front' | 'back';
-}
-
-export interface BattleRuntimeEnemyConfig {
-  enemyId: EnemyId;
-  name: string;
-  asset: string;
-  behaviorId: EnemyBehaviorId;
-  maxHp: number;
-  moveSpeed: number;
-  attackRange: number;
-  attackInterval: number;
-  attackDamage: number;
-  renderScale: number;
-  scaleClass: EnemyScaleClass;
-  shadowRadius: number;
-  instanceIndex: number;
-  formationSlot: EnemyFormationSlot;
-  initialAttackDelay: number;
-}
-
-export interface BattleRuntimeOptions {
-  scene: THREE.Scene;
-  camera: THREE.PerspectiveCamera;
-  baseUrl: string;
-  stageNumber: number;
-  waveIndex: number;
-  allies: readonly BattleRuntimeAllyConfig[];
-  enemies: readonly BattleRuntimeEnemyConfig[];
-  /** Domain-authored encounter result. Runtime presents it but never owns progression. */
-  authoritativeResult: 'victory' | 'defeat' | null;
-  authoritativeResultDelaySec: number | null;
-  onSnapshot: (snapshot: BattleSnapshot) => void;
-}
-
-export type BattleRuntimeEncounterUpdate = Readonly<{
-  stageNumber: number;
-  waveIndex: number;
-  enemies: readonly BattleRuntimeEnemyConfig[];
-  authoritativeResult: 'victory' | 'defeat' | null;
-  authoritativeResultDelaySec: number | null;
-}>;
-
-const SCALE = 0.19;
-const ALLY_HOME_POSITIONS = [
-  new THREE.Vector3(-0.62, 0.02, 1.18),
-  new THREE.Vector3(0, 0.02, 1.34),
-  new THREE.Vector3(0.62, 0.02, 1.18),
-  new THREE.Vector3(-0.66, 0.02, 1.78),
-  new THREE.Vector3(0, 0.02, 1.92),
-  new THREE.Vector3(0.66, 0.02, 1.78),
-] as const;
-const MELEE_COMBAT_POSITIONS = [
-  new THREE.Vector3(-0.52, 0.02, -0.72),
-  new THREE.Vector3(0, 0.02, -0.82),
-  new THREE.Vector3(0.52, 0.02, -0.72),
-  new THREE.Vector3(-0.72, 0.02, -0.34),
-  new THREE.Vector3(0, 0.02, -0.42),
-  new THREE.Vector3(0.72, 0.02, -0.34),
-] as const;
-const ENEMY_FORMATION_POSITIONS: Readonly<Record<EnemyFormationSlot, THREE.Vector3>> = {
-  'front-left': new THREE.Vector3(-0.62, 0, -1.34),
-  'front-center': new THREE.Vector3(0, 0, -1.46),
-  'front-right': new THREE.Vector3(0.62, 0, -1.34),
-  'mid-left': new THREE.Vector3(-0.82, 0, -1.78),
-  'mid-center': new THREE.Vector3(0, 0, -1.86),
-  'mid-right': new THREE.Vector3(0.82, 0, -1.78),
-  'back-left': new THREE.Vector3(-0.68, 0, -2.18),
-  'back-center': new THREE.Vector3(0, 0, -2.26),
-  'back-right': new THREE.Vector3(0.68, 0, -2.18),
-  'rear-left': new THREE.Vector3(-0.94, 0, -2.52),
-  'rear-center': new THREE.Vector3(0, 0, -2.60),
-  'rear-right': new THREE.Vector3(0.94, 0, -2.52),
-};
-const TARGET_HOME = ENEMY_FORMATION_POSITIONS['front-center'];
-const ENEMY_MAX_HP = 4;
-const ENEMY_ATTACK_RANGE = 0.72;
-const ENEMY_MOVE_SPEED = 0.74;
-const MELEE_BODY_GAP = 0.58;
 const RESULT_HOLD_SECONDS = 1.85;
-const CAMERA_BASE_POSITION = new THREE.Vector3(2.8, 5.35, 8.9);
-const CAMERA_LOOK_AT = new THREE.Vector3(0, 0.38, -1.05);
 
 export class BattleRuntime {
   private readonly scene: THREE.Scene;
   private readonly ownedSceneObjects = new Set<THREE.Object3D>();
   private readonly camera: THREE.PerspectiveCamera;
+  private readonly clock = new BattleClock();
+  private readonly cameraController: BattleCameraController;
   private readonly loader = new GLTFLoader();
   private readonly enemyTemplatePromises = new Map<string, Promise<THREE.Group>>();
   private readonly baseUrl: string;
@@ -464,18 +229,10 @@ export class BattleRuntime {
   private encounterUpdateRevision = 0;
   private disposed = false;
   private initialized = false;
-  private rawNow = 0;
-  private simulationNow = 0;
-  private pausedDuration = 0;
-  private hitStopStartedAt = -Infinity;
-  private hitStopEndsAt = -Infinity;
   private phase: BattleSnapshot['phase'] = 'loading';
   private phaseStartedAt = 0;
   private battleStartedAt = 0;
   private result: BattleSnapshot['result'] = null;
-  private cameraShakeStartedAt = -Infinity;
-  private cameraShakeEndsAt = -Infinity;
-  private cameraShakeAmplitude = 0;
   private lastSnapshotKey = '';
   private continuationEntryPending: boolean;
   private bossLandingTriggered = false;
@@ -483,6 +240,7 @@ export class BattleRuntime {
   constructor(options: BattleRuntimeOptions) {
     this.scene = options.scene;
     this.camera = options.camera;
+    this.cameraController = new BattleCameraController(this.camera);
     this.baseUrl = options.baseUrl;
     this.stageNumber = options.stageNumber;
     this.waveIndex = options.waveIndex;
@@ -493,6 +251,14 @@ export class BattleRuntime {
     this.onSnapshot = options.onSnapshot;
     this.bossEncounter = options.enemies.some((enemy) => enemy.scaleClass === 'boss');
     this.continuationEntryPending = shouldUseMarchEntry(options.stageNumber, options.waveIndex);
+  }
+
+  private get rawNow(): number {
+    return this.clock.rawNow;
+  }
+
+  private get simulationNow(): number {
+    return this.clock.simulationNow;
   }
 
   private installEnvironment(stageNumber: number, waveIndex: number): void {
@@ -561,14 +327,14 @@ export class BattleRuntime {
         ally.root.scale.setScalar(SCALE);
         ally.body.scale.copy(ally.bodyBaseScale);
         if (ally.faceRoot) ally.faceRoot.position.copy(ally.faceBasePosition);
-        this.clearMorphs(ally);
-        this.setEquipmentSwing(ally, 0);
-        this.resetBranchAccents(ally);
-        this.setDefeatEyes(ally, false);
+        clearMorphs(ally);
+        setEquipmentSwing(ally, 0);
+        resetBranchAccents(ally);
+        setAllyDefeatEyes(ally, false);
         ally.shadow.visible = true;
         ally.healthBar.visible = true;
       }
-      if (ally.alive) this.facePoint(ally, TARGET_HOME);
+      if (ally.alive) facePoint(ally, TARGET_HOME);
     });
 
     this.startBattle(this.simulationNow + 0.08);
@@ -579,8 +345,7 @@ export class BattleRuntime {
     if (this.initialized || this.disposed) return;
     this.initialized = true;
 
-    this.camera.position.copy(CAMERA_BASE_POSITION);
-    this.camera.lookAt(CAMERA_LOOK_AT);
+    this.cameraController.reset();
 
     this.installEnvironment(this.stageNumber, this.waveIndex);
     this.createSlashArc();
@@ -593,7 +358,7 @@ export class BattleRuntime {
     if (this.disposed) return;
     this.allies.push(...loadedAllies);
     this.enemies.push(...loadedEnemies);
-    this.allies.forEach((ally) => this.facePoint(ally, TARGET_HOME));
+    this.allies.forEach((ally) => facePoint(ally, TARGET_HOME));
     if (this.pendingRewardCue !== null) {
       const cue = this.pendingRewardCue;
       this.pendingRewardCue = null;
@@ -603,54 +368,33 @@ export class BattleRuntime {
     this.emitSnapshot(true);
   }
 
-  tick(rawNow: number): void {
+  tick(hostRawNow: number): void {
     if (!this.initialized || this.disposed) return;
-    this.rawNow = rawNow;
+    const frame = this.clock.advance(hostRawNow);
     if (this.allies.length === 0) return;
-    const hitStopActive = rawNow < this.hitStopEndsAt;
-    const simulationNow = this.getSimulationTime(rawNow);
-    this.simulationNow = simulationNow;
 
-    if (!hitStopActive) {
-      if (this.phase === 'approach') this.updateApproach(simulationNow);
-      else if (this.phase === 'combat') this.updateCombat(simulationNow);
-      else if (this.phase === 'result') this.updateResult(simulationNow);
+    if (!frame.hitStopActive) {
+      if (this.phase === 'approach') this.updateApproach(frame.simulationNow);
+      else if (this.phase === 'combat') this.updateCombat(frame.simulationNow);
+      else if (this.phase === 'result') this.updateResult(frame.simulationNow);
 
-      this.enforceAuthoritativeResult(simulationNow);
-      this.allies.forEach((ally) => this.updateAllyDefeat(ally, simulationNow));
-      this.updateProjectiles(simulationNow);
-      this.updateEnemyProjectiles(simulationNow);
-      this.updateMuzzleFlashes(simulationNow);
-      this.updateTracers(simulationNow);
-      this.updateImpacts(simulationNow);
-      this.updateVictoryLootMotes(simulationNow);
-      this.evaluateBattleOutcome(simulationNow);
+      this.enforceAuthoritativeResult(frame.simulationNow);
+      this.allies.forEach((ally) => this.updateAllyDefeat(ally, frame.simulationNow));
+      this.updateProjectiles(frame.simulationNow);
+      this.updateEnemyProjectiles(frame.simulationNow);
+      this.updateMuzzleFlashes(frame.simulationNow);
+      this.updateTracers(frame.simulationNow);
+      this.updateImpacts(frame.simulationNow);
+      this.updateVictoryLootMotes(frame.simulationNow);
+      this.evaluateBattleOutcome(frame.simulationNow);
     }
     this.updateHealthBars();
-    this.updateCamera(rawNow);
+    this.updateCamera(frame.rawNow);
     this.emitSnapshot();
   }
 
   private startHitStop(durationSeconds: number): void {
-    if (durationSeconds <= 0) return;
-    if (this.rawNow < this.hitStopEndsAt) {
-      this.hitStopEndsAt = Math.max(this.hitStopEndsAt, this.rawNow + durationSeconds);
-      return;
-    }
-    this.hitStopStartedAt = this.rawNow;
-    this.hitStopEndsAt = this.rawNow + durationSeconds;
-  }
-
-  private getSimulationTime(rawNow: number): number {
-    if (this.hitStopEndsAt > this.hitStopStartedAt) {
-      if (rawNow < this.hitStopEndsAt) {
-        return this.hitStopStartedAt - this.pausedDuration;
-      }
-      this.pausedDuration += this.hitStopEndsAt - this.hitStopStartedAt;
-      this.hitStopStartedAt = -Infinity;
-      this.hitStopEndsAt = -Infinity;
-    }
-    return rawNow - this.pausedDuration;
+    this.clock.startHitStop(durationSeconds);
   }
 
   dispose(): void {
@@ -677,25 +421,6 @@ export class BattleRuntime {
   private removeSceneObject(object: THREE.Object3D): void {
     this.ownedSceneObjects.delete(object);
     this.scene.remove(object);
-  }
-
-  private makeShadow(radius = 0.3, attachToScene = true): THREE.Mesh<THREE.CircleGeometry, BasicMaterial> {
-    const material = new THREE.MeshBasicMaterial({
-      color: '#25462e',
-      transparent: true,
-      opacity: 0.22,
-      depthWrite: false,
-    });
-    const shadow = new THREE.Mesh(new THREE.CircleGeometry(radius, 32), material);
-    shadow.rotation.x = -Math.PI / 2;
-    shadow.scale.set(1.35, 0.68, 1);
-    shadow.position.y = 0.011;
-    if (attachToScene) this.addSceneObject(shadow);
-    return shadow;
-  }
-
-  private enemyHome(formationSlot: EnemyFormationSlot): THREE.Vector3 {
-    return ENEMY_FORMATION_POSITIONS[formationSlot].clone();
   }
 
   private makeEnemyAttackTelegraph(
@@ -734,7 +459,7 @@ export class BattleRuntime {
   }
 
   private async loadEnemy(config: BattleRuntimeEnemyConfig, attachToScene = true): Promise<EnemyUnit> {
-    const home = this.enemyHome(config.formationSlot);
+    const home = enemyHome(config.formationSlot);
     const template = await this.loadEnemyTemplate(config.asset);
     const root = template.clone(true) as THREE.Group;
     root.name = `EnemyRuntime:${config.enemyId}:${config.instanceIndex}`;
@@ -758,9 +483,10 @@ export class BattleRuntime {
     const rigParts = resolveEnemyRigParts(root);
     const rigRest = captureEnemyRigRestPose(rigParts);
     const { normalEyes, xEyes } = buildEnemyDefeatEyes(root);
-    this.setEnemyDefeatEyes(normalEyes, xEyes, false);
+    setEnemyDefeatEyes(normalEyes, xEyes, false);
     if (attachToScene) this.addSceneObject(root);
-    const shadow = this.makeShadow(config.shadowRadius, attachToScene);
+    const shadow = createShadow(config.shadowRadius);
+    if (attachToScene) this.addSceneObject(shadow);
     shadow.position.set(home.x, 0.011, home.z);
 
     return {
@@ -814,11 +540,6 @@ export class BattleRuntime {
     }));
     geometries.forEach((geometry) => geometry.dispose());
     materials.forEach((entry) => entry.dispose());
-  }
-
-  private setEnemyDefeatEyes(normalEyes: readonly THREE.Object3D[], xEyes: readonly THREE.Object3D[], defeated: boolean): void {
-    normalEyes.forEach((eye) => { eye.visible = !defeated; });
-    xEyes.forEach((eye) => { eye.visible = defeated; });
   }
 
   private createSlashArc(): void {
@@ -965,18 +686,18 @@ export class BattleRuntime {
     ally.root.scale.setScalar(SCALE);
     ally.root.rotation.z = 0;
     ally.body.scale.copy(ally.bodyBaseScale);
-    this.resetBranchAccents(ally);
+    resetBranchAccents(ally);
     if (ally.faceRoot) ally.faceRoot.position.copy(ally.faceBasePosition);
-    this.applyUnitDeformation(ally, 0, pose.stretch, pose.lean, Math.sin(elapsed * 3.9 + ally.slotIndex) * 0.025, pose.bob);
-    this.setEquipmentSwing(ally, Math.sin(elapsed * 7.8 + ally.slotIndex * 0.82) * 0.075, pose.bob * 0.18, 0);
+    applyUnitDeformation(ally, 0, pose.stretch, pose.lean, Math.sin(elapsed * 3.9 + ally.slotIndex) * 0.025, pose.bob);
+    setEquipmentSwing(ally, Math.sin(elapsed * 7.8 + ally.slotIndex * 0.82) * 0.075, pose.bob * 0.18, 0);
     this.tempVector2.set(ally.root.position.x, 0, ally.root.position.z - 1);
-    this.facePoint(ally, this.tempVector2);
+    facePoint(ally, this.tempVector2);
   }
 
   private async loadUnit(config: BattleRuntimeAllyConfig): Promise<AllyUnit> {
-    const home = this.allyHome(config.slotIndex);
+    const home = allyHome(config.slotIndex);
     const combatAnchor = config.formationRole === 'front'
-      ? this.meleeCombatAnchor(config.slotIndex)
+      ? meleeCombatAnchor(config.slotIndex)
       : home.clone();
     const marchSlot = getVictoryMarchSlot(config.slotIndex);
     const approachOrigin = this.continuationEntryPending
@@ -1014,9 +735,11 @@ export class BattleRuntime {
       throw new Error(`${config.slimeId} model is missing runtime anchors (${config.equipmentAnchorName}).`);
     }
 
-    const shadow = this.makeShadow(0.24);
+    const shadow = createShadow(0.24);
+    this.addSceneObject(shadow);
     shadow.position.set(approachOrigin.x, 0.011, approachOrigin.z);
-    const healthBar = this.createWorldHealthBar();
+    const healthBar = createWorldHealthBar();
+    this.addSceneObject(healthBar);
     const guardPulseVfx = (config.behaviorId === 'guardian-guard' || config.behaviorId === 'paladin-barrier' || config.behaviorId === 'fortress-plant') ? createGuardPulseVfx() : null;
     if (guardPulseVfx) this.addSceneObject(guardPulseVfx);
     const mageCastSigil = (config.behaviorId === 'mage-aoe' || config.behaviorId === 'archmage-burst' || config.behaviorId === 'frost-mage-control') ? createMageCastSigil() : null;
@@ -1103,136 +826,11 @@ export class BattleRuntime {
       xEyes: [],
       damageTakenEffect: null,
     };
-    const eyes = this.createDefeatEyes(unit);
+    const eyes = createAllyDefeatEyes(unit.root);
     unit.normalEyes = eyes.normalEyes;
     unit.xEyes = eyes.xEyes;
     this.addSceneObject(root);
     return unit;
-  }
-
-  private allyHome(slotIndex: number): THREE.Vector3 {
-    return (ALLY_HOME_POSITIONS[slotIndex] ?? ALLY_HOME_POSITIONS[ALLY_HOME_POSITIONS.length - 1]!).clone();
-  }
-
-  private meleeCombatAnchor(slotIndex: number): THREE.Vector3 {
-    return (MELEE_COMBAT_POSITIONS[slotIndex] ?? MELEE_COMBAT_POSITIONS[MELEE_COMBAT_POSITIONS.length - 1]!).clone();
-  }
-
-  private setMorph(unit: AllyUnit, name: string, value: number): void {
-    const index = unit.body.morphTargetDictionary?.[name];
-    if (index === undefined || !unit.body.morphTargetInfluences) return;
-    unit.body.morphTargetInfluences[index] = clamp01(value);
-  }
-
-  private clearMorphs(unit: AllyUnit): void {
-    unit.body.morphTargetInfluences?.fill(0);
-  }
-
-  private facePoint(unit: AllyUnit | EnemyUnit, point: THREE.Vector3): void {
-    const dx = point.x - unit.root.position.x;
-    const dz = point.z - unit.root.position.z;
-    unit.root.rotation.y = Math.atan2(dx, dz);
-  }
-
-  private applyUnitDeformation(unit: AllyUnit, squash = 0, stretch = 0, lean = 0, wobble = 0, jump = 0): void {
-    applyDeformationPose(unit.body, unit.faceRoot, { squash, stretch, lean, wobble, jump });
-    const airborne = clamp01(jump / 0.16);
-    const airScale = THREE.MathUtils.lerp(1, 0.66, airborne);
-    unit.shadow.position.x = unit.root.position.x;
-    unit.shadow.position.z = unit.root.position.z + 0.01;
-    unit.shadow.scale.set(1.35 * airScale, 0.68 * airScale, 1);
-    unit.shadow.material.opacity = THREE.MathUtils.lerp(0.22, 0.08, airborne);
-  }
-
-  private equipmentKindFor(unit: AllyUnit): SlimeEquipmentMotionKind {
-    switch (unit.behaviorId) {
-      case 'bow-ranged':
-      case 'ranger-double-shot':
-      case 'sniper-pierce':
-      case 'storm-archer-volley': return 'bow';
-      case 'fighter-combo':
-      case 'blademaster-dash':
-      case 'berserker-heavy': return 'sword';
-      case 'shield-defender':
-      case 'guardian-guard':
-      case 'paladin-barrier':
-      case 'fortress-plant': return 'shield';
-      case 'wand-magic':
-      case 'mage-aoe':
-      case 'archmage-burst':
-      case 'frost-mage-control': return 'wand';
-      case 'dagger-skirmisher':
-      case 'rogue-twin-strike':
-      case 'ninja-vanish':
-      case 'assassin-execute': return 'dagger';
-      case 'gun-ranged':
-      case 'gunner-burst':
-      case 'cannoneer-shell':
-      case 'engineer-turret': return 'gun';
-      default: return 'sword';
-    }
-  }
-
-  private isMeleeBehavior(unit: AllyUnit): boolean {
-    return unit.behaviorId === 'sword-melee' || unit.behaviorId === 'fighter-combo' || unit.behaviorId === 'blademaster-dash' || unit.behaviorId === 'berserker-heavy' || unit.behaviorId === 'shield-defender' || unit.behaviorId === 'guardian-guard' || unit.behaviorId === 'paladin-barrier' || unit.behaviorId === 'fortress-plant' || unit.behaviorId === 'dagger-skirmisher' || unit.behaviorId === 'rogue-twin-strike' || unit.behaviorId === 'ninja-vanish' || unit.behaviorId === 'assassin-execute';
-  }
-
-  private setEquipmentSwing(unit: AllyUnit, angle: number, lift = 0, sweep = 0): void {
-    applyEquipmentPose(
-      unit.equipmentAnchor,
-      unit.equipmentBaseQuaternion,
-      unit.equipmentBasePosition,
-      this.equipmentKindFor(unit),
-      { angle, lift, sweep },
-    );
-  }
-
-
-  private setSecondaryEquipmentSwing(unit: AllyUnit, angle: number, lift = 0, sweep = 0): void {
-    applyEquipmentPose(
-      unit.secondaryEquipmentAnchor,
-      unit.secondaryEquipmentBaseQuaternion,
-      unit.secondaryEquipmentBasePosition,
-      'dagger',
-      { angle, lift, sweep },
-    );
-  }
-
-  private resetBranchAccents(unit: AllyUnit): void {
-    unit.root.visible = true;
-    this.setSecondaryEquipmentSwing(unit, 0);
-    applyMageRunePose(unit.mageRuneAnchor, unit.mageRuneBaseQuaternion, unit.mageRuneBaseScale, 0, 0);
-    applyGuardPulseVfx(unit.guardPulseVfx, 0, 1);
-    applyMageCastSigil(unit.mageCastSigil, 0, 0);
-    if (unit.rogueSlashArc) { unit.rogueSlashArc.visible = false; unit.rogueSlashArc.material.opacity = 0; }
-    if (unit.signatureVfx) unit.signatureVfx.visible = false;
-    if (unit.auxiliaryRoot) {
-      unit.auxiliaryRoot.position.copy(unit.auxiliaryBasePosition);
-      unit.auxiliaryRoot.quaternion.copy(unit.auxiliaryBaseQuaternion);
-      unit.auxiliaryRoot.scale.copy(unit.auxiliaryBaseScale);
-      unit.auxiliaryRoot.visible = false;
-    }
-  }
-
-  private updateIdle(unit: AllyUnit, now: number, phaseOffset = 0): void {
-    if (!unit.alive) return;
-    unit.body.scale.copy(unit.bodyBaseScale);
-    this.resetBranchAccents(unit);
-    if (unit.faceRoot) unit.faceRoot.position.copy(unit.faceBasePosition);
-    const pose = getIdleMotion(now, phaseOffset);
-    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
-  }
-
-  private updateHopTravel(unit: AllyUnit, now: number, startTime: number, start: THREE.Vector3, end: THREE.Vector3, duration: number): boolean {
-    const u = clamp01((now - startTime) / duration);
-    const pose = getHopTravelMotion(u);
-    unit.root.position.lerpVectors(start, end, pose.eased);
-    unit.root.position.y = THREE.MathUtils.lerp(start.y, end.y, pose.eased) + pose.deformation.jump;
-    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
-    this.facePoint(unit, end);
-    return u >= 1;
   }
 
   private getLivingEnemies(): EnemyUnit[] {
@@ -1243,114 +841,10 @@ export class BattleRuntime {
     return this.allies.filter((ally) => ally.alive);
   }
 
-  private getSafeMeleeForwardOffset(anchor: THREE.Vector3, direction: THREE.Vector3, desiredOffset: number): number {
-    if (desiredOffset <= 0) return desiredOffset;
-    let safeOffset = desiredOffset;
-    for (const enemy of this.getLivingEnemies()) {
-      const dx = anchor.x - enemy.root.position.x;
-      const dz = anchor.z - enemy.root.position.z;
-      const projection = dx * direction.x + dz * direction.z;
-      const c = dx * dx + dz * dz - MELEE_BODY_GAP * MELEE_BODY_GAP;
-      const discriminant = projection * projection - c;
-      if (discriminant <= 0) continue;
-      const root = Math.sqrt(discriminant);
-      const enter = -projection - root;
-      const exit = -projection + root;
-      if (enter <= 0 && exit > 0) return 0;
-      if (enter > 0 && safeOffset > enter) safeOffset = enter;
-    }
-    return Math.max(0, safeOffset - 0.002);
-  }
-
-  private getEnemyTargetPosition(target: AllyUnit): THREE.Vector3 {
-    // Melee attack animations temporarily move the visual root. Enemies navigate toward the
-    // stable combat anchor so repeated attacks cannot drag both sides into the same point.
-    if (this.isMeleeBehavior(target) && this.phase === 'combat') return target.combatAnchor;
-    return target.root.position;
-  }
-
-
-
-  private findNearest<T extends AllyUnit | EnemyUnit>(source: AllyUnit | EnemyUnit, candidates: T[]): T | null {
-    let nearest: T | null = null;
-    let nearestDistanceSq = Infinity;
-    for (const candidate of candidates) {
-      if (!candidate.alive || !candidate.root.visible) continue;
-      const dx = candidate.root.position.x - source.root.position.x;
-      const dz = candidate.root.position.z - source.root.position.z;
-      const distanceSq = dx * dx + dz * dz;
-      if (distanceSq < nearestDistanceSq) {
-        nearestDistanceSq = distanceSq;
-        nearest = candidate;
-      }
-    }
-    return nearest;
-  }
-
-  private createWorldHealthBar(): HealthBarGroup {
-    const group = new THREE.Group() as HealthBarGroup;
-    group.renderOrder = 8;
-    const backMaterial = new THREE.MeshBasicMaterial({ color: '#173348', transparent: true, opacity: 0.78, depthTest: false, depthWrite: false });
-    const fillMaterial = new THREE.MeshBasicMaterial({ color: '#58d681', transparent: true, opacity: 0.96, depthTest: false, depthWrite: false });
-    const background = new THREE.Mesh(new THREE.PlaneGeometry(0.43, 0.06), backMaterial);
-    background.renderOrder = 8;
-    group.add(background);
-    const fillWidth = 0.39;
-    const fill = new THREE.Mesh(new THREE.PlaneGeometry(fillWidth, 0.028), fillMaterial);
-    fill.position.z = 0.002;
-    fill.renderOrder = 9;
-    group.add(fill);
-    group.userData.fill = fill;
-    group.userData.fillWidth = fillWidth;
-    this.addSceneObject(group);
-    return group;
-  }
-
-  private updateWorldHealthBar(unit: AllyUnit): void {
-    const ratio = unit.maxHp > 0 ? clamp01(unit.hp / unit.maxHp) : 0;
-    const fill = unit.healthBar.userData.fill;
-    const fillWidth = unit.healthBar.userData.fillWidth ?? 0.39;
-    if (fill) {
-      fill.scale.x = Math.max(0.001, ratio);
-      fill.position.x = -(fillWidth * (1 - ratio)) / 2;
-    }
-    unit.healthBar.visible = unit.root.visible
-      && (unit.alive || unit.state === 'defeat')
-      && !(this.phase === 'result' && this.result === 'victory');
-    unit.healthBar.position.set(unit.root.position.x, Math.max(0.31, unit.root.position.y + (unit.state === 'defeat' ? 0.18 : 0.34)), unit.root.position.z + 0.015);
-    unit.healthBar.quaternion.copy(this.camera.quaternion);
-  }
-
   private updateHealthBars(): void {
-    this.allies.forEach((ally) => this.updateWorldHealthBar(ally));
-  }
-
-  private createDefeatEyes(unit: AllyUnit): { normalEyes: THREE.Object3D[]; xEyes: THREE.Object3D[] } {
-    const normalEyes = ['Eye_L', 'Eye_R'].map((name) => unit.root.getObjectByName(name)).filter((eye): eye is THREE.Object3D => Boolean(eye));
-    if (normalEyes.length !== 2) return { normalEyes, xEyes: [] };
-    const xMaterial = new THREE.MeshBasicMaterial({ color: '#201925' });
-    const barGeometry = new THREE.BoxGeometry(0.28, 0.052, 0.034);
-    const xEyes: THREE.Object3D[] = [];
-    for (const eye of normalEyes) {
-      const group = new THREE.Group();
-      group.name = `${eye.name}_DefeatX`;
-      group.position.copy(eye.position);
-      group.position.z += 0.068;
-      for (const rotation of [-Math.PI / 4, Math.PI / 4]) {
-        const bar = new THREE.Mesh(barGeometry, xMaterial);
-        bar.rotation.z = rotation;
-        group.add(bar);
-      }
-      group.visible = false;
-      eye.parent?.add(group);
-      xEyes.push(group);
-    }
-    return { normalEyes, xEyes };
-  }
-
-  private setDefeatEyes(unit: AllyUnit, defeated: boolean): void {
-    unit.normalEyes.forEach((eye) => { eye.visible = !defeated; });
-    unit.xEyes.forEach((eye) => { eye.visible = defeated; });
+    this.allies.forEach((ally) => {
+      updateWorldHealthBar(ally, this.camera, this.phase, this.result);
+    });
   }
 
   private applyDamage(
@@ -1402,8 +896,8 @@ export class BattleRuntime {
     unit.alive = false;
     unit.state = 'defeat';
     unit.defeatStartedAt = this.simulationNow;
-    this.resetBranchAccents(unit);
-    this.setDefeatEyes(unit, true);
+    resetBranchAccents(unit);
+    setAllyDefeatEyes(unit, true);
   }
 
   private beginEnemyDefeat(enemy: EnemyUnit): void {
@@ -1415,7 +909,7 @@ export class BattleRuntime {
     enemy.attackStartedAt = -Infinity;
     enemy.attackTarget = null;
     if (enemy.attackTelegraph) enemy.attackTelegraph.visible = false;
-    this.setEnemyDefeatEyes(enemy.normalEyes, enemy.xEyes, true);
+    setEnemyDefeatEyes(enemy.normalEyes, enemy.xEyes, true);
   }
 
   private updateAllyDefeat(unit: AllyUnit, now: number): void {
@@ -1430,7 +924,7 @@ export class BattleRuntime {
       unit.bodyBaseScale.y * pose.bodyScaleY,
       unit.bodyBaseScale.z * pose.bodyScaleZ,
     );
-    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
   }
 
   private updateEnemyDefeat(enemy: EnemyUnit, now: number): void {
@@ -1480,8 +974,8 @@ export class BattleRuntime {
       ally.hitsApplied = 0;
       ally.shotApplied = false;
       ally.nextAttackAt = now + ((ally.behaviorId === 'bow-ranged' || ally.behaviorId === 'ranger-double-shot' || ally.behaviorId === 'sniper-pierce' || ally.behaviorId === 'storm-archer-volley' || ally.behaviorId === 'mage-aoe' || ally.behaviorId === 'archmage-burst' || ally.behaviorId === 'frost-mage-control' || ally.behaviorId === 'gunner-burst' || ally.behaviorId === 'cannoneer-shell' || ally.behaviorId === 'engineer-turret') ? 0.65 : 1.7) + ally.slotIndex * 0.05;
-      const firstEnemy = this.findNearest(ally, this.getLivingEnemies());
-      if (firstEnemy) this.facePoint(ally, firstEnemy.root.position);
+      const firstEnemy = findNearest(ally, this.getLivingEnemies());
+      if (firstEnemy) facePoint(ally, firstEnemy.root.position);
     });
     this.enemies.forEach((enemy) => {
       enemy.nextAttackAt = now + 0.82 + enemy.initialAttackDelay;
@@ -1496,16 +990,16 @@ export class BattleRuntime {
     if (this.environmentSceneryRoot) this.environmentSceneryRoot.position.z = getSceneryApproachOffset(approachElapsed);
     this.allies.forEach((ally) => {
       if (!ally.alive) return;
-      const destination = this.isMeleeBehavior(ally) ? ally.combatAnchor : ally.home;
+      const destination = isMeleeBehavior(ally) ? ally.combatAnchor : ally.home;
       if (this.continuationEntryPending) {
-        this.updateHopTravel(ally, now, this.phaseStartedAt, ally.approachOrigin, destination, duration);
-      } else if (this.isMeleeBehavior(ally)) {
-        this.updateHopTravel(ally, now, this.phaseStartedAt, ally.home, ally.combatAnchor, duration);
+        updateHopTravel(ally, now, this.phaseStartedAt, ally.approachOrigin, destination, duration);
+      } else if (isMeleeBehavior(ally)) {
+        updateHopTravel(ally, now, this.phaseStartedAt, ally.home, ally.combatAnchor, duration);
       } else {
         ally.root.position.copy(ally.home);
-        this.updateIdle(ally, now, 1.1 + ally.slotIndex * 0.31);
-        const target = this.findNearest(ally, this.getLivingEnemies());
-        if (target) this.facePoint(ally, target.root.position);
+        updateIdle(ally, now, 1.1 + ally.slotIndex * 0.31);
+        const target = findNearest(ally, this.getLivingEnemies());
+        if (target) facePoint(ally, target.root.position);
       }
     });
     this.enemies.forEach((enemy) => this.updateEnemyApproachIdle(enemy, now));
@@ -1522,8 +1016,8 @@ export class BattleRuntime {
     if (now - this.phaseStartedAt >= duration) {
       this.allies.forEach((ally) => {
         if (!ally.alive) return;
-        ally.root.position.copy(this.isMeleeBehavior(ally) ? ally.combatAnchor : ally.home);
-        ally.nextAttackAt = now + (this.isMeleeBehavior(ally) ? 0.12 : 0.2 + ally.slotIndex * 0.06);
+        ally.root.position.copy(isMeleeBehavior(ally) ? ally.combatAnchor : ally.home);
+        ally.nextAttackAt = now + (isMeleeBehavior(ally) ? 0.12 : 0.2 + ally.slotIndex * 0.06);
       });
       if (this.environmentSceneryRoot) this.environmentSceneryRoot.position.z = 0;
       this.phase = 'combat';
@@ -1576,7 +1070,7 @@ export class BattleRuntime {
     const greatsword = isGreatswordRank(fusionRank);
 
     if (sword.attackStartedAt !== -Infinity && !sword.attackTarget?.alive) {
-      const replacement = greatsword ? this.findNearest(sword, this.getLivingEnemies()) : null;
+      const replacement = greatsword ? findNearest(sword, this.getLivingEnemies()) : null;
       if (replacement) {
         sword.attackTarget = replacement;
       } else {
@@ -1584,14 +1078,14 @@ export class BattleRuntime {
         sword.attackTarget = null;
         sword.hitsApplied = 0;
         sword.root.position.copy(sword.combatAnchor);
-        this.setEquipmentSwing(sword, 0);
+        setEquipmentSwing(sword, 0);
         this.resetSlash();
         this.resetSpinArc();
       }
     }
 
     if (sword.attackStartedAt === -Infinity && now >= sword.nextAttackAt) {
-      const target = this.findNearest(sword, this.getLivingEnemies());
+      const target = findNearest(sword, this.getLivingEnemies());
       if (target) {
         sword.attackStartedAt = now;
         sword.attackTarget = target;
@@ -1602,9 +1096,9 @@ export class BattleRuntime {
 
     if (sword.attackStartedAt === -Infinity || !sword.attackTarget) {
       sword.root.position.copy(sword.combatAnchor);
-      this.updateIdle(sword, now, 0.2 + sword.slotIndex * 0.23);
-      const target = this.findNearest(sword, this.getLivingEnemies());
-      if (target) this.facePoint(sword, target.root.position);
+      updateIdle(sword, now, 0.2 + sword.slotIndex * 0.23);
+      const target = findNearest(sword, this.getLivingEnemies());
+      if (target) facePoint(sword, target.root.position);
       this.resetSpinArc();
       return;
     }
@@ -1625,12 +1119,12 @@ export class BattleRuntime {
     if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
     if (bodyOffset > 0) {
       bodyOffset = Math.min(bodyOffset, Math.max(0, targetDistanceFromAnchor - MELEE_BODY_GAP));
-      bodyOffset = this.getSafeMeleeForwardOffset(sword.combatAnchor, this.tempVector, bodyOffset);
+      bodyOffset = safeMeleeForwardOffset(sword.combatAnchor, this.tempVector, bodyOffset, this.getLivingEnemies());
     }
     sword.root.position.copy(sword.combatAnchor).addScaledVector(this.tempVector, bodyOffset);
-    this.facePoint(sword, target.root.position);
-    this.applyUnitDeformation(sword, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(sword, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    facePoint(sword, target.root.position);
+    applyUnitDeformation(sword, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    setEquipmentSwing(sword, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     sword.root.updateMatrixWorld(true);
 
     if (pose.releaseProgress >= 0 && sword.weaponTip) {
@@ -1664,11 +1158,11 @@ export class BattleRuntime {
       fighter.attackTarget = null;
       fighter.hitsApplied = 0;
       fighter.root.position.copy(fighter.combatAnchor);
-      this.setEquipmentSwing(fighter, 0);
+      setEquipmentSwing(fighter, 0);
       this.resetSlash();
     }
     if (fighter.attackStartedAt === -Infinity && now >= fighter.nextAttackAt) {
-      const target = this.findNearest(fighter, this.getLivingEnemies());
+      const target = findNearest(fighter, this.getLivingEnemies());
       if (target) {
         fighter.attackStartedAt = now;
         fighter.attackTarget = target;
@@ -1677,9 +1171,9 @@ export class BattleRuntime {
     }
     if (fighter.attackStartedAt === -Infinity || !fighter.attackTarget) {
       fighter.root.position.copy(fighter.combatAnchor);
-      this.updateIdle(fighter, now, 0.32 + fighter.slotIndex * 0.21);
-      const target = this.findNearest(fighter, this.getLivingEnemies());
-      if (target) this.facePoint(fighter, target.root.position);
+      updateIdle(fighter, now, 0.32 + fighter.slotIndex * 0.21);
+      const target = findNearest(fighter, this.getLivingEnemies());
+      if (target) facePoint(fighter, target.root.position);
       this.resetSlash();
       return;
     }
@@ -1693,11 +1187,11 @@ export class BattleRuntime {
     let offset = pose.bodyOffset;
     if (offset > 0) {
       offset = Math.min(offset, Math.max(0, distance - MELEE_BODY_GAP));
-      offset = this.getSafeMeleeForwardOffset(fighter.combatAnchor, this.tempVector, offset);
+      offset = safeMeleeForwardOffset(fighter.combatAnchor, this.tempVector, offset, this.getLivingEnemies());
     }
     fighter.root.position.copy(fighter.combatAnchor).addScaledVector(this.tempVector, offset);
-    this.facePoint(fighter, target.root.position);
-    this.applyUnitDeformation(
+    facePoint(fighter, target.root.position);
+    applyUnitDeformation(
       fighter,
       pose.deformation.squash,
       pose.deformation.stretch,
@@ -1705,7 +1199,7 @@ export class BattleRuntime {
       pose.deformation.wobble,
       pose.deformation.jump,
     );
-    this.setEquipmentSwing(fighter, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    setEquipmentSwing(fighter, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     fighter.root.updateMatrixWorld(true);
 
     if (pose.releaseProgress >= 0 && fighter.weaponTip) {
@@ -1737,7 +1231,7 @@ export class BattleRuntime {
       fighter.attackTarget = null;
       fighter.hitsApplied = 0;
       fighter.root.position.copy(fighter.combatAnchor);
-      this.setEquipmentSwing(fighter, 0);
+      setEquipmentSwing(fighter, 0);
       this.resetSlash();
       fighter.nextAttackAt = now + 0.46;
     }
@@ -1753,7 +1247,7 @@ export class BattleRuntime {
       if (unit.signatureVfx) unit.signatureVfx.visible = false;
     }
     if (unit.attackStartedAt === -Infinity && now >= unit.nextAttackAt) {
-      const target = this.findNearest(unit, this.getLivingEnemies());
+      const target = findNearest(unit, this.getLivingEnemies());
       if (target) {
         unit.attackStartedAt = now;
         unit.attackTarget = target;
@@ -1762,9 +1256,9 @@ export class BattleRuntime {
     }
     if (unit.attackStartedAt === -Infinity || !unit.attackTarget) {
       unit.root.position.copy(unit.combatAnchor);
-      this.updateIdle(unit, now, 0.18 + unit.slotIndex * 0.17);
-      const target = this.findNearest(unit, this.getLivingEnemies());
-      if (target) this.facePoint(unit, target.root.position);
+      updateIdle(unit, now, 0.18 + unit.slotIndex * 0.17);
+      const target = findNearest(unit, this.getLivingEnemies());
+      if (target) facePoint(unit, target.root.position);
       return;
     }
     const target = unit.attackTarget;
@@ -1773,9 +1267,9 @@ export class BattleRuntime {
     this.tempVector.copy(target.root.position).sub(unit.combatAnchor).setY(0);
     if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
     unit.root.position.copy(unit.combatAnchor).addScaledVector(this.tempVector, pose.bodyOffset);
-    this.facePoint(unit, target.root.position);
-    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    facePoint(unit, target.root.position);
+    applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     this.tempVector2.copy(target.root.position);
     this.tempVector2.y = 0.28;
     applyBlademasterSignatureVfx(unit.signatureVfx, pose, this.camera.quaternion, this.tempVector2);
@@ -1800,7 +1294,7 @@ export class BattleRuntime {
       unit.hitsApplied = 0;
       unit.root.position.copy(unit.combatAnchor);
       unit.nextAttackAt = now + 0.48;
-      this.setEquipmentSwing(unit, 0);
+      setEquipmentSwing(unit, 0);
       if (unit.signatureVfx) unit.signatureVfx.visible = false;
     }
   }
@@ -1814,7 +1308,7 @@ export class BattleRuntime {
       if (unit.signatureVfx) unit.signatureVfx.visible = false;
     }
     if (unit.attackStartedAt === -Infinity && now >= unit.nextAttackAt) {
-      const target = this.findNearest(unit, this.getLivingEnemies());
+      const target = findNearest(unit, this.getLivingEnemies());
       if (target) {
         unit.attackStartedAt = now;
         unit.attackTarget = target;
@@ -1823,9 +1317,9 @@ export class BattleRuntime {
     }
     if (unit.attackStartedAt === -Infinity || !unit.attackTarget) {
       unit.root.position.copy(unit.combatAnchor);
-      this.updateIdle(unit, now, 0.64 + unit.slotIndex * 0.21);
-      const target = this.findNearest(unit, this.getLivingEnemies());
-      if (target) this.facePoint(unit, target.root.position);
+      updateIdle(unit, now, 0.64 + unit.slotIndex * 0.21);
+      const target = findNearest(unit, this.getLivingEnemies());
+      if (target) facePoint(unit, target.root.position);
       return;
     }
     const target = unit.attackTarget;
@@ -1836,9 +1330,9 @@ export class BattleRuntime {
     if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
     const offset = Math.min(pose.bodyOffset, Math.max(0, distance - MELEE_BODY_GAP));
     unit.root.position.copy(unit.combatAnchor).addScaledVector(this.tempVector, offset);
-    this.facePoint(unit, target.root.position);
-    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    facePoint(unit, target.root.position);
+    applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     this.tempVector2.copy(target.root.position); this.tempVector2.y = 0.12;
     applyBerserkerSignatureVfx(unit.signatureVfx, pose, this.camera.quaternion, this.tempVector2);
     if (u >= TIER3_SWORD_THRESHOLDS.berserkerImpactU && unit.hitsApplied === 0 && target.alive) {
@@ -1853,7 +1347,7 @@ export class BattleRuntime {
       unit.hitsApplied = 0;
       unit.root.position.copy(unit.combatAnchor);
       unit.nextAttackAt = now + 0.72;
-      this.setEquipmentSwing(unit, 0);
+      setEquipmentSwing(unit, 0);
       if (unit.signatureVfx) unit.signatureVfx.visible = false;
     }
   }
@@ -1867,7 +1361,7 @@ export class BattleRuntime {
       if (unit.signatureVfx) unit.signatureVfx.visible = false;
     }
     if (unit.attackStartedAt === -Infinity && now >= unit.nextAttackAt) {
-      const target = this.findNearest(unit, this.getLivingEnemies());
+      const target = findNearest(unit, this.getLivingEnemies());
       if (target) {
         unit.attackStartedAt = now;
         unit.attackTarget = target;
@@ -1876,17 +1370,17 @@ export class BattleRuntime {
     }
     if (unit.attackStartedAt === -Infinity || !unit.attackTarget) {
       unit.root.position.copy(unit.home);
-      this.updateIdle(unit, now, 1.48 + unit.slotIndex * 0.11);
-      const target = this.findNearest(unit, this.getLivingEnemies());
-      if (target) this.facePoint(unit, target.root.position);
+      updateIdle(unit, now, 1.48 + unit.slotIndex * 0.11);
+      const target = findNearest(unit, this.getLivingEnemies());
+      if (target) facePoint(unit, target.root.position);
       return;
     }
     const target = unit.attackTarget;
     const u = clamp01((now - unit.attackStartedAt) / TIER3_BOW_TIMING.sniperAttack);
     const pose = getSniperAttackMotion(u);
-    this.facePoint(unit, target.root.position);
-    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    facePoint(unit, target.root.position);
+    applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     unit.root.updateMatrixWorld(true);
     (unit.projectileOrigin ?? unit.equipmentAnchor).getWorldPosition(this.tempVector2);
     this.tempVector3.copy(target.root.position).add(new THREE.Vector3(0, 0.28, 0));
@@ -1901,7 +1395,7 @@ export class BattleRuntime {
       unit.attackTarget = null;
       unit.shotApplied = false;
       unit.nextAttackAt = now + 1.18;
-      this.setEquipmentSwing(unit, 0);
+      setEquipmentSwing(unit, 0);
       if (unit.signatureVfx) unit.signatureVfx.visible = false;
     }
   }
@@ -1915,7 +1409,7 @@ export class BattleRuntime {
       if (unit.signatureVfx) unit.signatureVfx.visible = false;
     }
     if (unit.attackStartedAt === -Infinity && now >= unit.nextAttackAt) {
-      const target = this.findNearest(unit, this.getLivingEnemies());
+      const target = findNearest(unit, this.getLivingEnemies());
       if (target) {
         unit.attackStartedAt = now;
         unit.attackTarget = target;
@@ -1924,21 +1418,21 @@ export class BattleRuntime {
     }
     if (unit.attackStartedAt === -Infinity || !unit.attackTarget) {
       unit.root.position.copy(unit.home);
-      this.updateIdle(unit, now, 1.72 + unit.slotIndex * 0.13);
-      const target = this.findNearest(unit, this.getLivingEnemies());
-      if (target) this.facePoint(unit, target.root.position);
+      updateIdle(unit, now, 1.72 + unit.slotIndex * 0.13);
+      const target = findNearest(unit, this.getLivingEnemies());
+      if (target) facePoint(unit, target.root.position);
       return;
     }
     const target = unit.attackTarget;
     const u = clamp01((now - unit.attackStartedAt) / TIER3_BOW_TIMING.stormArcherAttack);
     const pose = getStormArcherAttackMotion(u);
-    this.facePoint(unit, target.root.position);
+    facePoint(unit, target.root.position);
     this.tempVector.copy(target.root.position).sub(unit.home).setY(0);
     if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
     this.tempVector2.set(-this.tempVector.z, 0, this.tempVector.x);
     unit.root.position.copy(unit.home).addScaledVector(this.tempVector2, pose.bodyOffset);
-    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     unit.root.updateMatrixWorld(true);
     (unit.projectileOrigin ?? unit.equipmentAnchor).getWorldPosition(this.tempVector3);
     const candidates = this.getLivingEnemies().slice().sort((a, b) => a.root.position.distanceToSquared(unit.root.position) - b.root.position.distanceToSquared(unit.root.position));
@@ -1971,7 +1465,7 @@ export class BattleRuntime {
       unit.hitsApplied = 0;
       unit.root.position.copy(unit.home);
       unit.nextAttackAt = now + 0.72;
-      this.setEquipmentSwing(unit, 0);
+      setEquipmentSwing(unit, 0);
       if (unit.signatureVfx) unit.signatureVfx.visible = false;
     }
   }
@@ -1982,10 +1476,10 @@ export class BattleRuntime {
     const pose = getGreatswordAttackMotion(u);
 
     sword.root.position.copy(sword.combatAnchor);
-    this.facePoint(sword, target.root.position);
+    facePoint(sword, target.root.position);
     sword.root.rotation.y += pose.rootYawOffset;
-    this.applyUnitDeformation(sword, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(sword, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    applyUnitDeformation(sword, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    setEquipmentSwing(sword, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
 
     if (this.spinArc) {
       const spinVfx = getGreatswordSpinVfxPose(pose, fusionRank);
@@ -2028,8 +1522,8 @@ export class BattleRuntime {
     sword.attackTarget = null;
     sword.hitsApplied = 0;
     sword.root.position.copy(sword.combatAnchor);
-    this.facePoint(sword, target.root.position);
-    this.setEquipmentSwing(sword, 0);
+    facePoint(sword, target.root.position);
+    setEquipmentSwing(sword, 0);
     this.resetSlash();
     this.resetSpinArc();
     sword.nextAttackAt = Math.max(sword.nextAttackAt, now + 0.24);
@@ -2056,7 +1550,7 @@ export class BattleRuntime {
       guardian.hitsApplied = 0;
     }
     if (guardian.attackStartedAt === -Infinity && now >= guardian.nextAttackAt) {
-      const target = this.findNearest(guardian, this.getLivingEnemies());
+      const target = findNearest(guardian, this.getLivingEnemies());
       if (target) {
         guardian.attackStartedAt = now;
         guardian.attackTarget = target;
@@ -2065,9 +1559,9 @@ export class BattleRuntime {
     }
     if (guardian.attackStartedAt === -Infinity || !guardian.attackTarget) {
       guardian.root.position.copy(guardian.combatAnchor);
-      this.updateIdle(guardian, now, 0.55 + guardian.slotIndex * 0.17);
-      const target = this.findNearest(guardian, this.getLivingEnemies());
-      if (target) this.facePoint(guardian, target.root.position);
+      updateIdle(guardian, now, 0.55 + guardian.slotIndex * 0.17);
+      const target = findNearest(guardian, this.getLivingEnemies());
+      if (target) facePoint(guardian, target.root.position);
       return;
     }
 
@@ -2080,11 +1574,11 @@ export class BattleRuntime {
     let offset = pose.bodyOffset;
     if (offset > 0) {
       offset = Math.min(offset, Math.max(0, distance - MELEE_BODY_GAP));
-      offset = this.getSafeMeleeForwardOffset(guardian.combatAnchor, this.tempVector, offset);
+      offset = safeMeleeForwardOffset(guardian.combatAnchor, this.tempVector, offset, this.getLivingEnemies());
     }
     guardian.root.position.copy(guardian.combatAnchor).addScaledVector(this.tempVector, offset);
-    this.facePoint(guardian, target.root.position);
-    this.applyUnitDeformation(
+    facePoint(guardian, target.root.position);
+    applyUnitDeformation(
       guardian,
       pose.deformation.squash,
       pose.deformation.stretch,
@@ -2092,7 +1586,7 @@ export class BattleRuntime {
       pose.deformation.wobble,
       pose.deformation.jump,
     );
-    this.setEquipmentSwing(guardian, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    setEquipmentSwing(guardian, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     if (guardian.guardPulseVfx) {
       guardian.guardPulseVfx.position.copy(guardian.root.position);
       guardian.guardPulseVfx.position.y = 0.025;
@@ -2108,8 +1602,8 @@ export class BattleRuntime {
       guardian.attackTarget = null;
       guardian.hitsApplied = 0;
       guardian.root.position.copy(guardian.combatAnchor);
-      this.setEquipmentSwing(guardian, 0);
-      this.resetBranchAccents(guardian);
+      setEquipmentSwing(guardian, 0);
+      resetBranchAccents(guardian);
       guardian.nextAttackAt = now + 0.72;
     }
   }
@@ -2122,7 +1616,7 @@ export class BattleRuntime {
       mage.shotApplied = false;
     }
     if (mage.attackStartedAt === -Infinity && now >= mage.nextAttackAt) {
-      const target = this.findNearest(mage, this.getLivingEnemies());
+      const target = findNearest(mage, this.getLivingEnemies());
       if (target) {
         mage.attackStartedAt = now;
         mage.attackTarget = target;
@@ -2131,20 +1625,20 @@ export class BattleRuntime {
     }
     if (mage.attackStartedAt === -Infinity || !mage.attackTarget) {
       mage.root.position.copy(mage.home);
-      this.updateIdle(mage, now, 2.25 + mage.slotIndex * 0.23);
-      const target = this.findNearest(mage, this.getLivingEnemies());
-      if (target) this.facePoint(mage, target.root.position);
+      updateIdle(mage, now, 2.25 + mage.slotIndex * 0.23);
+      const target = findNearest(mage, this.getLivingEnemies());
+      if (target) facePoint(mage, target.root.position);
       return;
     }
 
     const target = mage.attackTarget;
     const u = clamp01((now - mage.attackStartedAt) / SLIME_MOTION_TIMING.mageAttack);
     const pose = getMageAttackMotion(u);
-    this.facePoint(mage, target.root.position);
+    facePoint(mage, target.root.position);
     this.tempVector.copy(target.root.position).sub(mage.home).setY(0);
     if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
     mage.root.position.copy(mage.home).addScaledVector(this.tempVector, pose.bodyOffset);
-    this.applyUnitDeformation(
+    applyUnitDeformation(
       mage,
       pose.deformation.squash,
       pose.deformation.stretch,
@@ -2152,7 +1646,7 @@ export class BattleRuntime {
       pose.deformation.wobble,
       pose.deformation.jump,
     );
-    this.setEquipmentSwing(mage, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    setEquipmentSwing(mage, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     applyMageRunePose(
       mage.mageRuneAnchor,
       mage.mageRuneBaseQuaternion,
@@ -2176,8 +1670,8 @@ export class BattleRuntime {
       mage.attackTarget = null;
       mage.root.position.copy(mage.home);
       mage.nextAttackAt = now + 1.05;
-      this.setEquipmentSwing(mage, 0);
-      this.resetBranchAccents(mage);
+      setEquipmentSwing(mage, 0);
+      resetBranchAccents(mage);
     }
   }
 
@@ -2189,7 +1683,7 @@ export class BattleRuntime {
       rogue.hitsApplied = 0;
     }
     if (rogue.attackStartedAt === -Infinity && now >= rogue.nextAttackAt) {
-      const target = this.findNearest(rogue, this.getLivingEnemies());
+      const target = findNearest(rogue, this.getLivingEnemies());
       if (target) {
         rogue.attackStartedAt = now;
         rogue.attackTarget = target;
@@ -2198,9 +1692,9 @@ export class BattleRuntime {
     }
     if (rogue.attackStartedAt === -Infinity || !rogue.attackTarget) {
       rogue.root.position.copy(rogue.combatAnchor);
-      this.updateIdle(rogue, now, 1.85 + rogue.slotIndex * 0.21);
-      const target = this.findNearest(rogue, this.getLivingEnemies());
-      if (target) this.facePoint(rogue, target.root.position);
+      updateIdle(rogue, now, 1.85 + rogue.slotIndex * 0.21);
+      const target = findNearest(rogue, this.getLivingEnemies());
+      if (target) facePoint(rogue, target.root.position);
       return;
     }
 
@@ -2214,13 +1708,13 @@ export class BattleRuntime {
     let forward = pose.bodyOffset;
     if (forward > 0) {
       forward = Math.min(forward, Math.max(0, distance - MELEE_BODY_GAP));
-      forward = this.getSafeMeleeForwardOffset(rogue.combatAnchor, this.tempVector, forward);
+      forward = safeMeleeForwardOffset(rogue.combatAnchor, this.tempVector, forward, this.getLivingEnemies());
     }
     rogue.root.position.copy(rogue.combatAnchor)
       .addScaledVector(this.tempVector, forward)
       .addScaledVector(this.tempVector2, pose.lateralOffset);
-    this.facePoint(rogue, target.root.position);
-    this.applyUnitDeformation(
+    facePoint(rogue, target.root.position);
+    applyUnitDeformation(
       rogue,
       pose.deformation.squash,
       pose.deformation.stretch,
@@ -2228,8 +1722,8 @@ export class BattleRuntime {
       pose.deformation.wobble,
       pose.deformation.jump,
     );
-    this.setEquipmentSwing(rogue, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
-    this.setSecondaryEquipmentSwing(
+    setEquipmentSwing(rogue, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    setSecondaryEquipmentSwing(
       rogue,
       pose.secondaryEquipment.angle,
       pose.secondaryEquipment.lift,
@@ -2254,8 +1748,8 @@ export class BattleRuntime {
       rogue.attackTarget = null;
       rogue.hitsApplied = 0;
       rogue.root.position.copy(rogue.combatAnchor);
-      this.setEquipmentSwing(rogue, 0);
-      this.setSecondaryEquipmentSwing(rogue, 0);
+      setEquipmentSwing(rogue, 0);
+      setSecondaryEquipmentSwing(rogue, 0);
       rogue.nextAttackAt = now + 0.30;
     }
   }
@@ -2268,7 +1762,7 @@ export class BattleRuntime {
       gunner.hitsApplied = 0;
     }
     if (gunner.attackStartedAt === -Infinity && now >= gunner.nextAttackAt) {
-      const target = this.findNearest(gunner, this.getLivingEnemies());
+      const target = findNearest(gunner, this.getLivingEnemies());
       if (target) {
         gunner.attackStartedAt = now;
         gunner.attackTarget = target;
@@ -2277,20 +1771,20 @@ export class BattleRuntime {
     }
     if (gunner.attackStartedAt === -Infinity || !gunner.attackTarget) {
       gunner.root.position.copy(gunner.home);
-      this.updateIdle(gunner, now, 2.85 + gunner.slotIndex * 0.19);
-      const target = this.findNearest(gunner, this.getLivingEnemies());
-      if (target) this.facePoint(gunner, target.root.position);
+      updateIdle(gunner, now, 2.85 + gunner.slotIndex * 0.19);
+      const target = findNearest(gunner, this.getLivingEnemies());
+      if (target) facePoint(gunner, target.root.position);
       return;
     }
 
     const target = gunner.attackTarget;
     const u = clamp01((now - gunner.attackStartedAt) / SLIME_MOTION_TIMING.gunnerAttack);
     const pose = getGunnerAttackMotion(u);
-    this.facePoint(gunner, target.root.position);
+    facePoint(gunner, target.root.position);
     this.tempVector.copy(target.root.position).sub(gunner.home).setY(0);
     if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
     gunner.root.position.copy(gunner.home).addScaledVector(this.tempVector, pose.bodyOffset);
-    this.applyUnitDeformation(
+    applyUnitDeformation(
       gunner,
       pose.deformation.squash,
       pose.deformation.stretch,
@@ -2298,7 +1792,7 @@ export class BattleRuntime {
       pose.deformation.wobble,
       pose.deformation.jump,
     );
-    this.setEquipmentSwing(gunner, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    setEquipmentSwing(gunner, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     for (const shotIndex of [0, 1, 2] as const) {
       const mask = 1 << shotIndex;
       if (u >= getGunnerShotReleaseU(shotIndex) && (gunner.hitsApplied & mask) === 0) {
@@ -2312,7 +1806,7 @@ export class BattleRuntime {
       gunner.hitsApplied = 0;
       gunner.root.position.copy(gunner.home);
       gunner.nextAttackAt = now + 0.56;
-      this.setEquipmentSwing(gunner, 0);
+      setEquipmentSwing(gunner, 0);
     }
   }
 
@@ -2324,10 +1818,10 @@ export class BattleRuntime {
       unit.attackTarget = null;
       unit.hitsApplied = 0;
       unit.root.position.copy(unit.combatAnchor);
-      this.resetBranchAccents(unit);
+      resetBranchAccents(unit);
     }
     if (unit.attackStartedAt === -Infinity && now >= unit.nextAttackAt) {
-      const target = this.findNearest(unit, this.getLivingEnemies());
+      const target = findNearest(unit, this.getLivingEnemies());
       if (target) {
         unit.attackStartedAt = now;
         unit.attackTarget = target;
@@ -2336,9 +1830,9 @@ export class BattleRuntime {
     }
     if (unit.attackStartedAt === -Infinity || !unit.attackTarget) {
       unit.root.position.copy(unit.combatAnchor);
-      this.updateIdle(unit, now, 0.54 + unit.slotIndex * 0.17);
-      const target = this.findNearest(unit, this.getLivingEnemies());
-      if (target) this.facePoint(unit, target.root.position);
+      updateIdle(unit, now, 0.54 + unit.slotIndex * 0.17);
+      const target = findNearest(unit, this.getLivingEnemies());
+      if (target) facePoint(unit, target.root.position);
       return;
     }
 
@@ -2351,12 +1845,12 @@ export class BattleRuntime {
     let offset = pose.bodyOffset;
     if (offset > 0) {
       offset = Math.min(offset, Math.max(0, distance - MELEE_BODY_GAP));
-      offset = this.getSafeMeleeForwardOffset(unit.combatAnchor, this.tempVector, offset);
+      offset = safeMeleeForwardOffset(unit.combatAnchor, this.tempVector, offset, this.getLivingEnemies());
     }
     unit.root.position.copy(unit.combatAnchor).addScaledVector(this.tempVector, offset);
-    this.facePoint(unit, target.root.position);
-    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    facePoint(unit, target.root.position);
+    applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     unit.root.updateMatrixWorld(true);
     unit.equipmentAnchor.getWorldPosition(this.tempVector3);
     applyPaladinSignatureVfx(unit.signatureVfx, pose, this.camera.quaternion, unit.root.position, this.tempVector3);
@@ -2374,8 +1868,8 @@ export class BattleRuntime {
       unit.hitsApplied = 0;
       unit.root.position.copy(unit.combatAnchor);
       unit.nextAttackAt = now + 0.78;
-      this.setEquipmentSwing(unit, 0);
-      this.resetBranchAccents(unit);
+      setEquipmentSwing(unit, 0);
+      resetBranchAccents(unit);
     }
   }
 
@@ -2386,10 +1880,10 @@ export class BattleRuntime {
       unit.attackTarget = null;
       unit.hitsApplied = 0;
       unit.root.position.copy(unit.combatAnchor);
-      this.resetBranchAccents(unit);
+      resetBranchAccents(unit);
     }
     if (unit.attackStartedAt === -Infinity && now >= unit.nextAttackAt) {
-      const target = this.findNearest(unit, this.getLivingEnemies());
+      const target = findNearest(unit, this.getLivingEnemies());
       if (target) {
         unit.attackStartedAt = now;
         unit.attackTarget = target;
@@ -2398,9 +1892,9 @@ export class BattleRuntime {
     }
     if (unit.attackStartedAt === -Infinity || !unit.attackTarget) {
       unit.root.position.copy(unit.combatAnchor);
-      this.updateIdle(unit, now, 0.78 + unit.slotIndex * 0.13);
-      const target = this.findNearest(unit, this.getLivingEnemies());
-      if (target) this.facePoint(unit, target.root.position);
+      updateIdle(unit, now, 0.78 + unit.slotIndex * 0.13);
+      const target = findNearest(unit, this.getLivingEnemies());
+      if (target) facePoint(unit, target.root.position);
       return;
     }
 
@@ -2410,9 +1904,9 @@ export class BattleRuntime {
     this.tempVector.copy(target.root.position).sub(unit.combatAnchor).setY(0);
     if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
     unit.root.position.copy(unit.combatAnchor).addScaledVector(this.tempVector, pose.bodyOffset);
-    this.facePoint(unit, target.root.position);
-    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, 0);
-    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    facePoint(unit, target.root.position);
+    applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, 0);
+    setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     applyFortressSignatureVfx(unit.signatureVfx, pose, this.camera.quaternion, unit.root.position);
 
     if (u >= TIER3_DEFENSE_THRESHOLDS.fortressPlantU && unit.hitsApplied === 0 && target.alive) {
@@ -2428,8 +1922,8 @@ export class BattleRuntime {
       unit.hitsApplied = 0;
       unit.root.position.copy(unit.combatAnchor);
       unit.nextAttackAt = now + 0.98;
-      this.setEquipmentSwing(unit, 0);
-      this.resetBranchAccents(unit);
+      setEquipmentSwing(unit, 0);
+      resetBranchAccents(unit);
     }
   }
 
@@ -2439,10 +1933,10 @@ export class BattleRuntime {
       unit.attackStartedAt = -Infinity;
       unit.attackTarget = null;
       unit.hitsApplied = 0;
-      this.resetBranchAccents(unit);
+      resetBranchAccents(unit);
     }
     if (unit.attackStartedAt === -Infinity && now >= unit.nextAttackAt) {
-      const target = this.findNearest(unit, this.getLivingEnemies());
+      const target = findNearest(unit, this.getLivingEnemies());
       if (target) {
         unit.attackStartedAt = now;
         unit.attackTarget = target;
@@ -2451,21 +1945,21 @@ export class BattleRuntime {
     }
     if (unit.attackStartedAt === -Infinity || !unit.attackTarget) {
       unit.root.position.copy(unit.home);
-      this.updateIdle(unit, now, 2.42 + unit.slotIndex * 0.19);
-      const target = this.findNearest(unit, this.getLivingEnemies());
-      if (target) this.facePoint(unit, target.root.position);
+      updateIdle(unit, now, 2.42 + unit.slotIndex * 0.19);
+      const target = findNearest(unit, this.getLivingEnemies());
+      if (target) facePoint(unit, target.root.position);
       return;
     }
 
     const target = unit.attackTarget;
     const u = clamp01((now - unit.attackStartedAt) / TIER3_MAGIC_TIMING.archmageAttack);
     const pose = getArchmageAttackMotion(u);
-    this.facePoint(unit, target.root.position);
+    facePoint(unit, target.root.position);
     this.tempVector.copy(target.root.position).sub(unit.home).setY(0);
     if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
     unit.root.position.copy(unit.home).addScaledVector(this.tempVector, pose.bodyOffset);
-    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     applyMageRunePose(
       unit.mageRuneAnchor,
       unit.mageRuneBaseQuaternion,
@@ -2496,8 +1990,8 @@ export class BattleRuntime {
       unit.hitsApplied = 0;
       unit.root.position.copy(unit.home);
       unit.nextAttackAt = now + 1.36;
-      this.setEquipmentSwing(unit, 0);
-      this.resetBranchAccents(unit);
+      setEquipmentSwing(unit, 0);
+      resetBranchAccents(unit);
     }
   }
 
@@ -2507,10 +2001,10 @@ export class BattleRuntime {
       unit.attackStartedAt = -Infinity;
       unit.attackTarget = null;
       unit.hitsApplied = 0;
-      this.resetBranchAccents(unit);
+      resetBranchAccents(unit);
     }
     if (unit.attackStartedAt === -Infinity && now >= unit.nextAttackAt) {
-      const target = this.findNearest(unit, this.getLivingEnemies());
+      const target = findNearest(unit, this.getLivingEnemies());
       if (target) {
         unit.attackStartedAt = now;
         unit.attackTarget = target;
@@ -2519,21 +2013,21 @@ export class BattleRuntime {
     }
     if (unit.attackStartedAt === -Infinity || !unit.attackTarget) {
       unit.root.position.copy(unit.home);
-      this.updateIdle(unit, now, 2.64 + unit.slotIndex * 0.17);
-      const target = this.findNearest(unit, this.getLivingEnemies());
-      if (target) this.facePoint(unit, target.root.position);
+      updateIdle(unit, now, 2.64 + unit.slotIndex * 0.17);
+      const target = findNearest(unit, this.getLivingEnemies());
+      if (target) facePoint(unit, target.root.position);
       return;
     }
 
     const target = unit.attackTarget;
     const u = clamp01((now - unit.attackStartedAt) / TIER3_MAGIC_TIMING.frostMageAttack);
     const pose = getFrostMageAttackMotion(u);
-    this.facePoint(unit, target.root.position);
+    facePoint(unit, target.root.position);
     this.tempVector.copy(target.root.position).sub(unit.home).setY(0);
     if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
     unit.root.position.copy(unit.home).addScaledVector(this.tempVector, pose.bodyOffset);
-    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     unit.root.updateMatrixWorld(true);
     (unit.spellOrigin ?? unit.equipmentAnchor).getWorldPosition(this.tempVector2);
     this.tempVector3.copy(target.root.position);
@@ -2558,8 +2052,8 @@ export class BattleRuntime {
       unit.hitsApplied = 0;
       unit.root.position.copy(unit.home);
       unit.nextAttackAt = now + 1.12;
-      this.setEquipmentSwing(unit, 0);
-      this.resetBranchAccents(unit);
+      setEquipmentSwing(unit, 0);
+      resetBranchAccents(unit);
     }
   }
 
@@ -2570,10 +2064,10 @@ export class BattleRuntime {
       unit.attackTarget = null;
       unit.hitsApplied = 0;
       unit.root.visible = true;
-      this.resetBranchAccents(unit);
+      resetBranchAccents(unit);
     }
     if (unit.attackStartedAt === -Infinity && now >= unit.nextAttackAt) {
-      const target = this.findNearest(unit, this.getLivingEnemies());
+      const target = findNearest(unit, this.getLivingEnemies());
       if (target) {
         unit.attackStartedAt = now;
         unit.attackTarget = target;
@@ -2583,9 +2077,9 @@ export class BattleRuntime {
     if (unit.attackStartedAt === -Infinity || !unit.attackTarget) {
       unit.root.position.copy(unit.combatAnchor);
       unit.root.visible = true;
-      this.updateIdle(unit, now, 1.86 + unit.slotIndex * 0.17);
-      const target = this.findNearest(unit, this.getLivingEnemies());
-      if (target) this.facePoint(unit, target.root.position);
+      updateIdle(unit, now, 1.86 + unit.slotIndex * 0.17);
+      const target = findNearest(unit, this.getLivingEnemies());
+      if (target) facePoint(unit, target.root.position);
       return;
     }
 
@@ -2598,11 +2092,11 @@ export class BattleRuntime {
     unit.root.position.copy(unit.combatAnchor)
       .addScaledVector(this.tempVector, pose.bodyOffset)
       .addScaledVector(this.tempVector2, pose.lateralOffset);
-    this.facePoint(unit, target.root.position);
+    facePoint(unit, target.root.position);
     unit.root.visible = pose.bodyAlpha > 0.08;
-    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
-    this.setSecondaryEquipmentSwing(unit, pose.secondaryEquipment.angle, pose.secondaryEquipment.lift, pose.secondaryEquipment.sweep);
+    applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    setSecondaryEquipmentSwing(unit, pose.secondaryEquipment.angle, pose.secondaryEquipment.lift, pose.secondaryEquipment.sweep);
     this.tempVector2.copy(unit.combatAnchor);
     this.tempVector2.y += 0.22;
     this.tempVector3.copy(target.root.position);
@@ -2625,9 +2119,9 @@ export class BattleRuntime {
       unit.root.visible = true;
       unit.root.position.copy(unit.combatAnchor);
       unit.nextAttackAt = now + 0.34;
-      this.setEquipmentSwing(unit, 0);
-      this.setSecondaryEquipmentSwing(unit, 0);
-      this.resetBranchAccents(unit);
+      setEquipmentSwing(unit, 0);
+      setSecondaryEquipmentSwing(unit, 0);
+      resetBranchAccents(unit);
     }
   }
 
@@ -2638,10 +2132,10 @@ export class BattleRuntime {
       unit.attackTarget = null;
       unit.hitsApplied = 0;
       unit.root.visible = true;
-      this.resetBranchAccents(unit);
+      resetBranchAccents(unit);
     }
     if (unit.attackStartedAt === -Infinity && now >= unit.nextAttackAt) {
-      const target = this.findNearest(unit, this.getLivingEnemies());
+      const target = findNearest(unit, this.getLivingEnemies());
       if (target) {
         unit.attackStartedAt = now;
         unit.attackTarget = target;
@@ -2651,9 +2145,9 @@ export class BattleRuntime {
     if (unit.attackStartedAt === -Infinity || !unit.attackTarget) {
       unit.root.position.copy(unit.combatAnchor);
       unit.root.visible = true;
-      this.updateIdle(unit, now, 2.04 + unit.slotIndex * 0.15);
-      const target = this.findNearest(unit, this.getLivingEnemies());
-      if (target) this.facePoint(unit, target.root.position);
+      updateIdle(unit, now, 2.04 + unit.slotIndex * 0.15);
+      const target = findNearest(unit, this.getLivingEnemies());
+      if (target) facePoint(unit, target.root.position);
       return;
     }
 
@@ -2665,11 +2159,11 @@ export class BattleRuntime {
     this.tempVector2.copy(target.root.position).addScaledVector(this.tempVector, 0.34);
     unit.root.position.lerpVectors(unit.combatAnchor, this.tempVector2, pose.behindTargetProgress);
     unit.root.position.addScaledVector(new THREE.Vector3(-this.tempVector.z, 0, this.tempVector.x), pose.lateralOffset);
-    this.facePoint(unit, target.root.position);
+    facePoint(unit, target.root.position);
     unit.root.visible = pose.bodyAlpha > 0.08;
-    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
-    this.setSecondaryEquipmentSwing(unit, pose.secondaryEquipment.angle, pose.secondaryEquipment.lift, pose.secondaryEquipment.sweep);
+    applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    setSecondaryEquipmentSwing(unit, pose.secondaryEquipment.angle, pose.secondaryEquipment.lift, pose.secondaryEquipment.sweep);
     this.tempVector3.copy(target.root.position);
     this.tempVector3.y += 0.25;
     applyAssassinSignatureVfx(unit.signatureVfx, pose, this.camera.quaternion, this.tempVector3);
@@ -2691,9 +2185,9 @@ export class BattleRuntime {
       unit.root.visible = true;
       unit.root.position.copy(unit.combatAnchor);
       unit.nextAttackAt = now + 0.48;
-      this.setEquipmentSwing(unit, 0);
-      this.setSecondaryEquipmentSwing(unit, 0);
-      this.resetBranchAccents(unit);
+      setEquipmentSwing(unit, 0);
+      setSecondaryEquipmentSwing(unit, 0);
+      resetBranchAccents(unit);
     }
   }
 
@@ -2703,10 +2197,10 @@ export class BattleRuntime {
       unit.attackStartedAt = -Infinity;
       unit.attackTarget = null;
       unit.hitsApplied = 0;
-      this.resetBranchAccents(unit);
+      resetBranchAccents(unit);
     }
     if (unit.attackStartedAt === -Infinity && now >= unit.nextAttackAt) {
-      const target = this.findNearest(unit, this.getLivingEnemies());
+      const target = findNearest(unit, this.getLivingEnemies());
       if (target) {
         unit.attackStartedAt = now;
         unit.attackTarget = target;
@@ -2715,21 +2209,21 @@ export class BattleRuntime {
     }
     if (unit.attackStartedAt === -Infinity || !unit.attackTarget) {
       unit.root.position.copy(unit.home);
-      this.updateIdle(unit, now, 2.82 + unit.slotIndex * 0.13);
-      const target = this.findNearest(unit, this.getLivingEnemies());
-      if (target) this.facePoint(unit, target.root.position);
+      updateIdle(unit, now, 2.82 + unit.slotIndex * 0.13);
+      const target = findNearest(unit, this.getLivingEnemies());
+      if (target) facePoint(unit, target.root.position);
       return;
     }
 
     const target = unit.attackTarget;
     const u = clamp01((now - unit.attackStartedAt) / CANNONEER_SIGNATURE_TIMING.duration);
     const pose = getCannoneerSignatureMotion(u);
-    this.facePoint(unit, target.root.position);
+    facePoint(unit, target.root.position);
     this.tempVector.copy(target.root.position).sub(unit.home).setY(0);
     if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
     unit.root.position.copy(unit.home).addScaledVector(this.tempVector, pose.bodyOffset);
-    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     unit.root.updateMatrixWorld(true);
     (unit.auxiliaryMuzzle ?? unit.projectileOrigin ?? unit.equipmentAnchor).getWorldPosition(this.tempVector2);
     this.tempVector3.copy(target.root.position);
@@ -2760,8 +2254,8 @@ export class BattleRuntime {
       unit.hitsApplied = 0;
       unit.root.position.copy(unit.home);
       unit.nextAttackAt = now + 1.05;
-      this.setEquipmentSwing(unit, 0);
-      this.resetBranchAccents(unit);
+      setEquipmentSwing(unit, 0);
+      resetBranchAccents(unit);
     }
   }
 
@@ -2771,10 +2265,10 @@ export class BattleRuntime {
       unit.attackStartedAt = -Infinity;
       unit.attackTarget = null;
       unit.hitsApplied = 0;
-      this.resetBranchAccents(unit);
+      resetBranchAccents(unit);
     }
     if (unit.attackStartedAt === -Infinity && now >= unit.nextAttackAt) {
-      const target = this.findNearest(unit, this.getLivingEnemies());
+      const target = findNearest(unit, this.getLivingEnemies());
       if (target) {
         unit.attackStartedAt = now;
         unit.attackTarget = target;
@@ -2783,21 +2277,21 @@ export class BattleRuntime {
     }
     if (unit.attackStartedAt === -Infinity || !unit.attackTarget) {
       unit.root.position.copy(unit.home);
-      this.updateIdle(unit, now, 3.08 + unit.slotIndex * 0.11);
-      const target = this.findNearest(unit, this.getLivingEnemies());
-      if (target) this.facePoint(unit, target.root.position);
+      updateIdle(unit, now, 3.08 + unit.slotIndex * 0.11);
+      const target = findNearest(unit, this.getLivingEnemies());
+      if (target) facePoint(unit, target.root.position);
       return;
     }
 
     const target = unit.attackTarget;
     const u = clamp01((now - unit.attackStartedAt) / ENGINEER_SIGNATURE_TIMING.duration);
     const pose = getEngineerSignatureMotion(u);
-    this.facePoint(unit, target.root.position);
+    facePoint(unit, target.root.position);
     this.tempVector.copy(target.root.position).sub(unit.home).setY(0);
     if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
     unit.root.position.copy(unit.home).addScaledVector(this.tempVector, pose.bodyOffset);
-    this.applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    applyUnitDeformation(unit, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
 
     if (unit.auxiliaryRoot) {
       unit.auxiliaryRoot.visible = pose.turret.visibility > 0.01;
@@ -2843,8 +2337,8 @@ export class BattleRuntime {
       unit.hitsApplied = 0;
       unit.root.position.copy(unit.home);
       unit.nextAttackAt = now + 1.08;
-      this.setEquipmentSwing(unit, 0);
-      this.resetBranchAccents(unit);
+      setEquipmentSwing(unit, 0);
+      resetBranchAccents(unit);
     }
   }
 
@@ -2856,7 +2350,7 @@ export class BattleRuntime {
       shield.hitsApplied = 0;
     }
     if (shield.attackStartedAt === -Infinity && now >= shield.nextAttackAt) {
-      const target = this.findNearest(shield, this.getLivingEnemies());
+      const target = findNearest(shield, this.getLivingEnemies());
       if (target) {
         shield.attackStartedAt = now;
         shield.attackTarget = target;
@@ -2865,9 +2359,9 @@ export class BattleRuntime {
     }
     if (shield.attackStartedAt === -Infinity || !shield.attackTarget) {
       shield.root.position.copy(shield.combatAnchor);
-      this.updateIdle(shield, now, 0.45 + shield.slotIndex * 0.19);
-      const target = this.findNearest(shield, this.getLivingEnemies());
-      if (target) this.facePoint(shield, target.root.position);
+      updateIdle(shield, now, 0.45 + shield.slotIndex * 0.19);
+      const target = findNearest(shield, this.getLivingEnemies());
+      if (target) facePoint(shield, target.root.position);
       return;
     }
     const target = shield.attackTarget;
@@ -2879,12 +2373,12 @@ export class BattleRuntime {
     let offset = pose.bodyOffset;
     if (offset > 0) {
       offset = Math.min(offset, Math.max(0, distance - MELEE_BODY_GAP));
-      offset = this.getSafeMeleeForwardOffset(shield.combatAnchor, this.tempVector, offset);
+      offset = safeMeleeForwardOffset(shield.combatAnchor, this.tempVector, offset, this.getLivingEnemies());
     }
     shield.root.position.copy(shield.combatAnchor).addScaledVector(this.tempVector, offset);
-    this.facePoint(shield, target.root.position);
-    this.applyUnitDeformation(shield, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(shield, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    facePoint(shield, target.root.position);
+    applyUnitDeformation(shield, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    setEquipmentSwing(shield, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     if (u >= SLIME_MOTION_THRESHOLDS.shieldContactU && shield.hitsApplied === 0 && target.alive) {
       shield.hitsApplied = 1;
       this.applyDamage(target, 1, 'melee', shield.root.position);
@@ -2894,7 +2388,7 @@ export class BattleRuntime {
       shield.attackTarget = null;
       shield.hitsApplied = 0;
       shield.root.position.copy(shield.combatAnchor);
-      this.setEquipmentSwing(shield, 0);
+      setEquipmentSwing(shield, 0);
       shield.nextAttackAt = now + 0.58;
     }
   }
@@ -2907,7 +2401,7 @@ export class BattleRuntime {
       dagger.hitsApplied = 0;
     }
     if (dagger.attackStartedAt === -Infinity && now >= dagger.nextAttackAt) {
-      const target = this.findNearest(dagger, this.getLivingEnemies());
+      const target = findNearest(dagger, this.getLivingEnemies());
       if (target) {
         dagger.attackStartedAt = now;
         dagger.attackTarget = target;
@@ -2916,9 +2410,9 @@ export class BattleRuntime {
     }
     if (dagger.attackStartedAt === -Infinity || !dagger.attackTarget) {
       dagger.root.position.copy(dagger.combatAnchor);
-      this.updateIdle(dagger, now, 1.65 + dagger.slotIndex * 0.27);
-      const target = this.findNearest(dagger, this.getLivingEnemies());
-      if (target) this.facePoint(dagger, target.root.position);
+      updateIdle(dagger, now, 1.65 + dagger.slotIndex * 0.27);
+      const target = findNearest(dagger, this.getLivingEnemies());
+      if (target) facePoint(dagger, target.root.position);
       return;
     }
     const target = dagger.attackTarget;
@@ -2930,12 +2424,12 @@ export class BattleRuntime {
     let offset = pose.bodyOffset;
     if (offset > 0) {
       offset = Math.min(offset, Math.max(0, distance - MELEE_BODY_GAP));
-      offset = this.getSafeMeleeForwardOffset(dagger.combatAnchor, this.tempVector, offset);
+      offset = safeMeleeForwardOffset(dagger.combatAnchor, this.tempVector, offset, this.getLivingEnemies());
     }
     dagger.root.position.copy(dagger.combatAnchor).addScaledVector(this.tempVector, offset);
-    this.facePoint(dagger, target.root.position);
-    this.applyUnitDeformation(dagger, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(dagger, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    facePoint(dagger, target.root.position);
+    applyUnitDeformation(dagger, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    setEquipmentSwing(dagger, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     if (u >= SLIME_MOTION_THRESHOLDS.daggerContactU && dagger.hitsApplied === 0 && target.alive) {
       dagger.hitsApplied = 1;
       this.applyDamage(target, 1, 'melee', dagger.root.position);
@@ -2945,7 +2439,7 @@ export class BattleRuntime {
       dagger.attackTarget = null;
       dagger.hitsApplied = 0;
       dagger.root.position.copy(dagger.combatAnchor);
-      this.setEquipmentSwing(dagger, 0);
+      setEquipmentSwing(dagger, 0);
       dagger.nextAttackAt = now + 0.36;
     }
   }
@@ -2958,7 +2452,7 @@ export class BattleRuntime {
       wand.shotApplied = false;
     }
     if (wand.attackStartedAt === -Infinity && now >= wand.nextAttackAt) {
-      const target = this.findNearest(wand, this.getLivingEnemies());
+      const target = findNearest(wand, this.getLivingEnemies());
       if (target) {
         wand.attackStartedAt = now;
         wand.attackTarget = target;
@@ -2967,20 +2461,20 @@ export class BattleRuntime {
     }
     if (wand.attackStartedAt === -Infinity || !wand.attackTarget) {
       wand.root.position.copy(wand.home);
-      this.updateIdle(wand, now, 2.05 + wand.slotIndex * 0.29);
-      const target = this.findNearest(wand, this.getLivingEnemies());
-      if (target) this.facePoint(wand, target.root.position);
+      updateIdle(wand, now, 2.05 + wand.slotIndex * 0.29);
+      const target = findNearest(wand, this.getLivingEnemies());
+      if (target) facePoint(wand, target.root.position);
       return;
     }
     const target = wand.attackTarget;
     const u = clamp01((now - wand.attackStartedAt) / SLIME_MOTION_TIMING.wandAttack);
     const pose = getWandAttackMotion(u);
-    this.facePoint(wand, target.root.position);
+    facePoint(wand, target.root.position);
     this.tempVector.copy(target.root.position).sub(wand.home).setY(0);
     if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
     wand.root.position.copy(wand.home).addScaledVector(this.tempVector, pose.bodyOffset);
-    this.applyUnitDeformation(wand, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(wand, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    applyUnitDeformation(wand, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    setEquipmentSwing(wand, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     if (!wand.shotApplied && u >= SLIME_MOTION_THRESHOLDS.wandReleaseU) {
       wand.shotApplied = true;
       this.fireMagicOrb(wand, target);
@@ -2990,7 +2484,7 @@ export class BattleRuntime {
       wand.attackTarget = null;
       wand.root.position.copy(wand.home);
       wand.nextAttackAt = now + 0.92;
-      this.setEquipmentSwing(wand, 0);
+      setEquipmentSwing(wand, 0);
     }
   }
 
@@ -3002,7 +2496,7 @@ export class BattleRuntime {
       gun.shotApplied = false;
     }
     if (gun.attackStartedAt === -Infinity && now >= gun.nextAttackAt) {
-      const target = this.findNearest(gun, this.getLivingEnemies());
+      const target = findNearest(gun, this.getLivingEnemies());
       if (target) {
         gun.attackStartedAt = now;
         gun.attackTarget = target;
@@ -3011,20 +2505,20 @@ export class BattleRuntime {
     }
     if (gun.attackStartedAt === -Infinity || !gun.attackTarget) {
       gun.root.position.copy(gun.home);
-      this.updateIdle(gun, now, 2.65 + gun.slotIndex * 0.21);
-      const target = this.findNearest(gun, this.getLivingEnemies());
-      if (target) this.facePoint(gun, target.root.position);
+      updateIdle(gun, now, 2.65 + gun.slotIndex * 0.21);
+      const target = findNearest(gun, this.getLivingEnemies());
+      if (target) facePoint(gun, target.root.position);
       return;
     }
     const target = gun.attackTarget;
     const u = clamp01((now - gun.attackStartedAt) / SLIME_MOTION_TIMING.gunAttack);
     const pose = getGunAttackMotion(u);
-    this.facePoint(gun, target.root.position);
+    facePoint(gun, target.root.position);
     this.tempVector.copy(target.root.position).sub(gun.home).setY(0);
     if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
     gun.root.position.copy(gun.home).addScaledVector(this.tempVector, pose.bodyOffset);
-    this.applyUnitDeformation(gun, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(gun, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    applyUnitDeformation(gun, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    setEquipmentSwing(gun, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     if (!gun.shotApplied && u >= SLIME_MOTION_THRESHOLDS.gunReleaseU) {
       gun.shotApplied = true;
       this.fireBullet(gun, target);
@@ -3034,7 +2528,7 @@ export class BattleRuntime {
       gun.attackTarget = null;
       gun.root.position.copy(gun.home);
       gun.nextAttackAt = now + 0.78;
-      this.setEquipmentSwing(gun, 0);
+      setEquipmentSwing(gun, 0);
     }
   }
 
@@ -3121,7 +2615,7 @@ export class BattleRuntime {
       bow.shotApplied = false;
     }
     if (bow.attackStartedAt === -Infinity && now >= bow.nextAttackAt) {
-      const target = this.findNearest(bow, this.getLivingEnemies());
+      const target = findNearest(bow, this.getLivingEnemies());
       if (target) {
         bow.attackStartedAt = now;
         bow.attackTarget = target;
@@ -3130,17 +2624,17 @@ export class BattleRuntime {
     }
     if (bow.attackStartedAt === -Infinity || !bow.attackTarget) {
       bow.root.position.copy(bow.home);
-      this.updateIdle(bow, now, 1.1 + bow.slotIndex * 0.31);
-      const target = this.findNearest(bow, this.getLivingEnemies());
-      if (target) this.facePoint(bow, target.root.position);
+      updateIdle(bow, now, 1.1 + bow.slotIndex * 0.31);
+      const target = findNearest(bow, this.getLivingEnemies());
+      if (target) facePoint(bow, target.root.position);
       return;
     }
 
     const u = clamp01((now - bow.attackStartedAt) / SLIME_MOTION_TIMING.bowAttack);
-    this.facePoint(bow, bow.attackTarget.root.position);
+    facePoint(bow, bow.attackTarget.root.position);
     const pose = getBowAttackMotion(u);
-    this.applyUnitDeformation(bow, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
-    this.setEquipmentSwing(bow, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    applyUnitDeformation(bow, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
+    setEquipmentSwing(bow, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     if (!bow.shotApplied && u >= SLIME_MOTION_THRESHOLDS.bowReleaseU) {
       bow.shotApplied = true;
       this.fireArrow(bow, bow.attackTarget);
@@ -3149,7 +2643,7 @@ export class BattleRuntime {
       bow.attackStartedAt = -Infinity;
       bow.attackTarget = null;
       bow.nextAttackAt = now + 1.0;
-      this.setEquipmentSwing(bow, 0);
+      setEquipmentSwing(bow, 0);
     }
   }
 
@@ -3161,7 +2655,7 @@ export class BattleRuntime {
       ranger.hitsApplied = 0;
     }
     if (ranger.attackStartedAt === -Infinity && now >= ranger.nextAttackAt) {
-      const target = this.findNearest(ranger, this.getLivingEnemies());
+      const target = findNearest(ranger, this.getLivingEnemies());
       if (target) {
         ranger.attackStartedAt = now;
         ranger.attackTarget = target;
@@ -3170,21 +2664,21 @@ export class BattleRuntime {
     }
     if (ranger.attackStartedAt === -Infinity || !ranger.attackTarget) {
       ranger.root.position.copy(ranger.home);
-      this.updateIdle(ranger, now, 1.32 + ranger.slotIndex * 0.27);
-      const target = this.findNearest(ranger, this.getLivingEnemies());
-      if (target) this.facePoint(ranger, target.root.position);
+      updateIdle(ranger, now, 1.32 + ranger.slotIndex * 0.27);
+      const target = findNearest(ranger, this.getLivingEnemies());
+      if (target) facePoint(ranger, target.root.position);
       return;
     }
 
     const target = ranger.attackTarget;
     const u = clamp01((now - ranger.attackStartedAt) / SLIME_MOTION_TIMING.rangerAttack);
     const pose = getRangerAttackMotion(u);
-    this.facePoint(ranger, target.root.position);
+    facePoint(ranger, target.root.position);
     this.tempVector.copy(target.root.position).sub(ranger.home).setY(0);
     if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
     this.tempVector2.set(-this.tempVector.z, 0, this.tempVector.x);
     ranger.root.position.copy(ranger.home).addScaledVector(this.tempVector2, pose.lateralOffset);
-    this.applyUnitDeformation(
+    applyUnitDeformation(
       ranger,
       pose.deformation.squash,
       pose.deformation.stretch,
@@ -3192,7 +2686,7 @@ export class BattleRuntime {
       pose.deformation.wobble,
       pose.deformation.jump,
     );
-    this.setEquipmentSwing(ranger, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    setEquipmentSwing(ranger, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     if (
       pose.shotProgress >= SLIME_MOTION_THRESHOLDS.bowReleaseU
       && ranger.hitsApplied === pose.shotIndex
@@ -3207,7 +2701,7 @@ export class BattleRuntime {
       ranger.attackTarget = null;
       ranger.hitsApplied = 0;
       ranger.root.position.copy(ranger.home);
-      this.setEquipmentSwing(ranger, 0);
+      setEquipmentSwing(ranger, 0);
       ranger.nextAttackAt = now + 0.68;
     }
   }
@@ -3447,8 +2941,8 @@ export class BattleRuntime {
       enemy.baseScale * pose.scaleY * entry.scale * (1 - bossSquash * 0.12),
       enemy.baseScale * pose.scaleZ * entry.scale * (1 + bossSquash * 0.055),
     );
-    const target = this.findNearest(enemy, this.getLivingAllies());
-    if (target) this.facePoint(enemy, this.getEnemyTargetPosition(target));
+    const target = findNearest(enemy, this.getLivingAllies());
+    if (target) facePoint(enemy, enemyTargetPosition(target, this.phase));
     enemy.root.rotation.z = pose.wobbleZ;
     applyEnemySecondaryPose(enemy.rigParts, enemy.rigRest, pose.secondary);
     enemy.shadow.position.set(enemy.root.position.x, 0.011, enemy.root.position.z);
@@ -3463,7 +2957,7 @@ export class BattleRuntime {
     }
     const dt = enemy.lastUpdateAt > 0 ? Math.min(0.05, Math.max(0, now - enemy.lastUpdateAt)) : 0;
     enemy.lastUpdateAt = now;
-    const target = enemy.attackTarget?.alive ? enemy.attackTarget : this.findNearest(enemy, this.getLivingAllies());
+    const target = enemy.attackTarget?.alive ? enemy.attackTarget : findNearest(enemy, this.getLivingAllies());
     if (!target) return;
 
     if (enemy.attackStartedAt !== -Infinity) {
@@ -3471,8 +2965,8 @@ export class BattleRuntime {
       return;
     }
 
-    const targetPosition = this.getEnemyTargetPosition(target);
-    this.facePoint(enemy, targetPosition);
+    const targetPosition = enemyTargetPosition(target, this.phase);
+    facePoint(enemy, targetPosition);
     this.tempVector.copy(targetPosition).sub(enemy.root.position).setY(0);
     const distance = this.tempVector.length();
     if (distance > enemy.attackRange) {
@@ -3552,7 +3046,7 @@ export class BattleRuntime {
       enemy.baseScale * pose.scaleY,
       enemy.baseScale * pose.scaleZ,
     );
-    this.facePoint(enemy, targetPosition);
+    facePoint(enemy, targetPosition);
     enemy.root.rotation.z = pose.wobbleZ;
     applyEnemySecondaryPose(enemy.rigParts, enemy.rigRest, pose.secondary);
 
@@ -3641,9 +3135,9 @@ export class BattleRuntime {
       if (ally.alive) {
         ally.root.rotation.z = 0;
         ally.body.scale.copy(ally.bodyBaseScale);
-        this.clearMorphs(ally);
-        this.setEquipmentSwing(ally, 0);
-        this.resetBranchAccents(ally);
+        clearMorphs(ally);
+        setEquipmentSwing(ally, 0);
+        resetBranchAccents(ally);
       }
     });
     this.enemies.forEach((enemy) => {
@@ -3667,7 +3161,7 @@ export class BattleRuntime {
       return;
     }
     this.allies.forEach((ally) => {
-      if (ally.alive) this.updateIdle(ally, now, ally.slotIndex * 0.31);
+      if (ally.alive) updateIdle(ally, now, ally.slotIndex * 0.31);
     });
     // Domain-owned results stay visible until the Domain advances/remounts the encounter.
     if (this.authoritativeResult !== null) return;
@@ -3679,7 +3173,7 @@ export class BattleRuntime {
     this.clearProjectiles();
     this.allies.forEach((ally) => {
       this.resetAlly(ally);
-      this.facePoint(ally, TARGET_HOME);
+      facePoint(ally, TARGET_HOME);
     });
     this.enemies.forEach((enemy, index) => this.resetEnemy(enemy, now + index * 0.02));
     this.startBattle(now + 0.1);
@@ -3705,10 +3199,10 @@ export class BattleRuntime {
       unit.faceRoot.scale.set(1, 1, 1);
       unit.faceRoot.position.copy(unit.faceBasePosition);
     }
-    this.clearMorphs(unit);
-    this.setEquipmentSwing(unit, 0);
-    this.resetBranchAccents(unit);
-    this.setDefeatEyes(unit, false);
+    clearMorphs(unit);
+    setEquipmentSwing(unit, 0);
+    resetBranchAccents(unit);
+    setAllyDefeatEyes(unit, false);
     unit.shadow.visible = true;
     unit.shadow.material.opacity = 0.22;
     unit.healthBar.visible = true;
@@ -3736,7 +3230,7 @@ export class BattleRuntime {
       enemy.faceRoot.position.copy(enemy.faceBasePosition);
       enemy.faceRoot.scale.copy(enemy.faceBaseScale);
     }
-    this.setEnemyDefeatEyes(enemy.normalEyes, enemy.xEyes, false);
+    setEnemyDefeatEyes(enemy.normalEyes, enemy.xEyes, false);
     enemy.shadow.visible = true;
     enemy.shadow.position.set(enemy.home.x, 0.011, enemy.home.z);
     enemy.shadow.scale.set(1.35, 0.68, 1);
@@ -3766,62 +3260,31 @@ export class BattleRuntime {
   }
 
   private startCameraShake(duration: number, amplitude: number): void {
-    this.cameraShakeStartedAt = this.rawNow;
-    this.cameraShakeEndsAt = Math.max(this.cameraShakeEndsAt, this.rawNow + duration);
-    this.cameraShakeAmplitude = Math.max(this.cameraShakeAmplitude, amplitude);
+    this.cameraController.startShake(this.rawNow, duration, amplitude);
   }
 
-  private updateCamera(now: number): void {
-    this.camera.position.copy(CAMERA_BASE_POSITION);
-    if (this.phase === 'approach') {
-      const approachElapsed = this.simulationNow - this.phaseStartedAt;
-      this.camera.position.z += this.bossEncounter
-        ? getBossApproachPresentation(approachElapsed).cameraRetreat
-        : getApproachCameraRetreat(approachElapsed);
-    } else if (this.phase === 'result' && this.result === 'victory') {
-      const elapsed = getVictoryPresentationElapsed(this.simulationNow - this.phaseStartedAt, this.bossEncounter);
-      const transition = getVictoryTransitionPose(elapsed, 0);
-      this.camera.position.z -= transition.cameraAdvance;
-    }
-    if (now < this.cameraShakeEndsAt) {
-      const duration = Math.max(0.001, this.cameraShakeEndsAt - this.cameraShakeStartedAt);
-      const u = clamp01((now - this.cameraShakeStartedAt) / duration);
-      const envelope = (1 - u) * this.cameraShakeAmplitude;
-      this.camera.position.x += Math.sin(now * 97) * envelope;
-      this.camera.position.y += Math.sin(now * 131 + 0.7) * envelope * 0.55;
-    } else {
-      this.cameraShakeAmplitude = 0;
-    }
-    this.camera.lookAt(CAMERA_LOOK_AT);
+  private updateCamera(rawNow: number): void {
+    this.cameraController.update({
+      rawNow,
+      simulationNow: this.simulationNow,
+      phase: this.phase,
+      phaseStartedAt: this.phaseStartedAt,
+      result: this.result,
+      bossEncounter: this.bossEncounter,
+      approachPresentationElapsed: null,
+    });
   }
 
   private emitSnapshot(force = false): void {
-    const enemyMaxHp = this.enemies.reduce((sum, enemy) => sum + enemy.maxHp, 0);
-    const enemyHp = this.enemies.reduce((sum, enemy) => sum + enemy.hp, 0);
-    const enemyAlive = this.getLivingEnemies().length;
-    const label = this.phase === 'loading'
-      ? '出撃準備中'
-      : this.phase === 'approach'
-        ? this.bossEncounter ? 'ボス接近' : '接敵中'
-        : this.phase === 'combat'
-          ? '交戦中'
-          : this.result === 'victory'
-            ? victoryStatusLabel(getVictoryPresentationElapsed(this.simulationNow - this.phaseStartedAt, this.bossEncounter))
-            : '敗北';
-    const allies = Object.fromEntries(this.allies.map((ally) => [ally.slimeId, {
-      hp: ally.hp,
-      maxHp: ally.maxHp,
-      alive: ally.alive,
-    }]));
-    const snapshot: BattleSnapshot = {
+    const snapshot = createBattleSnapshot({
       phase: this.phase,
-      label,
       result: this.result,
-      enemyAlive,
-      enemyHp,
-      enemyMaxHp,
-      allies,
-    };
+      allies: this.allies,
+      enemies: this.enemies,
+      bossEncounter: this.bossEncounter,
+      simulationNow: this.simulationNow,
+      phaseStartedAt: this.phaseStartedAt,
+    });
     const key = JSON.stringify(snapshot);
     if (force || key !== this.lastSnapshotKey) {
       this.lastSnapshotKey = key;
