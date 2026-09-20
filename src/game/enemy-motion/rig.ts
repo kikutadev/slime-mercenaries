@@ -11,6 +11,7 @@ export interface EnemyRigParts {
   shell: THREE.Object3D | null;
   openRoot: THREE.Object3D | null;
   inflateRoot: THREE.Object3D | null;
+  glowMaterials: THREE.MeshStandardMaterial[];
 }
 
 export interface EnemyRigRestPose {
@@ -26,6 +27,8 @@ export interface EnemyRigRestPose {
   shellScale: THREE.Vector3 | null;
   openScale: THREE.Vector3 | null;
   inflateScale: THREE.Vector3 | null;
+  glowEmissive: THREE.Color[];
+  glowIntensity: number[];
 }
 
 function first(root: THREE.Object3D, names: readonly string[]): THREE.Object3D | null {
@@ -36,7 +39,24 @@ function first(root: THREE.Object3D, names: readonly string[]): THREE.Object3D |
   return null;
 }
 
+function emissiveMaterials(root: THREE.Object3D | null): THREE.MeshStandardMaterial[] {
+  if (!root) return [];
+  const materials: THREE.MeshStandardMaterial[] = [];
+  const seen = new Set<THREE.Material>();
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const list = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of list) {
+      if (!(material instanceof THREE.MeshStandardMaterial) || seen.has(material)) continue;
+      seen.add(material);
+      materials.push(material);
+    }
+  });
+  return materials;
+}
+
 export function resolveEnemyRigParts(root: THREE.Object3D): EnemyRigParts {
+  const inflateRoot = first(root, ['ThroatRoot', 'BubbleShellRoot', 'GlowRoot']);
   return {
     primary: first(root, ['PrimaryRoot', 'LeafRoot', 'StemRoot', 'HeadRoot']),
     secondary: first(root, ['SecondaryRoot', 'LeafSecondary', 'PetalRoot']),
@@ -46,7 +66,8 @@ export function resolveEnemyRigParts(root: THREE.Object3D): EnemyRigParts {
     earR: first(root, ['Ear_R']),
     shell: first(root, ['ShellRoot']),
     openRoot: first(root, ['WingPairRoot', 'RockClusterRoot', 'LeafPairRoot', 'PadRoot', 'PetalRoot', 'PuffRoot']),
-    inflateRoot: first(root, ['ThroatRoot', 'BubbleShellRoot', 'GlowRoot']),
+    inflateRoot,
+    glowMaterials: emissiveMaterials(inflateRoot),
   };
 }
 
@@ -64,6 +85,8 @@ export function captureEnemyRigRestPose(parts: EnemyRigParts): EnemyRigRestPose 
     shellScale: parts.shell?.scale.clone() ?? null,
     openScale: parts.openRoot?.scale.clone() ?? null,
     inflateScale: parts.inflateRoot?.scale.clone() ?? null,
+    glowEmissive: parts.glowMaterials.map((material) => material.emissive.clone()),
+    glowIntensity: parts.glowMaterials.map((material) => material.emissiveIntensity),
   };
 }
 
@@ -84,6 +107,11 @@ export function resetEnemySecondaryPose(parts: EnemyRigParts, rest: EnemyRigRest
   if (parts.shell && rest.shellScale) parts.shell.scale.copy(rest.shellScale);
   if (parts.openRoot && rest.openScale) parts.openRoot.scale.copy(rest.openScale);
   if (parts.inflateRoot && rest.inflateScale) parts.inflateRoot.scale.copy(rest.inflateScale);
+  parts.glowMaterials.forEach((material, index) => {
+    const color = rest.glowEmissive[index];
+    if (color) material.emissive.copy(color);
+    material.emissiveIntensity = rest.glowIntensity[index] ?? material.emissiveIntensity;
+  });
 }
 
 /** Apply bounded semantic secondary channels shared by game and gallery. */
@@ -146,4 +174,13 @@ export function applyEnemySecondaryPose(
       rest.inflateScale.z * (1 + inflate),
     );
   }
+
+  const glow = Math.max(-1, Math.min(2.5, pose.glow ?? 0));
+  const heat = Math.max(0, Math.min(1, pose.glowHeat ?? 0));
+  const hot = new THREE.Color(1.0, 0.58, 0.08);
+  parts.glowMaterials.forEach((material, index) => {
+    const baseColor = rest.glowEmissive[index];
+    if (baseColor) material.emissive.copy(baseColor).lerp(hot, heat);
+    material.emissiveIntensity = Math.max(0, (rest.glowIntensity[index] ?? 1) * (1 + glow * 2.2));
+  });
 }
