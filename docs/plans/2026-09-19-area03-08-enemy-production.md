@@ -1,6 +1,6 @@
 # Area 3–8 Enemy Asset & Gallery Production Roadmap
 
-Status: Active — Area 5 production complete and publicly verified; next production target is Area 6
+Status: Active — Area 6 production complete and publicly verified; next production target is Area 7
 Date: 2026-09-20
 
 ## Scope
@@ -209,6 +209,33 @@ Area 5 V2 baseline was verified, then produced under the contract-first workflow
   - `icicle-lantern` 1.06s / 1.22s
   - `snow-statue-guardian` 1.62s / 1.68s
 - [x] deployment Worker version: `3fcc393b-9292-438a-bbfe-486eedf8b58a`
+
+## Area 6 progress — Ember Canyon
+
+- [x] 5 production enemies completed: `ember-gecko`, `charcoal-roller`, `crackle-bug`, `magma-crab`, `furnace-turtle`
+- [x] separate `ember` Blender family and character-specific semantic hooks
+- [x] 5 character-specific Idle / Move / Attack / Hit / Defeat profiles
+- [x] elemental secondary reactions and Ember-specific projectile / glow timing
+- [x] `crackle-bug` final silhouette polish: thinner body/underbody, corrected shell mount, wider antenna spread, lower eye line
+- [x] Area 1 leaf / flower / critter silhouettes retroactively repaired instead of weakening the production contract
+- [x] 30 current production GLBs pass the Blender character validator
+- [x] 128px monochrome Area 6 pairwise silhouette gate passes; max IoU = **0.616** (< 0.62)
+- [x] targeted enemy motion / face / Gallery gate passes: **49 tests**
+- [x] TypeScript typecheck passes
+- [x] production build passes
+- [x] local Area 6 real-UI capture: **5 characters / 90 timed frames** across Idle / Move / Attack / Hit / Defeat
+- [x] full local Gallery production gate: **30 characters / 90 unique timed frames**
+- [x] `bud-bloom` 1x production scale corrected from 0.33 to 0.36 after projected-area gate found 2.7%; final projected area = **3.2%**
+- [x] production deploy verified at `https://games.kikuta.dev/slime-mercenaries/`
+- [x] all 5 Area 6 public GLB SHA-256 hashes match the committed local artifacts byte-for-byte
+- [x] public Area 6 Gallery smoke: **5 characters / 15 timed frames** with model-load, occupancy, Attack, and Defeat duration checks
+- [x] public Area 6 production durations verified:
+  - `ember-gecko` 0.92s / 1.22s
+  - `charcoal-roller` 1.10s / 1.28s
+  - `crackle-bug` 1.12s / 1.26s
+  - `magma-crab` 1.02s / 1.30s
+  - `furnace-turtle` 1.68s / 1.78s
+- [x] deployment Worker version: `d434f722-a26a-4db0-85fe-935dfde476f9`
 
 ## Per-character contract baseline — 2026-09-20
 
