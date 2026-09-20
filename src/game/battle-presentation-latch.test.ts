@@ -8,13 +8,17 @@ import {
 
 function model(id: string, stageNumber: number, hasEncounter = true): BattleSceneModel {
   return {
+    areaId: 'area.clover-road',
     encounterKey: id,
+    runtimeKey: 'party-runtime',
     visualKey: 'party',
     stageNumber,
     waveIndex: 0,
     encounter: hasEncounter ? ({ id } as BattleSceneModel['encounter']) : null,
     authoritativeResult: hasEncounter ? 'victory' : null,
     authoritativeResultDeadlineMs: hasEncounter ? 1_000 : null,
+    isStageFinalEncounter: false,
+    shouldCelebrateVictory: false,
     allies: [],
   };
 }

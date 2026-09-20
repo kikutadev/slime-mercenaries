@@ -1,4 +1,4 @@
-import { currentCombatEncounter, currentStageDefinition, equippedWeaponDefinition, nextCombatBoundarySec, partyCombatPower, type SlimeInstanceId, type SlimeMercenariesState } from '../../domain';
+import { currentCombatEncounter, currentStageDefinition, equippedWeaponDefinition, nextCombatBoundarySec, partyCombatPower, resolveStageDefinition, type SlimeInstanceId, type SlimeMercenariesState } from '../../domain';
 import { resolveEncounterDefinition, type ResolvedEncounter } from '../../game/encounters';
 import { getSlimePresentation, type BattleBehaviorId } from '../../game/slimes';
 
@@ -32,7 +32,9 @@ export type BattleSceneModel = Readonly<{
   waveIndex: number;
   encounter: ResolvedEncounter | null;
   authoritativeResult: 'victory' | 'defeat' | null;
-  authoritativeResultDelaySec: number | null;
+  authoritativeResultDeadlineMs: number | null;
+  isStageFinalEncounter: boolean;
+  shouldCelebrateVictory: boolean;
   allies: readonly BattleSceneAlly[];
 }>;
 
@@ -70,23 +72,34 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
   const waveIndex = state.gameData.combat.currentWaveIndex;
   const combatEncounter = currentCombatEncounter(state);
   const stage = currentStageDefinition(state);
-  const terminalPresentationEncounterId = state.gameData.combat.contentBoundaryReached
-    ? stage?.waves[0]?.encounterId ?? stage?.boss?.encounterId
-    : undefined;
+  const terminalStage = state.gameData.combat.contentBoundaryReached
+    ? resolveStageDefinition(state.gameData.progression.currentAreaId, stageNumber)
+    : null;
+  const terminalEncounterId = terminalStage === null
+    ? undefined
+    : terminalStage.boss?.encounterId
+      ?? terminalStage.waves[Math.max(0, terminalStage.waves.length - 1)]?.encounterId;
   const encounterId = combatEncounter?.kind === 'wave'
     ? combatEncounter.wave?.encounterId
-    : combatEncounter?.boss?.encounterId ?? terminalPresentationEncounterId;
+    : combatEncounter?.boss?.encounterId ?? terminalEncounterId;
   const encounter = encounterId === undefined ? null : resolveEncounterDefinition(encounterId);
-  const authoritativeResult = combatEncounter === null
-    ? null
-    : combatEncounter.requiredPartyPower !== null
-      && partyCombatPower(state).compare(combatEncounter.requiredPartyPower) < 0
-      ? 'defeat'
-      : 'victory';
+  const terminalVictory = combatEncounter === null
+    && state.gameData.combat.contentBoundaryReached
+    && encounter !== null;
+  const authoritativeResult = terminalVictory
+    ? 'victory'
+    : combatEncounter === null
+      ? null
+      : combatEncounter.requiredPartyPower !== null
+        && partyCombatPower(state).compare(combatEncounter.requiredPartyPower) < 0
+        ? 'defeat'
+        : 'victory';
   const nextBoundarySec = nextCombatBoundarySec(state);
-  const authoritativeResultDelaySec = authoritativeResult === null || nextBoundarySec === null
-    ? null
-    : Math.max(0, nextBoundarySec - state.simTimeSec);
+  const authoritativeResultDeadlineMs = terminalVictory
+    ? state.lastWallClockMs
+    : authoritativeResult === null || nextBoundarySec === null
+      ? null
+      : state.lastWallClockMs + Math.max(0, nextBoundarySec - state.simTimeSec) * 1_000;
   const encounterKey = `${state.gameData.progression.currentAreaId}:${stageNumber}:${waveIndex}:${encounter?.id ?? 'none'}`;
   const runtimeKey = allies
     .map((ally) => [
@@ -100,6 +113,13 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
     ].join(':'))
     .join('|');
   const visualKey = `${runtimeKey}|result:${authoritativeResult ?? '-'}`;
+  const isStageFinalEncounter = terminalVictory || combatEncounter?.kind === 'boss'
+    || (combatEncounter?.kind === 'wave'
+      && stage !== null
+      && stage.boss === undefined
+      && combatEncounter.waveIndex === stage.waves.length - 1);
+  const shouldCelebrateVictory = isStageFinalEncounter
+    && state.gameData.combat.retryFarmClearsRemaining === 0;
 
-  return { areaId: state.gameData.progression.currentAreaId, encounterKey, runtimeKey, visualKey, stageNumber, waveIndex, encounter, authoritativeResult, authoritativeResultDelaySec, allies };
+  return { areaId: state.gameData.progression.currentAreaId, encounterKey, runtimeKey, visualKey, stageNumber, waveIndex, encounter, authoritativeResult, authoritativeResultDeadlineMs, isStageFinalEncounter, shouldCelebrateVictory, allies };
 }

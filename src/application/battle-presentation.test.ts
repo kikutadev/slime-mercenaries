@@ -12,7 +12,9 @@ function model(encounterKey: string, hasEncounter = true, visualKey = 'visual'):
     waveIndex: 0,
     encounter: hasEncounter ? ({ id: encounterKey, displayName: encounterKey, boss: false, enemies: [] } as BattleSceneModel['encounter']) : null,
     authoritativeResult: 'victory',
-    authoritativeResultDelaySec: 1,
+    authoritativeResultDeadlineMs: 1_000,
+    isStageFinalEncounter: false,
+    shouldCelebrateVictory: false,
     allies: [],
   };
 }

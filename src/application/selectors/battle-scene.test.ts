@@ -166,10 +166,10 @@ describe('battle scene projection', () => {
     };
 
     const model = selectBattleSceneModel(boundaryState);
-    expect(model.encounter?.id).toBe('encounter.clover-road.05.01');
+    expect(model.encounter?.id).toBe('encounter.clover-road.05.boss');
     expect(model.encounter?.enemies.length).toBeGreaterThan(0);
-    expect(model.authoritativeResult).toBeNull();
-    expect(model.authoritativeResultDelaySec).toBeNull();
+    expect(model.authoritativeResult).toBe('victory');
+    expect(model.authoritativeResultDeadlineMs).toBe(boundaryState.lastWallClockMs);
   });
 
   it('projects an authored defeat for an underpowered normal frontier stage', () => {

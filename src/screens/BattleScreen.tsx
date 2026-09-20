@@ -5,7 +5,7 @@ import { BATTLE_RESULT_HOLD_MS, canAdoptBattleSceneModel } from '../application/
 import { validationToolsVisible } from '../application/validation-mode';
 import { selectBattleSceneModel, type BattleSceneModel } from '../application/selectors/battle-scene';
 import { selectFormation, selectGlobalHud } from '../application/selectors/ui-selectors';
-import type { BattleSnapshot } from '../game/battle-runtime/types';
+import type { BattleSnapshot } from '../game/BattleRuntime';
 import type { SlimeInstanceId } from '../domain';
 import type { BattleRewardCue } from '../game/battle-reward';
 
@@ -22,9 +22,11 @@ const INITIAL_BATTLE: BattleSnapshot = {
 export function BattleScreen({
   onOpenSlime,
   rewardCue,
+  onRewardCuePresented,
 }: {
   onOpenSlime: (slimeId: SlimeInstanceId) => void;
   rewardCue: BattleRewardCue | null;
+  onRewardCuePresented: (cueId: string) => void;
 }) {
   const state = useGameState();
   const controller = useGameController();
@@ -135,12 +137,21 @@ export function BattleScreen({
     setStageArrival(sceneModel.stageNumber);
   }, [sceneModel.stageNumber]);
 
+  useEffect(() => {
+    if (rewardCue === null) return;
+    onRewardCuePresented(rewardCue.id);
+  }, [onRewardCuePresented, rewardCue?.id]);
+
   const hasBattleSlime = sceneModel.allies.length > 0;
   const hasEncounter = sceneModel.encounter !== null;
   const enemyRatio = battle.enemyMaxHp > 0 ? battle.enemyHp / battle.enemyMaxHp : 0;
   const activeCount = sceneModel.allies.length;
 
   const battleStatus = useMemo(() => {
+    if (battle.result === 'defeat') return '敗北 · 戦線を立て直します';
+    if (battle.result === 'victory') {
+      return sceneModel.shouldCelebrateVictory ? 'ステージクリア' : '敵部隊を突破 · 次のウェーブへ';
+    }
     if (!hasEncounter && state.gameData.combat.contentBoundaryReached) return '次の戦闘を準備中';
     if (state.gameData.combat.retryFarmClearsRemaining > 0) {
       return `再編成中 · ステージ${sceneModel.stageNumber} · 再出撃まであと${state.gameData.combat.retryFarmClearsRemaining}周`;
@@ -150,7 +161,9 @@ export function BattleScreen({
   }, [
     activeCount,
     battle.label,
+    battle.result,
     hasEncounter,
+    sceneModel.shouldCelebrateVictory,
     sceneModel.stageNumber,
     state.gameData.combat.contentBoundaryReached,
     state.gameData.combat.retryFarmClearsRemaining,
@@ -198,10 +211,27 @@ export function BattleScreen({
         </div>
       )}
 
-      <div className={`battle-status-strip ${state.gameData.combat.retryFarmClearsRemaining > 0 ? 'is-warning' : ''}`}>
+      <div className={`battle-status-strip ${battle.result === null && state.gameData.combat.retryFarmClearsRemaining > 0 ? 'is-warning' : ''}`}>
         <span className="status-dot" />
         {battleStatus}
       </div>
+
+      {(battle.result === 'defeat' || (battle.result === 'victory' && sceneModel.shouldCelebrateVictory)) && (
+        <div
+          className={`battle-result-overlay battle-result-overlay--${battle.result}`}
+          role="status"
+          aria-live="polite"
+        >
+          <div className="battle-result-overlay__burst" aria-hidden="true" />
+          <div className="battle-result-overlay__card">
+            <span className="battle-result-overlay__eyebrow">
+              {battle.result === 'victory' ? 'ステージクリア' : '撤退'}
+            </span>
+            <strong>{battle.result === 'victory' ? '勝利' : '敗北'}</strong>
+            <small>{battle.result === 'victory' ? '次のステージへ進軍' : '戦線を立て直します'}</small>
+          </div>
+        </div>
+      )}
 
       {rewardCue !== null && (
         <div className={'battle-reward-receipt' + (rewardCue.importance === 'boss' ? ' is-major' : '')} key={rewardCue.id} aria-live="polite">
@@ -234,7 +264,7 @@ export function BattleScreen({
           return (
             <button className="party-dot" type="button" key={slot.slotIndex} onClick={() => onOpenSlime(slot.slimeId!)}>
               <img src={`${import.meta.env.BASE_URL}${slot.icon}`} alt={slot.name ?? ''} />
-              <span className="party-dot__hp"><i style={{ transform: `scaleX(${Math.max(0, hpRatio)})` }} /></span>
+              <span className="party-dot__hp"><i style={{ transform: `scaleX(${Math.max(0, Math.min(1, hpRatio))})` }} /></span>
             </button>
           );
         })}

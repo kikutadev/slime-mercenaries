@@ -424,6 +424,7 @@ const CAMERA_LOOK_AT = new THREE.Vector3(0, 0.38, -1.05);
 
 export class BattleRuntime {
   private readonly scene: THREE.Scene;
+  private readonly ownedSceneObjects = new Set<THREE.Object3D>();
   private readonly camera: THREE.PerspectiveCamera;
   private readonly loader = new GLTFLoader();
   private readonly enemyTemplatePromises = new Map<string, Promise<THREE.Group>>();
@@ -511,6 +512,9 @@ export class BattleRuntime {
   public async updateEncounter(update: BattleRuntimeEncounterUpdate): Promise<void> {
     if (this.disposed) return;
     const revision = ++this.encounterUpdateRevision;
+    const previousStageNumber = this.stageNumber;
+    const previousWaveIndex = this.waveIndex;
+    const previousResult = this.result;
     const loadedEnemies = await Promise.all(update.enemies.map((config) => this.loadEnemy(config, false)));
 
     if (this.disposed || revision !== this.encounterUpdateRevision) {
@@ -520,6 +524,10 @@ export class BattleRuntime {
 
     this.clearProjectiles();
     this.enemies.splice(0).forEach((enemy) => this.disposeEnemy(enemy));
+
+    const recoverParty = previousResult === 'defeat'
+      || update.stageNumber !== previousStageNumber
+      || update.waveIndex <= previousWaveIndex;
 
     this.stageNumber = update.stageNumber;
     this.waveIndex = update.waveIndex;
@@ -533,9 +541,32 @@ export class BattleRuntime {
     loadedEnemies.forEach((enemy) => this.attachEnemy(enemy));
     this.enemies.push(...loadedEnemies);
     this.allies.forEach((ally) => {
-      ally.approachOrigin.copy(ally.root.position);
-      this.resetAlly(ally);
-      this.facePoint(ally, TARGET_HOME);
+      if (recoverParty) {
+        this.resetAlly(ally);
+        if (this.continuationEntryPending) {
+          const slot = getVictoryMarchSlot(ally.slotIndex);
+          ally.approachOrigin.set(slot.x, 0.02, slot.z);
+          ally.root.position.copy(ally.approachOrigin);
+        } else {
+          ally.approachOrigin.copy(ally.home);
+        }
+      } else if (ally.alive) {
+        // A normal wave transition keeps presentation HP and fallen members intact.
+        // Only reset attack/deformation residue on survivors before they march again.
+        ally.approachOrigin.copy(ally.root.position);
+        ally.state = 'idle';
+        ally.hitStartedAt = -Infinity;
+        ally.root.scale.setScalar(SCALE);
+        ally.body.scale.copy(ally.bodyBaseScale);
+        if (ally.faceRoot) ally.faceRoot.position.copy(ally.faceBasePosition);
+        this.clearMorphs(ally);
+        this.setEquipmentSwing(ally, 0);
+        this.resetBranchAccents(ally);
+        this.setDefeatEyes(ally, false);
+        ally.shadow.visible = true;
+        ally.healthBar.visible = true;
+      }
+      if (ally.alive) this.facePoint(ally, TARGET_HOME);
     });
 
     this.startBattle(this.simulationNow + 0.08);
@@ -630,6 +661,20 @@ export class BattleRuntime {
     this.environmentDispose = null;
     this.environmentSceneryRoot = null;
     this.environmentTravel = null;
+    for (const object of this.ownedSceneObjects) this.scene.remove(object);
+    this.ownedSceneObjects.clear();
+    this.allies.length = 0;
+  }
+
+  private addSceneObject(object: THREE.Object3D): void {
+    if (this.disposed) return;
+    this.ownedSceneObjects.add(object);
+    this.scene.add(object);
+  }
+
+  private removeSceneObject(object: THREE.Object3D): void {
+    this.ownedSceneObjects.delete(object);
+    this.scene.remove(object);
   }
 
   private makeShadow(radius = 0.3, attachToScene = true): THREE.Mesh<THREE.CircleGeometry, BasicMaterial> {
@@ -643,7 +688,7 @@ export class BattleRuntime {
     shadow.rotation.x = -Math.PI / 2;
     shadow.scale.set(1.35, 0.68, 1);
     shadow.position.y = 0.011;
-    if (attachToScene) this.scene.add(shadow);
+    if (attachToScene) this.addSceneObject(shadow);
     return shadow;
   }
 
@@ -671,7 +716,7 @@ export class BattleRuntime {
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.y = 0.014;
     mesh.visible = false;
-    if (attachToScene) this.scene.add(mesh);
+    if (attachToScene) this.addSceneObject(mesh);
     return mesh;
   }
 
@@ -712,7 +757,7 @@ export class BattleRuntime {
       .filter((eye): eye is THREE.Object3D => Boolean(eye));
     const xEyes = this.createEnemyDefeatEyes(normalEyes);
     this.setEnemyDefeatEyes(normalEyes, xEyes, false);
-    if (attachToScene) this.scene.add(root);
+    if (attachToScene) this.addSceneObject(root);
     const shadow = this.makeShadow(config.shadowRadius, attachToScene);
     shadow.position.set(home.x, 0.011, home.z);
 
@@ -741,18 +786,18 @@ export class BattleRuntime {
   }
 
   private attachEnemy(enemy: EnemyUnit): void {
-    this.scene.add(enemy.root);
-    this.scene.add(enemy.shadow);
-    if (enemy.attackTelegraph !== null) this.scene.add(enemy.attackTelegraph);
+    this.addSceneObject(enemy.root);
+    this.addSceneObject(enemy.shadow);
+    if (enemy.attackTelegraph !== null) this.addSceneObject(enemy.attackTelegraph);
   }
 
   private disposeEnemy(enemy: EnemyUnit): void {
-    this.scene.remove(enemy.root);
-    this.scene.remove(enemy.shadow);
+    this.removeSceneObject(enemy.root);
+    this.removeSceneObject(enemy.shadow);
     enemy.shadow.geometry.dispose();
     enemy.shadow.material.dispose();
     if (enemy.attackTelegraph !== null) {
-      this.scene.remove(enemy.attackTelegraph);
+      this.removeSceneObject(enemy.attackTelegraph);
       enemy.attackTelegraph.geometry.dispose();
       enemy.attackTelegraph.material.dispose();
     }
@@ -797,11 +842,11 @@ export class BattleRuntime {
 
   private createSlashArc(): void {
     const arc = createSwordSlashArc();
-    this.scene.add(arc);
+    this.addSceneObject(arc);
     this.slashArc = arc;
 
     const spinArc = createGreatswordSpinArc();
-    this.scene.add(spinArc);
+    this.addSceneObject(spinArc);
     this.spinArc = spinArc;
   }
 
@@ -834,7 +879,7 @@ export class BattleRuntime {
       spark.rotation.z = angle - Math.PI / 2;
       group.add(spark);
     }
-    this.scene.add(group);
+    this.addSceneObject(group);
     this.impacts.push({ group, materials, startedAt: this.simulationNow, duration });
   }
 
@@ -881,7 +926,7 @@ export class BattleRuntime {
         mesh.position.copy(start);
         mesh.visible = false;
         if (visual.shape === 'coin') mesh.rotation.x = Math.PI / 2;
-        this.scene.add(mesh);
+        this.addSceneObject(mesh);
         this.victoryLootMotes.push({
           mesh,
           start,
@@ -920,7 +965,7 @@ export class BattleRuntime {
 
   private clearVictoryLootMotes(): void {
     for (const mote of this.victoryLootMotes) {
-      this.scene.remove(mote.mesh);
+      this.removeSceneObject(mote.mesh);
       mote.mesh.geometry.dispose();
       mote.mesh.material.dispose();
     }
@@ -992,11 +1037,11 @@ export class BattleRuntime {
     shadow.position.set(approachOrigin.x, 0.011, approachOrigin.z);
     const healthBar = this.createWorldHealthBar();
     const guardPulseVfx = (config.behaviorId === 'guardian-guard' || config.behaviorId === 'paladin-barrier' || config.behaviorId === 'fortress-plant') ? createGuardPulseVfx() : null;
-    if (guardPulseVfx) this.scene.add(guardPulseVfx);
+    if (guardPulseVfx) this.addSceneObject(guardPulseVfx);
     const mageCastSigil = (config.behaviorId === 'mage-aoe' || config.behaviorId === 'archmage-burst' || config.behaviorId === 'frost-mage-control') ? createMageCastSigil() : null;
-    if (mageCastSigil) this.scene.add(mageCastSigil);
+    if (mageCastSigil) this.addSceneObject(mageCastSigil);
     const rogueSlashArc = (config.behaviorId === 'rogue-twin-strike' || config.behaviorId === 'ninja-vanish' || config.behaviorId === 'assassin-execute') ? createRogueSlashArc() : null;
-    if (rogueSlashArc) this.scene.add(rogueSlashArc);
+    if (rogueSlashArc) this.addSceneObject(rogueSlashArc);
     const signatureVfx = config.behaviorId === 'blademaster-dash'
       ? createBlademasterSignatureVfx()
       : config.behaviorId === 'berserker-heavy'
@@ -1022,7 +1067,7 @@ export class BattleRuntime {
                           : config.behaviorId === 'engineer-turret'
                             ? createEngineerSignatureVfx()
                             : null;
-    if (signatureVfx) this.scene.add(signatureVfx);
+    if (signatureVfx) this.addSceneObject(signatureVfx);
     const unit: AllyUnit = {
       id: `ally-${config.slimeId}-${config.slotIndex}`,
       slimeId: config.slimeId,
@@ -1080,7 +1125,7 @@ export class BattleRuntime {
     const eyes = this.createDefeatEyes(unit);
     unit.normalEyes = eyes.normalEyes;
     unit.xEyes = eyes.xEyes;
-    this.scene.add(root);
+    this.addSceneObject(root);
     return unit;
   }
 
@@ -1276,7 +1321,7 @@ export class BattleRuntime {
     group.add(fill);
     group.userData.fill = fill;
     group.userData.fillWidth = fillWidth;
-    this.scene.add(group);
+    this.addSceneObject(group);
     return group;
   }
 
@@ -1450,6 +1495,7 @@ export class BattleRuntime {
     this.battleStartedAt = now;
     this.result = null;
     this.allies.forEach((ally) => {
+      if (!ally.alive) return;
       ally.attackStartedAt = -Infinity;
       ally.attackTarget = null;
       ally.hitsApplied = 0;
@@ -1496,6 +1542,7 @@ export class BattleRuntime {
     }
     if (now - this.phaseStartedAt >= duration) {
       this.allies.forEach((ally) => {
+        if (!ally.alive) return;
         ally.root.position.copy(this.isMeleeBehavior(ally) ? ally.combatAnchor : ally.home);
         ally.nextAttackAt = now + (this.isMeleeBehavior(ally) ? 0.12 : 0.2 + ally.slotIndex * 0.06);
       });
@@ -3027,7 +3074,7 @@ export class BattleRuntime {
     const end = target.root.position.clone().add(new THREE.Vector3(0, 0.28, 0));
     root.position.copy(start);
     root.visible = true;
-    this.scene.add(root);
+    this.addSceneObject(root);
     this.projectiles.push({
       root, start, end, target, startedAt: this.simulationNow,
       duration: SLIME_MOTION_TIMING.magicOrbFlight, hitApplied: false,
@@ -3048,7 +3095,7 @@ export class BattleRuntime {
     const end = target.root.position.clone().add(new THREE.Vector3(0, 0.25, 0));
     root.position.copy(start);
     root.visible = true;
-    this.scene.add(root);
+    this.addSceneObject(root);
     this.projectiles.push({
       root, start, end, target, startedAt: this.simulationNow,
       duration: SLIME_MOTION_TIMING.bulletFlight * (options.durationScale ?? 1), hitApplied: false,
@@ -3064,7 +3111,7 @@ export class BattleRuntime {
     this.tempVector2.copy(end).sub(start).normalize();
     flash.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), this.tempVector2);
     flash.material.opacity = 0.95;
-    this.scene.add(flash);
+    this.addSceneObject(flash);
     this.muzzleFlashes.push({ mesh: flash, startedAt: this.simulationNow, duration: enhanced ? 0.14 : 0.11 });
 
     if (enhanced) {
@@ -3078,7 +3125,7 @@ export class BattleRuntime {
         tracer.position.copy(start).addScaledVector(this.tempVector3, tracerLength * 0.5);
         tracer.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), this.tempVector3);
         tracer.scale.y = tracerLength / 0.20;
-        this.scene.add(tracer);
+        this.addSceneObject(tracer);
         this.tracers.push({ mesh: tracer, startedAt: this.simulationNow, duration: 0.15 });
       } else {
         tracer.geometry.dispose();
@@ -3219,7 +3266,7 @@ export class BattleRuntime {
     const start = this.tempVector.clone();
     const end = target.root.position.clone().add(new THREE.Vector3(0, 0.28, 0));
     root.position.copy(start);
-    this.scene.add(root);
+    this.addSceneObject(root);
     this.projectiles.push({
       root,
       start,
@@ -3296,7 +3343,7 @@ export class BattleRuntime {
         }
       }
       if (u >= 1) {
-        this.scene.remove(projectile.root);
+        this.removeSceneObject(projectile.root);
         this.projectiles.splice(i, 1);
       }
     }
@@ -3316,7 +3363,7 @@ export class BattleRuntime {
       flash.mesh.scale.setScalar(0.70 + u * 0.55);
       flash.mesh.material.opacity = (1 - u) * 0.95;
       if (u >= 1) {
-        this.scene.remove(flash.mesh);
+        this.removeSceneObject(flash.mesh);
         this.muzzleFlashes.splice(i, 1);
       }
     }
@@ -3330,7 +3377,7 @@ export class BattleRuntime {
       tracer.mesh.scale.x = 1 + u * 0.55;
       tracer.mesh.scale.z = 1 + u * 0.55;
       if (u >= 1) {
-        this.scene.remove(tracer.mesh);
+        this.removeSceneObject(tracer.mesh);
         tracer.mesh.geometry.dispose();
         tracer.mesh.material.dispose();
         this.tracers.splice(i, 1);
@@ -3348,7 +3395,7 @@ export class BattleRuntime {
     const start = this.tempVector.clone();
     const end = target.root.position.clone().add(new THREE.Vector3(0, 0.22, 0));
     root.position.copy(start);
-    this.scene.add(root);
+    this.addSceneObject(root);
     this.enemyProjectiles.push({
       root,
       start,
@@ -3380,7 +3427,7 @@ export class BattleRuntime {
         if (spore.target.alive) this.applyDamage(spore.target, spore.damage, 'enemy', spore.sourcePosition);
       }
       if (u >= 1) {
-        this.scene.remove(spore.root);
+        this.removeSceneObject(spore.root);
         this.enemyProjectiles.splice(i, 1);
       }
     }
@@ -3394,7 +3441,7 @@ export class BattleRuntime {
       impact.materials.forEach((material) => { material.opacity = (1 - u) * 0.92; });
       impact.group.quaternion.copy(this.camera.quaternion);
       if (u >= 1) {
-        this.scene.remove(impact.group);
+        this.removeSceneObject(impact.group);
         this.impacts.splice(i, 1);
       }
     }
@@ -3718,14 +3765,14 @@ export class BattleRuntime {
   }
 
   private clearFlightVfx(): void {
-    this.projectiles.splice(0).forEach((projectile) => this.scene.remove(projectile.root));
-    this.muzzleFlashes.splice(0).forEach((flash) => this.scene.remove(flash.mesh));
+    this.projectiles.splice(0).forEach((projectile) => this.removeSceneObject(projectile.root));
+    this.muzzleFlashes.splice(0).forEach((flash) => this.removeSceneObject(flash.mesh));
     this.tracers.splice(0).forEach((tracer) => {
-      this.scene.remove(tracer.mesh);
+      this.removeSceneObject(tracer.mesh);
       tracer.mesh.geometry.dispose();
       tracer.mesh.material.dispose();
     });
-    this.enemyProjectiles.splice(0).forEach((spore) => this.scene.remove(spore.root));
+    this.enemyProjectiles.splice(0).forEach((spore) => this.removeSceneObject(spore.root));
     this.enemies.forEach((enemy) => {
       if (enemy.attackTelegraph) enemy.attackTelegraph.visible = false;
     });
@@ -3736,7 +3783,7 @@ export class BattleRuntime {
   private clearProjectiles(): void {
     this.clearVictoryLootMotes();
     this.clearFlightVfx();
-    this.impacts.splice(0).forEach((impact) => this.scene.remove(impact.group));
+    this.impacts.splice(0).forEach((impact) => this.removeSceneObject(impact.group));
   }
 
   private startCameraShake(duration: number, amplitude: number): void {

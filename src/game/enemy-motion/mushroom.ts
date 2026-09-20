@@ -438,14 +438,17 @@ export function getGreatMushroomDefeatMotion(u: number, side: number): EnemyDefe
     ? Math.sin(((t - 0.60) / 0.19) * Math.PI)
     : 0;
   const settle = smoothEnemy01((t - 0.73) / 0.17);
+  const rotationSettle = smoothEnemy01((t - 0.58) / 0.16);
   const fade = smoothEnemy01((t - 0.87) / 0.13);
   const heave = Math.sin(clampEnemy01(t / 0.31) * Math.PI) * 0.055;
 
   return {
-    scaleX: 1 + stagger * 0.06 + collapse * 0.34 - rebound * 0.05,
+    scaleX: 1 + stagger * 0.06 + collapse * 0.43 - rebound * 0.04,
     scaleY: 1 + stagger * 0.07 - collapse * 0.50 + rebound * 0.12 - settle * 0.06,
     scaleZ: 1 + collapse * 0.14,
-    rotationZ: side * (stagger * 0.11 + collapse * 0.47 - rebound * 0.07),
+    rotationZ: side
+      * (stagger * 0.11 + collapse * 0.47 - rebound * 0.07)
+      * (1 - rotationSettle * 0.65),
     yOffset: heave - collapse * 0.052 - settle * 0.025 - fade * 0.035,
     lateralDrift: side * collapse * 0.20,
     backwardDrift: collapse * 0.16,

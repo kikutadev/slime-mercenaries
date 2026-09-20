@@ -38,13 +38,19 @@ function enemyConfigs(model: BattleSceneModel): readonly BattleRuntimeEnemyConfi
   })) ?? [];
 }
 
+function authoritativeDelaySec(model: BattleSceneModel): number | null {
+  return model.authoritativeResultDeadlineMs === null
+    ? null
+    : Math.max(0, (model.authoritativeResultDeadlineMs - Date.now()) / 1_000);
+}
+
 function encounterUpdate(model: BattleSceneModel): BattleRuntimeEncounterUpdate {
   return {
     stageNumber: model.stageNumber,
     waveIndex: model.waveIndex,
     enemies: enemyConfigs(model),
     authoritativeResult: model.authoritativeResult,
-    authoritativeResultDelaySec: model.authoritativeResultDelaySec,
+    authoritativeResultDelaySec: authoritativeDelaySec(model),
   };
 }
 
@@ -98,7 +104,7 @@ function BattleRuntimeScene({
         formationRole: ally.formationRole,
       })),
       authoritativeResult: initialModel.authoritativeResult,
-      authoritativeResultDelaySec: initialModel.authoritativeResultDelaySec,
+      authoritativeResultDelaySec: authoritativeDelaySec(initialModel),
       enemies: enemyConfigs(initialModel),
       onSnapshot: (snapshot) => snapshotRef.current(snapshot),
     });
@@ -143,7 +149,7 @@ function BattleRuntimeScene({
 
       runtime.updateAuthoritativeResult(
         desiredModel.authoritativeResult,
-        desiredModel.authoritativeResultDelaySec,
+        authoritativeDelaySec(desiredModel),
       );
       appliedVisualKeyRef.current = desiredModel.visualKey;
     }).catch((error: unknown) => {
