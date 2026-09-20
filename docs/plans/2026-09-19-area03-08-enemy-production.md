@@ -1,6 +1,6 @@
 # Area 3–8 Enemy Asset & Gallery Production Roadmap
 
-Status: Active — Area 5 production complete locally under per-character gates; deployment verification pending
+Status: Active — Area 5 production complete and publicly verified; next production target is Area 6
 Date: 2026-09-20
 
 ## Scope
@@ -198,8 +198,17 @@ Area 5 V2 baseline was verified, then produced under the contract-first workflow
 - [x] enemy/Gallery/defeat-face targeted test gate: **62 tests pass**
 - [x] TypeScript typecheck passes
 - [x] production build passes
-- [ ] public deploy + five-GLB byte verification
-- [ ] public Gallery model-load / production-duration verification
+- [x] public deploy + five-GLB byte verification
+- [x] public Gallery model-load / production-duration verification
+- [x] public Gallery re-capture: **25 characters / 75 unique timed frames**
+- [x] all 5 Area 5 public GLB SHA-256 hashes match local artifacts byte-for-byte
+- [x] public Area 5 production durations verified:
+  - `snow-roller` 0.86s / 1.10s
+  - `ice-bug` 0.98s / 1.16s
+  - `scarf-snowman` 0.90s / 1.16s
+  - `icicle-lantern` 1.06s / 1.22s
+  - `snow-statue-guardian` 1.62s / 1.68s
+- [x] deployment Worker version: `3fcc393b-9292-438a-bbfe-486eedf8b58a`
 
 ## Per-character contract baseline — 2026-09-20
 

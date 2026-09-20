@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 from PIL import Image
 
@@ -18,7 +19,7 @@ GROUND = (216,232,205)
 
 
 def main() -> None:
-    root = Path(".tmp/enemy-character-contracts")
+    root = Path(os.environ.get("ENEMY_QA_OUTPUT", ".tmp/enemy-character-contracts"))
     metrics = json.loads((root / "metrics.json").read_text())
     expected = {f"{enemy}-{motion}.png" for enemy in IDS for motion in MOTIONS}
     actual = {path.name for path in root.glob("*.png")}
