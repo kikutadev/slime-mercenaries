@@ -22,7 +22,7 @@ Updated: 2026-09-20
 3. **Face** — 通常目は全高12%以下、左右対称、3/4 gameplay cameraで読める
 4. **Motion** — Idle / Move / Attack / Hit / Defeatを持ち、Attackは固有のanticipation → release/contact → secondary reactionを持つ
 5. **Defeat** — ×目 + 固有のcomic collapse。顔・目だけが本体から分離しない
-6. **1x framing** — 520px Galleryで通常敵の占有率を横48%以上 / 高30%以上、過大表示は82%以下
+6. **1x framing** — 520px Galleryの実camera projectionで面積3%以上、長辺19%以上、各軸78%以下。pixel色差ではなくThree.js投影boundsを使う
 7. **Timed visual QA** — model load後に固有attack beat / defeat beatで撮影し、Idle / Attack / Defeatの3状態が実際に別frameになる
 8. **Build gate** — GLB validator / character motion tests / typecheck / production buildを通す
 
@@ -52,6 +52,57 @@ Bossは通常敵の拡大版を禁止し、輪郭・attack rhythm・defeat durat
 | **あわタニシ** `bubble-snail` | 小さい本体より巨大なbubble shell | x/z 1.00–1.20、BubbleShell幅90–102%、2 antenna、15–18 meshes | body compress → shell pulse → release → late shell settle |
 | **すいすいハス** `skimming-lily` | 極薄の生きたnotched lily pad | x/z 4.4–5.6、LilyPad幅95–101%、FaceRoot→PrimaryRoot、6–7 meshes | left tilt → right tilt → flat skim → trailing wake。縦jump最小 |
 | **おおぬまガエル** `great-marsh-frog` | 縦二段body + 垂れ下がる二段喉袋 | x/z 1.20–1.45、全幅≥1.20 / 高≥0.90、17–20 meshes | 3-stage throat inflation → still hold → release → delayed wobble。attack ≥1.35s / defeat ≥1.45s |
+
+## Area 5 — Frost Ruins contracts
+
+Area 5の新要素は **slide / inertia / bounded glow**。氷パーツを増やして豪華にするのではなく、少数の大きなhookと慣性差でArea 4より強い動きを作る。
+
+| Character | First read | Geometry hard gate | Motion hard gate |
+| --- | --- | --- | --- |
+| **ゆきころ** `snow-roller` | 一個の雪玉 + 頭上ではなく斜め背面に一個だけ付く小さな氷nub | x/z 1.05–1.25、SnowBody幅85–98%、IceNub高18–30%、9–12 meshes、複数spike禁止 | settle → roll windup → fast bump → snow overshoot → nub lag。Attack 0.78–0.92s |
+| **こおりムシ** `ice-bug` | 低いdumpling body + 背中の**太い氷棘ちょうど3本** | x/z 1.40–1.75、IceSpike_1..3必須、中央棘高=全高34–48%、11–14 meshes、IceSpike_4以降禁止 | 3 spikes lean back → still hold → forward snap → ice shard 1発 → spike recoil。Attack 0.90–1.05s |
+| **マフラー雪だるま** `scarf-snowman` | 一個の丸い雪body + 横へ大きく張り出す短いscarf | x/z 1.55–1.80、SnowBody一体、SnowBody幅=全幅55–68%、ScarfTail幅=全幅42–60%、10–13 meshes、二段snowball / humanoid arm禁止 | scarf back-sweep → body dash → contact → scarf overshoot → soft settle。Attack 0.82–0.98s |
+| **つららランタン** `icicle-lantern` | 足のない縦長lantern/drop + 下端の一個のicicle point + 内部light core | z/x 1.35–1.70、LanternBody高75–92%、LightCore高18–30%、9–12 meshes、feet禁止 | hover compress → core grows cyan → pale ice flash → thin ice ray → recoil/flicker。Attack 0.98–1.14s |
+| **雪像の番人** `snow-statue-guardian` | 二段だが人型ではない大雪mass + 横広い一枚crest | x/z 0.90–1.15、全幅≥1.15 / 全高≥1.15、LowerMass幅92–101%、UpperMass幅52–70%、IceCrest幅68–88%、13–17 meshes、Arm/Leg/Hand/Foot禁止 | upper turn → lower delayed follow → full spin → snow pulse / bounded icicle release → crest delayed settle。Attack ≥1.45s / Defeat ≥1.55s |
+
+### Area 5 per-character detail
+
+**ゆきころ**
+- one-hook: `IceNub`。雪玉そのものより大きくしない
+- `PrimaryRoot` はIceNub専用。bodyと0.05–0.12秒ずれて戻る
+- Moveは跳ねず、低いroll + 接地squash
+- Hitは一度だけへこみ、すぐ球へ戻る
+- Defeatは半rollして横倒し。×目はSnowBodyから離れない
+- projectile禁止
+
+**こおりムシ**
+- exactly 3 spikes。4本目を装飾として足すことも禁止
+- `PrimaryRoot` = SpikeRoot。3本を一群としてlean/recoilさせる
+- bodyは低く、目を大きくして虫感を作らない
+- projectileは一個のcompact `ice-shard`
+- Defeatはbodyが座り、spike groupが外向きへdroop
+
+**マフラー雪だるま**
+- 雪だるま記号として二段球にしない。bodyは一個
+- `TailRoot` = ScarfRootとしてruntimeのwag channelを使う
+- scarfは細長い紐ではなく、幅広い短い布mass
+- Attackはbodyよりscarfのanticipationを先に見せる
+- Defeatはbodyが下へ沈み、scarfだけ最後に落ちる
+
+**つららランタン**
+- 足 / 手 / 杖は禁止。浮遊そのものがidentity
+- `InflateRoot` = GlowRoot。内部coreだけが明滅・膨張する
+- 外殻は過度に透明にせず、friendly slimeよりmatte
+- projectileは細い `ice-ray` 1本。広いbeamは禁止
+- Defeatは発光消失 → 回転を止める → 雪面へsoft landing
+
+**雪像の番人**
+- 二段massは許可するが腕脚を付けてhumanoid化しない。上下massの間は細いNeckCoreでくびれを作り、巨大な雪玉に見える輪郭は禁止
+- `PrimaryRoot` = UpperMassRoot、`SecondaryRoot` = CrestRoot
+- 上段が先に回り、下段/全身が遅れて追うことをmotion testで固定
+- Boss attackは最低5beat。通常敵のroll/slideを単純拡大しない
+- projectile/VFXは一回のsnow pulse + 一個のbounded icicle。連射禁止
+- Defeatはupper massが「ぽすっ」と落ち、crestが最後に遅れて倒れる
 
 ## Executable sources
 

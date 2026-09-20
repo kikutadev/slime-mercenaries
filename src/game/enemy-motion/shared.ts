@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 
-export type EnemyFamilyId = 'mushroom' | 'leaf' | 'flower' | 'critter' | 'mine' | 'marsh';
-export type EnemyProjectileKind = 'spore' | 'gust' | 'pollen' | 'acorn' | 'crystal-ring' | 'water-orb';
+export type EnemyFamilyId = 'mushroom' | 'leaf' | 'flower' | 'critter' | 'mine' | 'marsh' | 'frost';
+export type EnemyProjectileKind = 'spore' | 'gust' | 'pollen' | 'acorn' | 'crystal-ring' | 'water-orb' | 'ice-shard' | 'ice-ray' | 'frost-icicle';
 
 export interface EnemySecondaryPose {
   primaryBend?: number;
+  primaryLift?: number;
   secondaryBend?: number;
   open?: number;
   twist?: number;
