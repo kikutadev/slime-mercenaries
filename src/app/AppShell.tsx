@@ -2,7 +2,18 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { BottomSheet, usePresentationQueue } from 'idle-game-kit/react';
 import { useGameBootstrap, useGameController, useGameState } from './GameProvider';
 import { selectNavigationAttention, selectOwnedSlimeIds } from '../application/selectors/ui-selectors';
-import { buildOfflineReturnView, presentationNoticeDurationMs, routePresentationEvents } from '../application/presentation-events';
+import {
+  battleActivityProgressLabel,
+  battleActivityReportIsMeaningful,
+  buildBattleActivityReport,
+  buildOfflineReturnView,
+  formatBattleActivityElapsed,
+  isBattleActivityEvent,
+  mergeBattleActivityReports,
+  presentationNoticeDurationMs,
+  routePresentationEvents,
+  type BattleActivityReport,
+} from '../application/presentation-events';
 import type { BattleRewardCue } from '../game/battle-reward';
 import { SlimesScreen } from '../screens/SlimesScreen';
 import type { SlimeInstanceId } from '../domain';
@@ -38,6 +49,10 @@ export function AppShell() {
   const [offlineDismissed, setOfflineDismissed] = useState(false);
   const [battleRewardCue, setBattleRewardCue] = useState<BattleRewardCue | null>(null);
   const [presentedBattleRewardCueId, setPresentedBattleRewardCueId] = useState<string | null>(null);
+  const [battleActivityReport, setBattleActivityReport] = useState<BattleActivityReport | null>(null);
+  const [battleReportOpen, setBattleReportOpen] = useState(false);
+  const [hasPendingBattleActivity, setHasPendingBattleActivity] = useState(false);
+  const pendingBattleActivityRef = useRef<BattleActivityReport | null>(null);
   const presentation = usePresentationQueue(presentationNoticeDurationMs);
   const initialScreen: ScreenId = ownedIds.length > 0 && state.gameData.roster.formationSlots.some((slot) => slot !== null)
     ? 'battle'
@@ -50,8 +65,49 @@ export function AppShell() {
   activeScreenRef.current = activeScreen;
   enqueuePresentationRef.current = presentation.enqueue;
 
-  useEffect(() => controller.subscribeEvents((events) => {
-    const routed = routePresentationEvents(events, activeScreenRef.current === 'battle');
+  useEffect(() => controller.subscribeEvents((events, context) => {
+    const activeScreenNow = activeScreenRef.current;
+    const collectingBattleActivity = context.source === 'background'
+      || (context.source === 'live' && activeScreenNow !== 'battle');
+
+    if (collectingBattleActivity && context.elapsedSec > 0) {
+      const snapshot = controller.store.getSnapshot();
+      const battleEvents = events.filter(isBattleActivityEvent);
+      const hasFormation = snapshot.gameData.roster.formationSlots.some((slot) => slot !== null);
+      const battleCanProgress = hasFormation
+        && (!snapshot.gameData.combat.contentBoundaryReached || battleEvents.length > 0);
+
+      if (battleCanProgress) {
+        const delta = buildBattleActivityReport({
+          events: battleEvents,
+          elapsedSec: context.elapsedSec,
+          from: { stageNumber: context.fromStage, waveIndex: context.fromWaveIndex },
+          to: { stageNumber: context.toStage, waveIndex: context.toWaveIndex },
+        });
+        if (activeScreenNow === 'battle') {
+          if (battleActivityReportIsMeaningful(delta)) {
+            setBattleActivityReport((current) => mergeBattleActivityReports(current, delta));
+          }
+        } else {
+          const pending = mergeBattleActivityReports(
+            pendingBattleActivityRef.current,
+            delta,
+          );
+          pendingBattleActivityRef.current = pending;
+          if (battleActivityReportIsMeaningful(pending)) setHasPendingBattleActivity(true);
+        }
+      }
+    }
+
+    const presentationEvents = context.source === 'offline'
+      ? []
+      : collectingBattleActivity
+        ? events.filter((event) => !isBattleActivityEvent(event))
+        : events;
+    const routed = routePresentationEvents(
+      presentationEvents,
+      activeScreenNow === 'battle' && context.source === 'live',
+    );
     enqueuePresentationRef.current(routed.notices);
     if (routed.battleRewardCue !== null) {
       setBattleRewardCue(routed.battleRewardCue);
@@ -63,6 +119,16 @@ export function AppShell() {
     if (activeScreen === 'battle') return;
     setBattleRewardCue(null);
     setPresentedBattleRewardCueId(null);
+  }, [activeScreen]);
+
+  useEffect(() => {
+    if (activeScreen !== 'battle' || pendingBattleActivityRef.current === null) return;
+    const pending = pendingBattleActivityRef.current;
+    pendingBattleActivityRef.current = null;
+    if (battleActivityReportIsMeaningful(pending)) {
+      setBattleActivityReport((current) => mergeBattleActivityReports(current, pending));
+    }
+    setHasPendingBattleActivity(false);
   }, [activeScreen]);
 
   useEffect(() => {
@@ -84,6 +150,15 @@ export function AppShell() {
     if (selectedSlimeId === null && firstOwned !== null) setSelectedSlimeId(firstOwned);
     setScreen(firstOwned !== null && state.gameData.roster.formationSlots.some((slot) => slot !== null) ? 'battle' : 'slimes');
   }, [bootstrap.status]); // Initial routing only; later state changes must not steal navigation.
+
+  const battleActivityRewardLabel = useMemo(() => {
+    if (battleActivityReport === null) return null;
+    if (battleActivityReport.rewards.length === 0) return '戦闘進行のみ';
+    const visible = battleActivityReport.rewards.slice(0, 2)
+      .map((item) => `${item.label} +${Math.floor(item.amount).toLocaleString('ja-JP')}`);
+    const rest = battleActivityReport.rewards.length - visible.length;
+    return rest > 0 ? `${visible.join(' · ')} · ほか${rest}種` : visible.join(' · ');
+  }, [battleActivityReport]);
 
   const offlineReturn = useMemo(() => {
     if (bootstrap.status !== 'ready' || bootstrap.offlineSec < 30) return null;
@@ -140,6 +215,83 @@ export function AppShell() {
           </Suspense>
         </div>
 
+        {activeScreen === 'battle' && battleActivityReport !== null && !battleReportOpen && (
+          <button
+            className={styles.battleReportPeek}
+            type="button"
+            onClick={() => setBattleReportOpen(true)}
+          >
+            <span>戦闘レポート</span>
+            <strong>{battleActivityProgressLabel(battleActivityReport)}</strong>
+            <small>
+              {formatBattleActivityElapsed(battleActivityReport.elapsedSec)}
+              {battleActivityRewardLabel === null ? '' : ` · ${battleActivityRewardLabel}`}
+            </small>
+          </button>
+        )}
+
+        {battleReportOpen && battleActivityReport !== null && (
+          <BottomSheet
+            title="戦闘レポート"
+            onClose={() => setBattleReportOpen(false)}
+            backdropClassName={styles.sheetBackdrop}
+            sheetClassName={`${styles.sheetPanel} ${styles.offlineSheet}`}
+            headerClassName={styles.sheetHeader}
+            closeButtonClassName={styles.sheetClose}
+          >
+            <div className={styles.offlineSummary}>
+              <div className={styles.offlineHero}>
+                <span>離れていた間の自動戦闘</span>
+                <strong>{battleActivityProgressLabel(battleActivityReport)}</strong>
+                <small>{formatBattleActivityElapsed(battleActivityReport.elapsedSec)}ぶん進行しました</small>
+              </div>
+              <div className={styles.offlineGrid}>
+                <div><span>ウェーブ突破</span><strong>{battleActivityReport.waveClearCount}</strong></div>
+                <div><span>ステージ突破</span><strong>{battleActivityReport.stageClearCount}</strong></div>
+                <div><span>周回完了</span><strong>{battleActivityReport.farmClearCount}</strong></div>
+                <div><span>敗北</span><strong>{battleActivityReport.defeatCount}</strong></div>
+              </div>
+              {battleActivityReport.bossDefeatedCount > 0 && (
+                <div className={styles.offlineReward}>
+                  <span>ボス撃破</span>
+                  <strong>{battleActivityReport.bossDefeatedCount}回</strong>
+                </div>
+              )}
+              {battleActivityReport.retryCount > 0 && (
+                <div className={styles.offlineReward}>
+                  <span>最前線へ再挑戦</span>
+                  <strong>{battleActivityReport.retryCount}回</strong>
+                </div>
+              )}
+              <div className={styles.battleReportRewards}>
+                <span>獲得報酬</span>
+                {battleActivityReport.rewards.length > 0 ? (
+                  <div>
+                    {battleActivityReport.rewards.map((item) => (
+                      <div key={`${item.kind}:${item.id}`}>
+                        <span>{item.label}</span>
+                        <strong>+{Math.floor(item.amount).toLocaleString('ja-JP')}</strong>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <small>この期間は報酬獲得前まで戦闘が進みました。</small>
+                )}
+              </div>
+              <button
+                className={styles.primaryButton}
+                type="button"
+                onClick={() => {
+                  setBattleActivityReport(null);
+                  setBattleReportOpen(false);
+                }}
+              >
+                確認した
+              </button>
+            </div>
+          </BottomSheet>
+        )}
+
         {!offlineDismissed && offlineReturn !== null && (
           <BottomSheet
             title="おかえりなさい"
@@ -164,8 +316,18 @@ export function AppShell() {
               {offlineReturn.frontierStageReached !== null && (
                 <div className={styles.offlineReward}><span>最前線</span><strong>ステージ {offlineReturn.frontierStageReached} 到達 · 周回継続中</strong></div>
               )}
-              {offlineReturn.materialDropCount > 0 && (
-                <div className={styles.offlineReward}><span>戦闘ドロップ</span><strong>素材 +{offlineReturn.materialDropCount}</strong></div>
+              {offlineReturn.battleRewards.length > 0 && (
+                <div className={styles.battleReportRewards}>
+                  <span>放置中の獲得</span>
+                  <div>
+                    {offlineReturn.battleRewards.map((item) => (
+                      <div key={`offline:${item.kind}:${item.id}`}>
+                        <span>{item.label}</span>
+                        <strong>+{Math.floor(item.amount).toLocaleString('ja-JP')}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
               <button className={styles.primaryButton} type="button" onClick={() => { setOfflineDismissed(true); setScreen('battle'); }}>戦闘へ戻る</button>
             </div>
@@ -189,7 +351,14 @@ export function AppShell() {
         )}
 
         <nav className={styles.bottomNav} aria-label="メインメニュー">
-          <NavButton id="battle" label="戦闘" icon="battle" active={activeScreen === 'battle'} attention={false} onClick={setScreen} />
+          <NavButton
+            id="battle"
+            label="戦闘"
+            icon="battle"
+            active={activeScreen === 'battle'}
+            attention={activeScreen !== 'battle' && (hasPendingBattleActivity || battleActivityReport !== null)}
+            onClick={setScreen}
+          />
           <NavButton id="slimes" label="キャンプ" icon="camp" active={activeScreen === 'slimes'} attention={attention.has('slimes')} onClick={setScreen} />
           <NavButton id="dispatch" label="派遣" icon="dispatch" active={activeScreen === 'dispatch'} attention={attention.has('dispatch')} onClick={setScreen} />
           <NavButton id="forge" label="鍛造" icon="forge" active={activeScreen === 'forge'} attention={attention.has('forge')} onClick={setScreen} />

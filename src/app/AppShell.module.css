@@ -224,6 +224,103 @@
   background: #fff1d2;
 }
 
+.battleReportPeek {
+  position: absolute;
+  z-index: var(--layer-notice);
+  left: 50%;
+  bottom: calc(var(--screen-bottom-reserve) + 8px);
+  width: min(336px, calc(100% - 32px));
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 2px 10px;
+  transform: translateX(-50%);
+  padding: 9px 12px;
+  border: 1px solid rgb(255 255 255 / 70%);
+  border-radius: 16px;
+  background: rgb(38 67 55 / 92%);
+  color: #fff;
+  box-shadow: 0 10px 28px rgb(31 59 47 / 24%);
+  backdrop-filter: blur(12px);
+  text-align: left;
+  cursor: pointer;
+  animation: noticeIn 180ms ease-out both;
+}
+
+.battleReportPeek > span {
+  grid-row: 1 / span 2;
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  padding-right: 10px;
+  border-right: 1px solid rgb(255 255 255 / 16%);
+  color: #bee7a1;
+  font-size: var(--font-size-caption);
+  font-weight: 900;
+  letter-spacing: .05em;
+}
+
+.battleReportPeek > strong {
+  min-width: 0;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.battleReportPeek > small {
+  min-width: 0;
+  color: rgb(255 255 255 / 72%);
+  font-size: var(--font-size-caption);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.battleReportRewards {
+  display: grid;
+  gap: 6px;
+  padding: 11px 12px;
+  border-radius: 13px;
+  background: rgb(255 255 255 / 72%);
+}
+
+.battleReportRewards > span {
+  color: var(--text-muted);
+  font-size: var(--font-size-caption);
+  font-weight: 900;
+  letter-spacing: .05em;
+}
+
+.battleReportRewards > div {
+  display: grid;
+  gap: 5px;
+}
+
+.battleReportRewards > div > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.battleReportRewards > div span {
+  color: var(--text-default);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.battleReportRewards > div strong {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.battleReportRewards > small {
+  color: var(--text-muted);
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-body);
+}
+
 .saveWarning {
   position: absolute;
   z-index: 82;
@@ -393,7 +490,8 @@
 @media (prefers-reduced-motion: reduce) {
   .loadingSlime,
   .sheetPanel,
-  .eventNotice {
+  .eventNotice,
+  .battleReportPeek {
     animation-duration: 1ms !important;
   }
 }

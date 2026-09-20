@@ -59,7 +59,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
       controller.advanceToWallClock(nowMs);
     };
     const advanceBackgroundTime = (nowMs = Date.now()) => {
-      controller.advanceToWallClock(nowMs, { allowFrontierFirstClear: false });
+      controller.advanceToWallClock(nowMs, {
+        combatPolicy: { allowFrontierFirstClear: false },
+        source: 'background',
+      });
     };
     const checkpoint = () => {
       void controller.checkpointNow();

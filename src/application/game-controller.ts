@@ -33,8 +33,27 @@ import {
 } from './profile';
 import { applyValidationSandboxResources, prepareValidationRoster, PUBLIC_VALIDATION_MODE, resetValidationBattle, resetValidationSlimeProgress, setValidationSlimeLevel } from './validation-mode';
 
-export type SlimeGameEventListener = (events: readonly DomainEvent[]) => void;
+export type SlimeGameEventSource = 'offline' | 'live' | 'background' | 'command';
+
+export type SlimeGameEventContext = Readonly<{
+  source: SlimeGameEventSource;
+  elapsedSec: number;
+  fromStage: number;
+  fromWaveIndex: number;
+  toStage: number;
+  toWaveIndex: number;
+}>;
+
+export type SlimeGameEventListener = (
+  events: readonly DomainEvent[],
+  context: SlimeGameEventContext,
+) => void;
 export type SlimeGameErrorListener = (error: Error) => void;
+
+export type SlimeWallClockAdvanceOptions = Readonly<{
+  combatPolicy?: CombatAdvancePolicy;
+  source?: Extract<SlimeGameEventSource, 'live' | 'background'>;
+}>;
 
 type ProductCommandResult<TReason extends string = string> = CommandResult<SlimeMercenariesState, TReason>;
 
@@ -76,7 +95,14 @@ export class SlimeGameController {
     this.store.replaceState(hydrated);
     this.#initialized = true;
     if (hydrated !== loaded.state) this.queueCheckpoint(hydrated, nowMs);
-    this.emitEvents(loaded.offlineEvents);
+    this.emitEvents(loaded.offlineEvents, {
+      source: 'offline',
+      elapsedSec: loaded.appliedOfflineSec,
+      fromStage: loaded.state.gameData.progression.currentStage,
+      fromWaveIndex: loaded.state.gameData.combat.currentWaveIndex,
+      toStage: loaded.state.gameData.progression.currentStage,
+      toWaveIndex: loaded.state.gameData.combat.currentWaveIndex,
+    });
     return loaded;
   }
 
@@ -92,16 +118,28 @@ export class SlimeGameController {
 
   advanceToWallClock(
     nowMs = Date.now(),
-    combatPolicy: CombatAdvancePolicy = {},
+    options: SlimeWallClockAdvanceOptions = {},
   ): readonly DomainEvent[] {
     if (!this.#initialized) return [];
     const current = this.store.getSnapshot();
-    const advanced = advanceSlimeWorldFromWallClock(current, nowMs, {}, combatPolicy);
+    const advanced = advanceSlimeWorldFromWallClock(
+      current,
+      nowMs,
+      {},
+      options.combatPolicy ?? {},
+    );
     if (advanced.appliedOfflineSec <= 0) return [];
 
     const nextState = applyValidationSandboxResources(advanced.state);
     this.store.replaceState(nextState);
-    this.emitEvents(advanced.events);
+    this.emitEvents(advanced.events, {
+      source: options.source ?? 'live',
+      elapsedSec: advanced.appliedOfflineSec,
+      fromStage: current.gameData.progression.currentStage,
+      fromWaveIndex: current.gameData.combat.currentWaveIndex,
+      toStage: nextState.gameData.progression.currentStage,
+      toWaveIndex: nextState.gameData.combat.currentWaveIndex,
+    });
 
     if (nowMs - this.#lastBackgroundCheckpointMs >= 5_000) {
       this.#lastBackgroundCheckpointMs = nowMs;
@@ -199,14 +237,23 @@ export class SlimeGameController {
     const nextState = applyValidationSandboxResources(result.state);
     const normalizedResult: ProductCommandResult<TReason> = { ...result, state: nextState };
     this.store.replaceState(nextState);
-    this.emitEvents(result.events);
+    this.emitEvents(result.events, {
+      source: 'command',
+      elapsedSec: 0,
+      fromStage: current.gameData.progression.currentStage,
+      fromWaveIndex: current.gameData.combat.currentWaveIndex,
+      toStage: nextState.gameData.progression.currentStage,
+      toWaveIndex: nextState.gameData.combat.currentWaveIndex,
+    });
     this.queueCheckpoint(nextState, Date.now());
     return normalizedResult;
   }
 
-  private emitEvents(events: readonly DomainEvent[]): void {
-    if (events.length === 0) return;
-    for (const listener of this.#eventListeners) listener(events);
+  private emitEvents(
+    events: readonly DomainEvent[],
+    context: SlimeGameEventContext,
+  ): void {
+    for (const listener of this.#eventListeners) listener(events, context);
   }
 
   private queueCheckpoint(state: SlimeMercenariesState, savedAtMs: number): void {

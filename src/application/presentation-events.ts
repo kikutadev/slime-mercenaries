@@ -279,6 +279,164 @@ function randomDropLabel(event: DomainEvent): string | null {
 }
 
 
+const BATTLE_ACTIVITY_EVENT_TYPES = new Set([
+  'combatWaveCleared',
+  'stageCleared',
+  'bossDefeated',
+  'partyDefeated',
+  'stageRetreated',
+  'frontierRetryStarted',
+  'frontierBreakthroughDeferred',
+  'areaUnlocked',
+]);
+
+export function isBattleActivityEvent(event: DomainEvent): boolean {
+  return BATTLE_ACTIVITY_EVENT_TYPES.has(event.type);
+}
+
+export type BattleActivityCursor = Readonly<{
+  stageNumber: number;
+  waveIndex: number;
+}>;
+
+export type BattleActivityReport = Readonly<{
+  elapsedSec: number;
+  start: BattleActivityCursor;
+  current: BattleActivityCursor;
+  furthestStage: number;
+  waveClearCount: number;
+  stageClearCount: number;
+  farmClearCount: number;
+  bossDefeatedCount: number;
+  defeatCount: number;
+  retryCount: number;
+  rewards: readonly BattleRewardItem[];
+}>;
+
+export function buildBattleActivityReport(args: Readonly<{
+  events: readonly DomainEvent[];
+  elapsedSec: number;
+  from: BattleActivityCursor;
+  to: BattleActivityCursor;
+}>): BattleActivityReport {
+  let furthestStage = Math.max(args.from.stageNumber, args.to.stageNumber);
+  let waveClearCount = 0;
+  let stageClearCount = 0;
+  let farmClearCount = 0;
+  let bossDefeatedCount = 0;
+  let defeatCount = 0;
+  let retryCount = 0;
+
+  for (const event of args.events) {
+    const stageNumber = numberPayload(event, 'stageNumber');
+    const nextStageNumber = numberPayload(event, 'nextStageNumber');
+    const frontierStageNumber = numberPayload(event, 'frontierStageNumber');
+    const failedStageNumber = numberPayload(event, 'failedStageNumber');
+    for (const candidate of [stageNumber, nextStageNumber, frontierStageNumber, failedStageNumber]) {
+      if (candidate !== null) furthestStage = Math.max(furthestStage, candidate);
+    }
+
+    switch (event.type) {
+      case 'combatWaveCleared':
+        waveClearCount += 1;
+        break;
+      case 'stageCleared':
+        if (booleanPayload(event, 'farming') === true) farmClearCount += 1;
+        else stageClearCount += 1;
+        break;
+      case 'bossDefeated':
+        bossDefeatedCount += 1;
+        break;
+      case 'partyDefeated':
+        defeatCount += 1;
+        break;
+      case 'frontierRetryStarted':
+        retryCount += 1;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return {
+    elapsedSec: Math.max(0, args.elapsedSec),
+    start: args.from,
+    current: args.to,
+    furthestStage,
+    waveClearCount,
+    stageClearCount,
+    farmClearCount,
+    bossDefeatedCount,
+    defeatCount,
+    retryCount,
+    rewards: toBattleRewardCue(args.events)?.items ?? [],
+  };
+}
+
+export function mergeBattleActivityReports(
+  previous: BattleActivityReport | null,
+  next: BattleActivityReport,
+): BattleActivityReport {
+  if (previous === null) return next;
+
+  const rewards = new Map<string, BattleRewardItem>();
+  for (const item of [...previous.rewards, ...next.rewards]) {
+    const key = `${item.kind}:${item.id}`;
+    const current = rewards.get(key);
+    rewards.set(key, {
+      ...item,
+      amount: (current?.amount ?? 0) + item.amount,
+    });
+  }
+
+  return {
+    elapsedSec: previous.elapsedSec + next.elapsedSec,
+    start: previous.start,
+    current: next.current,
+    furthestStage: Math.max(previous.furthestStage, next.furthestStage),
+    waveClearCount: previous.waveClearCount + next.waveClearCount,
+    stageClearCount: previous.stageClearCount + next.stageClearCount,
+    farmClearCount: previous.farmClearCount + next.farmClearCount,
+    bossDefeatedCount: previous.bossDefeatedCount + next.bossDefeatedCount,
+    defeatCount: previous.defeatCount + next.defeatCount,
+    retryCount: previous.retryCount + next.retryCount,
+    rewards: [...rewards.values()],
+  };
+}
+
+export function battleActivityReportIsMeaningful(report: BattleActivityReport): boolean {
+  return report.elapsedSec >= 5
+    || report.start.stageNumber !== report.current.stageNumber
+    || report.start.waveIndex !== report.current.waveIndex
+    || report.waveClearCount > 0
+    || report.stageClearCount > 0
+    || report.farmClearCount > 0
+    || report.bossDefeatedCount > 0
+    || report.defeatCount > 0
+    || report.retryCount > 0
+    || report.rewards.length > 0;
+}
+
+export function battleActivityProgressLabel(report: BattleActivityReport): string {
+  if (report.current.stageNumber < report.furthestStage) {
+    return `最前線 ${report.furthestStage} · 現在ステージ ${report.current.stageNumber}`;
+  }
+  if (report.current.stageNumber !== report.start.stageNumber) {
+    return `ステージ ${report.start.stageNumber} → ${report.current.stageNumber}`;
+  }
+  const startWave = report.start.waveIndex + 1;
+  const currentWave = report.current.waveIndex + 1;
+  if (startWave !== currentWave) {
+    return `ステージ ${report.current.stageNumber} · ウェーブ ${startWave} → ${currentWave}`;
+  }
+  return `ステージ ${report.current.stageNumber} · ウェーブ ${currentWave}`;
+}
+
+export function formatBattleActivityElapsed(seconds: number): string {
+  return formatElapsed(seconds);
+}
+
+
 export type OfflineReturnView = Readonly<{
   elapsedLabel: string;
   furthestStage: number;
@@ -287,6 +445,7 @@ export type OfflineReturnView = Readonly<{
   dispatchCompletedCount: number;
   materialDropCount: number;
   frontierStageReached: number | null;
+  battleRewards: readonly BattleRewardItem[];
 }>;
 
 /** Aggregate potentially many offline DomainEvents into one return sheet. */
@@ -335,6 +494,7 @@ export function buildOfflineReturnView(
     dispatchCompletedCount,
     materialDropCount,
     frontierStageReached,
+    battleRewards: toBattleRewardCue(events)?.items ?? [],
   };
 }
 

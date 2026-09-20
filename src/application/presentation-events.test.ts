@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DomainEvent } from 'idle-game-kit';
-import { buildOfflineReturnView, routePresentationEvents, toBattleRewardCue, toPresentationNotices } from './presentation-events';
+import { battleActivityProgressLabel, battleActivityReportIsMeaningful, buildBattleActivityReport, buildOfflineReturnView, mergeBattleActivityReports, routePresentationEvents, toBattleRewardCue, toPresentationNotices } from './presentation-events';
 
 function event(type: string, payload?: Readonly<Record<string, unknown>>): DomainEvent {
   return { id: `${type}:1`, type, simTimeSec: 12, ...(payload === undefined ? {} : { payload }) };
@@ -164,9 +164,76 @@ describe('presentation event policy', () => {
     expect(notice?.title).toBe('派遣帰還');
     expect(notice?.tone).toBe('reward');
   });
+  it('does not surface a trivial one-second away report without progress', () => {
+    const report = buildBattleActivityReport({
+      elapsedSec: 1,
+      from: { stageNumber: 2, waveIndex: 1 },
+      to: { stageNumber: 2, waveIndex: 1 },
+      events: [],
+    });
+
+    expect(battleActivityReportIsMeaningful(report)).toBe(false);
+    expect(battleActivityReportIsMeaningful({ ...report, elapsedSec: 5 })).toBe(true);
+  });
+
+  it('aggregates battle activity while the battle screen is away', () => {
+    const first = buildBattleActivityReport({
+      elapsedSec: 45,
+      from: { stageNumber: 2, waveIndex: 0 },
+      to: { stageNumber: 3, waveIndex: 1 },
+      events: [
+        event('combatWaveCleared', {
+          stageNumber: 2,
+          waveNumber: 1,
+          grantedRewards: [
+            { kind: 'currency', id: 'currency.gold', amount: 30 },
+            { kind: 'token', id: 'token.material.slime-gel', amount: 2 },
+          ],
+        }),
+        event('stageCleared', {
+          stageNumber: 2,
+          nextStageNumber: 3,
+          farming: false,
+          grantedRewards: [{ kind: 'currency', id: 'currency.gold', amount: 20 }],
+        }),
+      ],
+    });
+    const second = buildBattleActivityReport({
+      elapsedSec: 30,
+      from: { stageNumber: 3, waveIndex: 1 },
+      to: { stageNumber: 2, waveIndex: 0 },
+      events: [
+        event('partyDefeated', { stageNumber: 3 }),
+        event('stageRetreated', { failedStageNumber: 3, farmStageNumber: 2 }),
+        event('stageCleared', { stageNumber: 2, nextStageNumber: 2, farming: true, grantedRewards: [] }),
+      ],
+    });
+    const merged = mergeBattleActivityReports(first, second);
+
+    expect(merged.elapsedSec).toBe(75);
+    expect(merged.start).toEqual({ stageNumber: 2, waveIndex: 0 });
+    expect(merged.current).toEqual({ stageNumber: 2, waveIndex: 0 });
+    expect(merged.furthestStage).toBe(3);
+    expect(merged.waveClearCount).toBe(1);
+    expect(merged.stageClearCount).toBe(1);
+    expect(merged.farmClearCount).toBe(1);
+    expect(merged.defeatCount).toBe(1);
+    expect(merged.rewards).toEqual([
+      { kind: 'gold', id: 'currency.gold', label: 'G', amount: 50 },
+      { kind: 'material', id: 'token.material.slime-gel', label: 'スライムジェル', amount: 2 },
+    ]);
+    expect(battleActivityProgressLabel(merged)).toBe('最前線 3 · 現在ステージ 2');
+  });
+
   it('aggregates offline progress into one summary instead of claim-by-claim UI', () => {
     const summary = buildOfflineReturnView(95, [
-      event('combatWaveCleared', { randomDrops: [{ tokenId: 'gel', count: 2 }] }),
+      event('combatWaveCleared', {
+        randomDrops: [{ tokenId: 'gel', count: 2 }],
+        grantedRewards: [
+          { kind: 'currency', id: 'currency.gold', amount: 40 },
+          { kind: 'token', id: 'token.material.slime-gel', amount: 2 },
+        ],
+      }),
       event('stageCleared', { stageNumber: 1, nextStageNumber: 2 }),
       event('dispatchCompleted', { contractId: 'roadEscort' }),
       event('frontierBreakthroughDeferred', { frontierStageNumber: 5, farmStageNumber: 4 }),
@@ -177,6 +244,10 @@ describe('presentation event policy', () => {
     expect(summary.materialDropCount).toBe(2);
     expect(summary.furthestStage).toBe(2);
     expect(summary.frontierStageReached).toBe(5);
+    expect(summary.battleRewards).toEqual([
+      { kind: 'gold', id: 'currency.gold', label: 'G', amount: 40 },
+      { kind: 'material', id: 'token.material.slime-gel', label: 'スライムジェル', amount: 2 },
+    ]);
   });
 
 });
