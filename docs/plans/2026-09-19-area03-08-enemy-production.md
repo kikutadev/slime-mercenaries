@@ -1,6 +1,6 @@
 # Area 3–8 Enemy Asset & Gallery Production Roadmap
 
-Status: Active — Area 7 production complete and publicly verified; next production target is Area 8
+Status: Production set complete — Areas 3–8 enemy production complete; Area 8 publicly verified
 Date: 2026-09-21
 
 ## Scope
@@ -265,6 +265,38 @@ Area 5 V2 baseline was verified, then produced under the contract-first workflow
   - `windup-bat` 1.08s / 1.38s
   - `moon-crown-knight` 1.72s / 1.84s
 - [x] deployment Worker version: `a4c1c509-0309-4872-9303-014360fb7884`
+
+## Area 8 progress — Dragon Crater
+
+- [x] all 5 contracts written before Blender implementation: `egg-dragon`, `tiny-wing-dragon`, `star-eater-lizard`, `meteor-hatchling`, `star-eater-dragon`
+- [x] separate `dragon` Blender family with semantic roots for head / shell / wing-pair / star-glow / twin motes / tail
+- [x] 5 generated production GLBs with character-specific geometry, mesh-budget, required-node, forbidden-node, and dominant-hook gates
+- [x] final-Area escalation implemented as anticipation FX + readable still hold + release + delayed secondary impact rather than simple speed / particle inflation
+- [x] `egg-dragon`: inhale / throat inflate → held breath → one fireball → recoil → delayed eggshell shake
+- [x] `tiny-wing-dragon`: three failed flaps → brief hover → wing fold → one successful short dive → delayed tiny-wing flutter
+- [x] `star-eater-lizard`: one back-star drains → body compression / hold → charged dash → delayed star relight and rebound
+- [x] `meteor-hatchling`: body stays still while exactly two motes counter-orbit / rise → merged hold → one meteor → two-mote orbit reforms
+- [x] `star-eater-dragon`: seven-beat final-Boss signature with crouch → wing close → star pull-in → 0.163s held anticipation → wing burst → contact → 0.143s delayed tail / star-ring reaction → recovery
+- [x] 128px monochrome Area 8 silhouette gate passes; max pairwise IoU = **0.592** (< 0.62)
+- [x] all **40** current production enemy GLBs pass the Blender character validator
+- [x] targeted enemy motion / face / Gallery gate passes: **69 tests**
+- [x] TypeScript typecheck passes
+- [x] production build passes
+- [x] local Area 8 real-UI capture: **5 characters / 90 timed frames** across Idle / Move / Attack / Hit / Defeat with no browser errors
+- [x] each Area 8 motion owns multiple distinct captured frame hashes; the deliberate held anticipation beats remain visible without collapsing the whole motion
+- [x] full local Gallery production gate: **40 characters / 120 unique timed frames**
+- [x] Area 8 1x inspection occupancy remains readable: egg 0.280×0.248, tiny-wing 0.192×0.261, star-lizard 0.227×0.179, meteor-hatchling 0.242×0.230, boss 0.385×0.359
+- [x] production deploy verified at `https://games.kikuta.dev/slime-mercenaries/`
+- [x] all 5 Area 8 public GLB SHA-256 hashes match the committed local artifacts byte-for-byte
+- [x] public Area 8 Gallery smoke: **5 characters / 15 unique timed frames** with model-load, occupancy, Attack, Defeat duration, and browser-error checks
+- [x] public contact sheet visually inspected after deployment
+- [x] public Area 8 production durations verified:
+  - `egg-dragon` 1.20s / 1.48s
+  - `tiny-wing-dragon` 1.20s / 1.46s
+  - `star-eater-lizard` 1.28s / 1.52s
+  - `meteor-hatchling` 1.40s / 1.58s
+  - `star-eater-dragon` 2.04s / 2.12s
+- [x] deployment Worker version: `612d96a5-8fbf-46e4-89f8-22f80c500aa4`
 
 ## Per-character contract baseline — 2026-09-20
 
