@@ -1,5 +1,6 @@
 import { lazy, Suspense, useRef, useState } from 'react';
 import { useGameController, useGameState } from '../app/GameProvider';
+import { useManagedTimeouts } from '../app/useManagedTimeouts';
 import { validationToolsVisible } from '../application/validation-mode';
 import {
   selectCampUpgradeOpportunities,
@@ -90,6 +91,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   const nurseryCeremonyKey = useRef(0);
   const strengthenCeremonyKey = useRef(0);
   const formationCeremonyKey = useRef(0);
+  const { schedule } = useManagedTimeouts();
   const nurseryBusy = nurseryCeremony !== null;
   const strengthenBusy = strengthenCeremony !== null;
   const formationBusy = formationCeremony !== null;
@@ -117,7 +119,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   ) => {
     const key = ++formationCeremonyKey.current;
     setFormationCeremony({ ...ceremony, key });
-    window.setTimeout(() => {
+    schedule(() => {
       setFormationCeremony((current) => current?.key === key ? null : current);
       triggerFeedback('formation', title, detailText);
     }, 560);
@@ -202,13 +204,13 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
       cost: action.cost,
     });
 
-    window.setTimeout(() => {
+    schedule(() => {
       setStrengthenCeremony((current) => current?.key === key
         ? { ...current, phase: 'result' }
         : current);
       triggerFeedback('level-up', `Lv.${action.targetLevel}`, `-${action.cost} G`, strength);
 
-      window.setTimeout(() => {
+      schedule(() => {
         setStrengthenCeremony((current) => current?.key === key ? null : current);
       }, settleMs);
     }, chargeMs);
@@ -221,7 +223,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   ) => {
     const key = ++nurseryCeremonyKey.current;
     setNurseryCeremony({ ...ceremony, key });
-    window.setTimeout(() => {
+    schedule(() => {
       setNurseryCeremony((active) => active?.key === key ? null : active);
       onComplete?.();
     }, durationMs);

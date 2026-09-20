@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useGameController, useGameState } from '../app/GameProvider';
+import { useManagedTimeouts } from '../app/useManagedTimeouts';
 import { selectForgeScreen } from '../application/selectors/ui-selectors';
 import { ForgeStage, type ForgeVisualPhase } from '../components/ForgeStage';
 import { ForgeKeyIcon, WeaponFamilyIcon } from '../components/WeaponFamilyIcon';
@@ -31,11 +32,7 @@ export function ForgeScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   const impactTimer = useRef<number | null>(null);
   const revealTimer = useRef<number | null>(null);
-
-  useEffect(() => () => {
-    if (impactTimer.current !== null) window.clearTimeout(impactTimer.current);
-    if (revealTimer.current !== null) window.clearTimeout(revealTimer.current);
-  }, []);
+  const { schedule, clear } = useManagedTimeouts();
 
   const bestResult = useMemo(
     () => [...results].sort((left, right) => rarityRank(right.rarity) - rarityRank(left.rarity))[0] ?? null,
@@ -62,15 +59,15 @@ export function ForgeScreen() {
       return [{ weaponDefinitionId: weapon.id, duplicate, rarity: weapon.rarity } satisfies ForgeResultView];
     });
 
-    if (impactTimer.current !== null) window.clearTimeout(impactTimer.current);
-    if (revealTimer.current !== null) window.clearTimeout(revealTimer.current);
+    clear(impactTimer.current);
+    clear(revealTimer.current);
     setNotice(null);
     setResults(nextResults);
     setSequenceKey((current) => current + 1);
     setPhase('charging');
 
-    impactTimer.current = window.setTimeout(() => setPhase('impact'), 360);
-    revealTimer.current = window.setTimeout(() => {
+    impactTimer.current = schedule(() => setPhase('impact'), 360);
+    revealTimer.current = schedule(() => {
       setPhase('reveal');
       const best = [...nextResults].sort((left, right) => rarityRank(right.rarity) - rarityRank(left.rarity))[0];
       if (best !== undefined) {
