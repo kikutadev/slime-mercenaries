@@ -30,6 +30,7 @@ import {
   type SlimeMutationId,
 } from '../domain';
 import { createSlimeMercenariesBrowserRepository } from '../platform/web';
+import { syncSlimePortalProgress } from '../platform/portal-progress';
 import {
   DEFAULT_PROFILE_ID,
   loadOrCreateSlimeProfile,
@@ -143,6 +144,7 @@ export class SlimeGameController {
       : persisted;
 
     this.store.replaceState(hydrated);
+    syncSlimePortalProgress(persisted, nowMs);
     this.#initialized = true;
     if (persisted !== loaded.state) this.queueCheckpoint(hydrated, nowMs);
     this.emitEvents(loaded.offlineEvents, {
@@ -390,6 +392,7 @@ export class SlimeGameController {
       if (epoch !== this.#persistenceEpoch) return;
       if (deleteExisting) await this.#repository.delete(this.#profileId);
       await saveSlimeProfile(this.#repository, this.#profileId, state, savedAtMs);
+      syncSlimePortalProgress(state, savedAtMs);
       this.installPersistedState(state);
     } finally {
       if (epoch === this.#persistenceEpoch) this.#initialized = wasInitialized;
@@ -404,6 +407,7 @@ export class SlimeGameController {
       .then(async () => {
         if (epoch !== this.#persistenceEpoch) return;
         await saveSlimeProfile(this.#repository, this.#profileId, persisted, savedAtMs);
+        syncSlimePortalProgress(persisted, savedAtMs);
       })
       .catch((cause: unknown) => {
         const error = cause instanceof Error ? cause : new Error(String(cause));
