@@ -2,7 +2,7 @@ import { GameNumber, createLoadoutState, createRngStreams, createTimedActivitySt
 import { AREA_IDS, areaDefinitions, dispatchContractDefinitions, ids, initialEconomyBalance, slimeWeaponLoadoutDefinitions, type AreaId, type DispatchContractId, type JobSlimeId } from './definitions';
 
 export const SLIME_MERCENARIES_SCHEMA_VERSION = 6;
-export const SLIME_MERCENARIES_DEFINITION_VERSION = '2026-09-21.3';
+export const SLIME_MERCENARIES_DEFINITION_VERSION = '2026-09-21.4';
 
 export type SlimeInstanceId = string;
 export type SlimeAssignment = 'battle' | 'reserve' | 'dispatch';

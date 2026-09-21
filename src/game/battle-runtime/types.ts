@@ -5,6 +5,7 @@ import type { EnemyBehaviorId, EnemyId, EnemyScaleClass } from '../enemies';
 import type { EnemyFormationSlot } from '../encounters';
 import type { MorphMesh } from '../slime-motion';
 import type { BattleBehaviorId } from '../slimes';
+import type { SlimeMutationId } from '../../domain/state';
 
 export interface BattleSnapshotAlly {
   hp: number;
@@ -208,6 +209,7 @@ export interface BattleRuntimeAllyConfig {
   asset: string;
   behaviorId: BattleBehaviorId;
   fusionRank: number;
+  mutationId: SlimeMutationId | null;
   equipmentAnchorName: string;
   weaponTipName: string | null;
   maxHp: number;

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readCurrency, readToken } from 'idle-game-kit';
 
 import { ids } from './definitions';
-import { applySlimeProductRewards, describeSlimeProductRewards } from './rewards';
+import { applySlimeProductRewards, describeSlimeProductRewards, withActiveMutationRewardBonuses } from './rewards';
 import { createInitialSlimeMercenariesState } from './state';
 
 describe('Slime Mercenaries product rewards', () => {
@@ -38,6 +38,49 @@ describe('Slime Mercenaries product rewards', () => {
       { kind: 'mutation-fragment', id: 'king', amount: 4 },
       { kind: 'mutation-catalyst', id: 'prism', amount: 1 },
       { kind: 'currency', id: ids.currency.gold, amount: 25 },
+    ]);
+  });
+
+  it('applies Golden bonus only to authored battle Gold rewards', () => {
+    const initial = createInitialSlimeMercenariesState(0, 74);
+    const slimeId = 'slime.1';
+    const golden = {
+      ...initial,
+      gameData: {
+        ...initial.gameData,
+        roster: {
+          ...initial.gameData.roster,
+          formationSlots: [slimeId, null, null, null, null, null],
+          nextSlimeSerial: 2,
+          slimes: {
+            [slimeId]: {
+              id: slimeId,
+              serial: 1,
+              typeId: 'sword' as const,
+              level: 20,
+              jobTier: 2,
+              fusionRank: 3,
+              fusionFormId: 'fighter',
+              mutationId: 'golden' as const,
+              assignment: 'battle' as const,
+            },
+          },
+        },
+      },
+    };
+
+    const rewards = withActiveMutationRewardBonuses(golden, [
+      { type: 'currency', currencyId: ids.currency.gold, amount: 100, source: 'battle' },
+      { type: 'token', tokenId: ids.token.forgeKey, count: 1 },
+      {
+        type: 'composite',
+        rewards: [{ type: 'currency', currencyId: ids.currency.gold, amount: 20, source: 'nested' }],
+      },
+    ]);
+    expect(describeSlimeProductRewards(rewards)).toEqual([
+      { kind: 'currency', id: ids.currency.gold, amount: 115 },
+      { kind: 'token', id: ids.token.forgeKey, amount: 1 },
+      { kind: 'currency', id: ids.currency.gold, amount: 23 },
     ]);
   });
 

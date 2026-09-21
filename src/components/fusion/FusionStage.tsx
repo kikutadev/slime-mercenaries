@@ -5,6 +5,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { isGreatswordRank } from '../../game/fusion';
 import { type FusionCeremonyPreset } from '../../game/fusion-presentation';
 import { type SlimeId, type SlimePresentation } from '../../game/slimes';
+import { applySlimeMutationVisuals, disposeSlimeMutationVisuals } from '../../game/slime-mutation-visuals';
 import styles from './FusionWorkbench.module.css';
 
 type MorphMesh = THREE.Mesh & {
@@ -145,9 +146,21 @@ function FusionScene(props: FusionSceneProps) {
   const currentGltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}${props.currentPresentation.asset}`);
   const resultGltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}${props.resultPresentation.asset}`);
 
-  const leftModel = useMemo(() => currentGltf.scene.clone(true), [currentGltf.scene]);
-  const rightModel = useMemo(() => currentGltf.scene.clone(true), [currentGltf.scene]);
-  const resultModel = useMemo(() => resultGltf.scene.clone(true), [resultGltf.scene]);
+  const leftModel = useMemo(() => {
+    const clone = currentGltf.scene.clone(true);
+    applySlimeMutationVisuals(clone, props.currentPresentation.mutationId);
+    return clone;
+  }, [currentGltf.scene, props.currentPresentation.mutationId]);
+  const rightModel = useMemo(() => {
+    const clone = currentGltf.scene.clone(true);
+    applySlimeMutationVisuals(clone, props.currentPresentation.mutationId);
+    return clone;
+  }, [currentGltf.scene, props.currentPresentation.mutationId]);
+  const resultModel = useMemo(() => {
+    const clone = resultGltf.scene.clone(true);
+    applySlimeMutationVisuals(clone, props.resultPresentation.mutationId);
+    return clone;
+  }, [resultGltf.scene, props.resultPresentation.mutationId]);
   const leftParts = useMemo(() => getParts(leftModel, props.slimeId), [leftModel, props.slimeId]);
   const rightParts = useMemo(() => getParts(rightModel, props.slimeId), [rightModel, props.slimeId]);
   const resultParts = useMemo(() => getParts(resultModel, props.slimeId), [resultModel, props.slimeId]);
@@ -170,6 +183,9 @@ function FusionScene(props: FusionSceneProps) {
         }
       });
     });
+    return () => {
+      [leftModel, rightModel, resultModel].forEach(disposeSlimeMutationVisuals);
+    };
   }, [leftModel, rightModel, resultModel]);
 
   useEffect(() => {

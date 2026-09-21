@@ -2,7 +2,8 @@ import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { getSlimePresentationForRank, type SlimeId } from '../game/slimes';
+import type { SlimePresentation } from '../game/slimes';
+import { applySlimeMutationVisuals, disposeSlimeMutationVisuals } from '../game/slime-mutation-visuals';
 
 export type CampSlimeReaction = 'idle' | 'level-up' | 'formation' | 'recruit';
 
@@ -17,8 +18,7 @@ interface ModelParts {
 }
 
 interface CampResidentProps {
-  slimeId: SlimeId;
-  fusionRank: number;
+  presentation: SlimePresentation;
   reaction: CampSlimeReaction;
   reactionKey: number;
   reactionStrength: 1 | 2 | 3;
@@ -49,15 +49,17 @@ function animateIdle(parts: ModelParts, time: number) {
 }
 
 function CampResident({
-  slimeId,
-  fusionRank,
+  presentation,
   reaction,
   reactionKey,
   reactionStrength,
 }: CampResidentProps) {
-  const presentation = getSlimePresentationForRank(slimeId, fusionRank);
   const gltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}${presentation.asset}`);
-  const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
+  const model = useMemo(() => {
+    const clone = gltf.scene.clone(true);
+    applySlimeMutationVisuals(clone, presentation.mutationId);
+    return clone;
+  }, [gltf.scene, presentation.mutationId]);
   const parts = useMemo<ModelParts>(() => {
     const body = model.getObjectByName('Body') as MorphMesh | null;
     return {
@@ -76,6 +78,7 @@ function CampResident({
         object.receiveShadow = true;
       }
     });
+    return () => disposeSlimeMutationVisuals(model);
   }, [model]);
 
   useEffect(() => {
@@ -154,8 +157,7 @@ function CampResident({
 }
 
 interface CampSlimeStageProps {
-  slimeId: SlimeId;
-  fusionRank: number;
+  presentation: SlimePresentation;
   reaction: CampSlimeReaction;
   reactionKey: number;
   reactionStrength?: 1 | 2 | 3;
@@ -163,13 +165,11 @@ interface CampSlimeStageProps {
 
 /** Camp-only character stage. Fusion choreography deliberately lives elsewhere. */
 export function CampSlimeStage({
-  slimeId,
-  fusionRank,
+  presentation,
   reaction,
   reactionKey,
   reactionStrength = 1,
 }: CampSlimeStageProps) {
-  const presentation = getSlimePresentationForRank(slimeId, fusionRank);
   return (
     <div className={`camp-resident-stage camp-resident-stage--${reaction}`} aria-label={`${presentation.name}のキャンプ表示`}>
       <Canvas
@@ -182,8 +182,7 @@ export function CampSlimeStage({
         <directionalLight position={[-3, 5, 4]} intensity={4.0} castShadow />
         <pointLight position={[2.2, 1.8, 2]} intensity={1.15} color={presentation.accent} />
         <CampResident
-          slimeId={slimeId}
-          fusionRank={fusionRank}
+          presentation={presentation}
           reaction={reaction}
           reactionKey={reactionKey}
           reactionStrength={reactionStrength}

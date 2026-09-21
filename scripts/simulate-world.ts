@@ -41,6 +41,7 @@ if (options.json) {
     forge: summary.forgeDraws,
     dispatch: `${summary.dispatchCompletions}/${summary.dispatchStarts}`,
     weapons: summary.equippedWeapons,
+    mutations: summary.mutations,
     maxWait: Math.round(summary.maxNoActionWindowSec),
     defeatAreas: Object.keys(summary.defeatsByArea).length,
   })));

@@ -1,6 +1,7 @@
 import { GameNumber, applyRewards, type Reward } from 'idle-game-kit';
 
-import { resolveCurrencyDefinition } from './definitions';
+import { ids, resolveCurrencyDefinition } from './definitions';
+import { balance } from './balance';
 import { grantMutationCatalyst, grantMutationFragments } from './mutation';
 import type { SlimeMercenariesState, SlimeMutationId } from './state';
 
@@ -64,6 +65,34 @@ export function describeSlimeProductRewards(
 
   rewards.forEach(visit);
   return items;
+}
+
+
+export function withActiveMutationRewardBonuses(
+  state: SlimeMercenariesState,
+  rewards: readonly SlimeProductReward[],
+): readonly SlimeProductReward[] {
+  const hasGolden = state.gameData.roster.formationSlots.some((slimeId) =>
+    slimeId !== null && state.gameData.roster.slimes[slimeId]?.mutationId === 'golden');
+  if (!hasGolden) return rewards;
+
+  const applyCoreReward = (reward: Reward): Reward => {
+    if (reward.type === 'currency' && reward.currencyId === ids.currency.gold) {
+      return {
+        ...reward,
+        amount: GameNumber.from(reward.amount).multiply(balance.mutation.goldenGoldMultiplier).toNumber(),
+      };
+    }
+    if (reward.type === 'composite') {
+      return { ...reward, rewards: reward.rewards.map(applyCoreReward) };
+    }
+    return reward;
+  };
+  const apply = (reward: SlimeProductReward): SlimeProductReward => {
+    if (reward.type === 'mutation-fragment' || reward.type === 'mutation-catalyst') return reward;
+    return applyCoreReward(reward);
+  };
+  return rewards.map(apply);
 }
 
 export function applySlimeProductRewards(

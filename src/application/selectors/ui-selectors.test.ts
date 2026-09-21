@@ -85,9 +85,25 @@ describe('UI selectors', () => {
     const golden = options.find((option) => option.id === 'golden');
     const king = options.find((option) => option.id === 'king');
 
-    expect(golden).toMatchObject({ eligible: true, catalysts: 1, canMutate: true });
-    expect(king).toMatchObject({ eligible: false, canMutate: false });
+    expect(golden).toMatchObject({
+      displayName: 'ゴールデンスライム',
+      fragmentName: '黄金ジェル',
+      fragmentThreshold: 10,
+      eligible: true,
+      catalysts: 1,
+      canMutate: true,
+    });
+    expect(king).toMatchObject({ displayName: 'キングスライム', eligible: false, canMutate: false });
     expect(selectSlimeDetail(ready, setup.swordId)?.mutationOptions).toEqual(options);
+    expect(selectCampUpgradeOpportunities(ready)).toContainEqual({
+      slimeId: setup.swordId,
+      kind: 'mutation',
+      label: 'レア変異可能',
+      priority: 40,
+    });
+    const viewed = markCodexEntriesViewed(ready, 'slime-form', Object.keys(ready.gameData.codex.slimeForms));
+    if (!viewed.accepted) throw new Error('setup codex view failed');
+    expect(selectNavigationAttention(viewed.state).has('slimes')).toBe(true);
   });
 
   it('guides first-use progression from Plain creation into battle without storing tutorial state', () => {

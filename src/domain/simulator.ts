@@ -38,8 +38,9 @@ import {
   type DispatchContractId,
   type JobSlimeId,
 } from './definitions';
+import { previewSlimeMutation, mutateSlime } from './mutation';
 import { firstSlimeByType, slimeIdsByType } from './roster';
-import { createInitialSlimeMercenariesState, highestStageClearedForArea, type SlimeInstanceId, type SlimeMercenariesState } from './state';
+import { createInitialSlimeMercenariesState, highestStageClearedForArea, type SlimeInstanceId, type SlimeMercenariesState, type SlimeMutationId } from './state';
 
 export type SlimeSimulatorCommand =
   | Readonly<{ type: 'craft-plain'; count: number }>
@@ -51,7 +52,8 @@ export type SlimeSimulatorCommand =
   | Readonly<{ type: 'fuse'; slimeId: SlimeInstanceId; fusionStepId?: string }>
   | Readonly<{ type: 'forge'; drawCount: 1 | 10 }>
   | Readonly<{ type: 'equip'; slimeId: SlimeInstanceId; weaponDefinitionId: string }>
-  | Readonly<{ type: 'start-dispatch'; contractId: DispatchContractId; slimeId: SlimeInstanceId }>;
+  | Readonly<{ type: 'start-dispatch'; contractId: DispatchContractId; slimeId: SlimeInstanceId }>
+  | Readonly<{ type: 'mutate'; slimeId: SlimeInstanceId; mutationId: SlimeMutationId }>;
 
 export const slimeSimulatorAdapter: SimulatorAdapter<SlimeMercenariesState, SlimeSimulatorCommand> = {
   getSimTimeSec: (state) => state.simTimeSec,
@@ -68,6 +70,7 @@ export const slimeSimulatorAdapter: SimulatorAdapter<SlimeMercenariesState, Slim
       case 'forge': return forgeEquipment(state, command.drawCount);
       case 'equip': return equipWeapon(state, command.slimeId, command.weaponDefinitionId);
       case 'start-dispatch': return startDispatch(state, command.contractId, command.slimeId);
+      case 'mutate': return mutateSlime(state, command.slimeId, command.mutationId);
     }
   },
 };
@@ -537,6 +540,9 @@ export function createWorldProgressionPolicy(): SimulatorPolicy<SlimeMercenaries
       const weaponUpgrade = worldWeaponUpgradeAction(state);
       if (weaponUpgrade !== null) return { kind: 'command', command: weaponUpgrade };
 
+      const mutation = worldMutationAction(state);
+      if (mutation !== null) return { kind: 'command', command: mutation };
+
       // Resolve any Fusion that is already fully ready before spending on new preparation.
       for (const jobId of NORMAL_JOB_SLIME_IDS) {
         const primary = firstSlimeByType(state, jobId);
@@ -655,6 +661,25 @@ function worldDispatchForCandidate(
   return null;
 }
 
+const WORLD_MUTATION_TARGETS: readonly Readonly<{ mutationId: SlimeMutationId; jobId: JobSlimeId }>[] = [
+  { mutationId: 'golden', jobId: 'dagger' },
+  { mutationId: 'king', jobId: 'sword' },
+  { mutationId: 'dragon', jobId: 'gun' },
+  { mutationId: 'prism', jobId: 'bow' },
+];
+
+function worldMutationAction(state: SlimeMercenariesState): SlimeSimulatorCommand | null {
+  for (const target of WORLD_MUTATION_TARGETS) {
+    const slime = firstSlimeByType(state, target.jobId);
+    if (slime === null) continue;
+    const preview = previewSlimeMutation(state, slime.id, target.mutationId);
+    if (preview.canMutate) {
+      return { type: 'mutate', slimeId: slime.id, mutationId: target.mutationId };
+    }
+  }
+  return null;
+}
+
 function worldWeaponUpgradeAction(state: SlimeMercenariesState): SlimeSimulatorCommand | null {
   for (const jobId of NORMAL_JOB_SLIME_IDS) {
     const primary = firstSlimeByType(state, jobId);
@@ -718,6 +743,8 @@ export type WorldProgressionSimulationSummary = Readonly<{
   dispatchStarts: number;
   dispatchCompletions: number;
   equippedWeapons: number;
+  mutations: number;
+  mutationIds: readonly SlimeMutationId[];
   defeatsByArea: Readonly<Record<string, number>>;
   clearTimeByArea: Readonly<Record<string, number>>;
   finalParty: readonly Readonly<{
@@ -791,6 +818,10 @@ export function summarizeWorldProgressionSimulation(
     dispatchStarts: run.events.filter((event) => event.type === 'dispatchStarted').length,
     dispatchCompletions: run.events.filter((event) => event.type === 'dispatchCompleted').length,
     equippedWeapons,
+    mutations: run.events.filter((event) => event.type === 'slimeMutated').length,
+    mutationIds: [...new Set(run.events
+      .filter((event) => event.type === 'slimeMutated')
+      .flatMap((event) => typeof event.payload?.mutationId === 'string' ? [event.payload.mutationId as SlimeMutationId] : []))],
     defeatsByArea,
     clearTimeByArea,
     finalParty,
@@ -852,6 +883,13 @@ export function validateWorldProgressionSummary(summary: WorldProgressionSimulat
   }
   if (summary.equippedWeapons < targets.minEquippedWeapons) {
     failures.push(`equippedWeapons=${summary.equippedWeapons} < ${targets.minEquippedWeapons}`);
+  }
+  if (summary.mutations < targets.minMutations) {
+    failures.push(`mutations=${summary.mutations} < ${targets.minMutations}`);
+  }
+  const missingMutations = targets.requiredMutationIds.filter((mutationId) => !summary.mutationIds.includes(mutationId));
+  if (missingMutations.length > 0) {
+    failures.push(`missingMutations=${missingMutations.join(',')}`);
   }
 
   return failures;

@@ -3,11 +3,13 @@ import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { dispatchRoutePresentation } from '../game/dispatch-presentation';
-import type { DispatchContractId } from '../domain';
+import type { DispatchContractId, SlimeMutationId } from '../domain';
+import { applySlimeMutationVisuals, disposeSlimeMutationVisuals } from '../game/slime-mutation-visuals';
 
 export type DispatchTraveler = Readonly<{
   contractId: DispatchContractId;
   asset: string;
+  mutationId: SlimeMutationId | null;
   progress: number;
 }>;
 
@@ -39,7 +41,11 @@ function MapEnvironment() {
 
 function Traveler({ traveler, index }: { traveler: DispatchTraveler; index: number }) {
   const gltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}${traveler.asset}`);
-  const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
+  const model = useMemo(() => {
+    const clone = gltf.scene.clone(true);
+    applySlimeMutationVisuals(clone, traveler.mutationId);
+    return clone;
+  }, [gltf.scene, traveler.mutationId]);
   const group = useRef<THREE.Group>(null);
   const route = dispatchRoutePresentation[traveler.contractId];
   const start = useMemo(() => new THREE.Vector3(...route.start), [route.start]);
@@ -54,6 +60,7 @@ function Traveler({ traveler, index }: { traveler: DispatchTraveler; index: numb
         object.receiveShadow = true;
       }
     });
+    return () => disposeSlimeMutationVisuals(model);
   }, [model]);
 
   useFrame(({ clock }) => {

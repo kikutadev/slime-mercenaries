@@ -165,25 +165,38 @@ function deterministicJobGearRewards(areaOrder: number, stageNumber: number): re
   return rewards;
 }
 
+function mutationMilestoneRewards(areaOrder: number, stageNumber: number): readonly SlimeProductReward[] {
+  const rewards: SlimeProductReward[] = [];
+  if (areaOrder === 4 && stageNumber === 5) rewards.push({ type: 'mutation-fragment', mutationId: 'golden', count: 5 });
+  if (areaOrder === 5 && stageNumber === 2) rewards.push({ type: 'mutation-fragment', mutationId: 'golden', count: 5 });
+  if (areaOrder === 7 && stageNumber === 2) rewards.push({ type: 'mutation-fragment', mutationId: 'king', count: 5 });
+  if (areaOrder === 7 && stageNumber === 3) rewards.push({ type: 'mutation-fragment', mutationId: 'prism', count: 5 });
+  if (areaOrder === 7 && stageNumber === 5) rewards.push({ type: 'mutation-fragment', mutationId: 'king', count: 5 });
+  if (areaOrder === 8 && stageNumber === 2) rewards.push({ type: 'mutation-fragment', mutationId: 'prism', count: 5 });
+  if (areaOrder === 8 && stageNumber === 4) rewards.push({ type: 'mutation-catalyst', mutationId: 'dragon', count: 1 });
+  return rewards;
+}
+
 function curvedStageClearRewards(areaOrder: number, stageNumber: number): readonly SlimeProductReward[] {
   const jobGear = deterministicJobGearRewards(areaOrder, stageNumber);
+  const mutationRewards = mutationMilestoneRewards(areaOrder, stageNumber);
   if (stageNumber === 1) {
-    return [...stageClearRewards({ slimeGel: 8 + areaOrder * 2, lifeWater: areaOrder % 2 === 0 ? 1 : 0 }), ...jobGear];
+    return [...stageClearRewards({ slimeGel: 8 + areaOrder * 2, lifeWater: areaOrder % 2 === 0 ? 1 : 0 }), ...jobGear, ...mutationRewards];
   }
   if (stageNumber === 2) {
-    return [...stageClearRewards({ hardeningGel: 2 + Math.floor(areaOrder / 3) }), ...jobGear];
+    return [...stageClearRewards({ hardeningGel: 2 + Math.floor(areaOrder / 3) }), ...jobGear, ...mutationRewards];
   }
   if (stageNumber === 3) {
-    return [...stageClearRewards({ slimeGel: 6 + areaOrder, temperedSteel: 1 + Math.floor(areaOrder / 4) }), ...jobGear];
+    return [...stageClearRewards({ slimeGel: 6 + areaOrder, temperedSteel: 1 + Math.floor(areaOrder / 4) }), ...jobGear, ...mutationRewards];
   }
   if (stageNumber === 4) {
-    return [...stageClearRewards({ hardeningGel: 2 + Math.floor(areaOrder / 2), temperedSteel: 2 }), ...jobGear];
+    return [...stageClearRewards({ hardeningGel: 2 + Math.floor(areaOrder / 2), temperedSteel: 2 }), ...jobGear, ...mutationRewards];
   }
   return [...stageClearRewards({
     forgeKey: 2 + Math.floor(areaOrder / 3),
     hardeningGel: 3 + Math.floor(areaOrder / 2),
     temperedSteel: 2 + Math.floor(areaOrder / 3),
-  }), ...jobGear];
+  }), ...jobGear, ...mutationRewards];
 }
 
 function buildCurvedAreaStages(plan: CurvedAreaPlan): readonly StageDefinition[] {

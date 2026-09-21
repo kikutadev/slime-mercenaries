@@ -5,17 +5,25 @@ import { typeLevelDefinitions } from './fusion-definitions';
 import type { SlimeInstanceId, SlimeMercenariesState, SlimeProgress } from './state';
 
 export function partyCombatDps(state: SlimeMercenariesState): GameNumber {
-  return activeSlimes(state).reduce(
-    (total, slime) => total.add(slimeDps(state, slime)),
+  const active = activeSlimes(state);
+  const total = active.reduce(
+    (sum, slime) => sum.add(slimeDps(state, slime)),
     GameNumber.zero(),
   );
+  return active.some((slime) => slime.mutationId === 'king')
+    ? total.multiply(balance.mutation.kingPartyMultiplier)
+    : total;
 }
 
 export function partyCombatPower(state: SlimeMercenariesState): GameNumber {
-  return activeSlimes(state).reduce(
-    (total, slime) => total.add(slimePower(state, slime)),
+  const active = activeSlimes(state);
+  const total = active.reduce(
+    (sum, slime) => sum.add(slimePower(state, slime)),
     GameNumber.zero(),
   );
+  return active.some((slime) => slime.mutationId === 'king')
+    ? total.multiply(balance.mutation.kingPartyMultiplier)
+    : total;
 }
 
 export function slimeCombatPower(state: SlimeMercenariesState, slimeId: SlimeInstanceId): GameNumber {
@@ -39,7 +47,8 @@ function slimeDps(state: SlimeMercenariesState, slime: SlimeProgress): GameNumbe
   return GameNumber.from(base)
     .multiply(levelMultiplier)
     .multiply(fusionMultiplier)
-    .multiply(equippedWeaponCombatMultiplier(state, slime.id));
+    .multiply(equippedWeaponCombatMultiplier(state, slime.id))
+    .multiply(mutationDpsMultiplier(slime));
 }
 
 function slimePower(state: SlimeMercenariesState, slime: SlimeProgress): GameNumber {
@@ -50,10 +59,27 @@ function slimePower(state: SlimeMercenariesState, slime: SlimeProgress): GameNum
   return GameNumber.from(base)
     .multiply(levelMultiplier)
     .multiply(fusionMultiplier)
-    .multiply(equippedWeaponCombatMultiplier(state, slime.id));
+    .multiply(equippedWeaponCombatMultiplier(state, slime.id))
+    .multiply(mutationPowerMultiplier(slime));
 }
 
 function curveValueAtForSlime(slime: SlimeProgress): GameNumber {
   // Keep analytical combat on the same stat curve used by Type Level progression.
   return curveValueAt(typeLevelDefinitions[slime.typeId].statCurve!, slime.level - 1);
+}
+
+function mutationDpsMultiplier(slime: SlimeProgress): number {
+  switch (slime.mutationId) {
+    case 'dragon': return balance.mutation.dragonDpsMultiplier;
+    case 'prism': return balance.mutation.prismDpsMultiplier;
+    default: return 1;
+  }
+}
+
+function mutationPowerMultiplier(slime: SlimeProgress): number {
+  switch (slime.mutationId) {
+    case 'dragon': return balance.mutation.dragonPowerMultiplier;
+    case 'prism': return balance.mutation.prismPowerMultiplier;
+    default: return 1;
+  }
 }

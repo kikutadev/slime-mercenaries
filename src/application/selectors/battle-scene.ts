@@ -1,4 +1,4 @@
-import { currentCombatEncounter, currentStageDefinition, equippedWeaponDefinition, nextCombatBoundarySec, partyCombatPower, resolveStageDefinition, type SlimeInstanceId, type SlimeMercenariesState } from '../../domain';
+import { currentCombatEncounter, currentStageDefinition, equippedWeaponDefinition, nextCombatBoundarySec, partyCombatPower, resolveStageDefinition, type SlimeInstanceId, type SlimeMercenariesState, type SlimeMutationId } from '../../domain';
 import { resolveEncounterDefinition, type ResolvedEncounter } from '../../game/encounters';
 import { getSlimePresentation, type BattleBehaviorId } from '../../game/slimes';
 
@@ -14,6 +14,7 @@ export type BattleSceneAlly = Readonly<{
   name: string;
   fusionRank: number;
   fusionFormId: string;
+  mutationId: SlimeMutationId | null;
   weaponDefinitionId: string | null;
   weaponName: string | null;
   behaviorId: BattleBehaviorId;
@@ -58,6 +59,7 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
       name: presentation.name,
       fusionRank: slime.fusionRank,
       fusionFormId: slime.fusionFormId,
+      mutationId: slime.mutationId,
       weaponDefinitionId: weapon?.id ?? null,
       weaponName: weapon?.displayName ?? null,
       behaviorId: presentation.battle.behaviorId,
@@ -108,6 +110,7 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
       ally.asset,
       ally.fusionRank,
       ally.fusionFormId,
+      ally.mutationId ?? '-',
       ally.weaponDefinitionId ?? '-',
       ally.behaviorId,
     ].join(':'))

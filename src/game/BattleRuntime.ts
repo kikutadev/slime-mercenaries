@@ -48,6 +48,7 @@ import {
   type EnemyMotionProfile,
 } from './enemy-motion';
 import { createStageEnvironment, type StageEnvironmentRuntime } from './stage-environment';
+import { applySlimeMutationVisuals } from './slime-mutation-visuals';
 import {
   BOSS_APPROACH_SECONDS,
   BOSS_LANDING_SECONDS,
@@ -577,6 +578,7 @@ export class BattleRuntime {
     root.name = `SlimeRuntime:${config.slimeId}:${config.slotIndex}`;
     root.scale.setScalar(SCALE);
     root.position.copy(approachOrigin);
+    applySlimeMutationVisuals(root, config.mutationId);
     root.traverse((object) => {
       if (object instanceof THREE.Mesh) {
         object.castShadow = true;

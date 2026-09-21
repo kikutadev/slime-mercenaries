@@ -1,7 +1,7 @@
 # Evolution, Fusion & Roster
 
 Status: Current
-Date: 2026-09-19
+Date: 2026-09-21
 
 ## 1. Roster model
 
@@ -179,6 +179,17 @@ Rare mutations are horizontally special rather than universal upgrades.
 | 30 | Mimic Slime | special capture | trick DPS | hostile mimic event | Mimic Heart path |
 
 No Codex completion should require indefinite luck.
+
+Current production rules for existing-body mutations:
+
+- Fragment backstop: 10 matching fragments automatically become 1 mutation catalyst; excess fragments carry over.
+- Golden: Tier 2+, active battle Gold reward +15%.
+- King: Tier 3, active party analytical DPS/Power +8%.
+- Dragon: selected physical Tier-3 branches (Blademaster, Berserker, Paladin, Fortress, Ninja, Assassin, Cannoneer), personal DPS +14%, Power +18%, battle HP presentation +18%.
+- Prism: Bow/Wand/Gun Tier 3, personal DPS +16%, Power +8%.
+- Mutation preserves the original Fusion form, equipment and signature behavior. The mutation visual is layered on the existing job model.
+- The first world supplies deterministic Golden / King / Prism fragment backstops and a late Dragon catalyst.
+- Mimic remains a separate hostile-mimic capture path and does not consume a normal owned slime.
 
 ## 8. Fusion tier and branch rules
 

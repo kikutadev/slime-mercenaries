@@ -1,4 +1,5 @@
 import type { CommandResult, DomainEvent } from 'idle-game-kit';
+import { balance } from './balance';
 import type { JobSlimeId } from './definitions';
 import { markCodexDiscovery, mutationSlimeCodexId } from './codex';
 import type { SlimeInstanceId, SlimeMercenariesState, SlimeMutationId, SlimeProgress } from './state';
@@ -9,19 +10,58 @@ export type MutationDefinition = Readonly<{
   id: SlimeMutationId;
   displayName: string;
   eligibility: MutationEligibility;
+  identity: string;
+  fragmentName: string;
+  fragmentThreshold: number;
 }>;
 
 /**
- * Dragon origins are deliberately empty until content chooses the selected Tier-3 branches.
- * Keeping this data-driven avoids silently turning Dragon into a universal Tier-3 upgrade.
+ * Dragon is a physical elite mutation. Keep it on martial/heavy Tier-3 forms rather than
+ * silently making every ranged/support specialization a Dragon candidate.
  */
-export const dragonEligibleTypeIds: readonly JobSlimeId[] = [];
+export const dragonEligibleFusionFormIds = new Set([
+  'blademaster',
+  'berserker',
+  'paladin',
+  'fortress',
+  'ninja',
+  'assassin',
+  'cannoneer',
+]);
 
 export const mutationDefinitions: Readonly<Record<SlimeMutationId, MutationDefinition>> = {
-  king: { id: 'king', displayName: 'キングスライム', eligibility: 'tier3' },
-  golden: { id: 'golden', displayName: 'ゴールデンスライム', eligibility: 'tier2-plus' },
-  dragon: { id: 'dragon', displayName: 'ドラゴンスライム', eligibility: 'selected-tier3' },
-  prism: { id: 'prism', displayName: 'プリズムスライム', eligibility: 'magic-ranged-tier3' },
+  king: {
+    id: 'king',
+    displayName: 'キングスライム',
+    eligibility: 'tier3',
+    identity: '王冠のオーラで味方全体を強化',
+    fragmentName: '王冠の欠片',
+    fragmentThreshold: balance.mutation.fragmentThreshold,
+  },
+  golden: {
+    id: 'golden',
+    displayName: 'ゴールデンスライム',
+    eligibility: 'tier2-plus',
+    identity: '戦闘報酬のゴールドを増やす',
+    fragmentName: '黄金ジェル',
+    fragmentThreshold: balance.mutation.fragmentThreshold,
+  },
+  dragon: {
+    id: 'dragon',
+    displayName: 'ドラゴンスライム',
+    eligibility: 'selected-tier3',
+    identity: '火力と耐久を両立する竜化',
+    fragmentName: '竜核片',
+    fragmentThreshold: balance.mutation.fragmentThreshold,
+  },
+  prism: {
+    id: 'prism',
+    displayName: 'プリズムスライム',
+    eligibility: 'magic-ranged-tier3',
+    identity: '高い瞬間火力を持つ虹晶化',
+    fragmentName: 'プリズムの欠片',
+    fragmentThreshold: balance.mutation.fragmentThreshold,
+  },
 };
 
 const PRISM_TYPES = new Set<JobSlimeId>(['bow', 'wand', 'gun']);
@@ -30,7 +70,7 @@ export function isEligibleForMutation(slime: SlimeProgress, mutationId: SlimeMut
   switch (mutationId) {
     case 'king': return slime.jobTier >= 3;
     case 'golden': return slime.jobTier >= 2;
-    case 'dragon': return slime.jobTier >= 3 && dragonEligibleTypeIds.includes(slime.typeId);
+    case 'dragon': return slime.jobTier >= 3 && dragonEligibleFusionFormIds.has(slime.fusionFormId);
     case 'prism': return slime.jobTier >= 3 && PRISM_TYPES.has(slime.typeId);
   }
 }
@@ -42,6 +82,7 @@ export function previewSlimeMutation(
 ) {
   const slime = state.gameData.roster.slimes[slimeId];
   const progress = state.gameData.mutationProgress[mutationId];
+  const definition = mutationDefinitions[mutationId];
   const eligible = slime !== undefined && slime.mutationId === null && isEligibleForMutation(slime, mutationId);
   return {
     slimeId,
@@ -51,11 +92,13 @@ export function previewSlimeMutation(
     eligible,
     fragments: progress.fragments,
     catalysts: progress.catalysts,
+    fragmentThreshold: definition.fragmentThreshold,
+    fragmentsNeeded: Math.max(0, definition.fragmentThreshold - progress.fragments),
     canMutate: eligible && progress.catalysts > 0,
   } as const;
 }
 
-/** Product reward hook used by rare events/cores and later deterministic backstop conversion. */
+/** Product reward hook used by rare events and deterministic first-world milestones. */
 export function grantMutationCatalyst(
   state: SlimeMercenariesState,
   mutationId: SlimeMutationId,
@@ -75,7 +118,10 @@ export function grantMutationCatalyst(
   };
 }
 
-/** Fragment accumulation is durable even though conversion thresholds remain balance/content data. */
+/**
+ * Fragments are the deterministic backstop. Crossing the authored threshold immediately converts
+ * whole threshold batches into catalysts so no separate hidden "craft mutation core" action exists.
+ */
 export function grantMutationFragments(
   state: SlimeMercenariesState,
   mutationId: SlimeMutationId,
@@ -83,13 +129,20 @@ export function grantMutationFragments(
 ): SlimeMercenariesState {
   if (!Number.isSafeInteger(count) || count <= 0) throw new RangeError('Mutation fragment count must be a positive safe integer.');
   const current = state.gameData.mutationProgress[mutationId];
+  const threshold = mutationDefinitions[mutationId].fragmentThreshold;
+  const totalFragments = current.fragments + count;
+  const earnedCatalysts = Math.floor(totalFragments / threshold);
+  const remainingFragments = totalFragments % threshold;
   return {
     ...state,
     gameData: {
       ...state.gameData,
       mutationProgress: {
         ...state.gameData.mutationProgress,
-        [mutationId]: { ...current, fragments: current.fragments + count },
+        [mutationId]: {
+          fragments: remainingFragments,
+          catalysts: current.catalysts + earnedCatalysts,
+        },
       },
     },
   };

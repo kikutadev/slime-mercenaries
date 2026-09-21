@@ -100,9 +100,13 @@ Loadout infrastructure supports all six families, but authored weapon content is
 
 ## Phase 6 — Rare mutations
 
-Status: In Progress — Domain/Application/reward plumbing implemented
+Status: Existing-body mutations implemented — Mimic special capture remains
 
-Implement King / Golden / Dragon / Prism / Mimic as horizontal special forms with deterministic backstops. Do not require indefinite RNG for Codex completion.
+King / Golden / Dragon / Prism now have deterministic first-world acquisition, fragment backstops, authoritative Camp mutation actions, distinct gameplay effects, and shared Camp/Battle/Fusion/Dispatch visuals. They remain horizontal special forms layered on the authored normal job.
+
+Mimic is deliberately separate because its identity is hostile-mimic capture, not conversion of an owned normal slime. It remains the unfinished part of this phase.
+
+Detailed pass: `docs/plans/2026-09-21-rare-mutation-production.md`
 
 ## Phase 7 — World/content expansion
 
@@ -127,7 +131,7 @@ Status: In Progress — runtime economy modes, save transfer, route splitting, b
 - Temporary combat-effect primitives cover damage reduction, movement slow, execute thresholds and line-pierce distance.
 - All 12 Tier-3 specializations now expose distinct battle behavior IDs, dedicated production motion contracts, and shared Gallery/BattleRuntime VFX. Tier-2 prototype fallbacks and the fake Engineer turret runtime were removed; Engineer uses the actual model turret root.
 - Forge now contains one Common/Rare/Mythic weapon for all six families using the same per-family 55/18/2 weight pattern, preserving the prior aggregate rarity ratio.
-- Existing-body Rare Mutation state exists for King/Golden/Dragon/Prism. The Application controller exposes the authoritative mutate command, headless selectors expose per-instance eligibility/readiness, and product-owned Mutation Fragment/Catalyst rewards flow through the same authoritative battle reward payload/receipt without leaking mutation concepts into Kit Core. Fragment conversion thresholds are intentionally not invented. Dragon selected origins remain closed until authored; Mimic remains a separate special-capture problem.
+- King/Golden/Dragon/Prism existing-body mutations now use a 10-fragment deterministic catalyst backstop, authored first-world milestones, selected Dragon origins, distinct combat/economy modifiers, and one shared visual decorator across Camp/Battle/Fusion/Dispatch. Mimic remains a separate special-capture problem.
 - The first world contains eight canonical Areas and 40 authored Stages. Production enemies, bosses, environments, rewards and frontier balance are connected through the same sequential resolver.
 - Area-aware battle activity/offline reports order progress across all 40 Stages, so an Area transition from Stage 5 to the next Area Stage 1 is shown as forward progress rather than a retreat.
 - Battle, Camp resident 3D, and Fusion 3D are lazy boundaries. The production entry no longer statically preloads Three/R3F; current initial static JS is 408.5 KiB raw / 120.3 KiB gzip. `pnpm run check:bundle` enforces a 160 KiB gzip budget and rejects WebGL/3D-only chunks in the initial static graph.

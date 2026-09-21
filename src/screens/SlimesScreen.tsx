@@ -17,7 +17,7 @@ import { CampFormationBoard, type CampFormationCeremony } from '../components/Ca
 import { CampStationIcon } from '../components/CampStationIcon';
 import type { NurseryCeremony } from '../components/NurseryCeremonyStage';
 import { NurseryPanel } from '../components/NurseryPanel';
-import { sameTypeCount, slimeInstanceIdForSerial, type JobSlimeId, type SlimeInstanceId } from '../domain';
+import { sameTypeCount, slimeInstanceIdForSerial, type JobSlimeId, type SlimeInstanceId, type SlimeMutationId } from '../domain';
 import { getSlimePresentation } from '../game/slimes';
 import styles from './SlimesScreen.module.css';
 
@@ -42,7 +42,7 @@ interface Props {
   onOpenBattle: () => void;
 }
 
-type CampMode = 'none' | 'train' | 'formation' | 'fusion';
+type CampMode = 'none' | 'train' | 'formation' | 'fusion' | 'mutation';
 
 type CampFeedback = Readonly<{
   key: number;
@@ -80,7 +80,14 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   const primaryUpgradeName = primaryUpgrade === null
     ? null
     : getSlimePresentation(state.gameData.roster.slimes[primaryUpgrade.slimeId]!).name;
+  const primaryMutation = upgradeOpportunities.find((opportunity) => opportunity.kind === 'mutation') ?? null;
+  const primaryMutationName = primaryMutation === null
+    ? null
+    : getSlimePresentation(state.gameData.roster.slimes[primaryMutation.slimeId]!).name;
   const cue = selectEarlyGameCue(state);
+  const mutationRelevant = detail?.mutationOptions.some((option) =>
+    option.eligible || option.fragments > 0 || option.catalysts > 0 || option.alreadyMutated) ?? false;
+  const mutationReady = detail?.mutationOptions.some((option) => option.canMutate) ?? false;
   const [mode, setMode] = useState<CampMode>('none');
   const [createOpen, setCreateOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -123,6 +130,20 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
       setFormationCeremony((current) => current?.key === key ? null : current);
       triggerFeedback('formation', title, detailText);
     }, 560);
+  };
+
+  const handleMutation = (mutationId: SlimeMutationId) => {
+    if (selected === null || detail === null || campInteractionBusy) return;
+    const option = detail.mutationOptions.find((candidate) => candidate.id === mutationId);
+    if (option === undefined || !option.canMutate) return;
+    const result = controller.mutateSlime(selected, mutationId);
+    if (!result.accepted) {
+      setNotice(rejectionLabel(result.reason));
+      return;
+    }
+    setNotice(null);
+    setMode('none');
+    triggerFeedback('recruit', option.displayName, option.identity, 3);
   };
 
   const handleFormationSlot = (slotIndex: number) => {
@@ -350,8 +371,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
             <div className="camp-slime-stage">
               <Suspense fallback={<div className="camp-resident-stage" aria-hidden="true" />}>
                 <CampSlimeStage
-                  slimeId={detail.typeId}
-                  fusionRank={detail.fusionRank}
+                  presentation={detail.presentation}
                   reaction={feedback.reaction}
                   reactionKey={feedback.key}
                   reactionStrength={feedback.strength ?? 1}
@@ -409,12 +429,19 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                 type="button"
                 onClick={() => {
                   onSelect(primaryUpgrade.slimeId);
-                  setMode(primaryUpgrade.kind === 'fusion' ? 'fusion' : 'train');
+                  setMode(primaryUpgrade.kind === 'mutation' ? 'mutation' : primaryUpgrade.kind === 'fusion' ? 'fusion' : 'train');
                 }}
               >
                 <span>再出撃準備</span>
                 <strong>{primaryUpgradeName} · {primaryUpgrade.label}</strong>
                 <em>›</em>
+              </button>
+            ) : mode === 'none' && primaryMutation !== null && primaryMutationName !== null ? (
+              <button className="camp-next-action" type="button" onClick={() => {
+                onSelect(primaryMutation.slimeId);
+                setMode('mutation');
+              }}>
+                <span>レア変異</span><strong>{primaryMutationName} · {primaryMutation.label}</strong><em>›</em>
               </button>
             ) : mode === 'none' && cue !== null ? (
               <button className="camp-next-action" type="button" onClick={() => {
@@ -459,6 +486,64 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                 <strong>仲間</strong>
               </button>
             </div>
+
+            {mutationRelevant && mode === 'none' && (
+              <button
+                className={`camp-mutation-entry ${mutationReady ? 'is-ready' : ''}`}
+                type="button"
+                onClick={() => setMode('mutation')}
+              >
+                <span>✦</span>
+                <div>
+                  <strong>{detail.mutationId === null ? 'レア変異' : detail.name}</strong>
+                  <small>
+                    {detail.mutationId !== null
+                      ? 'この個体は変異済みです'
+                      : mutationReady
+                        ? '変異核が反応しています'
+                        : '欠片を集めると変異核になります'}
+                  </small>
+                </div>
+                <em>›</em>
+              </button>
+            )}
+
+            {mode === 'mutation' && (
+              <div className="camp-inline-tool camp-mutation-tool">
+                <div className="camp-inline-tool__heading">
+                  <div>
+                    <strong>レア変異</strong>
+                    <small>職業はそのまま。特殊な性質だけを重ねます</small>
+                  </div>
+                  <button type="button" onClick={() => setMode('none')} aria-label="レア変異を閉じる">×</button>
+                </div>
+                <div className="camp-mutation-options">
+                  {detail.mutationOptions
+                    .filter((option) => option.eligible || option.fragments > 0 || option.catalysts > 0 || option.alreadyMutated)
+                    .map((option) => (
+                      <button
+                        key={option.id}
+                        className={`${option.canMutate ? 'is-ready' : ''} ${detail.mutationId === option.id ? 'is-current' : ''}`}
+                        type="button"
+                        disabled={!option.canMutate}
+                        onClick={() => handleMutation(option.id)}
+                      >
+                        <div>
+                          <strong>{option.displayName}</strong>
+                          <small>{option.identity}</small>
+                        </div>
+                        <span>
+                          {detail.mutationId === option.id
+                            ? '変異済み'
+                            : option.catalysts > 0
+                              ? option.eligible ? `変異核 ×${option.catalysts}` : 'この形態は対象外'
+                              : `${option.fragmentName} ${option.fragments}/${option.fragmentThreshold}`}
+                        </span>
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
 
             {mode === 'train' && (
               <div className="camp-inline-tool">
@@ -557,6 +642,9 @@ function rejectionLabel(reason: string | undefined): string {
     case 'insufficient-gold': return 'ゴールドが足りません';
     case 'dispatched': return '派遣中です';
     case 'weapon-not-owned': return 'その武器を所持していません';
+    case 'already-mutated': return 'この個体はすでに変異しています';
+    case 'not-eligible': return 'この形態では選べない変異です';
+    case 'missing-catalyst': return '変異核がありません';
     case 'validation-mode-disabled': return '検証モードでのみ使えます';
     case 'job-create-failed': return '全職解放に失敗しました';
     case 'formation-failed': return '派遣中のスライムがいるため6職編成できません';

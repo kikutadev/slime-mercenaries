@@ -43,6 +43,7 @@ export function DispatchScreen() {
     return [{
       contractId: item.id,
       asset: presentation.asset,
+      mutationId: presentation.mutationId,
       progress: Math.max(0, Math.min(1, 1 - item.remainingSec / item.durationSec)),
     }];
   }), [state.gameData.roster.slimes, view.contracts]);

@@ -1,5 +1,7 @@
 import { ids, type JobSlimeId } from '../domain/definitions';
-import type { SlimeProgress } from '../domain/state';
+import { balance } from '../domain/balance';
+import { mutationDefinitions } from '../domain/mutation';
+import type { SlimeMutationId, SlimeProgress } from '../domain/state';
 
 export type SlimeId = JobSlimeId;
 export type BattleBehaviorId =
@@ -62,6 +64,7 @@ export interface SlimeDefinition {
 
 export interface SlimePresentation extends SlimeDefinition {
   form: string;
+  mutationId: SlimeMutationId | null;
 }
 
 export interface FusionItemDefinition {
@@ -182,19 +185,19 @@ function fusionForm(
 export function getSlimePresentation(slime: SlimeProgress): SlimePresentation {
   const baseDefinition = SLIMES[slime.typeId];
   const authoredForm = FUSION_FORMS[slime.fusionFormId] ?? null;
+  let normal: SlimePresentation;
 
   if (authoredForm !== null && authoredForm.typeId === slime.typeId) {
-    return {
+    normal = {
       ...baseDefinition,
       ...authoredForm,
       id: slime.typeId,
       icon: baseDefinition.icon,
       form: slime.fusionFormId,
+      mutationId: slime.mutationId,
     };
-  }
-
-  if (slime.typeId === 'sword' && slime.fusionFormId === 'greatsword') {
-    return {
+  } else if (slime.typeId === 'sword' && slime.fusionFormId === 'greatsword') {
+    normal = {
       ...baseDefinition,
       name: '大剣士スライム',
       role: '前衛・範囲重撃',
@@ -203,10 +206,44 @@ export function getSlimePresentation(slime: SlimeProgress): SlimePresentation {
       accent: '#ffd76f',
       battle: { ...baseDefinition.battle, behaviorId: 'sword-melee' },
       form: slime.fusionFormId,
+      mutationId: slime.mutationId,
+    };
+  } else {
+    normal = {
+      ...baseDefinition,
+      tier: slime.jobTier,
+      form: slime.fusionFormId,
+      mutationId: slime.mutationId,
     };
   }
 
-  return { ...baseDefinition, tier: slime.jobTier, form: slime.fusionFormId };
+  if (slime.mutationId === null) return normal;
+  const mutation = mutationDefinitions[slime.mutationId];
+  const accentByMutation: Readonly<Record<SlimeMutationId, string>> = {
+    king: '#f4cf55',
+    golden: '#ffd84d',
+    dragon: '#ef765f',
+    prism: '#8be5f3',
+  };
+  const roleByMutation: Readonly<Record<SlimeMutationId, string>> = {
+    king: '王冠変異・味方支援',
+    golden: '黄金変異・報酬支援',
+    dragon: '竜化・強襲',
+    prism: '虹晶変異・瞬間火力',
+  };
+  return {
+    ...normal,
+    name: mutation.displayName,
+    role: roleByMutation[slime.mutationId],
+    accent: accentByMutation[slime.mutationId],
+    battle: {
+      ...normal.battle,
+      maxHp: slime.mutationId === 'dragon'
+        ? Math.max(1, Math.round(normal.battle.maxHp * balance.mutation.dragonHpMultiplier))
+        : normal.battle.maxHp,
+    },
+    mutationId: slime.mutationId,
+  };
 }
 
 export function getSlimePresentationForRank(id: SlimeId, fusionRank: number): SlimePresentation {

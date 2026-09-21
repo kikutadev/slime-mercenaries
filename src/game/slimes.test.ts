@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { getSlimePresentation } from './slimes';
 import type { JobSlimeId } from '../domain/definitions';
-import type { SlimeProgress } from '../domain/state';
+import type { SlimeMutationId, SlimeProgress } from '../domain/state';
 
 function fusedSlime(
   typeId: JobSlimeId,
   fusionFormId: string,
   jobTier: number,
   fusionRank: number,
+  mutationId: SlimeMutationId | null = null,
 ): SlimeProgress {
   return {
     id: 'test.' + typeId + '.' + fusionFormId,
@@ -17,7 +18,7 @@ function fusedSlime(
     jobTier,
     fusionRank,
     fusionFormId,
-    mutationId: null,
+    mutationId,
     assignment: 'battle',
   };
 }
@@ -42,6 +43,21 @@ describe('Fusion-form battle presentation', () => {
     const greatsword = getSlimePresentation(fusedSlime('sword', 'greatsword', 1, 2));
     expect(greatsword.asset).toBe('assets/greatsword-slime.glb');
     expect(greatsword.battle.behaviorId).toBe('sword-melee');
+  });
+
+  it('layers mutation identity on top of the authored Tier-3 model and behavior', () => {
+    const normal = getSlimePresentation(fusedSlime('sword', 'blademaster', 3, 4));
+    const king = getSlimePresentation(fusedSlime('sword', 'blademaster', 3, 4, 'king'));
+    const dragon = getSlimePresentation(fusedSlime('sword', 'blademaster', 3, 4, 'dragon'));
+
+    expect(king.name).toBe('キングスライム');
+    expect(king.asset).toBe(normal.asset);
+    expect(king.battle.behaviorId).toBe(normal.battle.behaviorId);
+    expect(king.mutationId).toBe('king');
+
+    expect(dragon.name).toBe('ドラゴンスライム');
+    expect(dragon.asset).toBe(normal.asset);
+    expect(dragon.battle.maxHp).toBeGreaterThan(normal.battle.maxHp);
   });
 
   it('assigns every Rank-4 specialization its own battle behavior', () => {

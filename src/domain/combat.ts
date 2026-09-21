@@ -17,7 +17,7 @@ import {
   type StageWaveDefinition,
 } from './definitions';
 import { highestStageClearedForArea, withHighestStageClearedForArea, type SlimeMercenariesState } from './state';
-import { applySlimeProductRewards, describeSlimeProductRewards } from './rewards';
+import { applySlimeProductRewards, describeSlimeProductRewards, withActiveMutationRewardBonuses } from './rewards';
 import { partyCombatDps, partyCombatPower } from './combat-power';
 
 export { partyCombatDps, partyCombatPower, slimeCombatPower } from './combat-power';
@@ -251,7 +251,8 @@ function resolveNormalWave(
 ): Readonly<{ state: SlimeMercenariesState; events: readonly DomainEvent[] }> {
   const stage = currentStageDefinition(state);
   if (stage === null) throw new Error('Cannot resolve a wave without a current Stage.');
-  let nextState = applySlimeProductRewards(state, wave.rewards);
+  const authoredRewards = withActiveMutationRewardBonuses(state, wave.rewards);
+  let nextState = applySlimeProductRewards(state, authoredRewards);
   const random = resolveRandomDrops(nextState, wave);
   nextState = random.state;
   const waveNumber = state.gameData.combat.currentWaveIndex + 1;
@@ -261,7 +262,7 @@ function resolveNormalWave(
     stageNumber: stage.stageNumber,
     waveNumber,
     grantedRewards: [
-      ...describeSlimeProductRewards(wave.rewards),
+      ...describeSlimeProductRewards(authoredRewards),
       ...random.granted.map((drop) => ({ kind: 'token' as const, id: drop.tokenId, amount: drop.count })),
     ],
     randomDrops: random.granted,
@@ -282,7 +283,8 @@ function resolveBoss(
 ): Readonly<{ state: SlimeMercenariesState; events: readonly DomainEvent[] }> {
   const stage = currentStageDefinition(state);
   if (stage === null) throw new Error('Cannot resolve a boss without a current Stage.');
-  let nextState = applySlimeProductRewards(state, boss.rewards);
+  const authoredRewards = withActiveMutationRewardBonuses(state, boss.rewards);
+  let nextState = applySlimeProductRewards(state, authoredRewards);
   nextState = writeCombat(nextState, { waveWorkRemaining: null, frontierDefeatTimeRemainingSec: null });
   const completed = completeStage(nextState);
   return {
@@ -292,7 +294,7 @@ function resolveBoss(
         areaId: stage.areaId,
         stageId: stage.id,
         stageNumber: stage.stageNumber,
-        grantedRewards: describeSlimeProductRewards(boss.rewards),
+        grantedRewards: describeSlimeProductRewards(authoredRewards),
       }),
       ...completed.events,
     ],
@@ -308,7 +310,10 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
 
   const previousHighestStageCleared = highestStageClearedForArea(state.gameData.progression, stage.areaId);
   const firstClear = stage.stageNumber > previousHighestStageCleared;
-  let nextState = firstClear ? applySlimeProductRewards(state, stage.clearRewards) : state;
+  const authoredClearRewards = firstClear
+    ? withActiveMutationRewardBonuses(state, stage.clearRewards)
+    : stage.clearRewards;
+  let nextState = firstClear ? applySlimeProductRewards(state, authoredClearRewards) : state;
   const isRetreatFarmClear = nextState.gameData.combat.retryFarmClearsRemaining > 0
     && stage.stageNumber <= previousHighestStageCleared;
 
@@ -409,7 +414,7 @@ function completeStage(state: SlimeMercenariesState): Readonly<{ state: SlimeMer
     nextAreaId: nextStage?.areaId ?? null,
     nextStageNumber: nextStage?.stageNumber ?? null,
     farming: false,
-    grantedRewards: firstClear ? describeSlimeProductRewards(stage.clearRewards) : [],
+    grantedRewards: firstClear ? describeSlimeProductRewards(authoredClearRewards) : [],
   })];
   if (areaChanged && nextStage !== null) {
     events.push(semanticEvent(nextState, 'areaUnlocked', nextStage.areaId, {

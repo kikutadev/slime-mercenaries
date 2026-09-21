@@ -23,13 +23,15 @@ Do not create currencies merely to add systems. Every resource must have an obvi
 | Forge Key | boss, objectives, chest, dispatch | equipment forge draw | deliberate equipment pull |
 | Fusion weapon ingredient | chest/boss/forge/progression | fusion recipe | visible form/attack milestone |
 | Fusion material | battle/chest/dispatch | fusion recipe | shared upgrade ingredient |
-| Mutation Fragments | mutation encounters | guaranteed mutation unlock | RNG backstop |
+| Mutation Fragments | authored milestones / later mutation encounters | automatic catalyst at 10 matching fragments | deterministic RNG backstop |
 
 A repeated job creation adds another persistent slime instance. It remains usable until the player explicitly converts an eligible spare reserve instance into a type-specific fusion item such as `Sword Slime Core`.
 
 Slime-generation material such as Gel is valid specifically as an input for **Plain Slime stock crafting**. It does not directly increase battlefield body count. Plain stock is consumed when creating jobs and carries no individual progression state.
 
 Premium currency is intentionally outside the initial product specification.
+
+Existing-body Rare Mutation uses one first-pass conversion rule: 10 matching fragments automatically become one catalyst. The first world guarantees Golden, King and Prism thresholds through stage-clear milestones and grants a late Dragon catalyst directly. This ensures normal world completion never depends on mutation RNG; future rare encounters can accelerate the same durable progress.
 
 ## 3. Areas
 

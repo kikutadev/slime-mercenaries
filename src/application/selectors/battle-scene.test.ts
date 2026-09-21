@@ -67,6 +67,31 @@ describe('battle scene projection', () => {
     });
   });
 
+  it('projects mutation identity and reloads the visual runtime when it changes', () => {
+    const state = createSwordBattleState();
+    const swordId = firstSlimeIdByType(state, 'sword');
+    if (swordId === null) throw new Error('setup sword missing');
+    const before = selectBattleSceneModel(state);
+    const sword = state.gameData.roster.slimes[swordId]!;
+    const mutated = {
+      ...state,
+      gameData: {
+        ...state.gameData,
+        roster: {
+          ...state.gameData.roster,
+          slimes: {
+            ...state.gameData.roster.slimes,
+            [swordId]: { ...sword, mutationId: 'golden' as const },
+          },
+        },
+      },
+    };
+    const after = selectBattleSceneModel(mutated);
+    expect(after.allies[0]?.mutationId).toBe('golden');
+    expect(after.runtimeKey).not.toBe(before.runtimeKey);
+    expect(after.visualKey).not.toBe(before.visualKey);
+  });
+
   it('does not change the visual key for unrelated token changes', () => {
     const state = createSwordBattleState();
     const before = selectBattleSceneModel(state);

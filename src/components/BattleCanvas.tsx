@@ -100,6 +100,7 @@ function BattleRuntimeScene({
         asset: ally.asset,
         behaviorId: ally.behaviorId,
         fusionRank: ally.fusionRank,
+        mutationId: ally.mutationId,
         equipmentAnchorName: ally.equipmentAnchorName,
         weaponTipName: ally.weaponTipName,
         maxHp: ally.maxHp,

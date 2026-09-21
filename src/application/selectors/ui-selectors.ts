@@ -145,12 +145,18 @@ export function selectSlimeMutationOptions(
 ) {
   return MUTATION_IDS.map((mutationId) => {
     const preview = previewSlimeMutation(state, slimeId, mutationId);
+    const definition = mutationDefinitions[mutationId];
     return {
       id: mutationId,
-      eligibility: mutationDefinitions[mutationId].eligibility,
+      displayName: definition.displayName,
+      identity: definition.identity,
+      fragmentName: definition.fragmentName,
+      eligibility: definition.eligibility,
       eligible: preview.eligible,
       alreadyMutated: preview.alreadyMutated,
       fragments: preview.fragments,
+      fragmentThreshold: preview.fragmentThreshold,
+      fragmentsNeeded: preview.fragmentsNeeded,
       catalysts: preview.catalysts,
       canMutate: preview.canMutate,
     } as const;
@@ -182,6 +188,7 @@ export function selectSlimeDetail(state: SlimeMercenariesState, slimeId: SlimeIn
   return {
     id: slimeId,
     typeId: slime.typeId,
+    presentation,
     serial: slime.serial,
     name: sameTypeCount(state, slime.typeId) > 1 ? `${presentation.name} #${slime.serial}` : presentation.name,
     role: presentation.role,
@@ -347,7 +354,7 @@ export function selectForgeScreen(state: SlimeMercenariesState) {
 
 export type CampUpgradeOpportunity = Readonly<{
   slimeId: SlimeInstanceId;
-  kind: 'level' | 'fusion';
+  kind: 'level' | 'fusion' | 'mutation';
   label: string;
   priority: number;
 }>;
@@ -359,6 +366,10 @@ export function selectCampUpgradeOpportunities(state: SlimeMercenariesState): re
   const gold = readCurrency(state.currencies, ids.currency.gold);
   return selectOwnedSlimeIds(state).flatMap((slimeId) => {
     const opportunities: CampUpgradeOpportunity[] = [];
+    const mutations = selectSlimeMutationOptions(state, slimeId);
+    if (mutations.some((mutation) => mutation.canMutate)) {
+      opportunities.push({ slimeId, kind: 'mutation', label: 'レア変異可能', priority: 40 });
+    }
     const fusions = previewSlimeFusions(state, slimeId);
     if (fusions.some((fusion) => fusion.canFuse)) {
       opportunities.push({ slimeId, kind: 'fusion', label: '合成可能', priority: 30 });
