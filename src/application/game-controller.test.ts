@@ -6,19 +6,20 @@ import { SlimeGameController } from './game-controller';
 import { RUNTIME_SETTINGS_STORAGE_KEY } from './runtime-settings';
 
 class MemoryRepository implements ProfileRepository<SlimeMercenariesState> {
-  profile: StoredProfile<SlimeMercenariesState> | null = null;
+  readonly profiles = new Map<string, StoredProfile<SlimeMercenariesState>>();
   deleteCount = 0;
 
   async load(profileId: string) {
-    return this.profile?.profileId === profileId ? this.profile : null;
+    const profile = this.profiles.get(profileId);
+    return profile === undefined ? null : structuredClone(profile);
   }
 
   async save(profile: StoredProfile<SlimeMercenariesState>) {
-    this.profile = structuredClone(profile);
+    this.profiles.set(profile.profileId, structuredClone(profile));
   }
 
   async delete(profileId: string) {
-    if (this.profile?.profileId === profileId) this.profile = null;
+    this.profiles.delete(profileId);
     this.deleteCount += 1;
   }
 }
@@ -42,7 +43,7 @@ function storageFor(mode: 'normal' | 'development') {
 }
 
 describe('SlimeGameController settings and save management', () => {
-  it('keeps development resources virtual when switching back to normal mode', async () => {
+  it('keeps development progression isolated from the normal profile', async () => {
     const repository = new MemoryRepository();
     const controller = new SlimeGameController('default', {
       repository,
@@ -59,7 +60,7 @@ describe('SlimeGameController settings and save management', () => {
     const normalGold = readCurrency(normalBefore.currencies, ids.currency.gold).serialize();
     const normalTokens = structuredClone(normalBefore.tokens);
 
-    controller.setEconomyMode('development', 2_000);
+    await controller.setEconomyMode('development', 2_000);
     expect(controller.validationMode).toBe(true);
     expect(readCurrency(controller.store.getSnapshot().currencies, ids.currency.gold).toNumber()).toBeGreaterThanOrEqual(1_000_000_000_000);
 
@@ -67,12 +68,18 @@ describe('SlimeGameController settings and save management', () => {
     expect(leveled.accepted).toBe(true);
     expect(controller.store.getSnapshot().gameData.roster.slimes[swordId]?.level).toBe(16);
 
-    controller.setEconomyMode('normal', 3_000);
+    await controller.setEconomyMode('normal', 3_000);
     const restored = controller.store.getSnapshot();
     expect(controller.validationMode).toBe(false);
     expect(restored.currencies[ids.currency.gold]).toEqual(normalGold);
     expect(restored.tokens).toEqual(normalTokens);
-    expect(restored.gameData.roster.slimes[swordId]?.level).toBe(16);
+    expect(restored.gameData.roster.slimes[swordId]?.level).toBe(1);
+
+    await controller.setEconomyMode('development', 4_000);
+    const developmentRestored = controller.store.getSnapshot();
+    expect(developmentRestored.gameData.roster.slimes[swordId]?.level).toBe(16);
+    expect(repository.profiles.has('default')).toBe(true);
+    expect(repository.profiles.has('default.development')).toBe(true);
   });
 
   it('exports the real resource ledger instead of the development sandbox floor', async () => {
@@ -120,6 +127,26 @@ describe('SlimeGameController settings and save management', () => {
     expect(targetRepository.deleteCount).toBe(1);
     expect(firstSlimeIdByType(target.store.getSnapshot(), 'sword')).toBeNull();
     expect(target.store.getSnapshot().simTimeSec).toBe(0);
+  });
+
+  it('deletes only the active mode profile', async () => {
+    const repository = new MemoryRepository();
+    const controller = new SlimeGameController('default', {
+      repository,
+      settingsStorage: storageFor('normal'),
+    });
+    await controller.initialize(40_000);
+    expect(controller.craftPlainSlime().accepted).toBe(true);
+    expect(controller.createJobSlime('sword').accepted).toBe(true);
+    const normalSwordId = firstSlimeIdByType(controller.store.getSnapshot(), 'sword');
+    expect(normalSwordId).not.toBeNull();
+
+    await controller.setEconomyMode('development', 41_000);
+    await controller.deleteSaveData(42_000);
+    expect(firstSlimeIdByType(controller.store.getSnapshot(), 'sword')).toBeNull();
+
+    await controller.setEconomyMode('normal', 43_000);
+    expect(firstSlimeIdByType(controller.store.getSnapshot(), 'sword')).toBe(normalSwordId);
   });
 
   it('rejects invalid import data without replacing the current save', async () => {

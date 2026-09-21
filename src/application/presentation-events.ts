@@ -1,5 +1,5 @@
 import type { DomainEvent, PresentationQueueItem } from 'idle-game-kit';
-import { ids, jobCreationDefinitions, type JobSlimeId, type SlimeMutationId } from '../domain';
+import { WORLD_AREA_IDS, ids, jobCreationDefinitions, resolveAreaDefinition, type JobSlimeId, type SlimeMutationId } from '../domain';
 import type { BattleRewardCue, BattleRewardItem, BattleRewardTarget } from '../game/battle-reward';
 
 export type PresentationTone = 'reward' | 'milestone' | 'warning' | 'system';
@@ -295,15 +295,21 @@ export function isBattleActivityEvent(event: DomainEvent): boolean {
 }
 
 export type BattleActivityCursor = Readonly<{
+  areaId: string;
   stageNumber: number;
   waveIndex: number;
+}>;
+
+export type WorldStagePosition = Readonly<{
+  areaId: string;
+  stageNumber: number;
 }>;
 
 export type BattleActivityReport = Readonly<{
   elapsedSec: number;
   start: BattleActivityCursor;
   current: BattleActivityCursor;
-  furthestStage: number;
+  furthest: WorldStagePosition;
   waveClearCount: number;
   stageClearCount: number;
   farmClearCount: number;
@@ -319,7 +325,7 @@ export function buildBattleActivityReport(args: Readonly<{
   from: BattleActivityCursor;
   to: BattleActivityCursor;
 }>): BattleActivityReport {
-  let furthestStage = Math.max(args.from.stageNumber, args.to.stageNumber);
+  let furthest = maxWorldStagePosition(toWorldStagePosition(args.from), toWorldStagePosition(args.to));
   let waveClearCount = 0;
   let stageClearCount = 0;
   let farmClearCount = 0;
@@ -328,12 +334,8 @@ export function buildBattleActivityReport(args: Readonly<{
   let retryCount = 0;
 
   for (const event of args.events) {
-    const stageNumber = numberPayload(event, 'stageNumber');
-    const nextStageNumber = numberPayload(event, 'nextStageNumber');
-    const frontierStageNumber = numberPayload(event, 'frontierStageNumber');
-    const failedStageNumber = numberPayload(event, 'failedStageNumber');
-    for (const candidate of [stageNumber, nextStageNumber, frontierStageNumber, failedStageNumber]) {
-      if (candidate !== null) furthestStage = Math.max(furthestStage, candidate);
+    for (const candidate of worldStagePositionsFromEvent(event)) {
+      furthest = maxWorldStagePosition(furthest, candidate);
     }
 
     switch (event.type) {
@@ -362,7 +364,7 @@ export function buildBattleActivityReport(args: Readonly<{
     elapsedSec: Math.max(0, args.elapsedSec),
     start: args.from,
     current: args.to,
-    furthestStage,
+    furthest,
     waveClearCount,
     stageClearCount,
     farmClearCount,
@@ -381,7 +383,7 @@ export function mergeBattleActivityReports(
 
   const rewards = new Map<string, BattleRewardItem>();
   for (const item of [...previous.rewards, ...next.rewards]) {
-    const key = `${item.kind}:${item.id}`;
+    const key = item.kind + ':' + item.id;
     const current = rewards.get(key);
     rewards.set(key, {
       ...item,
@@ -393,7 +395,7 @@ export function mergeBattleActivityReports(
     elapsedSec: previous.elapsedSec + next.elapsedSec,
     start: previous.start,
     current: next.current,
-    furthestStage: Math.max(previous.furthestStage, next.furthestStage),
+    furthest: maxWorldStagePosition(previous.furthest, next.furthest),
     waveClearCount: previous.waveClearCount + next.waveClearCount,
     stageClearCount: previous.stageClearCount + next.stageClearCount,
     farmClearCount: previous.farmClearCount + next.farmClearCount,
@@ -406,6 +408,7 @@ export function mergeBattleActivityReports(
 
 export function battleActivityReportIsMeaningful(report: BattleActivityReport): boolean {
   return report.elapsedSec >= 5
+    || report.start.areaId !== report.current.areaId
     || report.start.stageNumber !== report.current.stageNumber
     || report.start.waveIndex !== report.current.waveIndex
     || report.waveClearCount > 0
@@ -418,33 +421,46 @@ export function battleActivityReportIsMeaningful(report: BattleActivityReport): 
 }
 
 export function battleActivityProgressLabel(report: BattleActivityReport): string {
-  if (report.current.stageNumber < report.furthestStage) {
-    return `最前線 ${report.furthestStage} · 現在ステージ ${report.current.stageNumber}`;
+  const currentPosition = toWorldStagePosition(report.current);
+  if (compareWorldStagePositions(currentPosition, report.furthest) < 0) {
+    return '最前線 ' + formatWorldStagePosition(report.furthest)
+      + ' · 現在 ' + formatWorldStagePosition(currentPosition);
   }
-  if (report.current.stageNumber !== report.start.stageNumber) {
-    return `ステージ ${report.start.stageNumber} → ${report.current.stageNumber}`;
+
+  const startPosition = toWorldStagePosition(report.start);
+  if (compareWorldStagePositions(startPosition, currentPosition) !== 0) {
+    if (startPosition.areaId === currentPosition.areaId) {
+      return areaDisplayName(currentPosition.areaId) + ' Stage ' + startPosition.stageNumber
+        + ' → ' + currentPosition.stageNumber;
+    }
+    return formatWorldStagePosition(startPosition) + ' → ' + formatWorldStagePosition(currentPosition);
   }
+
   const startWave = report.start.waveIndex + 1;
   const currentWave = report.current.waveIndex + 1;
   if (startWave !== currentWave) {
-    return `ステージ ${report.current.stageNumber} · ウェーブ ${startWave} → ${currentWave}`;
+    return formatWorldStagePosition(currentPosition)
+      + ' · ウェーブ ' + startWave + ' → ' + currentWave;
   }
-  return `ステージ ${report.current.stageNumber} · ウェーブ ${currentWave}`;
+  return formatWorldStagePosition(currentPosition) + ' · ウェーブ ' + currentWave;
 }
 
 export function formatBattleActivityElapsed(seconds: number): string {
   return formatElapsed(seconds);
 }
 
+export function formatWorldStagePosition(position: WorldStagePosition): string {
+  return areaDisplayName(position.areaId) + ' Stage ' + position.stageNumber;
+}
 
 export type OfflineReturnView = Readonly<{
   elapsedLabel: string;
-  furthestStage: number;
+  furthest: WorldStagePosition;
   stageClearCount: number;
   bossDefeatedCount: number;
   dispatchCompletedCount: number;
   materialDropCount: number;
-  frontierStageReached: number | null;
+  frontier: WorldStagePosition | null;
   battleRewards: readonly BattleRewardItem[];
 }>;
 
@@ -452,26 +468,33 @@ export type OfflineReturnView = Readonly<{
 export function buildOfflineReturnView(
   offlineSec: number,
   events: readonly DomainEvent[],
-  currentStage: number,
+  current: WorldStagePosition,
 ): OfflineReturnView {
   let stageClearCount = 0;
   let bossDefeatedCount = 0;
   let dispatchCompletedCount = 0;
   let materialDropCount = 0;
-  let furthestStage = currentStage;
-  let frontierStageReached: number | null = null;
+  let furthest = current;
+  let frontier: WorldStagePosition | null = null;
 
   for (const event of events) {
     if (event.type === 'stageCleared') {
       stageClearCount += 1;
-      const nextStage = numberPayload(event, 'nextStageNumber');
-      if (nextStage !== null) furthestStage = Math.max(furthestStage, nextStage);
+      for (const candidate of worldStagePositionsFromEvent(event)) {
+        furthest = maxWorldStagePosition(furthest, candidate);
+      }
     } else if (event.type === 'partyDefeated') {
-      const stageNumber = numberPayload(event, 'stageNumber');
-      if (stageNumber !== null) frontierStageReached = Math.max(frontierStageReached ?? 0, stageNumber);
+      const candidate = eventStagePosition(event, 'stageNumber');
+      if (candidate !== null) {
+        frontier = frontier === null ? candidate : maxWorldStagePosition(frontier, candidate);
+        furthest = maxWorldStagePosition(furthest, candidate);
+      }
     } else if (event.type === 'frontierBreakthroughDeferred') {
-      const stageNumber = numberPayload(event, 'frontierStageNumber');
-      if (stageNumber !== null) frontierStageReached = Math.max(frontierStageReached ?? 0, stageNumber);
+      const candidate = eventStagePosition(event, 'frontierStageNumber');
+      if (candidate !== null) {
+        frontier = frontier === null ? candidate : maxWorldStagePosition(frontier, candidate);
+        furthest = maxWorldStagePosition(furthest, candidate);
+      }
     } else if (event.type === 'bossDefeated') {
       bossDefeatedCount += 1;
     } else if (event.type === 'dispatchCompleted') {
@@ -488,14 +511,74 @@ export function buildOfflineReturnView(
 
   return {
     elapsedLabel: formatElapsed(offlineSec),
-    furthestStage,
+    furthest,
     stageClearCount,
     bossDefeatedCount,
     dispatchCompletedCount,
     materialDropCount,
-    frontierStageReached,
+    frontier,
     battleRewards: toBattleRewardCue(events)?.items ?? [],
   };
+}
+
+function toWorldStagePosition(cursor: Pick<BattleActivityCursor, 'areaId' | 'stageNumber'>): WorldStagePosition {
+  return { areaId: cursor.areaId, stageNumber: cursor.stageNumber };
+}
+
+/**
+ * Project event payload coordinates into world positions. This keeps report ordering correct when
+ * a normal Area transition resets the local Stage number from 5 back to 1.
+ */
+function worldStagePositionsFromEvent(event: DomainEvent): readonly WorldStagePosition[] {
+  const positions: WorldStagePosition[] = [];
+  const areaId = stringPayload(event, 'areaId');
+  if (areaId !== null) {
+    for (const key of ['stageNumber', 'frontierStageNumber', 'failedStageNumber', 'farmStageNumber'] as const) {
+      const stageNumber = numberPayload(event, key);
+      if (stageNumber !== null) positions.push({ areaId, stageNumber });
+    }
+  }
+
+  const nextStageNumber = numberPayload(event, 'nextStageNumber');
+  if (nextStageNumber !== null) {
+    const nextAreaId = stringPayload(event, 'nextAreaId') ?? areaId;
+    if (nextAreaId !== null) positions.push({ areaId: nextAreaId, stageNumber: nextStageNumber });
+  }
+  return positions;
+}
+
+function eventStagePosition(event: DomainEvent, stageKey: string): WorldStagePosition | null {
+  const areaId = stringPayload(event, 'areaId');
+  const stageNumber = numberPayload(event, stageKey);
+  return areaId === null || stageNumber === null ? null : { areaId, stageNumber };
+}
+
+function maxWorldStagePosition(left: WorldStagePosition, right: WorldStagePosition): WorldStagePosition {
+  return compareWorldStagePositions(left, right) >= 0 ? left : right;
+}
+
+function compareWorldStagePositions(left: WorldStagePosition, right: WorldStagePosition): number {
+  const leftOrdinal = worldStageOrdinal(left);
+  const rightOrdinal = worldStageOrdinal(right);
+  if (leftOrdinal !== null && rightOrdinal !== null) return leftOrdinal - rightOrdinal;
+  if (left.areaId === right.areaId) return left.stageNumber - right.stageNumber;
+  // Unknown authored content should not crash presentation. Keep ordering deterministic.
+  return left.areaId.localeCompare(right.areaId) || left.stageNumber - right.stageNumber;
+}
+
+function worldStageOrdinal(position: WorldStagePosition): number | null {
+  let offset = 0;
+  for (const areaId of WORLD_AREA_IDS) {
+    const area = resolveAreaDefinition(areaId);
+    if (area === undefined) continue;
+    if (areaId === position.areaId) return offset + position.stageNumber;
+    offset += area.stages.length;
+  }
+  return null;
+}
+
+function areaDisplayName(areaId: string): string {
+  return resolveAreaDefinition(areaId)?.displayName ?? areaId;
 }
 
 function formatElapsed(seconds: number): string {
@@ -503,7 +586,7 @@ function formatElapsed(seconds: number): string {
   const hours = Math.floor(safeSeconds / 3600);
   const minutes = Math.floor((safeSeconds % 3600) / 60);
   const rest = safeSeconds % 60;
-  if (hours > 0) return `${hours}時間 ${minutes}分`;
-  if (minutes > 0) return `${minutes}分 ${rest}秒`;
-  return `${rest}秒`;
+  if (hours > 0) return hours + '時間 ' + minutes + '分';
+  if (minutes > 0) return minutes + '分 ' + rest + '秒';
+  return rest + '秒';
 }

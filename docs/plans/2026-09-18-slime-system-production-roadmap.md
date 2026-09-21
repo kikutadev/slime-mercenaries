@@ -114,8 +114,8 @@ The first world now runs sequentially from Clover Road through Dragon Crater. Ar
 
 Status: In Progress — runtime economy modes, save transfer, route splitting, bundle guard and release gates implemented
 
-- Settings exposes Normal / Development economy modes without leaking virtual resources into normal saves
-- save export / import / delete is available through the shared Kit save envelope
+- Settings exposes Normal / Development economy modes as separate durable profiles; Development resources, growth and Stage progress cannot contaminate Normal saves
+- save export / import / delete is available through the shared Kit save envelope and operates on the active mode profile
 - mobile performance/code splitting pass remains active
 - release verification includes Clover Road profiles plus the full-world Tier-3 progression simulator
 
@@ -129,7 +129,8 @@ Status: In Progress — runtime economy modes, save transfer, route splitting, b
 - Forge now contains one Common/Rare/Mythic weapon for all six families using the same per-family 55/18/2 weight pattern, preserving the prior aggregate rarity ratio.
 - Existing-body Rare Mutation state exists for King/Golden/Dragon/Prism. The Application controller exposes the authoritative mutate command, headless selectors expose per-instance eligibility/readiness, and product-owned Mutation Fragment/Catalyst rewards flow through the same authoritative battle reward payload/receipt without leaking mutation concepts into Kit Core. Fragment conversion thresholds are intentionally not invented. Dragon selected origins remain closed until authored; Mimic remains a separate special-capture problem.
 - The first world contains eight canonical Areas and 40 authored Stages. Production enemies, bosses, environments, rewards and frontier balance are connected through the same sequential resolver.
-- Battle, Camp resident 3D, and Fusion 3D are lazy boundaries. The production entry no longer statically preloads Three/R3F; current initial static JS is 374.7 KiB raw / 109.6 KiB gzip. `pnpm run check:bundle` enforces a 160 KiB gzip budget and rejects WebGL/3D-only chunks in the initial static graph.
+- Area-aware battle activity/offline reports order progress across all 40 Stages, so an Area transition from Stage 5 to the next Area Stage 1 is shown as forward progress rather than a retreat.
+- Battle, Camp resident 3D, and Fusion 3D are lazy boundaries. The production entry no longer statically preloads Three/R3F; current initial static JS is 408.5 KiB raw / 120.3 KiB gzip. `pnpm run check:bundle` enforces a 160 KiB gzip budget and rejects WebGL/3D-only chunks in the initial static graph.
 - `pnpm run verify:release` is the single release-check entry point and runs typecheck, UI contract, full tests, production build, initial-bundle guard, the three Clover Road profiles, and the full-world Tier-3 progression gate.
 
 ## Verification contract

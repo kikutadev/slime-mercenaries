@@ -167,8 +167,8 @@ describe('presentation event policy', () => {
   it('does not surface a trivial one-second away report without progress', () => {
     const report = buildBattleActivityReport({
       elapsedSec: 1,
-      from: { stageNumber: 2, waveIndex: 1 },
-      to: { stageNumber: 2, waveIndex: 1 },
+      from: { areaId: 'area.clover-road', stageNumber: 2, waveIndex: 1 },
+      to: { areaId: 'area.clover-road', stageNumber: 2, waveIndex: 1 },
       events: [],
     });
 
@@ -179,8 +179,8 @@ describe('presentation event policy', () => {
   it('aggregates battle activity while the battle screen is away', () => {
     const first = buildBattleActivityReport({
       elapsedSec: 45,
-      from: { stageNumber: 2, waveIndex: 0 },
-      to: { stageNumber: 3, waveIndex: 1 },
+      from: { areaId: 'area.clover-road', stageNumber: 2, waveIndex: 0 },
+      to: { areaId: 'area.clover-road', stageNumber: 3, waveIndex: 1 },
       events: [
         event('combatWaveCleared', {
           stageNumber: 2,
@@ -200,8 +200,8 @@ describe('presentation event policy', () => {
     });
     const second = buildBattleActivityReport({
       elapsedSec: 30,
-      from: { stageNumber: 3, waveIndex: 1 },
-      to: { stageNumber: 2, waveIndex: 0 },
+      from: { areaId: 'area.clover-road', stageNumber: 3, waveIndex: 1 },
+      to: { areaId: 'area.clover-road', stageNumber: 2, waveIndex: 0 },
       events: [
         event('partyDefeated', { stageNumber: 3 }),
         event('stageRetreated', { failedStageNumber: 3, farmStageNumber: 2 }),
@@ -211,9 +211,9 @@ describe('presentation event policy', () => {
     const merged = mergeBattleActivityReports(first, second);
 
     expect(merged.elapsedSec).toBe(75);
-    expect(merged.start).toEqual({ stageNumber: 2, waveIndex: 0 });
-    expect(merged.current).toEqual({ stageNumber: 2, waveIndex: 0 });
-    expect(merged.furthestStage).toBe(3);
+    expect(merged.start).toEqual({ areaId: 'area.clover-road', stageNumber: 2, waveIndex: 0 });
+    expect(merged.current).toEqual({ areaId: 'area.clover-road', stageNumber: 2, waveIndex: 0 });
+    expect(merged.furthest).toEqual({ areaId: 'area.clover-road', stageNumber: 3 });
     expect(merged.waveClearCount).toBe(1);
     expect(merged.stageClearCount).toBe(1);
     expect(merged.farmClearCount).toBe(1);
@@ -222,7 +222,7 @@ describe('presentation event policy', () => {
       { kind: 'gold', id: 'currency.gold', label: 'G', amount: 50 },
       { kind: 'material', id: 'token.material.slime-gel', label: 'スライムジェル', amount: 2 },
     ]);
-    expect(battleActivityProgressLabel(merged)).toBe('最前線 3 · 現在ステージ 2');
+    expect(battleActivityProgressLabel(merged)).toBe('最前線 クローバー街道 Stage 3 · 現在 クローバー街道 Stage 2');
   });
 
   it('aggregates offline progress into one summary instead of claim-by-claim UI', () => {
@@ -234,20 +234,65 @@ describe('presentation event policy', () => {
           { kind: 'token', id: 'token.material.slime-gel', amount: 2 },
         ],
       }),
-      event('stageCleared', { stageNumber: 1, nextStageNumber: 2 }),
+      event('stageCleared', { areaId: 'area.clover-road', stageNumber: 1, nextAreaId: 'area.clover-road', nextStageNumber: 2 }),
       event('dispatchCompleted', { contractId: 'roadEscort' }),
-      event('frontierBreakthroughDeferred', { frontierStageNumber: 5, farmStageNumber: 4 }),
-    ], 2);
+      event('frontierBreakthroughDeferred', { areaId: 'area.clover-road', frontierStageNumber: 5, farmStageNumber: 4 }),
+    ], { areaId: 'area.clover-road', stageNumber: 2 });
     expect(summary.elapsedLabel).toBe('1分 35秒');
     expect(summary.stageClearCount).toBe(1);
     expect(summary.dispatchCompletedCount).toBe(1);
     expect(summary.materialDropCount).toBe(2);
-    expect(summary.furthestStage).toBe(2);
-    expect(summary.frontierStageReached).toBe(5);
+    expect(summary.furthest).toEqual({ areaId: 'area.clover-road', stageNumber: 5 });
+    expect(summary.frontier).toEqual({ areaId: 'area.clover-road', stageNumber: 5 });
     expect(summary.battleRewards).toEqual([
       { kind: 'gold', id: 'currency.gold', label: 'G', amount: 40 },
       { kind: 'material', id: 'token.material.slime-gel', label: 'スライムジェル', amount: 2 },
     ]);
+  });
+
+  it('orders Area transitions as forward progress even when Stage 5 resets to Stage 1', () => {
+    const report = buildBattleActivityReport({
+      elapsedSec: 30,
+      from: { areaId: 'area.clover-road', stageNumber: 5, waveIndex: 2 },
+      to: { areaId: 'area.mushroom-forest', stageNumber: 1, waveIndex: 0 },
+      events: [
+        event('stageCleared', {
+          areaId: 'area.clover-road',
+          stageNumber: 5,
+          nextAreaId: 'area.mushroom-forest',
+          nextStageNumber: 1,
+          farming: false,
+        }),
+        event('areaUnlocked', { areaId: 'area.mushroom-forest', stageNumber: 1 }),
+      ],
+    });
+
+    expect(report.furthest).toEqual({ areaId: 'area.mushroom-forest', stageNumber: 1 });
+    expect(battleActivityProgressLabel(report))
+      .toBe('クローバー街道 Stage 5 → キノコの森 Stage 1');
+  });
+
+  it('keeps the true cross-Area frontier after an offline defeat and retreat', () => {
+    const summary = buildOfflineReturnView(120, [
+      event('stageCleared', {
+        areaId: 'area.clover-road',
+        stageNumber: 5,
+        nextAreaId: 'area.mushroom-forest',
+        nextStageNumber: 1,
+      }),
+      event('partyDefeated', {
+        areaId: 'area.mushroom-forest',
+        stageNumber: 3,
+      }),
+      event('stageRetreated', {
+        areaId: 'area.mushroom-forest',
+        failedStageNumber: 3,
+        farmStageNumber: 2,
+      }),
+    ], { areaId: 'area.mushroom-forest', stageNumber: 2 });
+
+    expect(summary.furthest).toEqual({ areaId: 'area.mushroom-forest', stageNumber: 3 });
+    expect(summary.frontier).toEqual({ areaId: 'area.mushroom-forest', stageNumber: 3 });
   });
 
 });

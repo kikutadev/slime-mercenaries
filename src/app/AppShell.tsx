@@ -8,6 +8,7 @@ import {
   buildBattleActivityReport,
   buildOfflineReturnView,
   formatBattleActivityElapsed,
+  formatWorldStagePosition,
   isBattleActivityEvent,
   mergeBattleActivityReports,
   presentationNoticeDurationMs,
@@ -83,8 +84,8 @@ export function AppShell() {
         const delta = buildBattleActivityReport({
           events: battleEvents,
           elapsedSec: context.elapsedSec,
-          from: { stageNumber: context.fromStage, waveIndex: context.fromWaveIndex },
-          to: { stageNumber: context.toStage, waveIndex: context.toWaveIndex },
+          from: { areaId: context.fromAreaId, stageNumber: context.fromStage, waveIndex: context.fromWaveIndex },
+          to: { areaId: context.toAreaId, stageNumber: context.toStage, waveIndex: context.toWaveIndex },
         });
         if (activeScreenNow === 'battle') {
           if (battleActivityReportIsMeaningful(delta)) {
@@ -167,9 +168,12 @@ export function AppShell() {
     return buildOfflineReturnView(
       bootstrap.offlineSec,
       bootstrap.offlineEvents,
-      state.gameData.progression.currentStage,
+      {
+        areaId: state.gameData.progression.currentAreaId,
+        stageNumber: state.gameData.progression.currentStage,
+      },
     );
-  }, [bootstrap, state.gameData.progression.currentStage]);
+  }, [bootstrap, state.gameData.progression.currentAreaId, state.gameData.progression.currentStage]);
 
   if (bootstrap.status === 'loading') {
     return (
@@ -310,13 +314,13 @@ export function AppShell() {
                 <small>放置中も傭兵団は進み続けました。</small>
               </div>
               <div className={styles.offlineGrid}>
-                <div><span>到達</span><strong>ステージ {offlineReturn.furthestStage}</strong></div>
+                <div><span>到達</span><strong>{formatWorldStagePosition(offlineReturn.furthest)}</strong></div>
                 <div><span>ステージ突破</span><strong>{offlineReturn.stageClearCount}</strong></div>
                 <div><span>ボス撃破</span><strong>{offlineReturn.bossDefeatedCount}</strong></div>
                 <div><span>派遣帰還</span><strong>{offlineReturn.dispatchCompletedCount}</strong></div>
               </div>
-              {offlineReturn.frontierStageReached !== null && (
-                <div className={styles.offlineReward}><span>最前線</span><strong>ステージ {offlineReturn.frontierStageReached} 到達 · 周回継続中</strong></div>
+              {offlineReturn.frontier !== null && (
+                <div className={styles.offlineReward}><span>最前線</span><strong>{formatWorldStagePosition(offlineReturn.frontier)} 到達 · 周回継続中</strong></div>
               )}
               {offlineReturn.battleRewards.length > 0 && (
                 <div className={styles.battleReportRewards}>

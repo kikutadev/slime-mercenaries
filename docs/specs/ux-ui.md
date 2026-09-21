@@ -382,10 +382,11 @@ Settings is a utility sheet available from the persistent dock.
 Play mode:
 - Normal mode uses authored Gold/material economy.
 - Development mode displays Gold/materials as infinity.
-- returning to Normal restores the real resource ledger from before Development mode; non-resource progression remains.
+- Normal and Development use separate durable profiles. Development progression, Fusion, equipment, and Stage progress never mutate the Normal profile.
+- the first Development profile is cloned from the current Normal snapshot; later mode switches resume each profile independently.
 
 Save data:
-- **Export** downloads a versioned JSON snapshot.
-- **Import** accepts only a validated Slime Mercenaries export, shows an overwrite confirmation, migrates supported old schema versions, and treats import as a snapshot restore rather than awarding offline time since export.
-- **Delete** requires an explicit destructive confirmation, deletes the local IndexedDB profile, creates a clean profile, then restarts presentation state.
-- Development-mode virtual resources are never written into exports.
+- **Export** downloads a versioned JSON snapshot for the currently active mode.
+- **Import** accepts only a validated Slime Mercenaries export, shows an overwrite confirmation, migrates supported old schema versions, and replaces only the currently active mode profile. Import is a snapshot restore rather than awarding offline time since export.
+- **Delete** requires an explicit destructive confirmation, resets only the currently active mode profile, then restarts presentation state.
+- Development-mode virtual resources are never written into exports or the Development durable profile.

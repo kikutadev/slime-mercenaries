@@ -57,8 +57,10 @@ export type SlimeGameEventSource = 'offline' | 'live' | 'background' | 'command'
 export type SlimeGameEventContext = Readonly<{
   source: SlimeGameEventSource;
   elapsedSec: number;
+  fromAreaId: string;
   fromStage: number;
   fromWaveIndex: number;
+  toAreaId: string;
   toStage: number;
   toWaveIndex: number;
 }>;
@@ -95,21 +97,25 @@ export class SlimeGameController {
 
   readonly #repository: ProfileRepository<SlimeMercenariesState>;
   readonly #settingsStorage: Pick<Storage, 'getItem' | 'setItem'> | null | undefined;
-  readonly #profileId: string;
+  readonly #normalProfileId: string;
+  readonly #developmentProfileId: string;
   readonly #eventListeners = new Set<SlimeGameEventListener>();
   readonly #errorListeners = new Set<SlimeGameErrorListener>();
   #saveChain: Promise<void> = Promise.resolve();
   #lastBackgroundCheckpointMs = 0;
   #initialized = false;
   #economyMode: EconomyMode;
-  #normalResources: ResourceSnapshot | null = null;
+  #activeProfileId: string;
+  #developmentResources: ResourceSnapshot | null = null;
   #persistenceEpoch = 0;
 
   constructor(profileId = DEFAULT_PROFILE_ID, options: SlimeGameControllerOptions = {}) {
-    this.#profileId = profileId;
+    this.#normalProfileId = profileId;
+    this.#developmentProfileId = profileId + '.development';
     this.#repository = options.repository ?? createSlimeMercenariesBrowserRepository();
     this.#settingsStorage = options.settingsStorage;
     this.#economyMode = readRuntimeSettings(this.#settingsStorage).economyMode;
+    this.#activeProfileId = this.profileIdForMode(this.#economyMode);
     this.store = new ApplicationStore(createInitialSlimeMercenariesState(Date.now()));
   }
 
@@ -127,35 +133,26 @@ export class SlimeGameController {
   }
 
   async initialize(nowMs = Date.now()): Promise<LoadedSlimeProfile> {
-    const loaded = await loadOrCreateSlimeProfile({
-      repository: this.#repository,
-      profileId: this.#profileId,
-      nowMs,
-    });
-
-    // Old public validation builds wrote the artificial resource floor into IndexedDB. Remove that
-    // subsidy once so switching back to normal economy is meaningful.
+    const loaded = await this.loadModeProfile(this.#economyMode, nowMs);
     const persisted = stripLegacyDevelopmentSandboxResources(loaded.state);
-    this.#normalResources = this.#economyMode === 'development'
-      ? captureResources(persisted)
-      : null;
-    const hydrated = this.#economyMode === 'development'
-      ? applyDevelopmentSandboxResources(persisted)
-      : persisted;
 
-    this.store.replaceState(hydrated);
-    syncSlimePortalProgress(persisted, nowMs);
+    this.#activeProfileId = this.profileIdForMode(this.#economyMode);
+    this.installPersistedState(persisted);
+    if (this.#economyMode === 'normal') syncSlimePortalProgress(persisted, nowMs);
     this.#initialized = true;
-    if (persisted !== loaded.state) this.queueCheckpoint(hydrated, nowMs);
+
+    if (persisted !== loaded.state) this.queueCheckpoint(this.store.getSnapshot(), nowMs);
     this.emitEvents(loaded.offlineEvents, {
       source: 'offline',
       elapsedSec: loaded.appliedOfflineSec,
+      fromAreaId: loaded.state.gameData.progression.currentAreaId,
       fromStage: loaded.state.gameData.progression.currentStage,
       fromWaveIndex: loaded.state.gameData.combat.currentWaveIndex,
+      toAreaId: persisted.gameData.progression.currentAreaId,
       toStage: persisted.gameData.progression.currentStage,
       toWaveIndex: persisted.gameData.combat.currentWaveIndex,
     });
-    return { ...loaded, state: hydrated };
+    return { ...loaded, state: this.store.getSnapshot() };
   }
 
   subscribeEvents(listener: SlimeGameEventListener): () => void {
@@ -168,28 +165,41 @@ export class SlimeGameController {
     return () => this.#errorListeners.delete(listener);
   }
 
-  setEconomyMode(mode: EconomyMode, nowMs = Date.now()): void {
+  async setEconomyMode(mode: EconomyMode, nowMs = Date.now()): Promise<void> {
     if (mode === this.#economyMode) return;
-    const current = this.store.getSnapshot();
 
-    if (mode === 'development') {
-      this.#normalResources = captureResources(current);
+    const wasInitialized = this.#initialized;
+    this.#initialized = false;
+    const currentMode = this.#economyMode;
+    const currentProfileId = this.#activeProfileId;
+
+    try {
+      // Drain the old profile before changing any mode-dependent persistence routing.
+      this.queueCheckpoint(this.store.getSnapshot(), nowMs);
+      await this.#saveChain;
+
+      const epoch = ++this.#persistenceEpoch;
+      const loaded = await this.loadModeProfile(mode, nowMs);
+      if (epoch !== this.#persistenceEpoch) return;
+
+      const persisted = stripLegacyDevelopmentSandboxResources(loaded.state);
+      const targetProfileId = this.profileIdForMode(mode);
+      if (persisted !== loaded.state) {
+        await saveSlimeProfile(this.#repository, targetProfileId, persisted, nowMs);
+      }
+
       this.#economyMode = mode;
+      this.#activeProfileId = targetProfileId;
       writeRuntimeSettings({ economyMode: mode }, this.#settingsStorage);
-      const sandbox = applyDevelopmentSandboxResources(current);
-      this.store.replaceState(sandbox);
-      this.queueCheckpoint(sandbox, nowMs);
-      return;
+      this.installPersistedState(persisted);
+      if (mode === 'normal') syncSlimePortalProgress(persisted, nowMs);
+    } catch (cause) {
+      this.#economyMode = currentMode;
+      this.#activeProfileId = currentProfileId;
+      throw cause;
+    } finally {
+      this.#initialized = wasInitialized;
     }
-
-    const restored = this.#normalResources === null
-      ? current
-      : restoreResources(current, this.#normalResources);
-    this.#economyMode = mode;
-    this.#normalResources = null;
-    writeRuntimeSettings({ economyMode: mode }, this.#settingsStorage);
-    this.store.replaceState(restored);
-    this.queueCheckpoint(restored, nowMs);
   }
 
   advanceToWallClock(
@@ -213,8 +223,10 @@ export class SlimeGameController {
     this.emitEvents(advanced.events, {
       source: options.source ?? 'live',
       elapsedSec: advanced.appliedOfflineSec,
+      fromAreaId: current.gameData.progression.currentAreaId,
       fromStage: current.gameData.progression.currentStage,
       fromWaveIndex: current.gameData.combat.currentWaveIndex,
+      toAreaId: nextState.gameData.progression.currentAreaId,
       toStage: nextState.gameData.progression.currentStage,
       toWaveIndex: nextState.gameData.combat.currentWaveIndex,
     });
@@ -348,8 +360,10 @@ export class SlimeGameController {
     this.emitEvents(result.events, {
       source: 'command',
       elapsedSec: 0,
+      fromAreaId: current.gameData.progression.currentAreaId,
       fromStage: current.gameData.progression.currentStage,
       fromWaveIndex: current.gameData.combat.currentWaveIndex,
+      toAreaId: nextState.gameData.progression.currentAreaId,
       toStage: nextState.gameData.progression.currentStage,
       toWaveIndex: nextState.gameData.combat.currentWaveIndex,
     });
@@ -365,17 +379,17 @@ export class SlimeGameController {
   }
 
   private stateForPersistence(state: SlimeMercenariesState): SlimeMercenariesState {
-    if (this.#economyMode !== 'development' || this.#normalResources === null) return state;
-    return restoreResources(state, this.#normalResources);
+    if (this.#economyMode !== 'development' || this.#developmentResources === null) return state;
+    return restoreResources(state, this.#developmentResources);
   }
 
   private installPersistedState(state: SlimeMercenariesState): void {
     if (this.#economyMode === 'development') {
-      this.#normalResources = captureResources(state);
+      this.#developmentResources = captureResources(state);
       this.store.replaceState(applyDevelopmentSandboxResources(state));
       return;
     }
-    this.#normalResources = null;
+    this.#developmentResources = null;
     this.store.replaceState(state);
   }
 
@@ -390,9 +404,9 @@ export class SlimeGameController {
     try {
       await this.#saveChain.catch(() => undefined);
       if (epoch !== this.#persistenceEpoch) return;
-      if (deleteExisting) await this.#repository.delete(this.#profileId);
-      await saveSlimeProfile(this.#repository, this.#profileId, state, savedAtMs);
-      syncSlimePortalProgress(state, savedAtMs);
+      if (deleteExisting) await this.#repository.delete(this.#activeProfileId);
+      await saveSlimeProfile(this.#repository, this.#activeProfileId, state, savedAtMs);
+      if (this.#economyMode === 'normal') syncSlimePortalProgress(state, savedAtMs);
       this.installPersistedState(state);
     } finally {
       if (epoch === this.#persistenceEpoch) this.#initialized = wasInitialized;
@@ -402,17 +416,56 @@ export class SlimeGameController {
   private queueCheckpoint(state: SlimeMercenariesState, savedAtMs: number): void {
     const epoch = this.#persistenceEpoch;
     const persisted = this.stateForPersistence(state);
+    const profileId = this.#activeProfileId;
+    const syncPortal = this.#economyMode === 'normal';
     this.#saveChain = this.#saveChain
       .catch(() => undefined)
       .then(async () => {
         if (epoch !== this.#persistenceEpoch) return;
-        await saveSlimeProfile(this.#repository, this.#profileId, persisted, savedAtMs);
-        syncSlimePortalProgress(persisted, savedAtMs);
+        await saveSlimeProfile(this.#repository, profileId, persisted, savedAtMs);
+        if (syncPortal) syncSlimePortalProgress(persisted, savedAtMs);
       })
       .catch((cause: unknown) => {
         const error = cause instanceof Error ? cause : new Error(String(cause));
         for (const listener of this.#errorListeners) listener(error);
       });
+  }
+
+  private profileIdForMode(mode: EconomyMode): string {
+    return mode === 'development' ? this.#developmentProfileId : this.#normalProfileId;
+  }
+
+  private async loadModeProfile(mode: EconomyMode, nowMs: number): Promise<LoadedSlimeProfile> {
+    const profileId = this.profileIdForMode(mode);
+    if (mode === 'normal') {
+      return loadOrCreateSlimeProfile({
+        repository: this.#repository,
+        profileId,
+        nowMs,
+      });
+    }
+
+    const existingDevelopment = await this.#repository.load(profileId);
+    if (existingDevelopment === null) {
+      const normal = await loadOrCreateSlimeProfile({
+        repository: this.#repository,
+        profileId: this.#normalProfileId,
+        nowMs,
+      });
+      const baseline = stripLegacyDevelopmentSandboxResources(normal.state);
+      const developmentBaseline: SlimeMercenariesState = {
+        ...baseline,
+        // The development profile starts as a snapshot now, not as another offline-time claim.
+        lastWallClockMs: nowMs,
+      };
+      await saveSlimeProfile(this.#repository, profileId, developmentBaseline, nowMs);
+    }
+
+    return loadOrCreateSlimeProfile({
+      repository: this.#repository,
+      profileId,
+      nowMs,
+    });
   }
 }
 

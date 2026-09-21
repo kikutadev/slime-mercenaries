@@ -19,13 +19,21 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   const [message, setMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const changeMode = (next: EconomyMode) => {
+  const changeMode = async (next: EconomyMode) => {
     if (busy || next === mode) return;
-    controller.setEconomyMode(next);
-    setMode(next);
-    setMessage(next === 'development'
-      ? '開発用モードに切り替えました。GOLDと素材は∞として扱われます。'
-      : '通常モードに切り替えました。開発用の仮想資源は持ち越しません。');
+    setBusy(true);
+    setMessage(null);
+    try {
+      await controller.setEconomyMode(next);
+      setMode(next);
+      setMessage(next === 'development'
+        ? '開発用モードに切り替えました。通常モードとは別のセーブで、GOLDと素材は∞として扱われます。'
+        : '通常モードに切り替えました。開発用モードの育成・進行は持ち越しません。');
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : 'プレイモードを切り替えられませんでした。');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const exportData = () => {
@@ -101,25 +109,25 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
               active={mode === 'normal'}
               title="通常モード"
               description="GOLDと素材を獲得・消費して遊ぶ通常のモードです。"
-              onClick={() => changeMode('normal')}
+              onClick={() => void changeMode('normal')}
             />
             <ModeButton
               active={mode === 'development'}
               title="開発用モード"
               description="GOLDと素材が∞になり、合成・鍛造・育成を自由に試せます。"
               badge="∞"
-              onClick={() => changeMode('development')}
+              onClick={() => void changeMode('development')}
             />
           </div>
           <div className={styles.modeNote}>
-            開発用モードのGOLD・素材は通常モードには反映されません。スライム育成やステージ進行はそのまま残ります。
+            通常モードと開発用モードは別々に保存されます。開発用モードの資源・育成・ステージ進行は通常モードへ反映されません。
           </div>
         </section>
 
         <section className={styles.section}>
           <div className={styles.sectionHeading}>
             <span>セーブデータ</span>
-            <small>この端末のデータを管理</small>
+            <small>{mode === 'development' ? '開発用モード' : '通常モード'}のデータを管理</small>
           </div>
           <div className={styles.dataActions}>
             <button type="button" onClick={exportData} disabled={busy}>
@@ -154,8 +162,10 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
             <strong>{pending.kind === 'delete' ? 'セーブデータを削除しますか？' : 'このデータを読み込みますか？'}</strong>
             <p>
               {pending.kind === 'delete'
-                ? '現在の進行データを削除して、最初から開始します。この操作は取り消せません。'
-                : '「' + pending.filename + '」で現在の進行データを上書きします。'}
+                ? (mode === 'development'
+                    ? '開発用モードの進行データだけを削除して、最初から開始します。通常モードのデータには影響しません。'
+                    : '通常モードの進行データだけを削除して、最初から開始します。開発用モードのデータには影響しません。')
+                : '「' + pending.filename + '」で現在の' + (mode === 'development' ? '開発用モード' : '通常モード') + 'データを上書きします。'}
             </p>
             <div>
               <button type="button" onClick={() => setPending(null)} disabled={busy}>キャンセル</button>
