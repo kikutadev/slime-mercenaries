@@ -1,7 +1,7 @@
 # Progression, Loot, Dispatch & Economy
 
 Status: Current
-Date: 2026-09-19
+Date: 2026-09-21
 
 ## 1. Economy goal
 
@@ -37,14 +37,14 @@ Initial world horizon contains eight areas.
 
 | Area | Theme | Primary new question | Major boss | Important unlock |
 |---|---|---|---|---|
-| 1 Clover Road | bright grass road | jobs + first fusion | Great Mushroom | Sword/Bow foundation |
-| 2 Mushroom Forest | giant colorful fungi | ranged vs swarm | Spore Boar | Wand/Dagger families |
-| 3 Amber Mine | crystal mine | armor/break | Amber Golem | Shield/Gun families |
-| 4 Sunken Marsh | shallow water/ruins | movement/control | Mire Hydra | first Tier 3 crests |
-| 5 Frost Ruins | snow + blue ruins | slowing fields | Frost Colossus | Frost/precision paths |
-| 6 Ember Canyon | volcanic red rock | burst/survival | Magma Tortoise | Dragon fragments begin |
-| 7 Moonlit Castle | moonlit keep | mixed elites | Crown Warden | King/Prism paths |
-| 8 Dragon Crater | black rock, stars, lava | full composition test | Ancient Sky Dragon | Dragon Core / world clear |
+| 1 Clover Road | bright grass road | jobs + first fusion | no separate boss; six-enemy mixed frontier | Sword/Bow foundation |
+| 2 Mushroom Forest | giant colorful fungi | ranged vs swarm | Great Mushroom | Wand/Dagger + Shield/Gun gear |
+| 3 Amber Mine | crystal mine | armor/break | Amber Turtle | first Tier 2 |
+| 4 Sunken Marsh | shallow water/ruins | movement/control | Great Marsh Frog | Tier 2 expansion |
+| 5 Frost Ruins | snow + blue ruins | slowing fields | Snow Statue Guardian | six-family Tier 2 target |
+| 6 Ember Canyon | volcanic red rock | burst/survival | Furnace Turtle | first Tier 3: Sword |
+| 7 Moonlit Castle | moonlit keep | mixed elites | Moon Crown Knight | additional Tier 3: Gun |
+| 8 Dragon Crater | black rock, stars, lava | full composition test | Star Eater Dragon | remaining Tier 3 / world clear |
 
 Area unlock is sequential for the first world. Normal stages can be farmed after a blocking boss.
 
@@ -168,7 +168,7 @@ Forge draws equipment, not mandatory core-job access.
 
 The current runtime uses Forge Key as a Token-funded Kit Gacha cost. Draw RNG/pity state is persisted by Kit; newly drawn weapons become persistent Kit Inventory instances, one family-compatible weapon can be equipped through a Kit Loadout, duplicate draws increase product-owned refinement rank, and capped duplicates overflow to family material.
 
-The Sword/Bow vertical slice currently includes Common/Rare/Mythic representatives (`Bronze Saber`, `Clover Blade`, `Starcleaver`, `Hunter Bow`, `Windstring`, `Comet String`). Epic/Legendary content and additional families remain content expansion; the ownership/draw/refinement contract is already fixed.
+All six weapon families now have Common/Rare/Mythic representatives in the production Forge pool. Epic/Legendary content and additional named Mythics remain content expansion; the ownership/draw/refinement contract is already fixed.
 
 Initial rarity targets may use conventional weighted rates and pity, but exact probabilities remain tuning data. Pity counters must persist and cannot be rerolled by reload.
 
@@ -228,6 +228,8 @@ Initial dispatch does **not** require:
 
 A simple `choose reserve slime -> choose job -> wait -> return with reward` loop is enough.
 
+Current first-world contract gates deliberately allow a fresh normal reserve body to participate without separate reserve-unit grinding: Road Escort requires Power 8, Forest Exploration 9, and Material Gathering 10. Dispatch remains an optional efficiency loop; it is not required to unlock a normal job or Fusion branch.
+
 ## 12. Stage growth and blockers
 
 Enemy power rises smoothly toward frontier checks. A failed frontier is a growth-cycle transition, not a static blocker.
@@ -260,7 +262,7 @@ OFFLINE 3h 42m
 
 Fusion ready: Sword Slime
 Dispatch complete: Forest Exploration
-Boss reached: Frost Colossus
+Boss reached: Snow Statue Guardian
 ```
 
 Completed dispatches should be resolved deterministically and included in the same concise return flow where practical.

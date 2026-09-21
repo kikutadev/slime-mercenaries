@@ -57,6 +57,37 @@ describe('released fusion content', () => {
     }
   });
 
+  it('supplies the seven bodies per family before the Dragon Crater final boss', () => {
+    const gearTotals = new Map<string, number>();
+    for (const [tokenId, count] of Object.entries(initialEconomyBalance.tokens)) {
+      gearTotals.set(tokenId, count);
+    }
+
+    const preBossStages = Object.values(areaDefinitions).flatMap((area) =>
+      area.id === 'area.dragon-crater' ? area.stages.slice(0, 4) : area.stages);
+    for (const stage of preBossStages) {
+      for (const reward of stage.clearRewards) {
+        if (reward.type !== 'token') continue;
+        gearTotals.set(reward.tokenId, (gearTotals.get(reward.tokenId) ?? 0) + reward.count);
+      }
+    }
+
+    for (const jobId of NORMAL_JOB_SLIME_IDS) {
+      const gearTokenId = jobCreationDefinitions[jobId].jobGearTokenId;
+      expect(gearTotals.get(gearTokenId) ?? 0, `${jobId} pre-final-boss Job Gear`).toBeGreaterThanOrEqual(7);
+    }
+  });
+
+  it('places deliberate late-world body milestones before Tier-3 showcase fights', () => {
+    const tokenIdsFor = (areaId: keyof typeof areaDefinitions, stageNumber: number) =>
+      areaDefinitions[areaId].stages[stageNumber - 1]!.clearRewards.flatMap((reward) =>
+        reward.type === 'token' ? [reward.tokenId] : []);
+
+    expect(tokenIdsFor('area.ember-canyon', 4)).toContain(jobCreationDefinitions.sword.jobGearTokenId);
+    expect(tokenIdsFor('area.moonlit-castle', 4)).toContain(jobCreationDefinitions.gun.jobGearTokenId);
+    expect(tokenIdsFor('area.dragon-crater', 4)).toContain(jobCreationDefinitions.dagger.jobGearTokenId);
+  });
+
   it('places later-family first Job Gear no later than the area that unlocks that family', () => {
     const cloverFinal = areaDefinitions['area.clover-road'].stages[4]!;
     const mushroomFinal = areaDefinitions['area.mushroom-forest'].stages[4]!;

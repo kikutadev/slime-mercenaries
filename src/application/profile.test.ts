@@ -80,12 +80,12 @@ it('keeps an uncleared major frontier locked during offline resume while farming
         currentStage: 5,
       },
       combat: { currentWaveIndex: 3, waveWorkRemaining: null, retryFarmClearsRemaining: 0, frontierDefeatTimeRemainingSec: null, contentBoundaryReached: false },
-      roster: { ...base.gameData.roster, slimes: { ...base.gameData.roster.slimes, [swordId]: { ...sword, level: 30 } } },
+      roster: { ...base.gameData.roster, slimes: { ...base.gameData.roster.slimes, [swordId]: { ...sword, level: 40 } } },
     },
   };
   await saveSlimeProfile(repository, 'default', state, 1_000);
-  const loaded = await loadOrCreateSlimeProfile({ repository, nowMs: 121_000 });
-  expect(loaded.appliedOfflineSec).toBe(120);
+  const loaded = await loadOrCreateSlimeProfile({ repository, nowMs: 601_000 });
+  expect(loaded.appliedOfflineSec).toBe(600);
   expect(highestStageClearedForArea(loaded.state.gameData.progression, 'area.mushroom-forest')).toBe(4);
   expect(loaded.offlineEvents.some((event) => event.type === 'bossDefeated')).toBe(false);
   expect(loaded.offlineEvents.some((event) => event.type === 'frontierBreakthroughDeferred')).toBe(true);

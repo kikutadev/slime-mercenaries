@@ -1,7 +1,7 @@
 # Enemy Content Specification
 
 Status: Current
-Date: 2026-09-19
+Date: 2026-09-21
 
 ## Purpose
 
@@ -11,7 +11,7 @@ Date: 2026-09-19
 
 ## Implementation status
 
-この仕様は承認済みcontent targetを所有する。2026-09-19時点のruntimeはまだClover RoadにMushroomを含むため、Area 1からArea 2へのMushroom移行は未実装。本文のArea配置を今後の実装正本とし、現行runtimeの状態はコードを参照する。
+この仕様はproduction runtimeへ接続済み。Area 1はLeaf / Flower / Critter、Area 2はMushroomとして分離され、Areas 3〜8を含む40 Stageすべてが通常のworld progressionから到達できる。実装上のenemy ID・encounter composition・数値はコードを正本とする。
 
 ## Current area direction
 

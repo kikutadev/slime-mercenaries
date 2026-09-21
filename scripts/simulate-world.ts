@@ -36,6 +36,11 @@ if (options.json) {
     retries: summary.retries,
     levels: summary.levelUps,
     fusions: summary.fusions,
+    tier2: summary.tier2Fusions,
+    tier3: summary.tier3Fusions,
+    forge: summary.forgeDraws,
+    dispatch: `${summary.dispatchCompletions}/${summary.dispatchStarts}`,
+    weapons: summary.equippedWeapons,
     maxWait: Math.round(summary.maxNoActionWindowSec),
     defeatAreas: Object.keys(summary.defeatsByArea).length,
   })));

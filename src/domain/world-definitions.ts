@@ -151,6 +151,17 @@ function deterministicJobGearRewards(areaOrder: number, stageNumber: number): re
     rewards.push({ type: 'token', tokenId: ids.token.trainingShield, count: 1 });
     rewards.push({ type: 'token', tokenId: ids.token.trainingGun, count: 2 });
   }
+  // Deliberate late-world body milestones make Tier 3 arrive during play rather than after bosses.
+  if (areaOrder === 6 && stageNumber === 4) {
+    rewards.push({ type: 'token', tokenId: ids.token.trainingSword, count: 1 });
+  }
+  if (areaOrder === 7 && stageNumber === 4) {
+    rewards.push({ type: 'token', tokenId: ids.token.trainingGun, count: 1 });
+  }
+  // The normal six-family cycle leaves Dagger one body short before the final boss.
+  if (areaOrder === 8 && stageNumber === 4) {
+    rewards.push({ type: 'token', tokenId: ids.token.trainingDagger, count: 1 });
+  }
   return rewards;
 }
 
@@ -179,15 +190,17 @@ function buildCurvedAreaStages(plan: CurvedAreaPlan): readonly StageDefinition[]
   const curve = balance.combat.worldAreaCurve;
   const baseWork = curve.baseWaveWorkByAreaOrder[plan.order];
   const baseGold = curve.baseWaveGoldByAreaOrder[plan.order];
+  const workStep = curve.stageWorkStepByAreaOrder[plan.order];
+  const goldStep = curve.stageGoldStepByAreaOrder[plan.order];
   const basePower = curve.stagePowerBaseByAreaOrder[plan.order];
-  if (baseWork === undefined || baseGold === undefined || basePower === undefined) {
+  if (baseWork === undefined || workStep === undefined || baseGold === undefined || goldStep === undefined || basePower === undefined) {
     throw new Error(`Missing world-area combat curve values for order ${plan.order}`);
   }
 
   return Array.from({ length: 5 }, (_unused, stageIndex): StageDefinition => {
     const stageNumber = stageIndex + 1;
-    const stageWork = baseWork + stageIndex * curve.stageWorkStep;
-    const stageGold = baseGold + stageIndex * curve.stageGoldStep;
+    const stageWork = baseWork + stageIndex * workStep;
+    const stageGold = baseGold + stageIndex * goldStep;
     const stagePower = basePower;
     const waves = curve.waveWorkMultipliers.map((multiplier, waveIndex): StageWaveDefinition => ({
       encounterId: encounterId(plan.slug, stageNumber, waveIndex + 1),
@@ -206,7 +219,7 @@ function buildCurvedAreaStages(plan: CurvedAreaPlan): readonly StageDefinition[]
       ? {
           encounterId: encounterId(plan.slug, stageNumber, 'boss'),
           work: Math.round(waves[2]!.work * curve.bossWorkMultiplier),
-          requiredPartyPower: basePower + curve.bossPowerBonus,
+          requiredPartyPower: Math.round(basePower * curve.bossPowerMultiplier),
           rewards: [{
             type: 'currency' as const,
             currencyId: ids.currency.gold,

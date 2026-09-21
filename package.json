@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "check:bundle": "node scripts/check-initial-bundle.mjs",
-    "verify:release": "pnpm run typecheck && pnpm run check:ui && pnpm test && pnpm run build && pnpm run check:bundle && pnpm run simulate:balance && pnpm run simulate:check && pnpm run simulate:paced",
+    "verify:release": "pnpm run typecheck && pnpm run check:ui && pnpm test && pnpm run build && pnpm run check:bundle && pnpm run simulate:balance && pnpm run simulate:check && pnpm run simulate:paced && pnpm run simulate:world:check",
     "preview": "vite preview",
     "generate:model": "pnpm run generate:sword && pnpm run generate:greatsword && pnpm run generate:archer",
     "generate:sword": "/Applications/Blender.app/Contents/MacOS/Blender --background --python tools/blender/generate_slime.py -- --variant sword --output public/assets/sword-slime.glb",

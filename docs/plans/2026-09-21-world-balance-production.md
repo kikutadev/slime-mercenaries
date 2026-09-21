@@ -1,7 +1,9 @@
 # Full-world Balance Production
 
-Status: Production complete — publicly verified
+Status: Superseded by 2026-09-21-tier3-world-progression.md
 Date: 2026-09-21
+
+> Historical baseline: this document records the Rank-2 world milestone before Tier-3 pacing, Forge and Dispatch were integrated into the full-world balance gate.
 
 ## Goal
 

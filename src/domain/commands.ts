@@ -476,6 +476,8 @@ export function fuseSlime(
     fusionSlimeCodexId(updated.typeId, updated.fusionFormId),
   );
   return accept(nextState, [semanticEvent(nextState, 'slimeFused', preview.step.id, {
+    areaId: nextState.gameData.progression.currentAreaId,
+    stageNumber: nextState.gameData.progression.currentStage,
     slimeId,
     fusionStepId: preview.step.id,
     fusionRank: preview.step.toRank,

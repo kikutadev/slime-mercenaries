@@ -97,9 +97,17 @@ describe('same-core full-world simulation', () => {
       expect(summary.clearedStages).toBe(40);
       expect(summary.areaUnlocks).toBe(7);
       expect(summary.jobsDiscovered).toBe(6);
-      expect(Object.keys(summary.defeatsByArea).sort()).toEqual([...AREA_IDS.slice(1)].sort());
+      expect(Object.keys(summary.defeatsByArea).length).toBeGreaterThanOrEqual(3);
+      expect(summary.firstTier2AreaId).toBe('area.amber-mine');
+      expect(summary.firstTier3AreaId).toBe('area.ember-canyon');
+      expect(summary.tier2Fusions).toBe(6);
+      expect(summary.tier3Fusions).toBe(6);
+      expect(summary.forgeDraws).toBeGreaterThanOrEqual(12);
+      expect(summary.dispatchStarts).toBe(3);
+      expect(summary.dispatchCompletions).toBe(3);
+      expect(summary.equippedWeapons).toBeGreaterThanOrEqual(4);
       expect(summary.finalParty).toHaveLength(6);
-      expect(summary.finalParty.every((slime) => slime.fusionRank >= 2)).toBe(true);
+      expect(summary.finalParty.every((slime) => slime.fusionRank === 4 && slime.jobTier === 3)).toBe(true);
     }
   });
 

@@ -82,11 +82,12 @@ describe('dispatch integration', () => {
     expect(dispatched.state.gameData.dispatch.contracts.roadEscort.slimeId).toBe(dispatchSwordId);
   });
 
-  it('uses authored power thresholds without a random failure chance', () => {
+  it('lets a fresh reserve body use the authored starter contracts without a random failure chance', () => {
     const { state: initial, swordId } = createReserveSword();
-    const rejected = startDispatch(initial, 'materialGathering', swordId);
-    expect(rejected.accepted).toBe(false);
-    if (rejected.accepted) return;
-    expect(rejected.reason).toBe('insufficient-power');
+    const started = startDispatch(initial, 'materialGathering', swordId);
+    expect(started.accepted).toBe(true);
+    if (!started.accepted) return;
+    expect(started.state.gameData.roster.slimes[swordId]?.assignment).toBe('dispatch');
+    expect(started.state.gameData.dispatch.contracts.materialGathering.slimeId).toBe(swordId);
   });
 });

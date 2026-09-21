@@ -1,7 +1,7 @@
 # Slime Mercenaries — System Production Roadmap
 
 Status: In Progress
-Date: 2026-09-18
+Date: 2026-09-21
 Package manager: pnpm (`pnpm@11.25.0`)
 
 ## Goal
@@ -18,44 +18,43 @@ Status: Implemented
 - same-type duplicate bodies remain owned instead of auto-merging
 - same-type bodies can occupy multiple formation slots
 - battle / reserve / dispatch exclusivity is per instance
-- level / promotion / fusion / equipment are per instance
+- level / fusion / equipment are per instance
 - spare reserve bodies may be explicitly converted into Fusion Core
 - schema v4 migration preserves old saves
 
 Detailed plan: `docs/plans/2026-09-18-multi-slime-roster.md`
 
-## Phase 1 — Promotion × Fusion composition correctness
+## Phase 1 — Fusion form-growth correctness
 
 Status: Implemented
 
-Current risk: Sword Fusion presentation can override a promoted Fighter / Blademaster / Berserker, which collapses the intentionally separate Promotion and Fusion axes.
+Normal job form growth is now one authored Fusion axis rather than separate Promotion and Fusion systems.
 
 Rules:
 
-- Promotion chooses the job form/model/primary battle behavior.
-- Fusion remains an independent growth axis.
-- Tier-1 Sword may use the Greatsword fusion model at the authored fusion milestone.
-- Once promoted, the promoted job model/behavior remains authoritative; Fusion state is retained and may later add promoted-form modifiers rather than replacing the form.
+- Rank 1 is the Tier-1 job base.
+- Rank 2 is the first family-specific combat/form enhancement.
+- Rank 3 resolves to the authored Tier-2 form.
+- Rank 4 requires an explicit choice between two authored Tier-3 specializations.
+- `jobTier` is derived metadata written atomically by the Fusion step.
+- branch identity is `fusionFormId`; no parallel promotion state is required.
 
 Acceptance:
 
-- Fighter + Greatsword fusion state still renders/behaves as Fighter.
-- promotion does not erase `fusionRank` / `fusionFormId`.
-- fusion does not erase `promotionPathId` / `jobTier`.
+- Fusion never changes slime body size.
+- Tier-3 branch choice is explicit and deterministic.
+- Battle/Gallery resolve the same authored form and behavior from the stored Fusion state.
 
 ## Phase 2 — Fusion completeness across six families
 
-Status: Implemented — first production sink for all six normal families
+Status: Implemented — complete Rank 1 -> 4 trees for all six normal families
 
-Sword and Bow already have authored Fusion trees. Shield / Wand / Dagger / Gun must have a real Core sink so duplicate-body-to-Core conversion is meaningful for every normal family.
+All six families have the first enhancement, one Tier-2 form, and two explicit Tier-3 branch choices. Duplicate-body-to-Core conversion therefore has an authored sink through the full first-world growth path.
 
-System-completeness slice:
-
-- at least one authored Fusion step for every normal family
-- recipe uses already-obtainable shared materials; no new balance economy introduced just to close the system gap
+- recipes use obtainable shared materials
 - Fusion rank affects authoritative analytical combat through the existing rank multiplier
-- presentation metadata exists for every released step
-- later ranks and exact values remain balance/content work, not part of this system pass
+- presentation metadata/model/behavior exists for every released Tier-2/Tier-3 form
+- Tier-3 choice is deterministic and player-selected
 
 ## Phase 3 — Combat status/effect foundation
 
@@ -107,31 +106,31 @@ Implement King / Golden / Dragon / Prism / Mimic as horizontal special forms wit
 
 ## Phase 7 — World/content expansion
 
-Status: In Progress — eight-area manifest, per-area save progression, and sequential resolver implemented
+Status: Implemented — eight Areas / 40 Stages connected to production enemies, environments and progression
 
-Expand beyond Clover Road toward the authored eight-area world. Reuse the enemy family production pipeline rather than creating area-specific one-off runtime logic.
+The first world now runs sequentially from Clover Road through Dragon Crater. Areas 2-8 have authored encounters, bosses, environment kits, stage rewards, frontier gates and same-core balance coverage.
 
 ## Phase 8 — Production release hardening
 
-Status: In Progress — 3D route splitting + bundle guard + unified release gate implemented
+Status: In Progress — runtime economy modes, save transfer, route splitting, bundle guard and release gates implemented
 
-- validation sandbox becomes explicit opt-in when the validation build is no longer the intended public build
-- mobile performance/code splitting pass
-- production economy enabled
-- clean same-core simulator / typecheck / test / build gate using pnpm only
+- Settings exposes Normal / Development economy modes without leaking virtual resources into normal saves
+- save export / import / delete is available through the shared Kit save envelope
+- mobile performance/code splitting pass remains active
+- release verification includes Clover Road profiles plus the full-world Tier-3 progression simulator
 
 ## Current implementation notes
 
 - Save schema v6 stores `progression.areas[areaId].highestStageCleared` plus durable Codex discoveries/NEW state. Schema v4/v5 saves migrate without changing roster/loadout identity; inferred legacy Codex entries are marked viewed to avoid false NEW spam.
-- Codex discovery is independent of current ownership: Tier-1 jobs, Promotion forms, Rare Mutation forms, and weapon definitions persist once discovered. Fusion rank/form remains progression rather than a separate Codex entry.
-- Every normal family now has a usable Fusion Core sink. Sword/Bow keep their deeper authored trees; Shield/Wand/Dagger/Gun currently have the first system-completeness milestone only.
+- Codex discovery is independent of current ownership: Tier-1 jobs, Fusion job forms, Rare Mutation forms, and weapon definitions persist once discovered. Fusion rank/form remains progression rather than a separate Codex entry.
+- Every normal family has a complete Rank 1 -> Rank 4 Fusion tree, including one Tier-2 form and two Tier-3 choices.
 - Temporary combat-effect primitives cover damage reduction, movement slow, execute thresholds and line-pierce distance.
 - All 12 Tier-3 specializations now expose distinct battle behavior IDs, dedicated production motion contracts, and shared Gallery/BattleRuntime VFX. Tier-2 prototype fallbacks and the fake Engineer turret runtime were removed; Engineer uses the actual model turret root.
 - Forge now contains one Common/Rare/Mythic weapon for all six families using the same per-family 55/18/2 weight pattern, preserving the prior aggregate rarity ratio.
 - Existing-body Rare Mutation state exists for King/Golden/Dragon/Prism. The Application controller exposes the authoritative mutate command, headless selectors expose per-instance eligibility/readiness, and product-owned Mutation Fragment/Catalyst rewards flow through the same authoritative battle reward payload/receipt without leaking mutation concepts into Kit Core. Fragment conversion thresholds are intentionally not invented. Dragon selected origins remain closed until authored; Mimic remains a separate special-capture problem.
-- The first-world manifest now registers all eight canonical area IDs in stable sequence. Per-area save progress is initialized/normalized for all known areas, and combat resolves the next world stage generically without skipping an unauthored area. Areas 2-8 still need authored stage/enemy/balance content.
+- The first world contains eight canonical Areas and 40 authored Stages. Production enemies, bosses, environments, rewards and frontier balance are connected through the same sequential resolver.
 - Battle, Camp resident 3D, and Fusion 3D are lazy boundaries. The production entry no longer statically preloads Three/R3F; current initial static JS is 374.7 KiB raw / 109.6 KiB gzip. `pnpm run check:bundle` enforces a 160 KiB gzip budget and rejects WebGL/3D-only chunks in the initial static graph.
-- `pnpm run verify:release` is the single release-check entry point and runs typecheck, the full test suite, production build, initial-bundle guard, and all three same-core simulator checks.
+- `pnpm run verify:release` is the single release-check entry point and runs typecheck, UI contract, full tests, production build, initial-bundle guard, the three Clover Road profiles, and the full-world Tier-3 progression gate.
 
 ## Verification contract
 
@@ -148,6 +147,7 @@ pnpm run check:bundle
 pnpm run simulate:balance
 pnpm run simulate:check
 pnpm run simulate:paced
+pnpm run simulate:world:check
 ```
 
 Do not add npm lockfiles or `npm run` commands.

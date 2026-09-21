@@ -21,7 +21,7 @@ button { font: inherit; }
 .environment-gallery__hud {
   position: absolute;
   z-index: 4;
-  top: max(14px, env(safe-area-inset-top));
+  top: max(14px, var(--safe-area-top));
   left: 14px;
   right: 14px;
   display: flex;

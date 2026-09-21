@@ -24,11 +24,20 @@ import {
   previewSlimeLevelUp,
 } from './commands';
 import { assignSlimeToFormation, nextCombatBoundarySec } from './combat';
+import { slimeCombatPower } from './combat-power';
 import { startDispatch } from './dispatch';
-import { equipWeapon, forgeEquipment } from './equipment';
+import { equippedWeaponDefinition, equipWeapon, forgeEquipment } from './equipment';
 import { advanceSlimeWorldTo } from './world';
 import { balance } from './balance';
-import { NORMAL_JOB_SLIME_IDS, ids, jobCreationDefinitions, type DispatchContractId, type JobSlimeId } from './definitions';
+import {
+  NORMAL_JOB_SLIME_IDS,
+  dispatchContractDefinitions,
+  ids,
+  jobCreationDefinitions,
+  weaponDefinitionsByDefinitionId,
+  type DispatchContractId,
+  type JobSlimeId,
+} from './definitions';
 import { firstSlimeByType, slimeIdsByType } from './roster';
 import { createInitialSlimeMercenariesState, highestStageClearedForArea, type SlimeInstanceId, type SlimeMercenariesState } from './state';
 
@@ -491,14 +500,15 @@ export type WorldProgressionPolicyProfileId = 'world-reactive';
  */
 export function createWorldProgressionPolicy(): SimulatorPolicy<SlimeMercenariesState, SlimeSimulatorCommand> {
   let handledRetreatPhase: string | null = null;
-  let handledStageStrengthenKey: string | null = null;
+  const startedDispatches = new Set<DispatchContractId>();
 
   return {
     id: 'slime-mercenaries.world-reactive',
-    version: '1',
+    version: '2',
     chooseAction: (state) => {
       if (state.gameData.combat.contentBoundaryReached) return { kind: 'stop', reason: 'world-clear' };
 
+      // Discover each family as soon as its authored area gate and deterministic Job Gear allow it.
       for (const jobId of NORMAL_JOB_SLIME_IDS) {
         if (!isJobCreationUnlocked(state, jobId) || firstSlimeByType(state, jobId) !== null) continue;
         const create = previewJobCreation(state, jobId);
@@ -508,6 +518,7 @@ export function createWorldProgressionPolicy(): SimulatorPolicy<SlimeMercenaries
         if (plain !== null) return { kind: 'command', command: plain };
       }
 
+      // Keep one representative of every discovered family in the six-slot battle party.
       for (const [slotIndex, jobId] of NORMAL_JOB_SLIME_IDS.entries()) {
         const primary = firstSlimeByType(state, jobId);
         if (primary === null || state.gameData.roster.formationSlots.includes(primary.id)) continue;
@@ -518,17 +529,15 @@ export function createWorldProgressionPolicy(): SimulatorPolicy<SlimeMercenaries
         if (freeSlot >= 0) return { kind: 'command', command: { type: 'assign', slimeId: primary.id, slotIndex: freeSlot } };
       }
 
-      for (const jobId of NORMAL_JOB_SLIME_IDS) {
-        const primary = firstSlimeByType(state, jobId);
-        if (primary === null) continue;
-        const spare = slimeIdsByType(state, jobId)
-          .map((slimeId) => state.gameData.roster.slimes[slimeId])
-          .find((candidate) => candidate !== undefined && candidate.id !== primary.id && candidate.assignment === 'reserve');
-        if (spare !== undefined) {
-          return { kind: 'command', command: { type: 'convert-to-core', slimeId: spare.id } };
-        }
+      // Forge Keys are a progression resource, not a post-game collectible. Spend them as they arrive.
+      if (readToken(state.tokens, ids.token.forgeKey) >= balance.equipment.forgeKeyCostPerDraw) {
+        return { kind: 'command', command: { type: 'forge', drawCount: 1 } };
       }
 
+      const weaponUpgrade = worldWeaponUpgradeAction(state);
+      if (weaponUpgrade !== null) return { kind: 'command', command: weaponUpgrade };
+
+      // Resolve any Fusion that is already fully ready before spending on new preparation.
       for (const jobId of NORMAL_JOB_SLIME_IDS) {
         const primary = firstSlimeByType(state, jobId);
         if (primary === null) continue;
@@ -538,37 +547,64 @@ export function createWorldProgressionPolicy(): SimulatorPolicy<SlimeMercenaries
         }
       }
 
+      /**
+       * Prepare only Fusions whose entire non-Core recipe and future Core-body supply are already
+       * authored/owned. This lets the world reward cadence decide when Tier 2/3 appears instead of
+       * blindly grinding every slime to the maximum level on Area 1.
+       */
       for (const jobId of NORMAL_JOB_SLIME_IDS) {
         const primary = firstSlimeByType(state, jobId);
         if (primary === null) continue;
         const fusion = previewSlimeFusion(state, primary.id);
-        if (fusion.step === null || !fusion.unlocked || !fusion.levelMet) continue;
+        if (fusion.step === null || !fusion.unlocked) continue;
+
         const coreTokenId = jobCreationDefinitions[jobId].fusionCoreTokenId;
         const coreRequirement = fusion.requirements.find((requirement) => requirement.tokenId === coreTokenId);
-        if (coreRequirement === undefined || coreRequirement.missing <= 0) continue;
         const otherInputsReady = fusion.requirements
           .filter((requirement) => requirement.tokenId !== coreTokenId)
           .every((requirement) => requirement.missing === 0);
-        if (!otherInputsReady || readToken(state.tokens, jobCreationDefinitions[jobId].jobGearTokenId) <= 0) continue;
+        if (!otherInputsReady) continue;
 
-        const duplicate = previewJobCreation(state, jobId);
-        if (duplicate.canCreate) return { kind: 'command', command: { type: 'create-job', jobId } };
-        const plain = prepareOnePlainSlime(state);
-        if (plain !== null) return { kind: 'command', command: plain };
-      }
+        if (coreRequirement !== undefined) {
+          const futureBodySupply = slimeIdsByType(state, jobId)
+            .filter((slimeId) => slimeId !== primary.id).length
+            + readToken(state.tokens, jobCreationDefinitions[jobId].jobGearTokenId)
+            + readToken(state.tokens, coreTokenId);
+          if (futureBodySupply < coreRequirement.required) continue;
+        }
 
-      const stageStrengthenKey = `${state.gameData.progression.currentAreaId}:${state.gameData.progression.currentStage}`;
-      if (handledStageStrengthenKey !== stageStrengthenKey) {
-        const candidates = worldActivePrimariesByLevel(state);
-        for (const slime of candidates) {
-          const level = previewSlimeLevelUp(state, slime.id, 1);
-          if (level?.available !== true) continue;
-          if (readCurrency(state.currencies, ids.currency.gold).compare(level.totalCost) < 0) continue;
-          handledStageStrengthenKey = stageStrengthenKey;
-          return { kind: 'command', command: { type: 'level', slimeId: slime.id, count: 1 } };
+        if (!fusion.levelMet) {
+          const level = previewSlimeLevelUp(state, primary.id, 1);
+          if (level?.available === true
+            && readCurrency(state.currencies, ids.currency.gold).compare(level.totalCost) >= 0) {
+            return { kind: 'command', command: { type: 'level', slimeId: primary.id, count: 1 } };
+          }
+          continue;
+        }
+
+        if (coreRequirement !== undefined && coreRequirement.missing > 0) {
+          const spare = slimeIdsByType(state, jobId)
+            .map((slimeId) => state.gameData.roster.slimes[slimeId])
+            .find((candidate) => candidate !== undefined
+              && candidate.id !== primary.id
+              && candidate.assignment === 'reserve');
+
+          if (spare !== undefined) {
+            const dispatch = worldDispatchForCandidate(state, spare.id, startedDispatches);
+            if (dispatch !== null) return { kind: 'command', command: dispatch };
+            return { kind: 'command', command: { type: 'convert-to-core', slimeId: spare.id } };
+          }
+
+          if (readToken(state.tokens, jobCreationDefinitions[jobId].jobGearTokenId) > 0) {
+            const duplicate = previewJobCreation(state, jobId);
+            if (duplicate.canCreate) return { kind: 'command', command: { type: 'create-job', jobId } };
+            const plain = prepareOnePlainSlime(state);
+            if (plain !== null) return { kind: 'command', command: plain };
+          }
         }
       }
 
+      // Frontier failures remain meaningful even when no Fusion is immediately available.
       if (state.gameData.combat.retryFarmClearsRemaining > 0) {
         const phase = [
           state.gameData.progression.currentAreaId,
@@ -595,6 +631,44 @@ export function createWorldProgressionPolicy(): SimulatorPolicy<SlimeMercenaries
       return { kind: 'stop', reason: 'no-combat-boundary' };
     },
   };
+}
+
+const WORLD_DISPATCH_ORDER: readonly DispatchContractId[] = [
+  'roadEscort',
+  'forestExploration',
+  'materialGathering',
+];
+
+function worldDispatchForCandidate(
+  state: SlimeMercenariesState,
+  slimeId: SlimeInstanceId,
+  startedDispatches: Set<DispatchContractId>,
+): SlimeSimulatorCommand | null {
+  for (const contractId of WORLD_DISPATCH_ORDER) {
+    if (startedDispatches.has(contractId)) continue;
+    const contract = state.gameData.dispatch.contracts[contractId];
+    if (contract.slimeId !== null || contract.activity.status !== 'available') continue;
+    if (slimeCombatPower(state, slimeId).compare(dispatchContractDefinitions[contractId].requiredPower) < 0) continue;
+    startedDispatches.add(contractId);
+    return { type: 'start-dispatch', contractId, slimeId };
+  }
+  return null;
+}
+
+function worldWeaponUpgradeAction(state: SlimeMercenariesState): SlimeSimulatorCommand | null {
+  for (const jobId of NORMAL_JOB_SLIME_IDS) {
+    const primary = firstSlimeByType(state, jobId);
+    if (primary === null) continue;
+    const current = equippedWeaponDefinition(state, primary.id);
+    const best = Object.values(state.gameData.equipment.inventory)
+      .map((instance) => weaponDefinitionsByDefinitionId[instance.definitionId])
+      .filter((definition) => definition?.family === jobId)
+      .sort((left, right) => (right?.dpsMultiplier ?? 0) - (left?.dpsMultiplier ?? 0))[0];
+    if (best === undefined) continue;
+    if (current !== null && current.dpsMultiplier >= best.dpsMultiplier) continue;
+    return { type: 'equip', slimeId: primary.id, weaponDefinitionId: best.id };
+  }
+  return null;
 }
 
 function worldActivePrimariesByLevel(state: SlimeMercenariesState) {
@@ -635,13 +709,22 @@ export type WorldProgressionSimulationSummary = Readonly<{
   retries: number;
   levelUps: number;
   fusions: number;
+  tier2Fusions: number;
+  tier3Fusions: number;
+  firstTier2AreaId: string | null;
+  firstTier3AreaId: string | null;
   jobsDiscovered: number;
+  forgeDraws: number;
+  dispatchStarts: number;
+  dispatchCompletions: number;
+  equippedWeapons: number;
   defeatsByArea: Readonly<Record<string, number>>;
   clearTimeByArea: Readonly<Record<string, number>>;
   finalParty: readonly Readonly<{
     jobId: JobSlimeId;
     level: number;
     fusionRank: number;
+    fusionFormId: string;
     jobTier: number;
   }>[];
   maxNoActionWindowSec: number;
@@ -664,15 +747,29 @@ export function summarizeWorldProgressionSimulation(
     }
   }
 
+  const fusionEvents = run.events.filter((event) => event.type === 'slimeFused');
+  const tier2FusionEvents = fusionEvents.filter((event) => event.payload?.jobTier === 2);
+  const tier3FusionEvents = fusionEvents.filter((event) => event.payload?.jobTier === 3);
+  const firstTierArea = (events: readonly DomainEvent[]) => {
+    const areaId = events[0]?.payload?.areaId;
+    return typeof areaId === 'string' ? areaId : null;
+  };
+
   const finalParty = NORMAL_JOB_SLIME_IDS.flatMap((jobId) => {
     const slime = firstSlimeByType(run.finalState, jobId);
     return slime === null ? [] : [{
       jobId,
       level: slime.level,
       fusionRank: slime.fusionRank,
+      fusionFormId: slime.fusionFormId,
       jobTier: slime.jobTier,
     }];
   });
+
+  const equippedWeapons = finalParty.filter(({ jobId }) => {
+    const slime = firstSlimeByType(run.finalState, jobId);
+    return slime !== null && equippedWeaponDefinition(run.finalState, slime.id) !== null;
+  }).length;
 
   return {
     seed,
@@ -684,8 +781,16 @@ export function summarizeWorldProgressionSimulation(
     farmClears: run.events.filter((event) => event.type === 'stageCleared' && event.payload?.farming === true).length,
     retries: run.events.filter((event) => event.type === 'frontierRetryStarted').length,
     levelUps: run.events.filter((event) => event.type === 'slimeLeveled').length,
-    fusions: run.events.filter((event) => event.type === 'slimeFused').length,
+    fusions: fusionEvents.length,
+    tier2Fusions: tier2FusionEvents.length,
+    tier3Fusions: tier3FusionEvents.length,
+    firstTier2AreaId: firstTierArea(tier2FusionEvents),
+    firstTier3AreaId: firstTierArea(tier3FusionEvents),
     jobsDiscovered: run.events.filter((event) => event.type === 'slimeJobDiscovered').length,
+    forgeDraws: run.events.filter((event) => event.type === 'equipmentForgeResolved').length,
+    dispatchStarts: run.events.filter((event) => event.type === 'dispatchStarted').length,
+    dispatchCompletions: run.events.filter((event) => event.type === 'dispatchCompleted').length,
+    equippedWeapons,
     defeatsByArea,
     clearTimeByArea,
     finalParty,
@@ -723,6 +828,30 @@ export function validateWorldProgressionSummary(summary: WorldProgressionSimulat
   const underFused = summary.finalParty.filter((slime) => slime.fusionRank < targets.minFinalFusionRank);
   if (underFused.length > 0) {
     failures.push(`underFused=${underFused.map((slime) => slime.jobId).join(',')}`);
+  }
+  if (summary.tier2Fusions < targets.minTier2Fusions) {
+    failures.push(`tier2Fusions=${summary.tier2Fusions} < ${targets.minTier2Fusions}`);
+  }
+  if (summary.tier3Fusions < targets.minTier3Fusions) {
+    failures.push(`tier3Fusions=${summary.tier3Fusions} < ${targets.minTier3Fusions}`);
+  }
+  if (summary.firstTier2AreaId !== targets.firstTier2AreaId) {
+    failures.push(`firstTier2AreaId=${summary.firstTier2AreaId}, expected=${targets.firstTier2AreaId}`);
+  }
+  if (summary.firstTier3AreaId !== targets.firstTier3AreaId) {
+    failures.push(`firstTier3AreaId=${summary.firstTier3AreaId}, expected=${targets.firstTier3AreaId}`);
+  }
+  if (summary.forgeDraws < targets.minForgeDraws) {
+    failures.push(`forgeDraws=${summary.forgeDraws} < ${targets.minForgeDraws}`);
+  }
+  if (summary.dispatchStarts < targets.minDispatchStarts) {
+    failures.push(`dispatchStarts=${summary.dispatchStarts} < ${targets.minDispatchStarts}`);
+  }
+  if (summary.dispatchCompletions < targets.minDispatchCompletions) {
+    failures.push(`dispatchCompletions=${summary.dispatchCompletions} < ${targets.minDispatchCompletions}`);
+  }
+  if (summary.equippedWeapons < targets.minEquippedWeapons) {
+    failures.push(`equippedWeapons=${summary.equippedWeapons} < ${targets.minEquippedWeapons}`);
   }
 
   return failures;
