@@ -1,6 +1,6 @@
 # Full-world Balance Production
 
-Status: Production implementation complete locally — deploy verification pending
+Status: Production complete — publicly verified
 Date: 2026-09-21
 
 ## Goal
@@ -73,5 +73,6 @@ Tier 2 / Tier 3までを40 Stage内で必ず到達させることは今回のacc
 - [x] Area 1 paced-defeat 20-seed balance gate PASS
 - [x] full-world 20-seed acceptance gate PASS
 - [x] production build PASS
-- [ ] origin/main commit / push
-- [ ] games.kikuta.dev deploy / public smoke
+- [x] origin/main implementation commit: 8f7002c
+- [x] games.kikuta.dev deploy: Worker 733fd548-e6ab-4333-9da6-f1eedd730b50
+- [x] public smoke: 16/16 authored battle states PASS, browser/page/resource errors 0
