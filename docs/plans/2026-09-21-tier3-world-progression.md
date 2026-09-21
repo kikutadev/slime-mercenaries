@@ -1,6 +1,6 @@
 # Tier 2 / Tier 3 World Progression
 
-Status: Production complete locally — deploy verification pending
+Status: Production complete — publicly verified
 Date: 2026-09-21
 
 ## Goal
@@ -122,5 +122,7 @@ This simulator time is a same-core active-progress benchmark, not a promised rea
 - [x] full tests: 62 files / 382 tests
 - [x] existing three Clover Road balance gates
 - [x] production build / bundle / UI contract
-- [ ] origin/main
-- [ ] production deploy / public battle smoke
+- [x] origin/main implementation commit: 31da8de
+- [x] production deploy: Worker c2e300a7-f70d-4d8c-955e-0f96a30b9242
+- [x] public battle smoke: 16/16 authored battle states PASS
+- [x] public Tier-3 final-party / Star Eater Dragon battle canvas PASS
