@@ -21,9 +21,12 @@ const OUT_DIR = path.resolve(process.env.SETTINGS_QA_OUTPUT || '.tmp/settings-sa
 
   page.on('pageerror', (error) => errors.push('pageerror: ' + error.message));
   page.on('console', (message) => {
+    const sourceUrl = message.location().url || '';
+    if (sourceUrl.includes('/cdn-cgi/rum')) return;
     if (message.type() === 'error') errors.push('console: ' + message.text());
   });
   page.on('response', (response) => {
+    if (response.url().includes('/cdn-cgi/rum')) return;
     if (response.status() >= 400) errors.push('http ' + response.status() + ': ' + response.url());
   });
 
