@@ -30,6 +30,7 @@ export const ids = {
     wandWeaponMaterial: 'token.equipment-material.wand',
     daggerWeaponMaterial: 'token.equipment-material.dagger',
     gunWeaponMaterial: 'token.equipment-material.gun',
+    mimicHeart: 'token.special.mimic-heart',
   },
   gacha: {
     forge: 'gacha.equipment-forge',
@@ -41,6 +42,7 @@ export const ids = {
     wand: 'loadout.slime.wand',
     dagger: 'loadout.slime.dagger',
     gun: 'loadout.slime.gun',
+    mimic: 'loadout.slime.mimic',
   },
   activity: {
     roadEscort: 'activity.dispatch.road-escort',
@@ -55,6 +57,16 @@ export const ids = {
 
 export const NORMAL_JOB_SLIME_IDS = ['sword', 'shield', 'bow', 'wand', 'dagger', 'gun'] as const;
 export type JobSlimeId = typeof NORMAL_JOB_SLIME_IDS[number];
+
+export const SPECIAL_SLIME_IDS = ['mimic'] as const;
+export type SpecialSlimeId = typeof SPECIAL_SLIME_IDS[number];
+export type SlimeTypeId = JobSlimeId | SpecialSlimeId;
+export const ALL_SLIME_TYPE_IDS = [...NORMAL_JOB_SLIME_IDS, ...SPECIAL_SLIME_IDS] as const;
+
+const NORMAL_JOB_SLIME_ID_SET = new Set<string>(NORMAL_JOB_SLIME_IDS);
+export function isNormalJobSlimeId(typeId: SlimeTypeId | string): typeId is JobSlimeId {
+  return NORMAL_JOB_SLIME_ID_SET.has(typeId);
+}
 
 export const AREA_IDS = [
   'area.clover-road',

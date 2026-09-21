@@ -1,8 +1,8 @@
 import { GameNumber, createLoadoutState, createRngStreams, createTimedActivityState, type GameNumberSerialized, type GameState, type InventoryState, type LoadoutState, type TimedActivityState } from 'idle-game-kit';
-import { AREA_IDS, areaDefinitions, dispatchContractDefinitions, ids, initialEconomyBalance, slimeWeaponLoadoutDefinitions, type AreaId, type DispatchContractId, type JobSlimeId } from './definitions';
+import { AREA_IDS, areaDefinitions, dispatchContractDefinitions, ids, initialEconomyBalance, slimeWeaponLoadoutDefinitions, type AreaId, type DispatchContractId, type SlimeTypeId } from './definitions';
 
 export const SLIME_MERCENARIES_SCHEMA_VERSION = 6;
-export const SLIME_MERCENARIES_DEFINITION_VERSION = '2026-09-21.4';
+export const SLIME_MERCENARIES_DEFINITION_VERSION = '2026-09-22.1';
 
 export type SlimeInstanceId = string;
 export type SlimeAssignment = 'battle' | 'reserve' | 'dispatch';
@@ -42,7 +42,7 @@ export function createInitialMutationProgressState(): MutationProgressState {
 export type SlimeProgress = Readonly<{
   id: SlimeInstanceId;
   serial: number;
-  typeId: JobSlimeId;
+  typeId: SlimeTypeId;
   level: number;
   jobTier: number;
   fusionRank: number;
@@ -62,7 +62,7 @@ export function createInitialEquipmentState(): EquipmentState {
   return { inventory: {}, loadouts: {} };
 }
 
-export function createSlimeWeaponLoadout(typeId: JobSlimeId): LoadoutState {
+export function createSlimeWeaponLoadout(typeId: SlimeTypeId): LoadoutState {
   return createLoadoutState(slimeWeaponLoadoutDefinitions[typeId]);
 }
 

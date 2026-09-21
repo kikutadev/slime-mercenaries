@@ -9,7 +9,7 @@ const CHARACTER_IDS = [
   'puff-frog','marsh-sprout','bubble-snail','skimming-lily','great-marsh-frog',
   'snow-roller','ice-bug','scarf-snowman','icicle-lantern','snow-statue-guardian',
   'ember-gecko','charcoal-roller','crackle-bug','magma-crab','furnace-turtle',
-  'round-sentry','shield-sentry','bell-mage','windup-bat','moon-crown-knight',
+  'round-sentry','shield-sentry','bell-mage','windup-bat','hostile-mimic','moon-crown-knight',
   'egg-dragon','tiny-wing-dragon','star-eater-lizard','meteor-hatchling','star-eater-dragon',
 ];
 
@@ -21,7 +21,7 @@ const ATTACK_FRAME_U = {
   'marsh-sprout':0.60,'bubble-snail':0.56,'skimming-lily':0.50,'great-marsh-frog':0.80,
   'snow-roller':0.64,'ice-bug':0.50,'scarf-snowman':0.64,'icicle-lantern':0.56,'snow-statue-guardian':0.80,
   'ember-gecko':0.78,'charcoal-roller':0.70,'crackle-bug':0.64,'magma-crab':0.63,'furnace-turtle':0.84,
-  'round-sentry':0.58,'shield-sentry':0.63,'bell-mage':0.74,'windup-bat':0.72,'moon-crown-knight':0.68,
+  'round-sentry':0.58,'shield-sentry':0.63,'bell-mage':0.74,'windup-bat':0.72,'hostile-mimic':0.52,'moon-crown-knight':0.68,
   'egg-dragon':0.56,'tiny-wing-dragon':0.74,'star-eater-lizard':0.80,'meteor-hatchling':0.70,'star-eater-dragon':0.74,
 };
 
@@ -33,7 +33,7 @@ const DEFEAT_FRAME_U = {
   'marsh-sprout':0.72,'bubble-snail':0.76,'skimming-lily':0.72,'great-marsh-frog':0.76,
   'snow-roller':0.72,'ice-bug':0.72,'scarf-snowman':0.76,'icicle-lantern':0.72,'snow-statue-guardian':0.78,
   'ember-gecko':0.76,'charcoal-roller':0.76,'crackle-bug':0.74,'magma-crab':0.76,'furnace-turtle':0.80,
-  'round-sentry':0.76,'shield-sentry':0.76,'bell-mage':0.76,'windup-bat':0.78,'moon-crown-knight':0.82,
+  'round-sentry':0.76,'shield-sentry':0.76,'bell-mage':0.76,'windup-bat':0.78,'hostile-mimic':0.78,'moon-crown-knight':0.82,
   'egg-dragon':0.78,'tiny-wing-dragon':0.78,'star-eater-lizard':0.80,'meteor-hatchling':0.80,'star-eater-dragon':0.86,
 };
 

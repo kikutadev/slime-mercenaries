@@ -1,7 +1,7 @@
 # Evolution, Fusion & Roster
 
 Status: Current
-Date: 2026-09-21
+Date: 2026-09-22
 
 ## 1. Roster model
 
@@ -129,12 +129,28 @@ Rare mutations:
 - Golden Slime
 - Dragon Slime
 - Prism Slime
+
+Special capture:
 - Mimic Slime
 ```
 
-Count: 1 root + 6 Tier 1 + 6 Tier 2 + 12 Tier 3 + 5 mutation = **30 forms**.
+Count: 1 root + 6 Tier 1 + 6 Tier 2 + 12 Tier 3 + 4 mutations + 1 special capture = **30 forms**.
 
 This is a content horizon. The first production slice should prove the loop with a much smaller subset.
+
+## 5.1 Special-capture Mimic
+
+Mimic Slime is not a seventh normal job and is not a Rare Mutation applied to an existing body.
+
+- Moonlit Castle Stage 3 contains the authored hostile Mimic encounter.
+- The first clear grants one Mimic Heart; ordinary farming does not repeatedly grant it.
+- Camp can consume one Mimic Heart to create the single owned Mimic instance.
+- The captured Mimic joins at the highest level among currently owned slimes so the late-world capture is immediately usable.
+- Mimic may be assigned to battle, reserve, or Dispatch and uses its own combat behavior.
+- Mimic cannot enter normal Fusion, cannot be converted into a normal family Slime Core, cannot receive Rare Mutation, and cannot equip normal weapon-family equipment.
+- Mimic remains a persistent roster instance and is limited to one owned copy.
+
+This boundary keeps the six-family job/Fusion/equipment tree closed and makes Mimic acquisition a distinct late-world reward instead of another normal profession.
 
 ## 6. Standard forms
 

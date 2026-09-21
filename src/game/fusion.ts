@@ -1,4 +1,4 @@
-import { fusionStepDefinitions, type FusionStepDefinition } from '../domain/definitions';
+import { fusionStepDefinitions, isNormalJobSlimeId, type FusionStepDefinition } from '../domain/definitions';
 import type { SlimeProgress } from '../domain/state';
 import { FUSION_ITEMS, type FusionItemId, type SlimeId } from './slimes';
 
@@ -53,7 +53,7 @@ const PRESENTATION: Readonly<Record<string, FusionPresentation>> = {
   'fusion.gun.03-engineer': { title: 'エンジニア型へ合成', description: '部品を収束しタレットを展開する機工型へ完成させる' },
 };
 
-const STEPS: Record<SlimeId, FusionStep[]> = {
+const STEPS: Partial<Record<SlimeId, FusionStep[]>> = {
   sword: fusionStepDefinitions.sword.map(toPresentationStep),
   shield: fusionStepDefinitions.shield.map(toPresentationStep),
   bow: fusionStepDefinitions.bow.map(toPresentationStep),
@@ -63,7 +63,8 @@ const STEPS: Record<SlimeId, FusionStep[]> = {
 };
 
 export function getNextFusionSteps(slime: SlimeProgress): readonly FusionStep[] {
-  return STEPS[slime.typeId].filter((step) => step.rank === slime.fusionRank);
+  if (!isNormalJobSlimeId(slime.typeId)) return [];
+  return (STEPS[slime.typeId] ?? []).filter((step) => step.rank === slime.fusionRank);
 }
 
 export function getNextFusionStep(slime: SlimeProgress, fusionStepId?: string): FusionStep | null {

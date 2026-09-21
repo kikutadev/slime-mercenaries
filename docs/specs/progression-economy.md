@@ -1,7 +1,7 @@
 # Progression, Loot, Dispatch & Economy
 
 Status: Current
-Date: 2026-09-21
+Date: 2026-09-22
 
 ## 1. Economy goal
 
@@ -24,6 +24,7 @@ Do not create currencies merely to add systems. Every resource must have an obvi
 | Fusion weapon ingredient | chest/boss/forge/progression | fusion recipe | visible form/attack milestone |
 | Fusion material | battle/chest/dispatch | fusion recipe | shared upgrade ingredient |
 | Mutation Fragments | authored milestones / later mutation encounters | automatic catalyst at 10 matching fragments | deterministic RNG backstop |
+| Mimic Heart | first clear of Moonlit Castle Stage 3 | one-time Mimic capture in Camp | special late-world roster acquisition |
 
 A repeated job creation adds another persistent slime instance. It remains usable until the player explicitly converts an eligible spare reserve instance into a type-specific fusion item such as `Sword Slime Core`.
 
@@ -45,7 +46,7 @@ Initial world horizon contains eight areas.
 | 4 Sunken Marsh | shallow water/ruins | movement/control | Great Marsh Frog | Tier 2 expansion |
 | 5 Frost Ruins | snow + blue ruins | slowing fields | Snow Statue Guardian | six-family Tier 2 target |
 | 6 Ember Canyon | volcanic red rock | burst/survival | Furnace Turtle | first Tier 3: Sword |
-| 7 Moonlit Castle | moonlit keep | mixed elites | Moon Crown Knight | additional Tier 3: Gun |
+| 7 Moonlit Castle | moonlit keep | mixed elites | Moon Crown Knight | Mimic special capture + additional Tier 3: Gun |
 | 8 Dragon Crater | black rock, stars, lava | full composition test | Star Eater Dragon | remaining Tier 3 / world clear |
 
 Area unlock is sequential for the first world. Normal stages can be farmed after a blocking boss.

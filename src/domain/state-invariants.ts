@@ -1,7 +1,7 @@
-import { NORMAL_JOB_SLIME_IDS, resolveAreaDefinition, resolveStageDefinition, weaponDefinitionsByDefinitionId } from './definitions';
+import { ALL_SLIME_TYPE_IDS, isNormalJobSlimeId, resolveAreaDefinition, resolveStageDefinition, weaponDefinitionsByDefinitionId } from './definitions';
 import { isAreaUnlocked, type SlimeMercenariesState } from './state';
 
-const NORMAL_JOB_IDS = new Set<string>(NORMAL_JOB_SLIME_IDS);
+const SLIME_TYPE_IDS = new Set<string>(ALL_SLIME_TYPE_IDS);
 
 /**
  * Validate cross-reference invariants that TypeScript cannot protect once a save has been
@@ -29,7 +29,7 @@ export function assertSlimeStateInvariants(state: SlimeMercenariesState): void {
   let maxSerial = 0;
   for (const [slimeId, slime] of Object.entries(roster.slimes)) {
     invariant(slime.id === slimeId, `Roster key/id mismatch: ${slimeId} != ${slime.id}`);
-    invariant(NORMAL_JOB_IDS.has(slime.typeId), `Unknown slime type: ${slime.typeId}`);
+    invariant(SLIME_TYPE_IDS.has(slime.typeId), `Unknown slime type: ${slime.typeId}`);
     invariant(Number.isSafeInteger(slime.serial) && slime.serial > 0, `Invalid slime serial: ${slimeId}`);
     invariant(!serials.has(slime.serial), `Duplicate slime serial: ${slime.serial}`);
     serials.add(slime.serial);
@@ -74,7 +74,7 @@ export function assertSlimeStateInvariants(state: SlimeMercenariesState): void {
 
   const equippedWeaponOwners = new Map<string, string>();
   for (const [slimeId, loadout] of Object.entries(state.gameData.equipment.loadouts)) {
-    const weaponInstanceId = loadout.equipped.weapon;
+    const weaponInstanceId = loadout.equipped.weapon ?? null;
     if (weaponInstanceId === null) continue;
     const previousOwner = equippedWeaponOwners.get(weaponInstanceId);
     invariant(previousOwner === undefined, `Weapon instance equipped by multiple slimes: ${weaponInstanceId}`);
@@ -83,7 +83,9 @@ export function assertSlimeStateInvariants(state: SlimeMercenariesState): void {
     invariant(instance !== undefined, `Loadout references missing weapon instance: ${weaponInstanceId}`);
     const definition = weaponDefinitionsByDefinitionId[instance.definitionId];
     invariant(definition !== undefined, `Inventory references unknown weapon definition: ${instance.definitionId}`);
-    invariant(definition.family === roster.slimes[slimeId]!.typeId,
+    const owner = roster.slimes[slimeId]!;
+    invariant(isNormalJobSlimeId(owner.typeId), `Special slime cannot equip normal weapon: ${slimeId}`);
+    invariant(definition.family === owner.typeId,
       `Wrong-family weapon equipped by ${slimeId}: ${definition.id}`);
   }
 

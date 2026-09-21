@@ -15,6 +15,7 @@ import {
   fusionStepDefinitions,
   ids,
   jobCreationDefinitions,
+  isNormalJobSlimeId,
   plainSlimeBalance,
   resolveCurrencyDefinition,
   typeLevelDefinitions,
@@ -253,9 +254,10 @@ export function createJobSlime(
 export function convertDuplicateToFusionCore(
   state: SlimeMercenariesState,
   slimeId: SlimeInstanceId,
-): CommandResult<SlimeMercenariesState, 'not-owned' | 'not-reserve' | 'last-of-type'> {
+): CommandResult<SlimeMercenariesState, 'not-owned' | 'not-reserve' | 'last-of-type' | 'special-slime'> {
   const slime = state.gameData.roster.slimes[slimeId];
   if (slime === undefined) return reject(state, 'not-owned');
+  if (!isNormalJobSlimeId(slime.typeId)) return reject(state, 'special-slime');
   if (slime.assignment !== 'reserve') return reject(state, 'not-reserve');
   if (slimeIdsByType(state, slime.typeId).length <= 1) return reject(state, 'last-of-type');
 
@@ -400,7 +402,7 @@ export function previewSlimeFusions(
   slimeId: SlimeInstanceId,
 ): readonly SlimeFusionPreview[] {
   const slime = state.gameData.roster.slimes[slimeId];
-  if (slime === undefined) return [];
+  if (slime === undefined || !isNormalJobSlimeId(slime.typeId)) return [];
   return fusionStepDefinitions[slime.typeId]
     .filter((candidate) => candidate.fromRank === slime.fusionRank)
     .map((step) => fusionPreviewForStep(state, slimeId, step));
@@ -473,7 +475,7 @@ export function fuseSlime(
   nextState = markCodexDiscovery(
     nextState,
     'slime-form',
-    fusionSlimeCodexId(updated.typeId, updated.fusionFormId),
+    fusionSlimeCodexId(preview.step.slimeId, updated.fusionFormId),
   );
   return accept(nextState, [semanticEvent(nextState, 'slimeFused', preview.step.id, {
     areaId: nextState.gameData.progression.currentAreaId,

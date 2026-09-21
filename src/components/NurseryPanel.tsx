@@ -23,6 +23,7 @@ interface NurseryPanelProps {
   onCraft: () => void;
   onPurchase: () => void;
   onCreateJob: (jobId: JobSlimeId) => void;
+  onCaptureMimic: () => void;
 }
 
 export function NurseryPanel({
@@ -35,6 +36,7 @@ export function NurseryPanel({
   onCraft,
   onPurchase,
   onCreateJob,
+  onCaptureMimic,
 }: NurseryPanelProps) {
   if (!open) return null;
 
@@ -100,6 +102,29 @@ export function NurseryPanel({
           </div>
           <em>{validationMode ? '∞' : panel.purchase.cost} G</em>
         </button>
+
+        {(panel.mimic.hearts > 0 || panel.mimic.alreadyOwned) && (
+          <>
+            <div className="nursery-job-title">
+              <span>特殊な仲間</span>
+              <strong>宝箱から残ったハートが震えています</strong>
+            </div>
+            <div className="nursery-jobs">
+              <button
+                type="button"
+                disabled={busy || !panel.mimic.canCapture}
+                onClick={onCaptureMimic}
+              >
+                <img src={`${import.meta.env.BASE_URL}${panel.mimic.icon}`} alt="" />
+                <span>
+                  <strong>{panel.mimic.name}</strong>
+                  <small>{panel.mimic.alreadyOwned ? 'すでに仲間です' : `現在の仲間に合わせて Lv.${panel.mimic.captureLevel} で加入`}</small>
+                </span>
+                <em>{panel.mimic.alreadyOwned ? '仲間済み' : `ミミックハート ${panel.mimic.hearts}/${panel.mimic.heartCost}`}</em>
+              </button>
+            </div>
+          </>
+        )}
 
         <div className="nursery-job-title">
           <span>職業を与える</span>

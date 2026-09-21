@@ -10,6 +10,7 @@ export * from './roster';
 export * from './state';
 
 export * from './mutation';
+export * from './mimic';
 export * from './rewards';
 
 export * from './world-navigation';

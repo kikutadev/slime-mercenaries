@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useGameController, useGameState } from '../../app/GameProvider';
 import { selectSlimeDetail } from '../../application/selectors/ui-selectors';
-import { jobCreationDefinitions, type SlimeInstanceId } from '../../domain';
+import { isNormalJobSlimeId, jobCreationDefinitions, type SlimeInstanceId } from '../../domain';
 import { getSlimePresentation } from '../../game/slimes';
 import { getNextFusionSteps } from '../../game/fusion';
 import { getFusionIngredientPresentation, getFusionStepPresentation } from '../../game/fusion-presentation';
@@ -42,7 +42,9 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
   const spareDuplicates = progress === null ? [] : Object.values(state.gameData.roster.slimes)
     .filter((candidate) => candidate.id !== slimeId && candidate.typeId === progress.typeId && candidate.assignment === 'reserve')
     .sort((left, right) => left.serial - right.serial);
-  const fusionCoreTokenId = progress === null ? null : jobCreationDefinitions[progress.typeId].fusionCoreTokenId;
+  const fusionCoreTokenId = progress === null || !isNormalJobSlimeId(progress.typeId)
+    ? null
+    : jobCreationDefinitions[progress.typeId].fusionCoreTokenId;
   const [run, setRun] = useState<FusionRun | null>(null);
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [sequenceKey, setSequenceKey] = useState(0);

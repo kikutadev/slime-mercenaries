@@ -167,6 +167,8 @@ function deterministicJobGearRewards(areaOrder: number, stageNumber: number): re
 
 function mutationMilestoneRewards(areaOrder: number, stageNumber: number): readonly SlimeProductReward[] {
   const rewards: SlimeProductReward[] = [];
+  // Moonlit Castle S3 contains the one hostile Mimic encounter. First clear yields its Heart.
+  if (areaOrder === 7 && stageNumber === 3) rewards.push({ type: 'token', tokenId: ids.token.mimicHeart, count: 1 });
   if (areaOrder === 4 && stageNumber === 5) rewards.push({ type: 'mutation-fragment', mutationId: 'golden', count: 5 });
   if (areaOrder === 5 && stageNumber === 2) rewards.push({ type: 'mutation-fragment', mutationId: 'golden', count: 5 });
   if (areaOrder === 7 && stageNumber === 2) rewards.push({ type: 'mutation-fragment', mutationId: 'king', count: 5 });

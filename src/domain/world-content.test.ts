@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   AREA_IDS,
+  areaDefinitions,
   advanceCombatTo,
   assignSlimeToFormation,
   craftPlainSlime,
@@ -9,6 +10,7 @@ import {
   createJobSlime,
   firstSlimeIdByType,
   highestStageClearedForArea,
+  ids,
   nextCombatBoundarySec,
   type SlimeMercenariesState,
 } from './index';
@@ -86,4 +88,15 @@ describe('full authored world progression', () => {
       expect(highestStageClearedForArea(state.gameData.progression, areaId), areaId).toBe(5);
     }
   });
+  it('awards one non-farmable Mimic Heart at the authored hostile Mimic milestone', () => {
+    const stage = areaDefinitions['area.moonlit-castle'].stages[2]!;
+    const heartRewards = stage.clearRewards.filter((reward) =>
+      reward.type === 'token' && reward.tokenId === ids.token.mimicHeart);
+
+    expect(stage.stageNumber).toBe(3);
+    expect(heartRewards).toEqual([
+      expect.objectContaining({ type: 'token', tokenId: ids.token.mimicHeart, count: 1 }),
+    ]);
+  });
+
 });

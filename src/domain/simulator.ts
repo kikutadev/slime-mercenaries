@@ -39,6 +39,7 @@ import {
   type JobSlimeId,
 } from './definitions';
 import { previewSlimeMutation, mutateSlime } from './mutation';
+import { captureMimic, previewMimicCapture } from './mimic';
 import { firstSlimeByType, slimeIdsByType } from './roster';
 import { createInitialSlimeMercenariesState, highestStageClearedForArea, type SlimeInstanceId, type SlimeMercenariesState, type SlimeMutationId } from './state';
 
@@ -53,7 +54,8 @@ export type SlimeSimulatorCommand =
   | Readonly<{ type: 'forge'; drawCount: 1 | 10 }>
   | Readonly<{ type: 'equip'; slimeId: SlimeInstanceId; weaponDefinitionId: string }>
   | Readonly<{ type: 'start-dispatch'; contractId: DispatchContractId; slimeId: SlimeInstanceId }>
-  | Readonly<{ type: 'mutate'; slimeId: SlimeInstanceId; mutationId: SlimeMutationId }>;
+  | Readonly<{ type: 'mutate'; slimeId: SlimeInstanceId; mutationId: SlimeMutationId }>
+  | Readonly<{ type: 'capture-mimic' }>;
 
 export const slimeSimulatorAdapter: SimulatorAdapter<SlimeMercenariesState, SlimeSimulatorCommand> = {
   getSimTimeSec: (state) => state.simTimeSec,
@@ -71,6 +73,7 @@ export const slimeSimulatorAdapter: SimulatorAdapter<SlimeMercenariesState, Slim
       case 'equip': return equipWeapon(state, command.slimeId, command.weaponDefinitionId);
       case 'start-dispatch': return startDispatch(state, command.contractId, command.slimeId);
       case 'mutate': return mutateSlime(state, command.slimeId, command.mutationId);
+      case 'capture-mimic': return captureMimic(state);
     }
   },
 };
@@ -543,6 +546,9 @@ export function createWorldProgressionPolicy(): SimulatorPolicy<SlimeMercenaries
       const mutation = worldMutationAction(state);
       if (mutation !== null) return { kind: 'command', command: mutation };
 
+      const mimic = previewMimicCapture(state);
+      if (mimic.canCapture) return { kind: 'command', command: { type: 'capture-mimic' } };
+
       // Resolve any Fusion that is already fully ready before spending on new preparation.
       for (const jobId of NORMAL_JOB_SLIME_IDS) {
         const primary = firstSlimeByType(state, jobId);
@@ -745,6 +751,7 @@ export type WorldProgressionSimulationSummary = Readonly<{
   equippedWeapons: number;
   mutations: number;
   mutationIds: readonly SlimeMutationId[];
+  mimicCaptured: boolean;
   defeatsByArea: Readonly<Record<string, number>>;
   clearTimeByArea: Readonly<Record<string, number>>;
   finalParty: readonly Readonly<{
@@ -822,6 +829,7 @@ export function summarizeWorldProgressionSimulation(
     mutationIds: [...new Set(run.events
       .filter((event) => event.type === 'slimeMutated')
       .flatMap((event) => typeof event.payload?.mutationId === 'string' ? [event.payload.mutationId as SlimeMutationId] : []))],
+    mimicCaptured: run.events.some((event) => event.type === 'mimicCaptured'),
     defeatsByArea,
     clearTimeByArea,
     finalParty,
@@ -891,6 +899,7 @@ export function validateWorldProgressionSummary(summary: WorldProgressionSimulat
   if (missingMutations.length > 0) {
     failures.push(`missingMutations=${missingMutations.join(',')}`);
   }
+  if (targets.requireMimicCapture && !summary.mimicCaptured) failures.push('mimicCaptured=false');
 
   return failures;
 }

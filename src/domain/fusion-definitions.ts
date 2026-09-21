@@ -1,5 +1,5 @@
 import { balance } from './balance';
-import { ids, type JobSlimeId, type TokenRequirement, type WorldAreaId } from './definition-ids';
+import { ids, type JobSlimeId, type SlimeTypeId, type TokenRequirement, type WorldAreaId } from './definition-ids';
 
 export type FusionStepDefinition = Readonly<{
   id: string;
@@ -269,11 +269,12 @@ function createTypeLevelDefinition(id: string) {
   } as const;
 }
 
-export const typeLevelDefinitions: Readonly<Record<JobSlimeId, ReturnType<typeof createTypeLevelDefinition>>> = {
+export const typeLevelDefinitions: Readonly<Record<SlimeTypeId, ReturnType<typeof createTypeLevelDefinition>>> = {
   sword: createTypeLevelDefinition('level.slime.sword'),
   shield: createTypeLevelDefinition('level.slime.shield'),
   bow: createTypeLevelDefinition('level.slime.bow'),
   wand: createTypeLevelDefinition('level.slime.wand'),
   dagger: createTypeLevelDefinition('level.slime.dagger'),
   gun: createTypeLevelDefinition('level.slime.gun'),
+  mimic: createTypeLevelDefinition('level.slime.mimic'),
 };

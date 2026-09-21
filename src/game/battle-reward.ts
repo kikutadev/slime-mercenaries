@@ -43,6 +43,7 @@ const MATERIAL_VISUALS: Readonly<Record<string, BattleRewardVisual>> = {
   'token.material.life-water': { shape: 'orb', color: '#7edcf0' },
   'token.fusion.hardening-gel': { shape: 'shard', color: '#77b9e8' },
   'token.forge-key': { shape: 'shard', color: '#f6d070' },
+  'token.special.mimic-heart': { shape: 'orb', color: '#f07b96' },
   'token.fusion.greatsword-blank': { shape: 'shard', color: '#b6c2cf' },
   'token.fusion.reinforced-bow': { shape: 'shard', color: '#d49a63' },
   'token.fusion.tempered-steel': { shape: 'shard', color: '#c7d1dd' },

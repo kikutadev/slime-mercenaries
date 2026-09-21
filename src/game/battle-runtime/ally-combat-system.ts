@@ -7,6 +7,7 @@ import { DefenseCombatFamily } from './ally-combat-defense';
 import { MagicCombatFamily } from './ally-combat-magic';
 import { RogueCombatFamily } from './ally-combat-rogue';
 import { GunCombatFamily } from './ally-combat-gun';
+import { MimicCombatFamily } from './ally-combat-mimic';
 
 export class BattleAllyCombatSystem {
   private readonly sword: SwordCombatFamily;
@@ -15,6 +16,7 @@ export class BattleAllyCombatSystem {
   private readonly magic: MagicCombatFamily;
   private readonly rogue: RogueCombatFamily;
   private readonly gun: GunCombatFamily;
+  private readonly mimic: MimicCombatFamily;
 
   private readonly handlers: Readonly<Record<BattleBehaviorId, (now: number, ally: AllyUnit) => void>> = {
     'sword-melee': (now, ally) => this.sword.updateSword(now, ally),
@@ -41,6 +43,7 @@ export class BattleAllyCombatSystem {
     'gunner-burst': (now, ally) => this.gun.updateGunner(now, ally),
     'cannoneer-shell': (now, ally) => this.gun.updateCannoneer(now, ally),
     'engineer-turret': (now, ally) => this.gun.updateEngineer(now, ally),
+    'mimic-trick': (now, ally) => this.mimic.updateMimic(now, ally),
   };
 
   constructor(deps: BattleAllyCombatDependencies) {
@@ -50,6 +53,7 @@ export class BattleAllyCombatSystem {
     this.magic = new MagicCombatFamily(deps);
     this.rogue = new RogueCombatFamily(deps);
     this.gun = new GunCombatFamily(deps);
+    this.mimic = new MimicCombatFamily(deps);
   }
 
   initializePresentationVfx(): void {

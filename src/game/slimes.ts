@@ -1,9 +1,9 @@
-import { ids, type JobSlimeId } from '../domain/definitions';
+import { ids, type JobSlimeId, type SlimeTypeId } from '../domain/definitions';
 import { balance } from '../domain/balance';
 import { mutationDefinitions } from '../domain/mutation';
 import type { SlimeMutationId, SlimeProgress } from '../domain/state';
 
-export type SlimeId = JobSlimeId;
+export type SlimeId = SlimeTypeId;
 export type BattleBehaviorId =
   | 'sword-melee'
   | 'fighter-combo'
@@ -28,7 +28,8 @@ export type BattleBehaviorId =
   | 'gun-ranged'
   | 'gunner-burst'
   | 'cannoneer-shell'
-  | 'engineer-turret';
+  | 'engineer-turret'
+  | 'mimic-trick';
 
 export type FusionItemCategory = 'slime' | 'weapon' | 'material';
 export type FusionItemId =
@@ -82,10 +83,11 @@ export const SLIMES: Record<SlimeId, SlimeDefinition> = {
   wand: base('wand', '杖士スライム', '後衛・魔法', 'wand-slime.glb', 'wand-slime-icon.svg', '#a98cff', 'wand-magic', 'WandAnchor', null, 4, 'back'),
   dagger: base('dagger', '短剣士スライム', '前衛・高速近接', 'dagger-slime.glb', 'dagger-slime-icon.svg', '#8195ff', 'dagger-skirmisher', 'WeaponAnchor', 'WeaponTip', 5, 'front'),
   gun: base('gun', '銃士スライム', '後衛・銃撃', 'gun-slime.glb', 'gun-slime-icon.svg', '#6fcbe7', 'gun-ranged', 'GunAnchor', null, 5, 'back'),
+  mimic: base('mimic', 'ミミックスライム', '前衛・トリック', 'mimic-slime.glb', 'mimic-slime-icon.svg', '#d79a55', 'mimic-trick', 'PrimaryRoot', null, 9, 'front'),
 };
 
 function base(
-  id: JobSlimeId,
+  id: SlimeTypeId,
   name: string,
   role: string,
   assetFile: string,
@@ -184,10 +186,17 @@ function fusionForm(
 
 export function getSlimePresentation(slime: SlimeProgress): SlimePresentation {
   const baseDefinition = SLIMES[slime.typeId];
-  const authoredForm = FUSION_FORMS[slime.fusionFormId] ?? null;
+  const authoredForm = slime.typeId === 'mimic' ? null : FUSION_FORMS[slime.fusionFormId] ?? null;
   let normal: SlimePresentation;
 
-  if (authoredForm !== null && authoredForm.typeId === slime.typeId) {
+  if (slime.typeId === 'mimic') {
+    normal = {
+      ...baseDefinition,
+      tier: 3,
+      form: 'mimic',
+      mutationId: null,
+    };
+  } else if (authoredForm !== null && authoredForm.typeId === slime.typeId) {
     normal = {
       ...baseDefinition,
       ...authoredForm,

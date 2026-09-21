@@ -62,6 +62,7 @@ const EXPECTED_MOTIONS: Readonly<Record<string, readonly string[]>> = {
   'shield-sentry': ['idle', 'move', 'attack', 'hit', 'defeat'],
   'bell-mage': ['idle', 'move', 'attack', 'hit', 'defeat'],
   'windup-bat': ['idle', 'move', 'attack', 'hit', 'defeat'],
+  'hostile-mimic': ['idle', 'move', 'attack', 'hit', 'defeat'],
   'moon-crown-knight': ['idle', 'move', 'attack', 'hit', 'defeat'],
   'egg-dragon': ['idle', 'move', 'attack', 'hit', 'defeat'],
   'tiny-wing-dragon': ['idle', 'move', 'attack', 'hit', 'defeat'],

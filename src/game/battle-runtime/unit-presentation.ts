@@ -86,7 +86,8 @@ export function isMeleeBehavior(unit: AllyUnit): boolean {
     || unit.behaviorId === 'dagger-skirmisher'
     || unit.behaviorId === 'rogue-twin-strike'
     || unit.behaviorId === 'ninja-vanish'
-    || unit.behaviorId === 'assassin-execute';
+    || unit.behaviorId === 'assassin-execute'
+    || unit.behaviorId === 'mimic-trick';
 }
 
 export function setEquipmentSwing(unit: AllyUnit, angle: number, lift = 0, sweep = 0): void {

@@ -42,8 +42,10 @@ function activeSlimes(state: SlimeMercenariesState): readonly SlimeProgress[] {
 function slimeDps(state: SlimeMercenariesState, slime: SlimeProgress): GameNumber {
   const base = balance.combat.baseDpsByJob[slime.typeId];
   const levelMultiplier = curveValueAtForSlime(slime);
-  const fusionMultiplier = balance.combat.fusionDpsMultiplierByRank[Math.max(0, slime.fusionRank - 1)]
-    ?? balance.combat.fusionDpsMultiplierByRank.at(-1)!;
+  const fusionMultiplier = slime.typeId === 'mimic'
+    ? balance.combat.mimicDpsMultiplier
+    : balance.combat.fusionDpsMultiplierByRank[Math.max(0, slime.fusionRank - 1)]
+      ?? balance.combat.fusionDpsMultiplierByRank.at(-1)!;
   return GameNumber.from(base)
     .multiply(levelMultiplier)
     .multiply(fusionMultiplier)
@@ -54,8 +56,10 @@ function slimeDps(state: SlimeMercenariesState, slime: SlimeProgress): GameNumbe
 function slimePower(state: SlimeMercenariesState, slime: SlimeProgress): GameNumber {
   const base = balance.combat.basePowerByJob[slime.typeId];
   const levelMultiplier = curveValueAtForSlime(slime);
-  const fusionMultiplier = balance.combat.fusionPowerMultiplierByRank[Math.max(0, slime.fusionRank - 1)]
-    ?? balance.combat.fusionPowerMultiplierByRank.at(-1)!;
+  const fusionMultiplier = slime.typeId === 'mimic'
+    ? balance.combat.mimicPowerMultiplier
+    : balance.combat.fusionPowerMultiplierByRank[Math.max(0, slime.fusionRank - 1)]
+      ?? balance.combat.fusionPowerMultiplierByRank.at(-1)!;
   return GameNumber.from(base)
     .multiply(levelMultiplier)
     .multiply(fusionMultiplier)

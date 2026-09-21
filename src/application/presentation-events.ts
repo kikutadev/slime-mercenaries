@@ -55,6 +55,7 @@ const BATTLE_REWARD_LABELS: Readonly<Record<string, string>> = {
   [ids.token.hardeningGel]: '硬化ジェル',
   [ids.token.temperedSteel]: '鍛鋼',
   [ids.token.forgeKey]: '鍛造鍵',
+  [ids.token.mimicHeart]: 'ミミックハート',
   [ids.token.swordWeaponMaterial]: '剣素材',
   [ids.token.bowWeaponMaterial]: '弓素材',
 };

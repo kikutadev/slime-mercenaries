@@ -1,7 +1,7 @@
 # Slime Mercenaries — Current Specification
 
 Status: Current
-Date: 2026-09-21
+Date: 2026-09-22
 
 ## 1. Product form
 
@@ -180,11 +180,14 @@ The current content target retains 30 discoverable slime forms:
 - 6 Tier-1 job slimes
 - 6 Tier-2 job slimes
 - 12 Tier-3 specializations
-- 5 rare mutation forms
+- 4 rare mutation forms
+- 1 special-capture Mimic Slime
 
 This is a content target, not a requirement to produce all 30 before validating the core loop.
 
 Core normal jobs are never locked solely behind premium acquisition or extremely low RNG.
+
+Mimic Slime is outside the six normal job families and outside Rare Mutation. It is a persistent special roster instance obtained by the authored Mimic Heart capture flow. It can level, enter formation, and Dispatch, but it cannot use normal Fusion, convert to a normal Slime Core, receive Rare Mutation, or equip normal weapon-family equipment.
 
 ## 8. Assignment contract
 
@@ -330,7 +333,8 @@ Longer-term content target:
 - 6 weapon families
 - 5 equipment rarities
 - at least 12 Mythic named weapons
-- 5 rare mutation paths
+- 4 rare mutation paths
+- 1 special-capture Mimic path
 - Codex for slime and equipment discovery
 - several reusable dispatch contract families
 

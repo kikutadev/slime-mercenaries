@@ -130,6 +130,7 @@ export const initialEconomyBalance = {
     [ids.token.wandWeaponMaterial]: 0,
     [ids.token.daggerWeaponMaterial]: 0,
     [ids.token.gunWeaponMaterial]: 0,
+    [ids.token.mimicHeart]: 0,
   } as Readonly<Record<string, number>>,
 } as const;
 

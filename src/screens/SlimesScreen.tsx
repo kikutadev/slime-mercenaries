@@ -274,6 +274,29 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
     playNurseryCeremony({ kind: 'purchase', beforeStock }, 1040);
   };
 
+  const handleCaptureMimic = () => {
+    if (nurseryBusy) return;
+    const nextSerial = state.gameData.roster.nextSlimeSerial;
+    const result = controller.captureMimic();
+    if (!result.accepted) {
+      setNotice(rejectionLabel(result.reason));
+      return;
+    }
+    const capturedId = slimeInstanceIdForSerial(nextSerial);
+    const captured = result.state.gameData.roster.slimes[capturedId];
+    if (captured === undefined) {
+      setNotice('捕獲したミミックを確認できませんでした');
+      return;
+    }
+    const open = result.state.gameData.roster.formationSlots.findIndex((slot) => slot === null);
+    if (open >= 0) controller.assignSlime(capturedId, open);
+    const name = getSlimePresentation(captured).name;
+    setNotice(null);
+    onSelect(capturedId);
+    setCreateOpen(false);
+    triggerFeedback('recruit', `${name}が仲間になった！`, '宝箱のふりをやめ、傭兵団についてきました', 3);
+  };
+
   const handleCreateJob = (jobId: JobSlimeId) => {
     if (nurseryBusy) return;
     const jobView = createPanel.jobs.find((job) => job.id === jobId);
@@ -629,6 +652,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
         onCraft={handleCraftPlain}
         onPurchase={handlePurchasePlain}
         onCreateJob={handleCreateJob}
+        onCaptureMimic={handleCaptureMimic}
       />
 
     </section>
@@ -648,6 +672,9 @@ function rejectionLabel(reason: string | undefined): string {
     case 'validation-mode-disabled': return '検証モードでのみ使えます';
     case 'job-create-failed': return '全職解放に失敗しました';
     case 'formation-failed': return '派遣中のスライムがいるため6職編成できません';
+    case 'missing-heart': return 'ミミックハートがありません';
+    case 'already-owned': return 'ミミックスライムはすでに仲間です';
+    case 'special-slime': return '特殊個体は合成素材にできません';
     default: return reason === undefined ? '実行できませんでした' : `実行できません: ${reason}`;
   }
 }

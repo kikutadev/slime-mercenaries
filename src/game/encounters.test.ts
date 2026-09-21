@@ -115,4 +115,15 @@ describe('enemy encounter content', () => {
       expect(resolved.enemies[0]?.formationSlot).toBe('front-center');
     }
   });
+  it('places exactly one hostile Mimic in Moonlit Castle stage 3 wave 3', () => {
+    const encounter = resolveEncounterDefinition('encounter.moonlit-castle.03.03');
+    const mimics = encounter.enemies.filter((enemy) => enemy.id === 'hostile-mimic');
+    expect(encounter.displayName).toBe('宝箱……？');
+    expect(mimics).toHaveLength(1);
+    expect(mimics[0]).toMatchObject({
+      behaviorId: 'mimic-chest-snap',
+      scaleClass: 'elite',
+    });
+  });
+
 });

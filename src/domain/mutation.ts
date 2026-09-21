@@ -1,6 +1,6 @@
 import type { CommandResult, DomainEvent } from 'idle-game-kit';
 import { balance } from './balance';
-import type { JobSlimeId } from './definitions';
+import { isNormalJobSlimeId, type JobSlimeId } from './definitions';
 import { markCodexDiscovery, mutationSlimeCodexId } from './codex';
 import type { SlimeInstanceId, SlimeMercenariesState, SlimeMutationId, SlimeProgress } from './state';
 
@@ -67,6 +67,7 @@ export const mutationDefinitions: Readonly<Record<SlimeMutationId, MutationDefin
 const PRISM_TYPES = new Set<JobSlimeId>(['bow', 'wand', 'gun']);
 
 export function isEligibleForMutation(slime: SlimeProgress, mutationId: SlimeMutationId): boolean {
+  if (!isNormalJobSlimeId(slime.typeId)) return false;
   switch (mutationId) {
     case 'king': return slime.jobTier >= 3;
     case 'golden': return slime.jobTier >= 2;

@@ -7,6 +7,7 @@ import {
 import {
   assignSlimeToFormation,
   buyPlainSlime,
+  captureMimic,
   convertDuplicateToFusionCore,
   craftPlainSlime,
   createJobSlime,
@@ -269,6 +270,10 @@ export class SlimeGameController {
 
   createJobSlime(typeId: JobSlimeId) {
     return this.execute((state) => createJobSlime(state, typeId));
+  }
+
+  captureMimic() {
+    return this.execute((state) => captureMimic(state));
   }
 
   levelUpSlime(slimeId: SlimeInstanceId, count = 1) {

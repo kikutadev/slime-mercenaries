@@ -68,6 +68,7 @@ const ENEMY_ENCOUNTER_ROLE: Readonly<Record<EnemyId, EnemyEncounterRole>> = {
   'shield-sentry': 'front',
   'bell-mage': 'back',
   'windup-bat': 'back',
+  'hostile-mimic': 'front',
   'moon-crown-knight': 'front',
 
   'egg-dragon': 'back',
@@ -398,12 +399,24 @@ export const EMBER_CANYON_ENCOUNTERS = buildFourEnemyAreaEncounters({
   boss: 'furnace-turtle',
 });
 
-export const MOONLIT_CASTLE_ENCOUNTERS = buildFourEnemyAreaEncounters({
+const MOONLIT_CASTLE_BASE_ENCOUNTERS = buildFourEnemyAreaEncounters({
   slug: 'moonlit-castle',
   areaName: '月夜の城',
   roster: ['round-sentry', 'shield-sentry', 'bell-mage', 'windup-bat'],
   boss: 'moon-crown-knight',
 });
+
+/** One deterministic hostile Mimic encounter. It replaces one ordinary mixed wave, not a Stage. */
+export const MOONLIT_CASTLE_ENCOUNTERS = MOONLIT_CASTLE_BASE_ENCOUNTERS.map((encounter) =>
+  encounter.id === encounterId('moonlit-castle', 3, 3)
+    ? wave('moonlit-castle', 3, 3, '宝箱……？', [
+        { enemyId: 'hostile-mimic', count: 1, attackDelay: 0.34 },
+        { enemyId: 'round-sentry', count: 1 },
+        { enemyId: 'shield-sentry', count: 2 },
+        { enemyId: 'bell-mage', count: 2 },
+      ])
+    : encounter,
+);
 
 export const DRAGON_CRATER_ENCOUNTERS = buildFourEnemyAreaEncounters({
   slug: 'dragon-crater',

@@ -9,7 +9,7 @@ const BEHAVIORS: readonly EnemyBehaviorId[] = [...new Set(Object.values(ENEMIES)
 describe('enemy motion', () => {
 
   it('keeps every runtime enemy backed by a committed production GLB', () => {
-    expect(Object.keys(ENEMIES)).toHaveLength(40);
+    expect(Object.keys(ENEMIES)).toHaveLength(41);
     for (const enemy of Object.values(ENEMIES)) {
       expect(existsSync(resolve('public', enemy.asset)), enemy.id).toBe(true);
     }

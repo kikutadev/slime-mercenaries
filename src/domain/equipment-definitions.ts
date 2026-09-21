@@ -1,6 +1,6 @@
 import type { GachaDefinition, ItemDefinition, LoadoutDefinition } from 'idle-game-kit';
 import { balance } from './balance';
-import { ids, type JobSlimeId } from './definition-ids';
+import { ids, type JobSlimeId, type SlimeTypeId } from './definition-ids';
 
 export type WeaponFamily = JobSlimeId;
 export type WeaponRarity = 'common' | 'rare' | 'mythic';
@@ -116,13 +116,14 @@ export const itemDefinitionsById: Readonly<Record<string, ItemDefinition>> = Obj
   Object.values(weaponDefinitions).map((definition) => [definition.item.id, definition.item]),
 );
 
-export const slimeWeaponLoadoutDefinitions: Readonly<Record<JobSlimeId, LoadoutDefinition>> = {
+export const slimeWeaponLoadoutDefinitions: Readonly<Record<SlimeTypeId, LoadoutDefinition>> = {
   sword: { id: ids.loadout.sword, slots: [{ id: 'weapon', acceptsTags: ['family:sword'] }] },
   shield: { id: ids.loadout.shield, slots: [{ id: 'weapon', acceptsTags: ['family:shield'] }] },
   bow: { id: ids.loadout.bow, slots: [{ id: 'weapon', acceptsTags: ['family:bow'] }] },
   wand: { id: ids.loadout.wand, slots: [{ id: 'weapon', acceptsTags: ['family:wand'] }] },
   dagger: { id: ids.loadout.dagger, slots: [{ id: 'weapon', acceptsTags: ['family:dagger'] }] },
   gun: { id: ids.loadout.gun, slots: [{ id: 'weapon', acceptsTags: ['family:gun'] }] },
+  mimic: { id: ids.loadout.mimic, slots: [{ id: 'special', acceptsTags: ['special:mimic-only'] }] },
 };
 
 export type ForgeReward = Readonly<{ weaponDefinitionId: string }>;

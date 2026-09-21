@@ -12,6 +12,7 @@ import {
   previewSlimeFusion,
   previewSlimeLevelUp,
   previewSlimeMutation,
+  previewMimicCapture,
   previewSlimeFusions,
   slimeCombatPower,
   resolveAreaDefinition,
@@ -143,6 +144,8 @@ export function selectSlimeMutationOptions(
   state: SlimeMercenariesState,
   slimeId: SlimeInstanceId,
 ) {
+  const slime = state.gameData.roster.slimes[slimeId];
+  if (slime === undefined || slime.typeId === 'mimic') return [];
   return MUTATION_IDS.map((mutationId) => {
     const preview = previewSlimeMutation(state, slimeId, mutationId);
     const definition = mutationDefinitions[mutationId];
@@ -246,8 +249,18 @@ export function selectSlimeDetail(state: SlimeMercenariesState, slimeId: SlimeIn
 export function selectCreateSlimePanel(state: SlimeMercenariesState) {
   const craft = previewPlainSlimeCraft(state, 1);
   const purchase = previewPlainSlimePurchase(state, 1);
+  const mimic = previewMimicCapture(state);
   return {
     plainStock: readToken(state.tokens, ids.token.plainSlime),
+    mimic: {
+      name: 'ミミックスライム',
+      icon: 'mimic-slime-icon.svg',
+      hearts: mimic.hearts,
+      heartCost: mimic.heartCost,
+      canCapture: mimic.canCapture,
+      alreadyOwned: mimic.alreadyOwned,
+      captureLevel: mimic.captureLevel,
+    },
     craft: {
       canCraft: craft.canCraft,
       requirements: craft.requirements,

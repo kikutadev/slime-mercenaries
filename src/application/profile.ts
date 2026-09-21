@@ -241,12 +241,14 @@ function inferLegacyViewedCodex(
 ): CodexState {
   let codex = createInitialCodexState();
   for (const slime of Object.values(roster.slimes)) {
-    codex = withLegacyViewedCodexDiscovery(codex, 'slime-form', tier1SlimeCodexId(slime.typeId), simTimeSec);
+    // This path only receives schemas that predate special slimes, so legacy type IDs are normal jobs.
+    const typeId = slime.typeId as JobSlimeId;
+    codex = withLegacyViewedCodexDiscovery(codex, 'slime-form', tier1SlimeCodexId(typeId), simTimeSec);
     if (slime.fusionFormId !== 'base') {
       codex = withLegacyViewedCodexDiscovery(
         codex,
         'slime-form',
-        fusionSlimeCodexId(slime.typeId, slime.fusionFormId),
+        fusionSlimeCodexId(typeId, slime.fusionFormId),
         simTimeSec,
       );
     }

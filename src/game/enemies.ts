@@ -7,7 +7,7 @@ export type EnemyId =
   | 'puff-frog' | 'marsh-sprout' | 'bubble-snail' | 'skimming-lily' | 'great-marsh-frog'
   | 'snow-roller' | 'ice-bug' | 'scarf-snowman' | 'icicle-lantern' | 'snow-statue-guardian'
   | 'ember-gecko' | 'charcoal-roller' | 'crackle-bug' | 'magma-crab' | 'furnace-turtle'
-  | 'round-sentry' | 'shield-sentry' | 'bell-mage' | 'windup-bat' | 'moon-crown-knight'
+  | 'round-sentry' | 'shield-sentry' | 'bell-mage' | 'windup-bat' | 'hostile-mimic' | 'moon-crown-knight'
   | 'egg-dragon' | 'tiny-wing-dragon' | 'star-eater-lizard' | 'meteor-hatchling' | 'star-eater-dragon';
 
 export type EnemyBehaviorId =
@@ -19,7 +19,7 @@ export type EnemyBehaviorId =
   | 'marsh-frog-hop' | 'marsh-sprout-orb' | 'marsh-bubble-pulse' | 'marsh-lily-skim' | 'marsh-frog-boss'
   | 'frost-snow-roll' | 'frost-ice-spike-shot' | 'frost-scarf-dash' | 'frost-lantern-ray' | 'frost-guardian-boss'
   | 'ember-tail-dash' | 'ember-charcoal-burst' | 'ember-spark-shell' | 'ember-crab-snap' | 'ember-furnace-boss'
-  | 'castle-spear-thrust' | 'castle-shield-bash' | 'castle-bell-ring' | 'castle-windup-burst' | 'castle-moon-knight-boss'
+  | 'castle-spear-thrust' | 'castle-shield-bash' | 'castle-bell-ring' | 'castle-windup-burst' | 'mimic-chest-snap' | 'castle-moon-knight-boss'
   | 'dragon-egg-fire' | 'dragon-tiny-wing-dive' | 'dragon-star-lizard-charge' | 'dragon-meteor-cast' | 'dragon-star-eater-boss';
 
 export type EnemyScaleClass = 'fodder' | 'elite' | 'boss';
@@ -193,6 +193,9 @@ export const ENEMIES: Readonly<Record<EnemyId, EnemyDefinition>> = {
   }),
   'windup-bat': enemy('windup-bat', 'ぜんまいコウモリ', 'castle-windup-burst', .27, {
     maxHp: 11, moveSpeed: 1.00, attackRange: 1.70, attackInterval: 1.54, shadowRadius: .20,
+  }),
+  'hostile-mimic': enemy('hostile-mimic', '化け宝箱', 'mimic-chest-snap', .38, {
+    maxHp: 22, moveSpeed: .62, attackRange: .82, attackInterval: 1.82, attackDamage: 2, scaleClass: 'elite', shadowRadius: .28,
   }),
   'moon-crown-knight': enemy('moon-crown-knight', '月冠の騎士', 'castle-moon-knight-boss', .48, {
     maxHp: 92, moveSpeed: .52, attackRange: 1.04, attackInterval: 2.38, attackDamage: 3, scaleClass: 'boss', shadowRadius: .54,

@@ -43,6 +43,7 @@ export const balance = {
       wand: 9,
       dagger: 10,
       gun: 9,
+      mimic: 10,
     },
     basePowerByJob: {
       sword: 10,
@@ -51,9 +52,12 @@ export const balance = {
       wand: 8.5,
       dagger: 9.5,
       gun: 9,
+      mimic: 9,
     },
     fusionPowerMultiplierByRank: [1, 1.55, 2.55, 4.35],
     fusionDpsMultiplierByRank: [1, 1.45, 2.35, 3.75],
+    mimicDpsMultiplier: 3.75,
+    mimicPowerMultiplier: 4.35,
     worldAreaCurve: {
       // Area 1 retains separate hand-tuned onboarding values. Areas 2-8 use this authored
       // progression curve until economy/balance tuning is run against real telemetry.
@@ -132,6 +136,7 @@ export const balance = {
       minEquippedWeapons: 4,
       minMutations: 4,
       requiredMutationIds: ['golden', 'king', 'dragon', 'prism'] as const,
+      requireMimicCapture: true,
       maxNoActionWindowSec: 120,
     },
   },
