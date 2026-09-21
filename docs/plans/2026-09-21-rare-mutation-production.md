@@ -1,6 +1,6 @@
 # Rare Mutation Production
 
-Status: Existing-body mutations release-verified locally — production deploy pending
+Status: Existing-body mutations production-deployed and public-smoke verified
 Date: 2026-09-21
 
 ## Goal
@@ -75,8 +75,8 @@ A ready mutation is also included in the shared Camp upgrade attention selector,
 - [x] world balance gates — Clover 3 profiles + full-world 20 seeds
 - [x] production build / bundle guard — initial static JS 414.3 KiB raw / 122.0 KiB gzip
 - [x] mobile visual QA for four mutations — 390×844 Camp states + Dragon Crater battle canvas, page/resource errors 0
-- [ ] origin/main
-- [ ] production deploy / public smoke
+- [x] origin/main — implementation 4f74d03, local release verification 3cdacfe
+- [x] production deploy / public smoke — Worker 6d009503-edcf-45ba-9ce5-71a30ed4720c; game + mutation chunk HTTP 200; 390×844 public Mutation/Camp/Battle smoke PASS
 
 ## Balance verification
 
