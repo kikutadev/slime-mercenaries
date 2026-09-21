@@ -1,6 +1,6 @@
 # Rare Mutation Production
 
-Status: Existing-body mutations implemented locally — release verification pending
+Status: Existing-body mutations release-verified locally — production deploy pending
 Date: 2026-09-21
 
 ## Goal
@@ -71,12 +71,29 @@ A ready mutation is also included in the shared Camp upgrade attention selector,
 - [x] Camp uses the actual Fusion-form model and mutation visual
 - [x] Battle runtime reload key includes mutation identity
 - [x] Battle / Fusion / Dispatch consume the shared mutation decorator
-- [ ] full tests / typecheck / UI contract
-- [ ] world balance gates
-- [ ] production build / bundle guard
-- [ ] mobile visual QA for four mutations
+- [x] full tests / typecheck / UI contract — 63 files / 396 tests
+- [x] world balance gates — Clover 3 profiles + full-world 20 seeds
+- [x] production build / bundle guard — initial static JS 414.3 KiB raw / 122.0 KiB gzip
+- [x] mobile visual QA for four mutations — 390×844 Camp states + Dragon Crater battle canvas, page/resource errors 0
 - [ ] origin/main
 - [ ] production deploy / public smoke
+
+## Balance verification
+
+Mutation buffs reduce late-world defeat frequency if the pre-mutation Dragon Crater frontier is left unchanged. The Area 8 base power was therefore rechecked instead of accepting the earlier local 2400 value blindly.
+
+20-seed candidate scan:
+
+| Dragon Crater base | Defeat range | Gate |
+| ---: | ---: | --- |
+| 2070 | 4–20 | FAIL — one seed falls below the lose-game floor |
+| 2200 | 10–25 | PASS |
+| 2250 | 12–26 | PASS |
+| 2300 | 14–28 | PASS |
+| 2350 | 16–29 | PASS |
+| 2400 | 17–30 | PASS |
+
+2250 is the production value because it restores the pre-Mutation observed 12–26 defeat range with the smallest practical late-world correction and avoids the earlier 2400 over-tuning.
 
 ## Deliberately separate
 
