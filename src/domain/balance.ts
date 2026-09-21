@@ -63,10 +63,9 @@ export const balance = {
       baseWaveGoldByAreaOrder: [0, 0, 96, 126, 160, 198, 240, 288, 342],
       stageGoldStep: 14,
       waveGoldMultipliers: [1, 1.15, 1.34],
-      stagePowerBaseByAreaOrder: [0, 0, 15.5, 20, 27, 36, 48, 64, 84],
-      stagePowerStep: 2.4,
+      stagePowerBaseByAreaOrder: [0, 0, 40, 72, 80, 115, 165, 180, 205],
       bossWorkMultiplier: 2.05,
-      bossPowerBonus: 4.2,
+      bossPowerBonus: 5,
       bossGoldMultiplier: 2.4,
     },
     cloverRoad: {
@@ -79,7 +78,9 @@ export const balance = {
           requiredPartyPower: 12.5,
           waveWork: [330, 380, 430],
           waveGold: [72, 84, 98],
-          clearReward: { forgeKey: 2, hardeningGel: 3, temperedSteel: 2 },
+          clearReward: {
+            forgeKey: 2, hardeningGel: 3, temperedSteel: 2, trainingWand: 1, trainingDagger: 1,
+          },
         },
       ],
     },
@@ -115,6 +116,13 @@ export const balance = {
       farmClears: { minCount: 6, maxCount: 9 },
       retries: { minCount: 2, maxCount: 3 },
       maxNoActionWindowSec: 60,
+    },
+    world: {
+      minDefeats: 8,
+      maxDefeats: 14,
+      requiredDefeatAreas: 7,
+      minFinalFusionRank: 2,
+      maxNoActionWindowSec: 90,
     },
   },
   equipment: {

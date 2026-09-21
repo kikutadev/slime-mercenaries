@@ -97,6 +97,8 @@ Job Gear is a profession catalyst and is separate from persistent combat Equipme
 
 The area gate is authoritative in the job-creation command, not merely UI hiding: Sword/Bow require Clover Road, Wand/Dagger require Mushroom Forest, and Shield/Gun require Amber Mine. Owning the Job Gear early does not bypass the gate. The public validation sandbox may explicitly unlock those authored areas at the Application boundary so all six normal families remain testable without weakening the production command.
 
+Production deterministic access is tied to area clears rather than random drops: Sword starts in the tutorial, Bow is granted during Clover Road, Wand/Dagger are granted by the Clover Road final clear, and Shield/Gun are guaranteed by the Mushroom Forest final clear before Amber Mine begins. Areas 2-8 continue to circulate all six Job Gear families through stage-clear rewards. The first-world reward table must supply at least seven copies per family in total, which covers one active body plus the six spare bodies required by the current Rank 2/3/4 Fusion Core recipes.
+
 Resolution:
 
 - undiscovered job -> create the first persistent instance and mark the type NEW

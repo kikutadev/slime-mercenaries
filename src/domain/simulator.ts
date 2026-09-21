@@ -16,6 +16,7 @@ import {
   convertDuplicateToFusionCore,
   fuseSlime,
   levelUpSlime,
+  isJobCreationUnlocked,
   previewJobCreation,
   previewPlainSlimeCraft,
   previewPlainSlimePurchase,
@@ -27,7 +28,7 @@ import { startDispatch } from './dispatch';
 import { equipWeapon, forgeEquipment } from './equipment';
 import { advanceSlimeWorldTo } from './world';
 import { balance } from './balance';
-import { ids, type DispatchContractId, type JobSlimeId } from './definitions';
+import { NORMAL_JOB_SLIME_IDS, ids, jobCreationDefinitions, type DispatchContractId, type JobSlimeId } from './definitions';
 import { firstSlimeByType, slimeIdsByType } from './roster';
 import { createInitialSlimeMercenariesState, highestStageClearedForArea, type SlimeInstanceId, type SlimeMercenariesState } from './state';
 
@@ -475,4 +476,254 @@ function percentileValue(values: readonly number[], percentile: BalancePercentil
   const ratio = percentile === 'p90' ? 0.9 : 0.5;
   const index = Math.max(0, Math.ceil(sorted.length * ratio) - 1);
   return sorted[index] ?? null;
+}
+
+
+export type WorldProgressionPolicyProfileId = 'world-reactive';
+
+/**
+ * Full-world policy for production reachability/balance checks.
+ *
+ * It never grants resources or edits state directly: every body, level and Fusion goes through the
+ * same production commands as the UI. It discovers newly unlocked jobs immediately, prepares a
+ * Fusion Core only when the rest of that Fusion is ready, spends one level-up on each newly entered
+ * stage and one per retreat-farm phase so defeat -> farm -> strengthen -> retry stays observable.
+ */
+export function createWorldProgressionPolicy(): SimulatorPolicy<SlimeMercenariesState, SlimeSimulatorCommand> {
+  let handledRetreatPhase: string | null = null;
+  let handledStageStrengthenKey: string | null = null;
+
+  return {
+    id: 'slime-mercenaries.world-reactive',
+    version: '1',
+    chooseAction: (state) => {
+      if (state.gameData.combat.contentBoundaryReached) return { kind: 'stop', reason: 'world-clear' };
+
+      for (const jobId of NORMAL_JOB_SLIME_IDS) {
+        if (!isJobCreationUnlocked(state, jobId) || firstSlimeByType(state, jobId) !== null) continue;
+        const create = previewJobCreation(state, jobId);
+        if (create.canCreate) return { kind: 'command', command: { type: 'create-job', jobId } };
+        if (readToken(state.tokens, jobCreationDefinitions[jobId].jobGearTokenId) <= 0) continue;
+        const plain = prepareOnePlainSlime(state);
+        if (plain !== null) return { kind: 'command', command: plain };
+      }
+
+      for (const [slotIndex, jobId] of NORMAL_JOB_SLIME_IDS.entries()) {
+        const primary = firstSlimeByType(state, jobId);
+        if (primary === null || state.gameData.roster.formationSlots.includes(primary.id)) continue;
+        if (state.gameData.roster.formationSlots[slotIndex] === null) {
+          return { kind: 'command', command: { type: 'assign', slimeId: primary.id, slotIndex } };
+        }
+        const freeSlot = state.gameData.roster.formationSlots.findIndex((slimeId) => slimeId === null);
+        if (freeSlot >= 0) return { kind: 'command', command: { type: 'assign', slimeId: primary.id, slotIndex: freeSlot } };
+      }
+
+      for (const jobId of NORMAL_JOB_SLIME_IDS) {
+        const primary = firstSlimeByType(state, jobId);
+        if (primary === null) continue;
+        const spare = slimeIdsByType(state, jobId)
+          .map((slimeId) => state.gameData.roster.slimes[slimeId])
+          .find((candidate) => candidate !== undefined && candidate.id !== primary.id && candidate.assignment === 'reserve');
+        if (spare !== undefined) {
+          return { kind: 'command', command: { type: 'convert-to-core', slimeId: spare.id } };
+        }
+      }
+
+      for (const jobId of NORMAL_JOB_SLIME_IDS) {
+        const primary = firstSlimeByType(state, jobId);
+        if (primary === null) continue;
+        const fusion = previewSlimeFusion(state, primary.id);
+        if (fusion.canFuse && fusion.step !== null) {
+          return { kind: 'command', command: { type: 'fuse', slimeId: primary.id, fusionStepId: fusion.step.id } };
+        }
+      }
+
+      for (const jobId of NORMAL_JOB_SLIME_IDS) {
+        const primary = firstSlimeByType(state, jobId);
+        if (primary === null) continue;
+        const fusion = previewSlimeFusion(state, primary.id);
+        if (fusion.step === null || !fusion.unlocked || !fusion.levelMet) continue;
+        const coreTokenId = jobCreationDefinitions[jobId].fusionCoreTokenId;
+        const coreRequirement = fusion.requirements.find((requirement) => requirement.tokenId === coreTokenId);
+        if (coreRequirement === undefined || coreRequirement.missing <= 0) continue;
+        const otherInputsReady = fusion.requirements
+          .filter((requirement) => requirement.tokenId !== coreTokenId)
+          .every((requirement) => requirement.missing === 0);
+        if (!otherInputsReady || readToken(state.tokens, jobCreationDefinitions[jobId].jobGearTokenId) <= 0) continue;
+
+        const duplicate = previewJobCreation(state, jobId);
+        if (duplicate.canCreate) return { kind: 'command', command: { type: 'create-job', jobId } };
+        const plain = prepareOnePlainSlime(state);
+        if (plain !== null) return { kind: 'command', command: plain };
+      }
+
+      const stageStrengthenKey = `${state.gameData.progression.currentAreaId}:${state.gameData.progression.currentStage}`;
+      if (handledStageStrengthenKey !== stageStrengthenKey) {
+        const candidates = worldActivePrimariesByLevel(state);
+        for (const slime of candidates) {
+          const level = previewSlimeLevelUp(state, slime.id, 1);
+          if (level?.available !== true) continue;
+          if (readCurrency(state.currencies, ids.currency.gold).compare(level.totalCost) < 0) continue;
+          handledStageStrengthenKey = stageStrengthenKey;
+          return { kind: 'command', command: { type: 'level', slimeId: slime.id, count: 1 } };
+        }
+      }
+
+      if (state.gameData.combat.retryFarmClearsRemaining > 0) {
+        const phase = [
+          state.gameData.progression.currentAreaId,
+          state.gameData.progression.currentStage,
+          state.gameData.combat.retryFarmClearsRemaining,
+        ].join(':');
+        if (phase !== handledRetreatPhase) {
+          const candidates = worldActivePrimariesByLevel(state);
+          for (const slime of candidates) {
+            const level = previewSlimeLevelUp(state, slime.id, 1);
+            if (level?.available !== true) continue;
+            if (readCurrency(state.currencies, ids.currency.gold).compare(level.totalCost) < 0) continue;
+            handledRetreatPhase = phase;
+            return { kind: 'command', command: { type: 'level', slimeId: slime.id, count: 1 } };
+          }
+          handledRetreatPhase = phase;
+        }
+      }
+
+      const boundary = nextCombatBoundarySec(state);
+      if (boundary !== null) {
+        return { kind: 'wait-until', simTimeSec: boundary, reason: 'auto-battle', classification: 'no-action' };
+      }
+      return { kind: 'stop', reason: 'no-combat-boundary' };
+    },
+  };
+}
+
+function worldActivePrimariesByLevel(state: SlimeMercenariesState) {
+  return NORMAL_JOB_SLIME_IDS
+    .flatMap((jobId) => {
+      const slime = firstSlimeByType(state, jobId);
+      return slime === null || !state.gameData.roster.formationSlots.includes(slime.id) ? [] : [slime];
+    })
+    .sort((left, right) => left.level - right.level || left.serial - right.serial);
+}
+
+function prepareOnePlainSlime(state: SlimeMercenariesState): SlimeSimulatorCommand | null {
+  const craft = previewPlainSlimeCraft(state);
+  if (craft.canCraft) return { type: 'craft-plain', count: 1 };
+  const shop = previewPlainSlimePurchase(state);
+  if (shop.canAfford) return { type: 'buy-plain', count: 1 };
+  return null;
+}
+
+export function runWorldProgressionSimulation(seed = 1, maxSimTimeSec = 14_400) {
+  return runSimulation({
+    initialState: createInitialSlimeMercenariesState(0, seed),
+    adapter: slimeSimulatorAdapter,
+    policy: createWorldProgressionPolicy(),
+    milestones: [],
+    maxSimTimeSec,
+  });
+}
+
+export type WorldProgressionSimulationSummary = Readonly<{
+  seed: number;
+  stopReason: string;
+  simTimeSec: number;
+  clearedStages: number;
+  areaUnlocks: number;
+  defeats: number;
+  farmClears: number;
+  retries: number;
+  levelUps: number;
+  fusions: number;
+  jobsDiscovered: number;
+  defeatsByArea: Readonly<Record<string, number>>;
+  clearTimeByArea: Readonly<Record<string, number>>;
+  finalParty: readonly Readonly<{
+    jobId: JobSlimeId;
+    level: number;
+    fusionRank: number;
+    jobTier: number;
+  }>[];
+  maxNoActionWindowSec: number;
+}>;
+
+export function summarizeWorldProgressionSimulation(
+  seed: number,
+  run: ReturnType<typeof runWorldProgressionSimulation>,
+): WorldProgressionSimulationSummary {
+  const defeatsByArea: Record<string, number> = {};
+  const clearTimeByArea: Record<string, number> = {};
+  for (const event of run.events) {
+    if (event.type === 'partyDefeated') {
+      const areaId = typeof event.payload?.areaId === 'string' ? event.payload.areaId : 'unknown';
+      defeatsByArea[areaId] = (defeatsByArea[areaId] ?? 0) + 1;
+    }
+    if (event.type === 'stageCleared' && event.payload?.farming !== true && event.payload?.stageNumber === 5) {
+      const areaId = typeof event.payload?.areaId === 'string' ? event.payload.areaId : 'unknown';
+      clearTimeByArea[areaId] = event.simTimeSec;
+    }
+  }
+
+  const finalParty = NORMAL_JOB_SLIME_IDS.flatMap((jobId) => {
+    const slime = firstSlimeByType(run.finalState, jobId);
+    return slime === null ? [] : [{
+      jobId,
+      level: slime.level,
+      fusionRank: slime.fusionRank,
+      jobTier: slime.jobTier,
+    }];
+  });
+
+  return {
+    seed,
+    stopReason: run.stopReason,
+    simTimeSec: run.finalState.simTimeSec,
+    clearedStages: run.events.filter((event) => event.type === 'stageCleared' && event.payload?.farming !== true).length,
+    areaUnlocks: run.events.filter((event) => event.type === 'areaUnlocked').length,
+    defeats: run.events.filter((event) => event.type === 'partyDefeated').length,
+    farmClears: run.events.filter((event) => event.type === 'stageCleared' && event.payload?.farming === true).length,
+    retries: run.events.filter((event) => event.type === 'frontierRetryStarted').length,
+    levelUps: run.events.filter((event) => event.type === 'slimeLeveled').length,
+    fusions: run.events.filter((event) => event.type === 'slimeFused').length,
+    jobsDiscovered: run.events.filter((event) => event.type === 'slimeJobDiscovered').length,
+    defeatsByArea,
+    clearTimeByArea,
+    finalParty,
+    maxNoActionWindowSec: Math.max(0, ...run.waitWindows
+      .filter((window) => window.classification === 'no-action')
+      .map((window) => window.durationSec)),
+  };
+}
+
+
+export function validateWorldProgressionSummary(summary: WorldProgressionSimulationSummary): readonly string[] {
+  const failures: string[] = [];
+  const targets = balance.targets.world;
+
+  if (summary.stopReason !== 'world-clear') failures.push(`stop=${summary.stopReason}`);
+  if (summary.clearedStages !== 40) failures.push(`clearedStages=${summary.clearedStages}`);
+  if (summary.areaUnlocks !== 7) failures.push(`areaUnlocks=${summary.areaUnlocks}`);
+  if (summary.jobsDiscovered !== NORMAL_JOB_SLIME_IDS.length) failures.push(`jobsDiscovered=${summary.jobsDiscovered}`);
+  if (summary.finalParty.length !== NORMAL_JOB_SLIME_IDS.length) failures.push(`finalParty=${summary.finalParty.length}`);
+  if (summary.defeats < targets.minDefeats || summary.defeats > targets.maxDefeats) {
+    failures.push(`defeats=${summary.defeats} outside ${targets.minDefeats}..${targets.maxDefeats}`);
+  }
+  if (Object.keys(summary.defeatsByArea).length < targets.requiredDefeatAreas) {
+    failures.push(`defeatAreas=${Object.keys(summary.defeatsByArea).length} < ${targets.requiredDefeatAreas}`);
+  }
+  if (summary.retries !== summary.defeats) {
+    failures.push(`defeats/retries=${summary.defeats}/${summary.retries}`);
+  }
+  if (summary.farmClears !== summary.defeats * balance.combat.frontier.retryFarmClears) {
+    failures.push(`farmClears=${summary.farmClears}, expected=${summary.defeats * balance.combat.frontier.retryFarmClears}`);
+  }
+  if (summary.maxNoActionWindowSec > targets.maxNoActionWindowSec) {
+    failures.push(`maxNoActionWindowSec=${summary.maxNoActionWindowSec} > ${targets.maxNoActionWindowSec}`);
+  }
+  const underFused = summary.finalParty.filter((slime) => slime.fusionRank < targets.minFinalFusionRank);
+  if (underFused.length > 0) {
+    failures.push(`underFused=${underFused.map((slime) => slime.jobId).join(',')}`);
+  }
+
+  return failures;
 }

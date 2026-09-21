@@ -99,7 +99,9 @@
     "validate:environments": "pnpm run validate:environment:clover && pnpm run validate:environment:mushroom && pnpm run validate:environment:mine && pnpm run validate:environment:marsh && pnpm run validate:environment:frost && pnpm run validate:environment:ember && pnpm run validate:environment:castle && pnpm run validate:environment:dragon",
     "qa:environment:capture": "node tools/qa/capture-stage-environments.cjs",
     "qa:environment:verify": "python3 tools/qa/verify-stage-environment-frames.py",
-    "qa:world-battle": "node tools/qa/capture-world-battle-states.cjs"
+    "qa:world-battle": "node tools/qa/capture-world-battle-states.cjs",
+    "simulate:world": "vite-node scripts/simulate-world.ts",
+    "simulate:world:check": "vite-node scripts/simulate-world.ts --seeds 20 --check"
   },
   "dependencies": {
     "@react-three/fiber": "^9.7.0",

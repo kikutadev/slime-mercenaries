@@ -89,12 +89,12 @@ function validateSummaries(
 ): readonly string[] {
   const failures: string[] = [];
   for (const summary of summaries) {
-    if (summary.stopReason !== 'content-boundary' || summary.highestStageCleared < 5) {
+    if (summary.stopReason !== 'clover-road-clear' || summary.highestStageCleared < 5) {
       failures.push(`seed ${summary.seed}: did not clear Clover Road (stop=${summary.stopReason}, highest=${summary.highestStageCleared})`);
     }
     if (profileId === 'defeat-loop') {
       if (summary.retreats !== summary.defeats) failures.push(`seed ${summary.seed}: defeats/retreats diverged (${summary.defeats}/${summary.retreats})`);
-      if (summary.firstDefeatSec !== null && summary.cloverRoadBossSec !== null && summary.firstDefeatSec >= summary.cloverRoadBossSec) {
+      if (summary.firstDefeatSec !== null && summary.cloverRoadClearSec !== null && summary.firstDefeatSec >= summary.cloverRoadClearSec) {
         failures.push(`seed ${summary.seed}: defeat did not precede final breakthrough`);
       }
     }
@@ -117,7 +117,7 @@ function printHumanReport(
     seed: summary.seed,
     stop: summary.stopReason,
     time: summary.simTimeSec,
-    boss: summary.cloverRoadBossSec ?? '-',
+    clear: summary.cloverRoadClearSec ?? '-',
     firstDefeat: summary.firstDefeatSec ?? '-',
     firstFarm: summary.firstFarmClearSec ?? '-',
     firstRetry: summary.firstRetrySec ?? '-',

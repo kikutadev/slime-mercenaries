@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addItemInstance, applyRewards, grantToken } from 'idle-game-kit';
-import { fusionStepDefinitions, ids, resolveCurrencyDefinition, weaponDefinitions } from './definitions';
+import { AREA_IDS, fusionStepDefinitions, ids, resolveCurrencyDefinition, weaponDefinitions } from './definitions';
 import { firstSlimeIdByType } from './roster';
 import { highestStageClearedForArea, createInitialSlimeMercenariesState } from './state';
 import {
@@ -9,8 +9,11 @@ import {
   evaluatePacedDefeatBalance,
   runDefeatLoopSimulation,
   runFirstLoopSimulation,
+  runWorldProgressionSimulation,
   slimeSimulatorAdapter,
   summarizeFirstLoopSimulation,
+  summarizeWorldProgressionSimulation,
+  validateWorldProgressionSummary,
 } from './simulator';
 
 describe('same-core first-loop simulation', () => {
@@ -79,6 +82,31 @@ describe('same-core first-loop simulation', () => {
     expect(evaluations.every((entry) => entry.status === 'pass')).toBe(true);
     expect(evaluations.map((entry) => entry.target.kind)).toContain('repetition-count');
     expect(evaluations.every((entry) => entry.observed !== null)).toBe(true);
+  });
+});
+
+
+describe('same-core full-world simulation', () => {
+  it('keeps all eight areas reachable through production commands and the authored lose/farm/retry loop', () => {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const run = runWorldProgressionSimulation(seed);
+      const summary = summarizeWorldProgressionSimulation(seed, run);
+
+      expect(validateWorldProgressionSummary(summary), 'seed ' + seed).toEqual([]);
+      expect(summary.stopReason).toBe('world-clear');
+      expect(summary.clearedStages).toBe(40);
+      expect(summary.areaUnlocks).toBe(7);
+      expect(summary.jobsDiscovered).toBe(6);
+      expect(Object.keys(summary.defeatsByArea).sort()).toEqual([...AREA_IDS.slice(1)].sort());
+      expect(summary.finalParty).toHaveLength(6);
+      expect(summary.finalParty.every((slime) => slime.fusionRank >= 2)).toBe(true);
+    }
+  });
+
+  it('keeps the full-world policy deterministic for the same seed', () => {
+    const first = summarizeWorldProgressionSimulation(37, runWorldProgressionSimulation(37));
+    const second = summarizeWorldProgressionSimulation(37, runWorldProgressionSimulation(37));
+    expect(second).toEqual(first);
   });
 });
 

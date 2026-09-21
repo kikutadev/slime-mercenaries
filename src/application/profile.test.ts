@@ -80,7 +80,7 @@ it('keeps an uncleared major frontier locked during offline resume while farming
         currentStage: 5,
       },
       combat: { currentWaveIndex: 3, waveWorkRemaining: null, retryFarmClearsRemaining: 0, frontierDefeatTimeRemainingSec: null, contentBoundaryReached: false },
-      roster: { ...base.gameData.roster, slimes: { ...base.gameData.roster.slimes, [swordId]: { ...sword, level: 20 } } },
+      roster: { ...base.gameData.roster, slimes: { ...base.gameData.roster.slimes, [swordId]: { ...sword, level: 30 } } },
     },
   };
   await saveSlimeProfile(repository, 'default', state, 1_000);

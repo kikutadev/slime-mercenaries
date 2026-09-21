@@ -38,6 +38,10 @@ type ClearRewardKey =
   | 'lifeWater'
   | 'trainingSword'
   | 'trainingBow'
+  | 'trainingShield'
+  | 'trainingWand'
+  | 'trainingDagger'
+  | 'trainingGun'
   | 'greatswordBlank'
   | 'hardeningGel'
   | 'forgeKey'
@@ -49,6 +53,10 @@ const TOKEN_BY_CLEAR_REWARD_KEY: Readonly<Record<ClearRewardKey, string>> = {
   lifeWater: ids.token.lifeWater,
   trainingSword: ids.token.trainingSword,
   trainingBow: ids.token.trainingBow,
+  trainingShield: ids.token.trainingShield,
+  trainingWand: ids.token.trainingWand,
+  trainingDagger: ids.token.trainingDagger,
+  trainingGun: ids.token.trainingGun,
   greatswordBlank: ids.token.greatswordBlank,
   hardeningGel: ids.token.hardeningGel,
   forgeKey: ids.token.forgeKey,
@@ -124,24 +132,47 @@ const CURVED_AREA_PLANS: readonly CurvedAreaPlan[] = [
   { id: 'area.dragon-crater', order: 8, slug: 'dragon-crater' },
 ];
 
+const JOB_GEAR_CYCLE: readonly string[] = [
+  ids.token.trainingSword,
+  ids.token.trainingShield,
+  ids.token.trainingBow,
+  ids.token.trainingWand,
+  ids.token.trainingDagger,
+  ids.token.trainingGun,
+];
+
+function deterministicJobGearRewards(areaOrder: number, stageNumber: number): readonly SlimeProductReward[] {
+  const globalStageNumber = (areaOrder - 1) * 5 + stageNumber;
+  const cycleTokenId = JOB_GEAR_CYCLE[globalStageNumber % JOB_GEAR_CYCLE.length]!;
+  const rewards: SlimeProductReward[] = [{ type: 'token', tokenId: cycleTokenId, count: 1 }];
+
+  // Shield/Gun become available when Mushroom Forest is cleared, matching their Amber Mine area gate.
+  if (areaOrder === 2 && stageNumber === 5) {
+    rewards.push({ type: 'token', tokenId: ids.token.trainingShield, count: 1 });
+    rewards.push({ type: 'token', tokenId: ids.token.trainingGun, count: 2 });
+  }
+  return rewards;
+}
+
 function curvedStageClearRewards(areaOrder: number, stageNumber: number): readonly SlimeProductReward[] {
+  const jobGear = deterministicJobGearRewards(areaOrder, stageNumber);
   if (stageNumber === 1) {
-    return stageClearRewards({ slimeGel: 8 + areaOrder * 2, lifeWater: areaOrder % 2 === 0 ? 1 : 0 });
+    return [...stageClearRewards({ slimeGel: 8 + areaOrder * 2, lifeWater: areaOrder % 2 === 0 ? 1 : 0 }), ...jobGear];
   }
   if (stageNumber === 2) {
-    return stageClearRewards({ hardeningGel: 2 + Math.floor(areaOrder / 3) });
+    return [...stageClearRewards({ hardeningGel: 2 + Math.floor(areaOrder / 3) }), ...jobGear];
   }
   if (stageNumber === 3) {
-    return stageClearRewards({ slimeGel: 6 + areaOrder, temperedSteel: 1 + Math.floor(areaOrder / 4) });
+    return [...stageClearRewards({ slimeGel: 6 + areaOrder, temperedSteel: 1 + Math.floor(areaOrder / 4) }), ...jobGear];
   }
   if (stageNumber === 4) {
-    return stageClearRewards({ hardeningGel: 2 + Math.floor(areaOrder / 2), temperedSteel: 2 });
+    return [...stageClearRewards({ hardeningGel: 2 + Math.floor(areaOrder / 2), temperedSteel: 2 }), ...jobGear];
   }
-  return stageClearRewards({
+  return [...stageClearRewards({
     forgeKey: 2 + Math.floor(areaOrder / 3),
     hardeningGel: 3 + Math.floor(areaOrder / 2),
     temperedSteel: 2 + Math.floor(areaOrder / 3),
-  });
+  }), ...jobGear];
 }
 
 function buildCurvedAreaStages(plan: CurvedAreaPlan): readonly StageDefinition[] {
@@ -157,7 +188,7 @@ function buildCurvedAreaStages(plan: CurvedAreaPlan): readonly StageDefinition[]
     const stageNumber = stageIndex + 1;
     const stageWork = baseWork + stageIndex * curve.stageWorkStep;
     const stageGold = baseGold + stageIndex * curve.stageGoldStep;
-    const stagePower = basePower + Math.max(0, stageNumber - 3) * curve.stagePowerStep;
+    const stagePower = basePower;
     const waves = curve.waveWorkMultipliers.map((multiplier, waveIndex): StageWaveDefinition => ({
       encounterId: encounterId(plan.slug, stageNumber, waveIndex + 1),
       work: Math.round(stageWork * multiplier),
@@ -170,12 +201,12 @@ function buildCurvedAreaStages(plan: CurvedAreaPlan): readonly StageDefinition[]
       randomDrops: normalWaveRandomDrops(plan.order),
     }));
 
-    const requiredPartyPower = stageNumber >= 3 && stageNumber < 5 ? stagePower : undefined;
+    const requiredPartyPower = stageNumber === 3 ? stagePower : undefined;
     const boss = stageNumber === 5
       ? {
           encounterId: encounterId(plan.slug, stageNumber, 'boss'),
           work: Math.round(waves[2]!.work * curve.bossWorkMultiplier),
-          requiredPartyPower: basePower + curve.stagePowerStep * 2 + curve.bossPowerBonus,
+          requiredPartyPower: basePower + curve.bossPowerBonus,
           rewards: [{
             type: 'currency' as const,
             currencyId: ids.currency.gold,
