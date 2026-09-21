@@ -1,7 +1,7 @@
 # UX / UI Specification
 
 Status: Current
-Date: 2026-09-19
+Date: 2026-09-21
 
 ## 1. UX goal
 
@@ -19,14 +19,15 @@ Do not turn the main view into stat cards around a tiny battlefield.
 
 ## 2. Navigation model
 
-Persistent bottom navigation has four primary destinations:
+Persistent bottom navigation has four primary gameplay destinations plus one Settings utility:
 
 1. **Battle** — main battlefield and quick formation access
 2. **Slimes** — roster, fusion, level, evolution, equipment assignment
 3. **Dispatch** — reserve slime jobs and returns
 4. **Forge** — equipment draw, owned equipment, refinement
+5. **Settings** — runtime play mode and local save-data management; opens as a sheet rather than replacing the current gameplay screen
 
-Codex is accessible from Slimes as a secondary destination rather than consuming a fifth persistent tab. Settings remain secondary.
+Codex is accessible from Slimes as a secondary destination rather than consuming another persistent tab.
 
 ## 3. Battle screen
 
@@ -48,7 +49,7 @@ Reference composition:
 ├────────────────────────┤
 │ ready / result strip   │
 ├────────────────────────┤
-│ Battle Slimes Dispatch Forge │
+│ Battle Camp Dispatch Forge ⚙ │
 └────────────────────────┘
 ```
 
@@ -372,3 +373,19 @@ Do not badge every affordable level-up.
 - respect top and bottom safe areas
 - preserve enough battlefield height for 1–6 active slimes and enemy movement
 - do not shrink slimes merely to fit a discarded 20–30-body requirement
+
+
+## 18. Settings and local save management
+
+Settings is a utility sheet available from the persistent dock.
+
+Play mode:
+- Normal mode uses authored Gold/material economy.
+- Development mode displays Gold/materials as infinity.
+- returning to Normal restores the real resource ledger from before Development mode; non-resource progression remains.
+
+Save data:
+- **Export** downloads a versioned JSON snapshot.
+- **Import** accepts only a validated Slime Mercenaries export, shows an overwrite confirmation, migrates supported old schema versions, and treats import as a snapshot restore rather than awarding offline time since export.
+- **Delete** requires an explicit destructive confirmation, deletes the local IndexedDB profile, creates a clean profile, then restarts presentation state.
+- Development-mode virtual resources are never written into exports.

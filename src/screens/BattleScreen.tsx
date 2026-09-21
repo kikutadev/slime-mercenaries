@@ -32,7 +32,7 @@ export function BattleScreen({
   const state = useGameState();
   const controller = useGameController();
   const validationMode = controller.validationMode;
-  const showValidationTools = validationToolsVisible();
+  const showValidationTools = validationMode && validationToolsVisible();
   const authoritativeSceneModel = selectBattleSceneModel(state);
   const [sceneModel, setSceneModel] = useState(authoritativeSceneModel);
   const [pendingSceneModel, setPendingSceneModel] = useState<BattleSceneModel | null>(null);

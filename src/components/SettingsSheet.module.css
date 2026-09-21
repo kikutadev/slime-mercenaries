@@ -1,0 +1,307 @@
+
+.backdrop {
+  position: fixed;
+  z-index: var(--layer-sheet);
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px;
+  background: rgb(20 39 44 / 38%);
+  backdrop-filter: blur(5px);
+}
+
+.sheet {
+  width: min(100%, 446px);
+  max-height: min(82dvh, 760px);
+  overflow-y: auto;
+  padding: 0 14px max(18px, var(--safe-area-bottom));
+  border: 1px solid rgb(255 255 255 / 78%);
+  border-radius: 24px 24px 18px 18px;
+  background: var(--surface-panel);
+  box-shadow: 0 -18px 60px rgb(27 55 44 / 28%);
+}
+
+.header {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 15px 2px 11px;
+  background: linear-gradient(180deg, var(--surface-panel) 78%, rgb(243 248 238 / 0%));
+}
+
+.header :is(h2, h3, strong) {
+  margin: 0;
+  font-size: var(--font-size-title);
+  letter-spacing: -.03em;
+}
+
+.close {
+  width: var(--touch-target-min);
+  height: var(--touch-target-min);
+  border: 0;
+  border-radius: 50%;
+  background: rgb(45 78 53 / 8%);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.content {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 4px;
+}
+
+.section {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgb(56 91 62 / 10%);
+  border-radius: 18px;
+  background: rgb(255 255 255 / 68%);
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sectionHeading > span {
+  color: var(--text-default);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: -.02em;
+}
+
+.sectionHeading > small {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.modeGrid {
+  display: grid;
+  gap: 8px;
+}
+
+.modeButton {
+  position: relative;
+  min-height: 72px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid rgb(55 91 64 / 13%);
+  border-radius: 15px;
+  background: #fff;
+  color: var(--text-default);
+  text-align: left;
+  cursor: pointer;
+}
+
+.modeButton:active {
+  transform: translateY(1px);
+}
+
+.modeActive {
+  border-color: rgb(71 145 84 / 52%);
+  background: linear-gradient(135deg, #f7fff4, #edf8e9);
+  box-shadow: inset 0 0 0 1px rgb(71 145 84 / 12%);
+}
+
+.modeCheck {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgb(54 92 60 / 18%);
+  border-radius: 50%;
+  background: rgb(46 91 55 / 5%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.modeActive .modeCheck {
+  border-color: #4c9a5a;
+  background: #4c9a5a;
+}
+
+.modeCopy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.modeCopy strong {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.modeCopy small {
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.modeButton em {
+  min-width: 30px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #e8f6db;
+  color: #3f7f4c;
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 1000;
+  text-align: center;
+}
+
+.modeNote {
+  padding: 9px 10px;
+  border-radius: 12px;
+  background: #f2f5ef;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.dataActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dataActions button {
+  min-height: 82px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid rgb(54 88 61 / 12%);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--text-default);
+  text-align: left;
+  cursor: pointer;
+}
+
+.dataActions button:disabled,
+.deleteButton:disabled,
+.confirmBox button:disabled {
+  opacity: .5;
+  cursor: default;
+}
+
+.dataActions svg {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: #557d5e;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.dataActions span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.dataActions strong {
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.dataActions small {
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.fileInput {
+  display: none;
+}
+
+.deleteButton {
+  min-height: var(--touch-target-min);
+  border: 1px solid rgb(172 79 58 / 18%);
+  border-radius: 13px;
+  background: #fff7f4;
+  color: #a14937;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.confirmBox {
+  display: grid;
+  gap: 8px;
+  padding: 13px;
+  border: 1px solid rgb(169 80 58 / 20%);
+  border-radius: 16px;
+  background: #fff4ee;
+}
+
+.confirmBox > strong {
+  color: #843f31;
+  font-size: 12px;
+}
+
+.confirmBox > p {
+  margin: 0;
+  color: #72564f;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.confirmBox > div {
+  display: grid;
+  grid-template-columns: 1fr 1.35fr;
+  gap: 8px;
+}
+
+.confirmBox button {
+  min-height: var(--touch-target-min);
+  border: 1px solid rgb(84 88 79 / 12%);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text-default);
+  font-size: 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.confirmBox .confirmDanger {
+  border-color: transparent;
+  background: #a84f3b;
+  color: #fff;
+}
+
+.message {
+  padding: 10px 12px;
+  border-radius: 13px;
+  background: #eaf5e5;
+  color: #3e6c47;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+@media (max-width: 360px) {
+  .dataActions {
+    grid-template-columns: 1fr;
+  }
+
+  .dataActions button {
+    min-height: 64px;
+  }
+}

@@ -402,7 +402,7 @@
   bottom: max(var(--bottom-nav-edge-gap), var(--safe-area-bottom));
   height: var(--bottom-nav-height);
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   padding: 5px;
   border: 1px solid rgb(255 255 255 / 64%);
   border-radius: var(--radius-lg);

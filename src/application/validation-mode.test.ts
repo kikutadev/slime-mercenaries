@@ -6,12 +6,13 @@ import {
   createJobSlime,
   firstSlimeIdByType,
   fuseSlime,
+  ids,
   levelUpSlime,
   previewSlimeFusions,
 } from '../domain';
 import { getSlimePresentation } from '../game/slimes';
 import { selectBattleSceneModel } from './selectors/battle-scene';
-import { applyValidationSandboxResources, prepareValidationRoster } from './validation-mode';
+import { applyDevelopmentSandboxResources, prepareValidationRoster, stripLegacyDevelopmentSandboxResources } from './validation-mode';
 
 function createAllFamilies() {
   const prepared = prepareValidationRoster(createInitialSlimeMercenariesState(0, 41));
@@ -47,12 +48,12 @@ describe('public validation sandbox', () => {
 
     const leveled = levelUpSlime(state, shieldId, 39);
     if (!leveled.accepted) throw new Error('level shield rejected: ' + leveled.reason);
-    state = applyValidationSandboxResources(leveled.state);
+    state = applyDevelopmentSandboxResources(leveled.state);
 
     for (const fusionId of ['fusion.shield.01-fortified-guard', 'fusion.shield.02-guardian']) {
       const fused = fuseSlime(state, shieldId, fusionId);
       if (!fused.accepted) throw new Error(fusionId + ' rejected: ' + fused.reason);
-      state = applyValidationSandboxResources(fused.state);
+      state = applyDevelopmentSandboxResources(fused.state);
     }
     expect(getSlimePresentation(state.gameData.roster.slimes[shieldId]!).asset).toBe('assets/guardian-slime.glb');
 
@@ -70,33 +71,51 @@ describe('public validation sandbox', () => {
 
     const tier3 = fuseSlime(state, shieldId, 'fusion.shield.03-fortress');
     if (!tier3.accepted) throw new Error('fortress rejected: ' + tier3.reason);
-    state = applyValidationSandboxResources(tier3.state);
+    state = applyDevelopmentSandboxResources(tier3.state);
     expect(state.gameData.roster.slimes[shieldId]?.jobTier).toBe(3);
     expect(state.gameData.roster.slimes[shieldId]?.fusionFormId).toBe('fortress');
     expect(getSlimePresentation(state.gameData.roster.slimes[shieldId]!).asset).toBe('assets/fortress-slime.glb');
   });
 
   it('keeps authored Fusion commands real while same-type bodies remain separate', () => {
-    let state = applyValidationSandboxResources(createInitialSlimeMercenariesState(0, 61));
+    let state = applyDevelopmentSandboxResources(createInitialSlimeMercenariesState(0, 61));
     let created = createJobSlime(state, 'sword');
     if (!created.accepted) throw new Error(`create sword rejected: ${created.reason}`);
-    state = applyValidationSandboxResources(created.state);
+    state = applyDevelopmentSandboxResources(created.state);
     const swordId = firstSlimeIdByType(state, 'sword');
     if (swordId === null) throw new Error('sword missing');
 
     created = createJobSlime(state, 'sword');
     if (!created.accepted) throw new Error(`duplicate sword rejected: ${created.reason}`);
-    state = applyValidationSandboxResources(created.state);
+    state = applyDevelopmentSandboxResources(created.state);
     expect(Object.values(state.gameData.roster.slimes).filter((slime) => slime.typeId === 'sword')).toHaveLength(2);
 
     const leveled = levelUpSlime(state, swordId, 9);
     if (!leveled.accepted) throw new Error(`level sword rejected: ${leveled.reason}`);
-    state = applyValidationSandboxResources(leveled.state);
+    state = applyDevelopmentSandboxResources(leveled.state);
     const fused = fuseSlime(state, swordId);
     expect(fused.accepted).toBe(true);
     if (!fused.accepted) return;
-    state = applyValidationSandboxResources(fused.state);
+    state = applyDevelopmentSandboxResources(fused.state);
     expect(state.gameData.roster.slimes[swordId]?.fusionRank).toBe(2);
     expect(getSlimePresentation(state.gameData.roster.slimes[swordId]!).asset).toBe('assets/greatsword-slime.glb');
   });
+
+  it('strips the legacy persisted sandbox floor without resetting game progress', () => {
+    const initial = createInitialSlimeMercenariesState(0, 71);
+    const progressed = {
+      ...initial,
+      gameData: {
+        ...initial.gameData,
+        progression: { ...initial.gameData.progression, currentStage: 3 },
+      },
+    };
+    const legacy = applyDevelopmentSandboxResources(progressed);
+    const stripped = stripLegacyDevelopmentSandboxResources(legacy);
+
+    expect(stripped.gameData.progression.currentStage).toBe(3);
+    expect(stripped.currencies[ids.currency.gold]).toEqual(initial.currencies[ids.currency.gold]);
+    expect(stripped.tokens).toEqual(initial.tokens);
+  });
+
 });

@@ -2,6 +2,7 @@ import { GameNumber, type CommandResult } from 'idle-game-kit';
 import {
   NORMAL_JOB_SLIME_IDS,
   assignSlimeToFormation,
+  createInitialSlimeMercenariesState,
   createJobSlime,
   firstSlimeIdByType,
   ids,
@@ -12,15 +13,15 @@ import {
 } from '../domain';
 
 /**
- * Current public build is intentionally a content-validation sandbox.
- * Set VITE_VALIDATION_MODE=false when switching the public deployment to the real economy.
+ * Validation builds expose internal QA shortcuts with ?validation-tools=1.
+ * Economy mode is a separate runtime user setting and is never decided by this flag after bootstrap.
  */
 export const PUBLIC_VALIDATION_MODE = import.meta.env.VITE_VALIDATION_MODE !== 'false';
 
 /**
  * Keep validation-only shortcuts out of the product presentation by default.
- * Internal/headless QA can opt in with ?validation-tools=1 while the public
- * validation economy (infinite resources) remains enabled independently.
+ * Internal/headless QA can opt in with ?validation-tools=1. Runtime economy mode is configured
+ * separately from this QA surface.
  */
 export function validationToolsVisible(): boolean {
   if (!PUBLIC_VALIDATION_MODE || typeof window === 'undefined') return false;
@@ -35,9 +36,27 @@ const VALIDATION_TOKEN_IDS = Object.values(ids.token);
  * Application-only replenishment policy. Product commands still validate and spend the authored
  * costs; this policy restores a large floor immediately afterwards so validation never runs out.
  */
-export function applyValidationSandboxResources(state: SlimeMercenariesState): SlimeMercenariesState {
-  if (!PUBLIC_VALIDATION_MODE) return state;
+export function hasLegacyDevelopmentSandboxResources(state: SlimeMercenariesState): boolean {
+  const gold = GameNumber.deserialize(state.currencies[ids.currency.gold] ?? GameNumber.zero().serialize());
+  return gold.compare(VALIDATION_GOLD) >= 0
+    && VALIDATION_TOKEN_IDS.every((tokenId) => (state.tokens[tokenId] ?? 0) >= VALIDATION_TOKEN_COUNT);
+}
 
+/**
+ * Public validation builds before runtime settings persisted the artificial resource floor into the
+ * save itself. Strip that one-time legacy subsidy while preserving roster/progression.
+ */
+export function stripLegacyDevelopmentSandboxResources(state: SlimeMercenariesState): SlimeMercenariesState {
+  if (!hasLegacyDevelopmentSandboxResources(state)) return state;
+  const initial = createInitialSlimeMercenariesState(state.lastWallClockMs);
+  return {
+    ...state,
+    currencies: initial.currencies,
+    tokens: initial.tokens,
+  };
+}
+
+export function applyDevelopmentSandboxResources(state: SlimeMercenariesState): SlimeMercenariesState {
   let changed = false;
   const currentGold = GameNumber.deserialize(state.currencies[ids.currency.gold] ?? GameNumber.zero().serialize());
   const currencies = currentGold.compare(VALIDATION_GOLD) >= 0
@@ -66,7 +85,7 @@ export function setValidationSlimeLevel(
   if (!PUBLIC_VALIDATION_MODE) return { accepted: false, state, events: [], reason: 'validation-mode-disabled' };
   const slime = state.gameData.roster.slimes[slimeId];
   if (slime === undefined) return { accepted: false, state, events: [], reason: 'not-owned' };
-  const next = applyValidationSandboxResources({
+  const next = applyDevelopmentSandboxResources({
     ...state,
     gameData: {
       ...state.gameData,
@@ -86,7 +105,7 @@ export function resetValidationSlimeProgress(
   if (!PUBLIC_VALIDATION_MODE) return { accepted: false, state, events: [], reason: 'validation-mode-disabled' };
   const slime = state.gameData.roster.slimes[slimeId];
   if (slime === undefined) return { accepted: false, state, events: [], reason: 'not-owned' };
-  const next = applyValidationSandboxResources({
+  const next = applyDevelopmentSandboxResources({
     ...state,
     gameData: {
       ...state.gameData,
@@ -106,7 +125,7 @@ export function resetValidationBattle(
   state: SlimeMercenariesState,
 ): CommandResult<SlimeMercenariesState, 'validation-mode-disabled'> {
   if (!PUBLIC_VALIDATION_MODE) return { accepted: false, state, events: [], reason: 'validation-mode-disabled' };
-  const next = applyValidationSandboxResources({
+  const next = applyDevelopmentSandboxResources({
     ...state,
     gameData: {
       ...state.gameData,
@@ -132,7 +151,7 @@ export function prepareValidationRoster(
 ): CommandResult<SlimeMercenariesState, 'validation-mode-disabled' | 'job-create-failed' | 'formation-failed'> {
   if (!PUBLIC_VALIDATION_MODE) return { accepted: false, state, events: [], reason: 'validation-mode-disabled' };
 
-  let next = applyValidationSandboxResources(state);
+  let next = applyDevelopmentSandboxResources(state);
   for (const typeId of NORMAL_JOB_SLIME_IDS) {
     if (firstSlimeIdByType(next, typeId) !== null) continue;
     const progression = next.gameData.progression;
@@ -145,7 +164,7 @@ export function prepareValidationRoster(
     };
     const created = createJobSlime(commandState, typeId);
     if (!created.accepted) return { accepted: false, state, events: [], reason: 'job-create-failed' };
-    next = applyValidationSandboxResources({
+    next = applyDevelopmentSandboxResources({
       ...created.state,
       gameData: { ...created.state.gameData, progression },
     });
@@ -159,5 +178,5 @@ export function prepareValidationRoster(
     next = assigned.state;
   }
 
-  return { accepted: true, state: applyValidationSandboxResources(next), events: [] };
+  return { accepted: true, state: applyDevelopmentSandboxResources(next), events: [] };
 }

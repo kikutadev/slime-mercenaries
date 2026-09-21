@@ -19,6 +19,7 @@ import { SlimesScreen } from '../screens/SlimesScreen';
 import type { SlimeInstanceId } from '../domain';
 import { NavIcon, type NavIconKind } from '../components/navigation/NavIcon';
 import { SlimeMark } from '../components/SlimeMark';
+import { SettingsSheet } from '../components/SettingsSheet';
 import styles from './AppShell.module.css';
 
 const BattleScreen = lazy(async () => {
@@ -45,6 +46,7 @@ export function AppShell() {
   const ownedIds = selectOwnedSlimeIds(state);
   const attention = selectNavigationAttention(state);
   const [screen, setScreen] = useState<ScreenId | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedSlimeId, setSelectedSlimeId] = useState<SlimeInstanceId | null>(null);
   const [offlineDismissed, setOfflineDismissed] = useState(false);
   const [battleRewardCue, setBattleRewardCue] = useState<BattleRewardCue | null>(null);
@@ -350,6 +352,8 @@ export function AppShell() {
           </div>
         )}
 
+        {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
+
         <nav className={styles.bottomNav} aria-label="メインメニュー">
           <NavButton
             id="battle"
@@ -362,6 +366,16 @@ export function AppShell() {
           <NavButton id="slimes" label="キャンプ" icon="camp" active={activeScreen === 'slimes'} attention={attention.has('slimes')} onClick={setScreen} />
           <NavButton id="dispatch" label="派遣" icon="dispatch" active={activeScreen === 'dispatch'} attention={attention.has('dispatch')} onClick={setScreen} />
           <NavButton id="forge" label="鍛造" icon="forge" active={activeScreen === 'forge'} attention={attention.has('forge')} onClick={setScreen} />
+          <button
+            className={settingsOpen ? styles.navButton + ' ' + styles.navButtonActive : styles.navButton}
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded={settingsOpen}
+            onClick={() => setSettingsOpen(true)}
+          >
+            <span className={styles.navIcon}><NavIcon kind="settings" /></span>
+            <span>設定</span>
+          </button>
         </nav>
       </section>
     </main>

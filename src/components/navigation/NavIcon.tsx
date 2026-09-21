@@ -1,4 +1,4 @@
-type NavIconKind = 'battle' | 'camp' | 'dispatch' | 'forge';
+type NavIconKind = 'battle' | 'camp' | 'dispatch' | 'forge' | 'settings';
 
 export function NavIcon({ kind }: { kind: NavIconKind }) {
   if (kind === 'battle') {
@@ -26,11 +26,20 @@ export function NavIcon({ kind }: { kind: NavIconKind }) {
       </svg>
     );
   }
+  if (kind === 'forge') {
+    return (
+      <svg className="nav-icon-svg" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 18.5h14M8 15.5h8l1.5-3H6.5z" />
+        <path d="M12 4v5M9.5 6.5h5" />
+        <path d="M7 9.5l1.5 3M17 9.5l-1.5 3" />
+      </svg>
+    );
+  }
   return (
     <svg className="nav-icon-svg" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 18.5h14M8 15.5h8l1.5-3H6.5z" />
-      <path d="M12 4v5M9.5 6.5h5" />
-      <path d="M7 9.5l1.5 3M17 9.5l-1.5 3" />
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.45 1.45M16.55 16.55 18 18M18 6l-1.45 1.45M7.45 16.55 6 18" />
+      <circle cx="12" cy="12" r="7" />
     </svg>
   );
 }

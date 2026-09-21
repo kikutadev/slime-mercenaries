@@ -1,7 +1,7 @@
 # Slime Mercenaries — Current Specification
 
 Status: Current
-Date: 2026-09-19
+Date: 2026-09-21
 
 ## 1. Product form
 
@@ -15,11 +15,16 @@ Date: 2026-09-19
 
 `6 slots × 5 bodies = 30 friendly bodies` は現行仕様ではない。30体密度検証で小画面可読性とcharacter identityを損なうことを確認したため、メイン画面は少数表示へ変更した。
 
-## 1.1 Public validation mode
+## 1.1 Runtime play modes
 
-The current public build is a validation build, not the final economy. Gold and authored resource tokens are replenished by the Application-layer validation policy and displayed as `∞`, allowing repeated creation, Fusion, Forge, formation, and live-battle checks. The production Domain commands and authored requirements remain authoritative and are not replaced by zero-cost validation recipes.
+Settings exposes two runtime economy modes on the same save:
 
-The validation switch is `VITE_VALIDATION_MODE`. Production economy builds must set it to `false`.
+- **Normal** — authored Gold/material balances are visible and commands consume them normally.
+- **Development** — Gold and authored material tokens are presented as `∞` so creation, Fusion, Forge and training can be tested repeatedly.
+
+Development resources are virtual Application-layer resources. The real resource ledger is preserved separately and restored when returning to Normal mode, so the artificial `∞` floor never contaminates exported or durable normal-economy balances. Roster growth, Fusion results and stage progression performed in Development mode remain part of the save.
+
+`VITE_VALIDATION_MODE` now controls only whether internal `?validation-tools=1` QA shortcuts may appear. It no longer decides the player's economy mode.
 
 ## 2. Canonical systems
 

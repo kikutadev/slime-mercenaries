@@ -50,8 +50,8 @@ export async function loadOrCreateSlimeProfile(args: Readonly<{
     return { state, created: true, appliedOfflineSec: 0, offlineEvents: [] };
   }
 
-  const migrated = migrateStoredState(stored.state);
-  validateStoredState(migrated);
+  const migrated = migrateStoredSlimeState(stored.state);
+  validateStoredSlimeState(migrated);
   const resumed = advanceSlimeWorldFromWallClock(migrated, nowMs, {}, { allowFrontierFirstClear: false });
   if (resumed.appliedOfflineSec > 0 || migrated !== stored.state) {
     await saveSlimeProfile(args.repository, profileId, resumed.state, nowMs);
@@ -71,12 +71,12 @@ export async function saveSlimeProfile(
   state: SlimeMercenariesState,
   savedAtMs = Date.now(),
 ): Promise<void> {
-  validateStoredState(state);
+  validateStoredSlimeState(state);
   const profile: StoredProfile<SlimeMercenariesState> = { profileId, savedAtMs, state };
   await repository.save(profile);
 }
 
-function validateStoredState(state: SlimeMercenariesState): void {
+export function validateStoredSlimeState(state: SlimeMercenariesState): void {
   if (state.gameId !== 'slime-mercenaries') throw new Error(`Unexpected gameId: ${state.gameId}`);
   if (state.schemaVersion !== SLIME_MERCENARIES_SCHEMA_VERSION) {
     throw new Error(`Unsupported Slime Mercenaries schemaVersion: ${state.schemaVersion}`);
@@ -158,7 +158,7 @@ function normalizeCurrentState(state: SlimeMercenariesState): SlimeMercenariesSt
   };
 }
 
-function migrateStoredState(state: SlimeMercenariesState): SlimeMercenariesState {
+export function migrateStoredSlimeState(state: SlimeMercenariesState): SlimeMercenariesState {
   if (state.schemaVersion === SLIME_MERCENARIES_SCHEMA_VERSION) return normalizeCurrentState(state);
   if (state.schemaVersion === 5) return migrateSchemaV5State(state as unknown as SchemaV5State);
   if (state.schemaVersion === 4) return migrateSchemaV4State(state as unknown as SchemaV4State);

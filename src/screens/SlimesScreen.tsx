@@ -64,7 +64,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   const controller = useGameController();
   const hud = selectGlobalHud(state);
   const validationMode = controller.validationMode;
-  const showValidationTools = validationToolsVisible();
+  const showValidationTools = validationMode && validationToolsVisible();
   const ownedIds = selectOwnedSlimeIds(state);
   const selected = selectedId !== null && state.gameData.roster.slimes[selectedId] !== undefined
     ? selectedId
