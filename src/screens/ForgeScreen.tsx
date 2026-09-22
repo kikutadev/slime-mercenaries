@@ -122,7 +122,7 @@ export function ForgeScreen() {
         )}
       </div>
 
-      <div className={styles.console}>
+      <div className={`${styles.console} ${phase === 'charging' || phase === 'impact' ? styles.consoleRetreat : ''}`}>
         <div className={styles.pity}>
           <div><span>神話級保証</span><strong>{view.pityMissCount} / {view.pityThreshold}</strong></div>
           <div className={styles.pityTrack}><i style={{ transform: `scaleX(${view.pityProgress})` }} /></div>

@@ -57,6 +57,23 @@
   position: relative;
   padding: 15px 0 0 36px;
 }
+
+:global(.camp-formation-board__field::before) {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: 33px;
+  right: -3px;
+  top: 13px;
+  height: 56px;
+  border-radius: 15px;
+  background: rgba(99,163,102,.07);
+  border: 1px solid rgba(91,151,94,.09);
+  pointer-events: none;
+}
+:global(.camp-formation-board__field.is-recommend-back::before) {
+  top: 70px;
+}
 :global(.camp-formation-board__enemy) {
   position: absolute;
   top: 0;
@@ -111,6 +128,7 @@
 
 :global(.camp-formation-board__grid) {
   position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: repeat(3,minmax(0,1fr));
   grid-template-rows: repeat(2,52px);
@@ -137,16 +155,12 @@
   transform: scale(.975);
 }
 :global(.camp-formation-slot.is-recommended) {
-  border-color: rgba(77,145,83,.28);
-  box-shadow: inset 0 0 0 1px rgba(77,145,83,.05),0 4px 11px rgba(49,83,54,.04);
+  background: rgba(247,252,243,.84);
 }
 :global(.camp-formation-slot.is-current) {
   border-color: rgba(55,135,72,.68);
   background: #e7f3df;
   box-shadow: inset 0 0 0 2px rgba(71,142,81,.10),0 6px 14px rgba(45,98,56,.08);
-}
-:global(.camp-formation-slot.is-off-role:not(.is-current)) {
-  border-bottom-color: rgba(206,157,68,.45);
 }
 :global(.camp-formation-slot:disabled:not(.is-current)) {
   opacity: .54;
@@ -265,10 +279,19 @@
   object-fit: contain;
   transform: translate(-50%,-50%) scale(1);
   filter: drop-shadow(0 7px 8px rgba(39,81,46,.16));
-  animation: camp-formation-move .56s cubic-bezier(.18,.76,.24,1) both;
+  animation: camp-formation-move .32s cubic-bezier(.18,.76,.24,1) both;
 }
 :global(.camp-formation-move__ghost--selected) {
   z-index: 2;
+}
+:global(.camp-formation-move--swap .camp-formation-move__ghost) {
+  animation-duration: .38s;
+}
+:global(.camp-formation-move--replace .camp-formation-move__ghost) {
+  animation-duration: .40s;
+}
+:global(.camp-formation-move--reserve .camp-formation-move__ghost) {
+  animation-duration: .32s;
 }
 :global(.camp-formation-move__ghost--displaced) {
   z-index: 1;
@@ -365,10 +388,6 @@
     transform: translate(-50%,-50%) scale(1);
   }
 }
-  :global(.camp-formation-move__ghost) {
-    animation-duration: 1ms !important;
-  }
-
 @media (prefers-reduced-motion: reduce) {
   :global(.camp-formation-move__ghost) {
     animation-duration: 1ms !important;

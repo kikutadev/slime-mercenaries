@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { JobSlimeId } from '../domain';
+import { SLIMES } from '../game/slimes';
+import { NurseryIcon } from './NurseryIcon';
 
 export type NurseryCeremonyKind = 'craft' | 'purchase' | 'job';
 
@@ -11,7 +13,6 @@ export type NurseryCeremony = Readonly<{
   kind: NurseryCeremonyKind;
   beforeStock: number;
   jobName?: string;
-  jobIcon?: string;
   jobId?: JobSlimeId;
 }>;
 
@@ -45,6 +46,86 @@ function NurseryJobGearIcon({ jobId }: { jobId: JobSlimeId }) {
     return <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 25L20 8l5-2-1 5L11 27zM7 21l5 4M17 9l5 4" /></svg>;
   }
   return <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 13h16l4 4-4 4H6zM9 21v5h6l2-5M23 14v-4h4" /></svg>;
+}
+
+
+function NurseryJobResult({ jobId }: { jobId: JobSlimeId }) {
+  const definition = SLIMES[jobId];
+  const gltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}${definition.asset}`);
+  const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
+  const groupRef = useRef<THREE.Group>(null);
+  const body = useMemo(() => model.getObjectByName('Body') as MorphMesh | null, [model]);
+  const bodyBaseScale = useMemo(() => body?.scale.clone() ?? new THREE.Vector3(1, 1, 1), [body]);
+  const startedAt = useRef<number | null>(null);
+
+  useEffect(() => {
+    model.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        object.castShadow = true;
+        object.receiveShadow = true;
+      }
+    });
+  }, [model]);
+
+  useFrame(({ clock }) => {
+    const group = groupRef.current;
+    if (!group) return;
+    if (startedAt.current === null) startedAt.current = clock.elapsedTime;
+
+    const elapsed = clock.elapsedTime - startedAt.current;
+    const revealU = THREE.MathUtils.clamp((elapsed - 0.46) / 0.48, 0, 1);
+    const identityU = THREE.MathUtils.clamp((elapsed - 0.88) / 0.34, 0, 1);
+    group.visible = elapsed >= 0.46;
+
+    if (!group.visible) return;
+
+    body?.morphTargetInfluences?.fill(0);
+    body?.scale.copy(bodyBaseScale);
+
+    const revealEase = 1 - ((1 - revealU) ** 3);
+    const overshoot = 1 + Math.sin(revealU * Math.PI) * 0.10;
+    group.position.set(0, -0.58 + Math.sin(revealU * Math.PI) * 0.18, 0);
+    group.scale.setScalar(0.58 * THREE.MathUtils.lerp(0.18, 1, revealEase) * overshoot);
+    group.rotation.set(0, THREE.MathUtils.lerp(0.62, -0.2, revealEase), 0);
+
+    if (revealU < 1) {
+      setMorph(body, 'Stretch', Math.sin(revealU * Math.PI) * 0.28);
+      return;
+    }
+
+    const beat = Math.sin(identityU * Math.PI);
+    switch (jobId) {
+      case 'sword':
+        group.rotation.y = -0.2 + beat * 0.44;
+        setMorph(body, 'Stretch', beat * 0.14);
+        break;
+      case 'shield':
+        group.scale.set(0.58 * (1 + beat * 0.08), 0.58 * (1 - beat * 0.10), 0.58);
+        setMorph(body, 'Squash', beat * 0.18);
+        break;
+      case 'bow':
+        group.position.x = Math.sin(identityU * Math.PI * 2) * 0.08;
+        group.rotation.y = -0.2 - beat * 0.22;
+        setMorph(body, 'LeanLeft', beat * 0.11);
+        break;
+      case 'wand':
+        group.position.y = -0.58 + beat * 0.16;
+        group.rotation.y = -0.2 + identityU * Math.PI * 0.32;
+        setMorph(body, 'Stretch', beat * 0.12);
+        break;
+      case 'dagger':
+        group.rotation.y = -0.2 + Math.sin(identityU * Math.PI * 4) * beat * 0.28;
+        setMorph(body, 'WobbleRight', beat * 0.14);
+        break;
+      case 'gun':
+        group.position.x = -beat * 0.10;
+        group.rotation.y = -0.2 - beat * 0.18;
+        setMorph(body, 'Squash', beat * 0.12);
+        break;
+    }
+  });
+
+  return <group ref={groupRef} visible={false}><primitive object={model} /></group>;
 }
 
 function NurseryResident({ ceremony }: { ceremony: NurseryCeremony | null }) {
@@ -116,12 +197,16 @@ function NurseryResident({ ceremony }: { ceremony: NurseryCeremony | null }) {
       return;
     }
 
-    const u = THREE.MathUtils.clamp(elapsed / 0.9, 0, 1);
-    const pulse = Math.sin(u * Math.PI * 3) * (1 - u * 0.35);
-    group.rotation.y = -0.2 + u * Math.PI * 2;
-    group.position.y = -0.58 + Math.sin(u * Math.PI) * 0.18;
-    group.scale.setScalar(0.58 * (1 + Math.max(0, pulse) * 0.10));
-    setMorph(body, pulse > 0 ? 'Stretch' : 'Squash', Math.abs(pulse) * 0.22);
+    if (elapsed >= 0.50) {
+      group.visible = false;
+      return;
+    }
+    const u = THREE.MathUtils.clamp(elapsed / 0.50, 0, 1);
+    const anticipation = Math.sin(u * Math.PI);
+    group.rotation.y = -0.2 + u * Math.PI * 0.72;
+    group.position.y = -0.58 - anticipation * 0.06;
+    group.scale.set(0.58 * (1 + anticipation * 0.10), 0.58 * (1 - anticipation * 0.18), 0.58);
+    setMorph(body, 'Squash', anticipation * 0.34);
   });
 
   return <group ref={groupRef}><primitive object={model} /></group>;
@@ -159,6 +244,9 @@ export function NurseryCeremonyStage({
             <directionalLight position={[-3, 4.5, 4]} intensity={4.0} castShadow />
             <pointLight position={[2, 1.5, 2]} intensity={1.2} color="#89e8f4" />
             <NurseryResident ceremony={ceremony} />
+            {ceremony?.kind === 'job' && ceremony.jobId !== undefined && (
+              <NurseryJobResult jobId={ceremony.jobId} />
+            )}
           </Canvas>
           <div className="nursery-stage__ring" />
           <div className="nursery-stage__flash" />
@@ -166,24 +254,33 @@ export function NurseryCeremonyStage({
 
         {ceremony?.kind === 'craft' && (
           <div className="nursery-stage__ingredients">
-            <i className="is-gel" />
-            <i className="is-water" />
-            <i className="is-gel is-small" />
+            <span className="is-gel"><NurseryIcon kind="gel" /></span>
+            <span className="is-water"><NurseryIcon kind="water" /></span>
+            <span className="is-gel is-small"><NurseryIcon kind="gel" /></span>
           </div>
         )}
         {ceremony?.kind === 'purchase' && (
           <div className="nursery-stage__coins"><i /><i /><i /><i /><i /></div>
         )}
-        {ceremony?.kind === 'job' && ceremony.jobIcon !== undefined && ceremony.jobId !== undefined && (
-          <>
-            <div className="nursery-stage__job-tool"><NurseryJobGearIcon jobId={ceremony.jobId} /></div>
-            <img className="nursery-stage__job-result" src={ceremony.jobIcon} alt="" />
-          </>
+        {ceremony?.kind === 'job' && ceremony.jobId !== undefined && (
+          <div className="nursery-stage__job-tool"><NurseryJobGearIcon jobId={ceremony.jobId} /></div>
         )}
         {ceremony !== null && (
           <div className="nursery-stage__result">
-            <strong>{ceremony.kind === 'job' ? ceremony.jobName : '＋1'}</strong>
-            <span>{ceremony.kind === 'job' ? '仲間になりました' : 'プレーンスライム誕生'}</span>
+            <strong>
+              {ceremony.kind === 'job'
+                ? ceremony.jobName
+                : ceremony.kind === 'purchase'
+                  ? 'プレーンスライムが到着'
+                  : 'プレーンスライム +1'}
+            </strong>
+            <span>
+              {ceremony.kind === 'job'
+                ? '仲間になりました'
+                : ceremony.kind === 'purchase'
+                  ? 'キャンプへ仲間入り'
+                  : '生成槽から誕生'}
+            </span>
           </div>
         )}
       </div>

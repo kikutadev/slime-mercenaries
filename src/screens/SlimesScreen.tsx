@@ -126,10 +126,15 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   ) => {
     const key = ++formationCeremonyKey.current;
     setFormationCeremony({ ...ceremony, key });
+    const durationMs = ceremony.kind === 'swap'
+      ? 380
+      : ceremony.kind === 'replace'
+        ? 400
+        : 320;
     schedule(() => {
       setFormationCeremony((current) => current?.key === key ? null : current);
       triggerFeedback('formation', title, detailText);
-    }, 560);
+    }, durationMs);
   };
 
   const handleMutation = (mutationId: SlimeMutationId) => {
@@ -204,7 +209,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
     action: CampLevelAction,
     variant: StrengthenVariant,
   ) => {
-    if (selected === null || detail === null || strengthenBusy) return;
+    if (selected === null || detail === null || strengthenCeremony?.phase === 'charging') return;
     const result = controller.levelUpSlime(selected, action.count);
     if (!result.accepted) {
       setNotice(rejectionLabel(result.reason));
@@ -214,8 +219,8 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
     setNotice(null);
     const key = ++strengthenCeremonyKey.current;
     const strength: 1 | 2 | 3 = variant === 'one' ? 1 : variant === 'ten' ? 2 : 3;
-    const chargeMs = variant === 'one' ? 280 : variant === 'ten' ? 360 : 430;
-    const settleMs = variant === 'one' ? 760 : variant === 'ten' ? 900 : 1040;
+    const chargeMs = variant === 'one' ? 200 : variant === 'ten' ? 280 : 360;
+    const settleMs = variant === 'one' ? 480 : variant === 'ten' ? 560 : 650;
     setStrengthenCeremony({
       key,
       phase: 'charging',
@@ -299,7 +304,6 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
 
   const handleCreateJob = (jobId: JobSlimeId) => {
     if (nurseryBusy) return;
-    const jobView = createPanel.jobs.find((job) => job.id === jobId);
     const wasDiscovered = sameTypeCount(state, jobId) > 0;
     const result = controller.createJobSlime(jobId);
     if (!result.accepted) {
@@ -323,7 +327,6 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
       beforeStock: createPanel.plainStock,
       jobName: name,
       jobId,
-      ...(jobView === undefined ? {} : { jobIcon: `${import.meta.env.BASE_URL}${jobView.icon}` }),
     }, 1380, () => {
       onSelect(createdId);
       setCreateOpen(false);
@@ -589,7 +592,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                         key={variant}
                         className={running ? 'is-running' : ''}
                         type="button"
-                        disabled={campInteractionBusy || action === null || !action.available}
+                        disabled={formationBusy || strengthenCeremony?.phase === 'charging' || action === null || !action.available}
                         onClick={() => {
                           if (action === null) return;
                           handleStrengthen(action, variant);

@@ -121,7 +121,7 @@ export function CampFormationBoard({
         <button className="camp-formation-board__done" type="button" disabled={disabled} onClick={onClose}>完了</button>
       </div>
 
-      <div className="camp-formation-board__field">
+      <div className={`camp-formation-board__field is-recommend-${selectedRole}`}>
         <div className="camp-formation-board__enemy"><i />敵側<i /></div>
         <div className="camp-formation-board__row-label camp-formation-board__row-label--front">前衛</div>
         <div className="camp-formation-board__row-label camp-formation-board__row-label--back">後衛</div>

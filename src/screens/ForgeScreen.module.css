@@ -192,6 +192,13 @@
   background: rgb(15 34 39 / 91%);
   box-shadow: 0 -14px 40px rgb(5 20 24 / 28%);
   backdrop-filter: blur(16px);
+  transition: transform .24s cubic-bezier(.2,.8,.2,1), opacity .18s ease;
+}
+
+.consoleRetreat {
+  transform: translateY(calc(100% + 18px));
+  opacity: 0;
+  pointer-events: none;
 }
 
 .pity > div:first-child {

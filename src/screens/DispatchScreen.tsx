@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useGameController, useGameState } from '../app/GameProvider';
+import { useManagedTimeouts } from '../app/useManagedTimeouts';
 import { selectDispatchScreen, selectGlobalHud } from '../application/selectors/ui-selectors';
 import { DispatchHomeIcon, DispatchLandmarkIcon } from '../components/DispatchLandmarkIcon';
 import { DispatchMapStage, type DispatchTraveler } from '../components/DispatchMapStage';
@@ -17,6 +18,12 @@ export function DispatchScreen() {
   const [selectedContract, setSelectedContract] = useState<DispatchContractId>('roadEscort');
   const [selectedSlime, setSelectedSlime] = useState<SlimeInstanceId | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [departure, setDeparture] = useState<Readonly<{ contractId: DispatchContractId; key: number; label: string }> | null>(null);
+  const [returnCue, setReturnCue] = useState<Readonly<{ key: number; label: string; reward: string }> | null>(null);
+  const departureSerial = useRef(0);
+  const returnSerial = useRef(0);
+  const previousRunning = useRef<ReadonlyMap<DispatchContractId, Readonly<{ name: string; rewardLabel: string }>>>(new Map());
+  const { schedule } = useManagedTimeouts();
 
   const contract = view.contracts.find((item) => item.id === selectedContract) ?? view.contracts[0]!;
 
@@ -30,6 +37,23 @@ export function DispatchScreen() {
       return contract.eligibleSlimes[0]?.id ?? null;
     });
   }, [contract.id, contract.status, contract.eligibleSlimes]);
+
+  useEffect(() => {
+    const running = new Map(
+      view.contracts
+        .filter((item) => item.status === 'running')
+        .map((item) => [item.id, { name: item.name, rewardLabel: item.rewardLabel }] as const),
+    );
+    const completed = [...previousRunning.current.entries()].find(([contractId]) => !running.has(contractId));
+    previousRunning.current = running;
+    if (completed === undefined) return;
+    const [, previous] = completed;
+    const key = ++returnSerial.current;
+    setReturnCue({ key, label: previous.name, reward: previous.rewardLabel });
+    schedule(() => {
+      setReturnCue((current) => current?.key === key ? null : current);
+    }, 1280);
+  }, [schedule, view.contracts]);
 
   const activeCount = view.contracts.filter((item) => item.status === 'running').length;
   const selectedPower = contract.eligibleSlimes.find((slime) => slime.id === selectedSlime)?.power ?? 0;
@@ -45,8 +69,9 @@ export function DispatchScreen() {
       asset: presentation.asset,
       mutationId: presentation.mutationId,
       progress: Math.max(0, Math.min(1, 1 - item.remainingSec / item.durationSec)),
+      ...(departure?.contractId === item.id ? { departureKey: departure.key } : {}),
     }];
-  }), [state.gameData.roster.slimes, view.contracts]);
+  }), [departure, state.gameData.roster.slimes, view.contracts]);
 
   return (
     <section className={`screen screen--active ${styles.root}`} aria-label="派遣">
@@ -55,12 +80,23 @@ export function DispatchScreen() {
         <div className={styles.stats}><span>G {validationMode ? '∞' : hud.gold}</span><strong>{activeCount} / 3</strong></div>
       </header>
 
-      <div className={styles.map}>
+      <div className={`${styles.map} ${departure !== null ? styles.mapDeparting : ''}`}>
         <DispatchMapStage travelers={travelers} />
         <div className={styles.home}>
           <span><DispatchHomeIcon /></span>
           <small>キャンプ</small>
         </div>
+
+        {departure !== null && (
+          <div className={styles.departureCue} key={departure.key}>
+            <span>出発</span><strong>{departure.label}</strong>
+          </div>
+        )}
+        {returnCue !== null && (
+          <div className={styles.returnCue} key={returnCue.key}>
+            <span>帰還</span><strong>{returnCue.label}</strong><small>{returnCue.reward} を獲得</small>
+          </div>
+        )}
 
         {view.contracts.map((item) => {
           const meta = dispatchRoutePresentation[item.id];
@@ -82,7 +118,7 @@ export function DispatchScreen() {
         })}
       </div>
 
-      <div className={styles.console}>
+      <div className={`${styles.console} ${departure !== null ? styles.consoleRetreat : ''}`}>
         <div className={styles.consoleHead}>
           <div><span>{dispatchRoutePresentation[contract.id].subtitle}</span><strong>{contract.name}</strong></div>
           <div className={styles.reward}><span>報酬</span><strong>{contract.rewardLabel}</strong></div>
@@ -114,11 +150,20 @@ export function DispatchScreen() {
             <button
               className={styles.sendButton}
               type="button"
-              disabled={!canSend}
+              disabled={!canSend || departure !== null}
               onClick={() => {
-                if (selectedSlime === null) return;
+                if (selectedSlime === null || departure !== null) return;
                 const result = controller.startDispatch(contract.id, selectedSlime);
-                setNotice(result.accepted ? `${contract.name}へ出発しました` : rejectionLabel(result.reason));
+                if (!result.accepted) {
+                  setNotice(rejectionLabel(result.reason));
+                  return;
+                }
+                setNotice(null);
+                const key = ++departureSerial.current;
+                setDeparture({ contractId: contract.id, key, label: contract.name });
+                schedule(() => {
+                  setDeparture((current) => current?.key === key ? null : current);
+                }, 920);
               }}
             >
               <strong>出発させる</strong>

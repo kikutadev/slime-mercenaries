@@ -102,6 +102,73 @@
   font-weight: 900;
 }
 
+.mapDeparting .node,
+.mapDeparting .home {
+  opacity: .30;
+  pointer-events: none;
+}
+
+.node,
+.home {
+  transition: opacity .16s ease, transform .16s ease;
+}
+
+.departureCue,
+.returnCue {
+  position: absolute;
+  z-index: 14;
+  left: 50%;
+  top: 86px;
+  min-width: 174px;
+  transform: translateX(-50%);
+  padding: 7px 12px;
+  border: 1px solid rgb(255 255 255 / 72%);
+  border-radius: 999px;
+  background: rgb(246 253 240 / 91%);
+  color: #315f3d;
+  text-align: center;
+  box-shadow: 0 10px 22px rgb(39 78 52 / 13%);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+
+.departureCue {
+  animation: dispatchCueIn .92s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.returnCue {
+  animation: dispatchReturnCue 1.24s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.departureCue span,
+.departureCue strong,
+.returnCue span,
+.returnCue strong,
+.returnCue small {
+  display: block;
+}
+
+.departureCue span,
+.returnCue span {
+  color: #5b8d63;
+  font-size: var(--font-size-caption);
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.departureCue strong,
+.returnCue strong {
+  margin-top: 1px;
+  font-size: 13px;
+}
+
+.returnCue small {
+  margin-top: 1px;
+  color: rgba(49,84,57,.62);
+  font-size: var(--font-size-caption);
+  font-weight: 800;
+}
+
 .node {
   position: absolute;
   z-index: 9;
@@ -186,6 +253,13 @@
   background: rgb(247 252 241 / 95%);
   box-shadow: 0 -12px 38px rgb(32 68 49 / 17%);
   backdrop-filter: blur(14px);
+  transition: transform .26s cubic-bezier(.2,.8,.2,1), opacity .18s ease;
+}
+
+.consoleRetreat {
+  transform: translateY(calc(100% + 18px));
+  opacity: 0;
+  pointer-events: none;
 }
 
 .consoleHead {
@@ -448,4 +522,15 @@
 @keyframes toastIn {
   from { opacity: 0; transform: translate(-50%, 7px) scale(.97); }
   to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+@keyframes dispatchCueIn {
+  0% { opacity:0; transform:translate(-50%,8px) scale(.94); }
+  18%,72% { opacity:1; transform:translate(-50%,0) scale(1); }
+  100% { opacity:0; transform:translate(-50%,-6px) scale(.98); }
+}
+
+@keyframes dispatchReturnCue {
+  0% { opacity:0; transform:translate(-50%,-5px) scale(.96); }
+  18%,78% { opacity:1; transform:translate(-50%,0) scale(1); }
+  100% { opacity:0; transform:translate(-50%,6px) scale(.98); }
 }

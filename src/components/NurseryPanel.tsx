@@ -62,7 +62,7 @@ export function NurseryPanel({
             <span><NurseryIcon kind="craft" /></span>
             <div>
               <strong>素材から生み出す</strong>
-              <small>素材が生成槽に集まり、スライムになります</small>
+              <small>生成槽へ素材を集める</small>
             </div>
           </div>
           <div className="nursery-materials">
@@ -85,9 +85,33 @@ export function NurseryPanel({
             onClick={onCraft}
           >
             <strong>{busy && ceremony?.kind === 'craft' ? '生まれています…' : '生み出す'}</strong>
-            <small>プレーンスライム +1</small>
+            <small>プレーン +1</small>
           </button>
         </section>
+
+        <div className="nursery-job-title nursery-job-title--roles">
+          <span>職業を与える</span>
+          <strong>6つの道具から選ぶ</strong>
+        </div>
+        <div className="nursery-jobs nursery-jobs--roles">
+          {panel.jobs.map((job) => (
+            <button
+              className="nursery-job-option"
+              key={job.id}
+              type="button"
+              disabled={busy || !job.canCreate}
+              aria-label={`${job.name}にする。 ${job.canCreate ? (job.isNew ? 'はじめての職業' : '仲間を増やす') : '素材不足'}`}
+              onClick={() => onCreateJob(job.id)}
+            >
+              <img src={`${import.meta.env.BASE_URL}${job.icon}`} alt="" />
+              <span>
+                <strong>{job.name.replace('スライム', '')}</strong>
+                <small>{job.isNew ? 'NEW' : '仲間を増やす'}</small>
+              </span>
+              <em>{job.canCreate ? '選ぶ' : '不足'}</em>
+            </button>
+          ))}
+        </div>
 
         <button
           className="nursery-shop-action"
@@ -98,7 +122,7 @@ export function NurseryPanel({
           <span><NurseryIcon kind="shop" /></span>
           <div>
             <strong>ショップから迎える</strong>
-            <small>すぐにキャンプへ仲間入り</small>
+            <small>Goldですぐにプレーンを追加</small>
           </div>
           <em>{validationMode ? '∞' : panel.purchase.cost} G</em>
         </button>
@@ -126,27 +150,6 @@ export function NurseryPanel({
           </>
         )}
 
-        <div className="nursery-job-title">
-          <span>職業を与える</span>
-          <strong>プレーンスライムに道具を渡す</strong>
-        </div>
-        <div className="nursery-jobs">
-          {panel.jobs.map((job) => (
-            <button
-              key={job.id}
-              type="button"
-              disabled={busy || !job.canCreate}
-              onClick={() => onCreateJob(job.id)}
-            >
-              <img src={`${import.meta.env.BASE_URL}${job.icon}`} alt="" />
-              <span>
-                <strong>{job.name}</strong>
-                <small>{job.isNew ? 'はじめての職業' : '同じ職業の仲間を増やす'}</small>
-              </span>
-              <em>{job.canCreate ? '道具を渡す' : '素材不足'}</em>
-            </button>
-          ))}
-        </div>
       </div>
     </BottomSheet>
   );

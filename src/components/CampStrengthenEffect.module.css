@@ -23,7 +23,7 @@
   color: #fff1a5;
   box-shadow: 0 7px 16px rgba(60,68,32,.14);
   opacity: 0;
-  animation: strengthen-cost-out .64s ease-out both;
+  animation: strengthen-cost-out .46s ease-out both;
 }
 :global(.camp-strengthen-effect__cost span) {
   width: 18px;
@@ -55,7 +55,7 @@
   border-radius: 50%;
   background: #e9bd43;
   box-shadow: 0 0 12px rgba(238,194,70,.48);
-  animation: strengthen-coin-to-slime .64s cubic-bezier(.18,.78,.24,1) both;
+  animation: strengthen-coin-to-slime .46s cubic-bezier(.18,.78,.24,1) both;
 }
 :global(.camp-strengthen-effect__coins i:nth-child(2)) { right: 47px; top: 25px; animation-delay:.025s; }
 :global(.camp-strengthen-effect__coins i:nth-child(3)) { right: 24px; top: 48px; animation-delay:.05s; }
@@ -68,6 +68,23 @@
 :global(.camp-strengthen-effect__coins i:nth-child(10)) { right: 91px; top: 37px; animation-delay:.225s; }
 :global(.camp-strengthen-effect__coins i:nth-child(11)) { right: 29px; top: 82px; animation-delay:.25s; }
 :global(.camp-strengthen-effect__coins i:nth-child(12)) { right: 98px; top: 61px; animation-delay:.275s; }
+
+:global(.camp-strengthen-effect--ten .camp-strengthen-effect__cost),
+:global(.camp-strengthen-effect--ten .camp-strengthen-effect__coins i) {
+  animation-duration: .54s;
+}
+:global(.camp-strengthen-effect--max .camp-strengthen-effect__cost),
+:global(.camp-strengthen-effect--max .camp-strengthen-effect__coins i) {
+  animation-duration: .62s;
+}
+:global(.camp-strengthen-effect--ten.camp-strengthen-effect--result .camp-strengthen-effect__energy i),
+:global(.camp-strengthen-effect--ten.camp-strengthen-effect--result .camp-strengthen-effect__level) {
+  animation-duration: .54s;
+}
+:global(.camp-strengthen-effect--max.camp-strengthen-effect--result .camp-strengthen-effect__energy i),
+:global(.camp-strengthen-effect--max.camp-strengthen-effect--result .camp-strengthen-effect__level) {
+  animation-duration: .62s;
+}
 
 :global(.camp-strengthen-effect--ten .camp-strengthen-effect__coins i) {
   width: 13px;
@@ -98,7 +115,7 @@
   opacity: 0;
 }
 :global(.camp-strengthen-effect--result .camp-strengthen-effect__energy i) {
-  animation: strengthen-energy-ring .78s cubic-bezier(.16,.78,.24,1) both;
+  animation: strengthen-energy-ring .46s cubic-bezier(.16,.78,.24,1) both;
 }
 :global(.camp-strengthen-effect--result .camp-strengthen-effect__energy i:nth-child(2)) { animation-delay:.08s; }
 :global(.camp-strengthen-effect--result .camp-strengthen-effect__energy i:nth-child(3)) { animation-delay:.16s; }
@@ -128,7 +145,7 @@
   opacity: 0;
 }
 :global(.camp-strengthen-effect--result .camp-strengthen-effect__level) {
-  animation: strengthen-level-reveal .78s cubic-bezier(.18,.8,.22,1) both;
+  animation: strengthen-level-reveal .46s cubic-bezier(.18,.8,.22,1) both;
 }
 :global(.camp-strengthen-effect__level small) {
   display: block;
@@ -185,11 +202,6 @@
   34%,78% { opacity:1; transform:translate(-50%,0) scale(1); }
   100% { opacity:0; transform:translate(-50%,-5px) scale(.99); }
 }
-  :global(.camp-strengthen-effect *), :global(.camp-strengthen-effect *::before), :global(.camp-strengthen-effect *::after) {
-    animation-duration: 1ms !important;
-    animation-delay: 0ms !important;
-  }
-
 @media (prefers-reduced-motion: reduce) {
   :global(.camp-strengthen-effect *),
 :global(.camp-strengthen-effect *::before),

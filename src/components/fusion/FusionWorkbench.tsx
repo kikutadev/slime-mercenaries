@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useGameController, useGameState } from '../../app/GameProvider';
+import { useManagedTimeouts } from '../../app/useManagedTimeouts';
 import { selectSlimeDetail } from '../../application/selectors/ui-selectors';
 import { isNormalJobSlimeId, jobCreationDefinitions, type SlimeInstanceId } from '../../domain';
 import { getSlimePresentation } from '../../game/slimes';
@@ -50,9 +51,24 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
   const [sequenceKey, setSequenceKey] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [completedName, setCompletedName] = useState<string | null>(null);
-  const [completedDescription, setCompletedDescription] = useState<string | null>(null);
   const [completedBehavior, setCompletedBehavior] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const { schedule, clear } = useManagedTimeouts();
+
+  useEffect(() => {
+    if (run === null) return undefined;
+    const preset = getFusionStepPresentation(run.stepId).ceremony;
+    const failSafeMs = preset === 'major-form'
+      ? 2600
+      : preset === 'major-behavior'
+        ? 2200
+        : 1900;
+    const timer = schedule(() => {
+      setCompleted(true);
+      setRun(null);
+    }, failSafeMs);
+    return () => clear(timer);
+  }, [clear, run, schedule]);
 
   const displayFromRank = progress === null
     ? 1
@@ -114,10 +130,10 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
   const canFuse = selectedFusion?.canFuse ?? false;
   const levelMet = selectedFusion?.levelMet ?? true;
   const minLevel = selectedFusion?.minLevel ?? next.minLevel;
+  const stepPresentation = getFusionStepPresentation(next.id);
 
   const beginFusion = () => {
     if (!canFuse || run !== null) return;
-    const stepPresentation = getFusionStepPresentation(next.id);
     const result = controller.fuseSlime(slimeId, next.id);
     if (!result.accepted) {
       setNotice(rejectionLabel(result.reason));
@@ -125,7 +141,6 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
     }
 
     setCompletedName(next.resultName);
-    setCompletedDescription(next.description);
     setCompletedBehavior(stepPresentation.behaviorTitle);
     setSequenceKey((value) => value + 1);
     setCompleted(false);
@@ -145,9 +160,8 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
       <button className={styles.close} type="button" disabled={run !== null} onClick={onClose} aria-label="合成画面を閉じる">×</button>
 
       <div className={styles.header}>
-        <span>合成祭壇</span>
+        <span>合成ランク {displayFromRank} → {displayFromRank + 1}</span>
         <strong>{run?.fromName ?? (completed ? completedName ?? detail.name : detail.name)}</strong>
-        <small>合成ランク {displayFromRank} → {displayFromRank + 1}</small>
       </div>
 
       <div className={styles.stageArea}>
@@ -173,7 +187,7 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
           sequenceKey={sequenceKey}
           fromRank={run?.fromRank ?? displayFromRank}
           toRank={run?.toRank ?? displayFromRank + 1}
-          ceremony={getFusionStepPresentation(next.id).ceremony}
+          ceremony={stepPresentation.ceremony}
           currentPresentation={currentPresentation}
           resultPresentation={resultPresentation}
           onFusionComplete={() => {
@@ -181,7 +195,11 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
             setRun(null);
           }}
         />
-        {!completed && run === null && <div className={styles.stageCaption}>同じ職の力と素材をひとつにする</div>}
+        {!completed && run === null && (
+          <div className={styles.stageCaption}>
+            {stepPresentation.ceremony === 'major-form' ? `${detail.name} × 2` : '力を重ねて次の段階へ'}
+          </div>
+        )}
       </div>
 
       {!completed ? (
@@ -206,9 +224,9 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
           )}
 
           <div className={styles.resultTease}>
-            <span>次の形態</span>
+            <span>合成後</span>
             <strong>{next.resultName}</strong>
-            <small>{next.description}</small>
+            <small>{stepPresentation.behaviorTitle}</small>
           </div>
 
           <div className={styles.recipe}>
@@ -219,6 +237,7 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
                   type="button"
                   className={`${styles.ingredient} ${requirement.missing === 0 ? styles.ready : styles.missing}`}
                   key={requirement.tokenId}
+                  disabled={requirement.missing === 0}
                   onClick={() => {
                     if (requirement.missing === 0) return;
                     if (meta.route === 'recruit') onRecruit();
@@ -227,7 +246,9 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
                 >
                   <span className={`${styles.ingredientIcon} ${ingredientKindClass(meta.kind)}`} aria-hidden="true"><img src={`${import.meta.env.BASE_URL}${meta.asset}`} alt="" /></span>
                   <span><strong>{requirement.label}</strong><small>{validationMode ? '∞' : requirement.owned} / {requirement.required}</small></span>
-                  {requirement.missing > 0 && <em>{meta.sourceLabel} ›</em>}
+                  <em className={requirement.missing === 0 ? styles.prepared : ''}>
+                    {requirement.missing === 0 ? '準備OK' : `${meta.sourceLabel} ›`}
+                  </em>
                 </button>
               );
             })}
@@ -267,15 +288,14 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
             disabled={!canFuse || run !== null}
             onClick={beginFusion}
           >
-            <span>{canFuse ? '合成可能' : '素材不足'}</span>
-            <strong>{run !== null ? '合成中…' : canFuse ? '合成する' : '素材を集める'}</strong>
+            <span>{canFuse ? `合成ランク ${displayFromRank + 1}` : '素材不足'}</span>
+            <strong>{run !== null ? '合成中…' : canFuse ? `${next.resultName}へ合成` : '素材が足りません'}</strong>
           </button>
         </div>
       ) : (
         <div className={styles.completePanel}>
           <span>合成完了</span>
           <strong>{completedName ?? resultPresentation.name}</strong>
-          <p>{completedDescription ?? next.description}</p>
           <div className={styles.unlockBadge}>新攻撃 · {completedBehavior ?? '新しい戦闘挙動'}</div>
           <div className={styles.resultActions}>
             <button type="button" onClick={onClose}>キャンプで見る</button>
