@@ -31,6 +31,7 @@ describe('UI selectors', () => {
     expect(view.plainStock).toBe(0);
     expect(view.craft.canCraft).toBe(true);
     expect(view.jobs.find((job) => job.id === 'sword')?.canCreate).toBe(false);
+    expect(view.mimic.icon).toBe('assets/mimic-slime-icon.svg');
   });
 
   it('only exposes reserve slime instances to dispatch selection', () => {

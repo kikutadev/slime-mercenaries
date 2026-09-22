@@ -254,7 +254,7 @@ export function selectCreateSlimePanel(state: SlimeMercenariesState) {
     plainStock: readToken(state.tokens, ids.token.plainSlime),
     mimic: {
       name: 'ミミックスライム',
-      icon: 'mimic-slime-icon.svg',
+      icon: 'assets/mimic-slime-icon.svg',
       hearts: mimic.hearts,
       heartCost: mimic.heartCost,
       canCapture: mimic.canCapture,
