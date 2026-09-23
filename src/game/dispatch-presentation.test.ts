@@ -10,11 +10,12 @@ describe('dispatch presentation', () => {
     expect(presented).toEqual(released);
   });
 
-  it('gives every route distinct start and destination positions', () => {
+  it('authors a world-space path and landmark anchor for every route', () => {
     for (const route of Object.values(dispatchRoutePresentation)) {
-      expect(route.start).not.toEqual(route.end);
-      expect(route.start).toHaveLength(3);
-      expect(route.end).toHaveLength(3);
+      expect(route.waypoints.length).toBeGreaterThanOrEqual(2);
+      expect(route.waypoints[0]).not.toEqual(route.waypoints.at(-1));
+      expect(route.waypoints.every((point) => point.length === 3 && point[1] > 0)).toBe(true);
+      expect(route.labelAnchor).toHaveLength(3);
     }
   });
 });

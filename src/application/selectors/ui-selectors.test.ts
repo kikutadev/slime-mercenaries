@@ -30,6 +30,21 @@ function createSwordState() {
   return { state: created.state, swordId };
 }
 
+function createBowState() {
+  const initial = createInitialSlimeMercenariesState(0, 12);
+  const crafted = craftPlainSlime(initial);
+  if (!crafted.accepted) throw new Error('setup craft failed');
+  const prepared = {
+    ...crafted.state,
+    tokens: grantToken(crafted.state.tokens, ids.token.trainingBow, 1),
+  };
+  const created = createJobSlime(prepared, 'bow');
+  if (!created.accepted) throw new Error('setup bow failed');
+  const bowId = firstSlimeIdByType(created.state, 'bow');
+  if (bowId === null) throw new Error('setup bow missing');
+  return { state: created.state, bowId };
+}
+
 describe('UI selectors', () => {
   it('projects Plain creation from the authoritative recipe state', () => {
     const view = selectCreateSlimePanel(createInitialSlimeMercenariesState(0, 3));
@@ -46,6 +61,27 @@ describe('UI selectors', () => {
     const assigned = assignSlimeToFormation(setup.state, setup.swordId, 0);
     if (!assigned.accepted) throw new Error('setup formation failed');
     expect(selectDispatchScreen(assigned.state).reserve.map((slime) => slime.id)).not.toContain(setup.swordId);
+  });
+
+  it('keeps underpowered reserve slimes visible and projects concrete dispatch rewards', () => {
+    const setup = createBowState();
+    const view = selectDispatchScreen(setup.state);
+    const gathering = view.contracts.find((contract) => contract.id === 'materialGathering');
+    const escort = view.contracts.find((contract) => contract.id === 'roadEscort');
+
+    expect(gathering?.candidates).toHaveLength(1);
+    expect(gathering?.candidates[0]).toMatchObject({
+      id: setup.bowId,
+      eligible: false,
+    });
+    expect(gathering?.candidates[0]?.powerGap).toBeGreaterThan(0);
+    expect(gathering?.reward).toMatchObject({
+      kind: 'hardening-gel',
+      label: '硬化ジェル',
+      amount: '2',
+    });
+    expect(escort?.reward.kind).toBe('gold');
+    expect(Number(escort?.reward.amount)).toBeGreaterThan(0);
   });
 
   it('derives Forge attention from earned Forge Keys without React-local state', () => {

@@ -1,4 +1,4 @@
-import { formatGameNumber, readCurrency, readToken, selectAttentionSummary } from 'idle-game-kit';
+import { GameNumber, formatGameNumber, readCurrency, readToken, selectAttentionSummary } from 'idle-game-kit';
 import {
   balance,
   dispatchContractDefinitions,
@@ -425,7 +425,8 @@ export function selectDispatchScreen(state: SlimeMercenariesState) {
         icon: presentation.icon,
         power: slimeCombatPower(state, slimeId).toNumber(),
       };
-    });
+    })
+    .sort((left, right) => right.power - left.power || left.id.localeCompare(right.id));
 
   const contracts = (Object.keys(dispatchContractDefinitions) as DispatchContractId[]).map((contractId) => {
     const definition = dispatchContractDefinitions[contractId];
@@ -433,6 +434,14 @@ export function selectDispatchScreen(state: SlimeMercenariesState) {
     const remainingSec = runtime.activity.completesAtSimTimeSec === null
       ? 0
       : Math.max(0, runtime.activity.completesAtSimTimeSec - state.simTimeSec);
+    const candidates = reserve.map((slime) => {
+      const powerGap = Math.max(0, definition.requiredPower - slime.power);
+      return {
+        ...slime,
+        eligible: powerGap <= 0,
+        powerGap,
+      } as const;
+    });
     return {
       id: contractId,
       name: definition.displayName,
@@ -441,8 +450,8 @@ export function selectDispatchScreen(state: SlimeMercenariesState) {
       status: runtime.activity.status,
       slimeId: runtime.slimeId,
       remainingSec,
-      eligibleSlimes: reserve.filter((slime) => slime.power >= definition.requiredPower),
-      rewardLabel: rewardLabelForContract(contractId),
+      candidates,
+      reward: dispatchRewardPresentation(definition.activity.completionRewards[0]),
     } as const;
   });
 
@@ -511,11 +520,11 @@ export function selectNavigationAttention(state: SlimeMercenariesState) {
   const slimesReady = codex.newCount > 0
     || upgrades.some((opportunity) => opportunity.kind !== 'level')
     || (state.gameData.combat.retryFarmClearsRemaining > 0 && upgrades.some((opportunity) => opportunity.kind === 'level'));
-  const dispatchReady = Object.values(state.gameData.dispatch.contracts).some((contract) => contract.activity.status === 'completed-unclaimed');
   const forgeReady = readToken(state.tokens, ids.token.forgeKey) > 0;
   const summary = selectAttentionSummary([
     { id: 'nav.slimes', kind: 'slimes', urgency: 'action', priority: 30, available: slimesReady },
-    { id: 'nav.dispatch', kind: 'dispatch', urgency: 'action', priority: 20, available: dispatchReady },
+    // Dispatch rewards auto-claim, so there is no persistent ready-to-claim attention state.
+    { id: 'nav.dispatch', kind: 'dispatch', urgency: 'action', priority: 20, available: false },
     { id: 'nav.forge', kind: 'forge', urgency: 'notice', priority: 10, available: forgeReady },
   ], state.simTimeSec);
   return new Set(summary.items.map((item) => item.kind));
@@ -534,10 +543,27 @@ function findMaxAffordableLevelCount(state: SlimeMercenariesState, slimeId: Slim
   return affordable;
 }
 
-function rewardLabelForContract(contractId: DispatchContractId): string {
-  switch (contractId) {
-    case 'roadEscort': return 'ゴールド';
-    case 'forestExploration': return '鍛造キー';
-    case 'materialGathering': return '進化素材';
+function dispatchRewardPresentation(reward: (typeof dispatchContractDefinitions)[DispatchContractId]['activity']['completionRewards'][number]) {
+  if (reward.type === 'currency') {
+    return {
+      kind: 'gold',
+      label: 'ゴールド',
+      amount: formatGameNumber(GameNumber.from(reward.amount)),
+    } as const;
   }
+  if (reward.type === 'token' && reward.tokenId === ids.token.forgeKey) {
+    return {
+      kind: 'forge-key',
+      label: '鍛造キー',
+      amount: String(reward.count),
+    } as const;
+  }
+  if (reward.type === 'token' && reward.tokenId === ids.token.hardeningGel) {
+    return {
+      kind: 'hardening-gel',
+      label: '硬化ジェル',
+      amount: String(reward.count),
+    } as const;
+  }
+  throw new Error('Unsupported dispatch reward');
 }

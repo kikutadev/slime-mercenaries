@@ -14,6 +14,8 @@ export type DispatchTraveler = Readonly<{
   departureKey?: number;
 }>;
 
+export type DispatchMapAnchorPositions = Readonly<Record<DispatchContractId, Readonly<{ x: number; y: number }>>>;
+
 type ReturningTraveler = DispatchTraveler & Readonly<{ returnKey: number }>;
 
 function MapEnvironment() {
@@ -22,6 +24,7 @@ function MapEnvironment() {
   const { camera, scene } = useThree();
 
   useEffect(() => {
+    const previousFog = scene.fog;
     scene.fog = new THREE.Fog('#cce5c8', 11, 27);
     if (camera instanceof THREE.PerspectiveCamera) {
       camera.position.set(0, 8.4, 10.6);
@@ -37,9 +40,78 @@ function MapEnvironment() {
         object.receiveShadow = true;
       }
     });
+    return () => {
+      scene.fog = previousFog;
+    };
   }, [camera, model, scene]);
 
   return <primitive object={model} />;
+}
+
+function MapAnchorReporter({
+  onChange,
+}: {
+  onChange: ((positions: DispatchMapAnchorPositions) => void) | undefined;
+}) {
+  const { camera, size } = useThree();
+  const previousKey = useRef('');
+  const scratch = useMemo(() => new THREE.Vector3(), []);
+
+  useFrame(() => {
+    if (onChange === undefined || size.width <= 0 || size.height <= 0) return;
+    const entries = (Object.entries(dispatchRoutePresentation) as [DispatchContractId, (typeof dispatchRoutePresentation)[DispatchContractId]][])
+      .map(([contractId, route]) => {
+        scratch.set(...route.labelAnchor).project(camera);
+        const projectedX = ((scratch.x + 1) * 50);
+        const projectedY = ((1 - scratch.y) * 50);
+        return [contractId, {
+          // Destination labels are DOM controls with real width, so keep their centers inside
+          // a safe horizontal band even when the 3D landmark itself sits at the diorama edge.
+          x: Math.round(THREE.MathUtils.clamp(projectedX, 16, 84) * 10) / 10,
+          y: Math.round(THREE.MathUtils.clamp(projectedY, 16, 88) * 10) / 10,
+        }] as const;
+      });
+    const next = Object.fromEntries(entries) as DispatchMapAnchorPositions;
+    const key = entries.map(([id, point]) => `${id}:${point.x},${point.y}`).join('|');
+    if (key === previousKey.current) return;
+    previousKey.current = key;
+    onChange(next);
+  });
+
+  return null;
+}
+
+function createRouteSampler(waypoints: readonly (readonly [number, number, number])[]) {
+  const points = waypoints.map((point) => new THREE.Vector3(...point));
+  const segments = points.slice(1).map((point, index) => {
+    const start = points[index]!;
+    return {
+      start,
+      end: point,
+      length: start.distanceTo(point),
+    };
+  });
+  const totalLength = segments.reduce((sum, segment) => sum + segment.length, 0);
+
+  return (progress: number, position: THREE.Vector3, direction: THREE.Vector3) => {
+    if (segments.length === 0 || totalLength <= 0) {
+      position.copy(points[0] ?? new THREE.Vector3());
+      direction.set(0, 0, 1);
+      return;
+    }
+    let remaining = THREE.MathUtils.clamp(progress, 0, 1) * totalLength;
+    let segment = segments[segments.length - 1]!;
+    for (const candidate of segments) {
+      if (remaining <= candidate.length) {
+        segment = candidate;
+        break;
+      }
+      remaining -= candidate.length;
+    }
+    const u = segment.length <= 0 ? 0 : THREE.MathUtils.clamp(remaining / segment.length, 0, 1);
+    position.lerpVectors(segment.start, segment.end, u);
+    direction.subVectors(segment.end, segment.start).normalize();
+  };
 }
 
 function Traveler({
@@ -59,10 +131,9 @@ function Traveler({
   }, [gltf.scene, traveler.mutationId]);
   const group = useRef<THREE.Group>(null);
   const route = dispatchRoutePresentation[traveler.contractId];
-  const start = useMemo(() => new THREE.Vector3(...route.start), [route.start]);
-  const end = useMemo(() => new THREE.Vector3(...route.end), [route.end]);
+  const sampleRoute = useMemo(() => createRouteSampler(route.waypoints), [route.waypoints]);
   const position = useMemo(() => new THREE.Vector3(), []);
-  const direction = useMemo(() => new THREE.Vector3().subVectors(end, start).normalize(), [end, start]);
+  const direction = useMemo(() => new THREE.Vector3(), []);
   const startedAt = useRef<number | null>(null);
   const motionKey = returning
     ? ('returnKey' in traveler ? traveler.returnKey : 0)
@@ -102,7 +173,7 @@ function Traveler({
       intensity = 1.65 - u * 0.45;
     }
 
-    position.lerpVectors(start, end, visibleProgress);
+    sampleRoute(visibleProgress, position, direction);
     const hop = Math.abs(Math.sin(clock.elapsedTime * 5.2 + index * 1.1)) * 0.08 * intensity;
     position.y += hop;
     target.position.copy(position);
@@ -121,7 +192,13 @@ function Traveler({
   return <group ref={group}><primitive object={model} /></group>;
 }
 
-export function DispatchMapStage({ travelers }: { travelers: readonly DispatchTraveler[] }) {
+export function DispatchMapStage({
+  travelers,
+  onAnchorPositionsChange,
+}: {
+  travelers: readonly DispatchTraveler[];
+  onAnchorPositionsChange?: (positions: DispatchMapAnchorPositions) => void;
+}) {
   const previousTravelers = useRef<readonly DispatchTraveler[]>(travelers);
   const returnSerial = useRef(0);
   const returnTimers = useRef<Set<number>>(new Set());
@@ -164,6 +241,7 @@ export function DispatchMapStage({ travelers }: { travelers: readonly DispatchTr
         <hemisphereLight args={['#edfaff', '#70975d', 2.1]} />
         <directionalLight position={[-4, 9, 5]} intensity={3.1} color="#fff2d2" castShadow />
         <MapEnvironment />
+        <MapAnchorReporter onChange={onAnchorPositionsChange} />
         {travelers.map((traveler, index) => (
           <Traveler key={traveler.contractId} traveler={traveler} index={index} />
         ))}
