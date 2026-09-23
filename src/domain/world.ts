@@ -1,4 +1,4 @@
-import { resolveOfflineElapsed, type DomainEvent, type OfflineTimePolicy } from 'idle-game-kit';
+import { advanceOfflineInChunks, resolveOfflineElapsed, type DomainEvent, type OfflineTimePolicy } from 'idle-game-kit';
 import { advanceCombatTo, type CombatAdvancePolicy } from './combat';
 import { advanceDispatchTo } from './dispatch';
 import {
@@ -44,19 +44,23 @@ export function advanceSlimeWorldFromWallClock(
     };
   }
 
-  let nextState = state;
-  const accumulator = createOfflineProgressAccumulator();
-
-  while (nextState.simTimeSec < targetSimTimeSec) {
-    const chunkTarget = Math.min(targetSimTimeSec, nextState.simTimeSec + LONG_OFFLINE_CHUNK_SEC);
-    const advanced = advanceSlimeWorldTo(nextState, chunkTarget, combatPolicy);
-    accumulateOfflineProgressEvents(accumulator, advanced.events);
-    nextState = advanced.state;
-  }
+  const advanced = advanceOfflineInChunks({
+    initialState: state,
+    targetSimTimeSec,
+    maxChunkSec: LONG_OFFLINE_CHUNK_SEC,
+    getSimTimeSec: (current) => current.simTimeSec,
+    advanceChunk: (current, chunkTargetSimTimeSec) =>
+      advanceSlimeWorldTo(current, chunkTargetSimTimeSec, combatPolicy),
+    initialAccumulator: createOfflineProgressAccumulator(),
+    accumulate: (accumulator, events) => {
+      accumulateOfflineProgressEvents(accumulator, events);
+      return accumulator;
+    },
+  });
 
   return {
-    state: { ...nextState, lastWallClockMs: elapsed.nextWallClockMs },
-    events: createOfflineProgressAggregatedEvents(accumulator, state.simTimeSec, targetSimTimeSec),
+    state: { ...advanced.state, lastWallClockMs: elapsed.nextWallClockMs },
+    events: createOfflineProgressAggregatedEvents(advanced.accumulator, state.simTimeSec, targetSimTimeSec),
     appliedOfflineSec: elapsed.appliedElapsedSec,
   };
 }

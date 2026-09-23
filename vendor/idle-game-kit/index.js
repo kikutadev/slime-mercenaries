@@ -166,7 +166,7 @@ function ue() {
 	return typeof globalThis.crypto?.randomUUID == "function" ? globalThis.crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
 }
 //#endregion
-//#region node_modules/.pnpm/break_infinity.js@2.2.0/node_modules/break_infinity.js/dist/break_infinity.esm.js
+//#region ../../idle-game-kit/node_modules/.pnpm/break_infinity.js@2.2.0/node_modules/break_infinity.js/dist/break_infinity.esm.js
 var de = /* @__PURE__ */ ae((/* @__PURE__ */ re(((e, t) => {
 	t.exports = function(e, t, n) {
 		if (e == null || t == null) return e;
@@ -1011,11 +1011,36 @@ function Ve(e, t, n = {}) {
 	};
 }
 //#endregion
-//#region src/application/offline-return-summary.ts
+//#region src/application/offline-advance.ts
 function He(e) {
+	if (Ue("targetSimTimeSec", e.targetSimTimeSec), !Number.isSafeInteger(e.maxChunkSec) || e.maxChunkSec <= 0) throw RangeError("maxChunkSec must be a positive safe integer.");
+	let t = e.initialState, n = e.getSimTimeSec(t);
+	if (Ue("initial state simTimeSec", n), e.targetSimTimeSec < n) throw RangeError("targetSimTimeSec must be at or after current state simTimeSec.");
+	let r = e.initialAccumulator, i = 0;
+	for (; n < e.targetSimTimeSec;) {
+		let a = Math.min(e.targetSimTimeSec, n + e.maxChunkSec), o = e.advanceChunk(t, a), s = e.getSimTimeSec(o.state);
+		if (Ue("advanced state simTimeSec", s), s !== a) throw Error("Offline chunk advance must end exactly at its requested target (requested " + a + ", received " + s + ").");
+		r = e.accumulate(r, o.events, {
+			chunkIndex: i,
+			fromSimTimeSec: n,
+			toSimTimeSec: a
+		}), t = o.state, n = s, i += 1;
+	}
+	return {
+		state: t,
+		accumulator: r,
+		chunkCount: i
+	};
+}
+function Ue(e, t) {
+	if (!Number.isSafeInteger(t) || t < 0) throw RangeError(e + " must be a non-negative safe integer.");
+}
+//#endregion
+//#region src/application/offline-return-summary.ts
+function We(e) {
 	let t = e.minimumObservedElapsedSec ?? 0;
 	if (!Number.isSafeInteger(t) || t < 0) throw RangeError("minimumObservedElapsedSec must be a non-negative safe integer.");
-	return Ue(e.elapsed), !e.meaningfulChange || e.elapsed.observedElapsedSec < t || e.elapsed.appliedElapsedSec === 0 ? null : {
+	return Ge(e.elapsed), !e.meaningfulChange || e.elapsed.observedElapsedSec < t || e.elapsed.appliedElapsedSec === 0 ? null : {
 		elapsed: e.elapsed,
 		gains: e.gains ?? [],
 		progressionChanges: e.progressionChanges ?? [],
@@ -1023,7 +1048,7 @@ function He(e) {
 		nextTarget: e.nextTarget ?? null
 	};
 }
-function Ue(e) {
+function Ge(e) {
 	for (let [t, n] of [
 		["observedElapsedSec", e.observedElapsedSec],
 		["appliedElapsedSec", e.appliedElapsedSec],
@@ -1035,23 +1060,23 @@ function Ue(e) {
 }
 //#endregion
 //#region src/application/reward-signals.ts
-function We(e, t) {
+function Ke(e, t) {
 	let n = [];
 	for (let r of e) {
 		let e = t(r);
-		e != null && (Ge(e) ? n.push(...e) : n.push(e));
+		e != null && (qe(e) ? n.push(...e) : n.push(e));
 	}
 	let r = /* @__PURE__ */ new Set();
 	for (let e of n) {
-		if (Ke(e), r.has(e.id)) throw RangeError(`Duplicate reward signal ID: ${e.id}`);
+		if (Je(e), r.has(e.id)) throw RangeError(`Duplicate reward signal ID: ${e.id}`);
 		r.add(e.id);
 	}
 	return n.toSorted((e, t) => e.simTimeSec - t.simTimeSec || e.id.localeCompare(t.id));
 }
-function Ge(e) {
+function qe(e) {
 	return Array.isArray(e);
 }
-function Ke(e) {
+function Je(e) {
 	if (e.id.length === 0) throw RangeError("Reward signal ID must not be empty.");
 	if (!Number.isSafeInteger(e.simTimeSec) || e.simTimeSec < 0) throw RangeError(`Reward signal simTimeSec must be a non-negative safe integer: ${e.id}`);
 	if (![
@@ -1064,7 +1089,7 @@ function Ke(e) {
 }
 //#endregion
 //#region src/application/rewarded-ad-flow.ts
-async function qe(e) {
+async function Ye(e) {
 	let t;
 	try {
 		t = await e.adapter.showRewarded(e.offerId);
@@ -1080,8 +1105,8 @@ async function qe(e) {
 }
 //#endregion
 //#region src/application/state-migration.ts
-function Je(e) {
-	if (Ye(e.currentSchemaVersion), Xe(e.migrations ?? []), !Qe(e.candidate)) return {
+function Xe(e) {
+	if (Ze(e.currentSchemaVersion), Qe(e.migrations ?? []), !$e(e.candidate)) return {
 		accepted: !1,
 		reason: "not-object"
 	};
@@ -1089,7 +1114,7 @@ function Je(e) {
 		accepted: !1,
 		reason: "wrong-game"
 	};
-	if (!Ze(e.candidate.schemaVersion)) return {
+	if (!C(e.candidate.schemaVersion)) return {
 		accepted: !1,
 		reason: "invalid-schema-version"
 	};
@@ -1118,7 +1143,7 @@ function Je(e) {
 				failedFromSchemaVersion: i
 			};
 		}
-		if (!Qe(o) || o.gameId !== e.expectedGameId || o.schemaVersion !== t.toSchemaVersion) return {
+		if (!$e(o) || o.gameId !== e.expectedGameId || o.schemaVersion !== t.toSchemaVersion) return {
 			accepted: !1,
 			reason: "migration-failed",
 			schemaVersion: i,
@@ -1137,7 +1162,7 @@ function Je(e) {
 			schemaVersion: i
 		};
 	}
-	return !Qe(r) || r.gameId !== e.expectedGameId || r.schemaVersion !== e.currentSchemaVersion || !e.validate(r) ? {
+	return !$e(r) || r.gameId !== e.expectedGameId || r.schemaVersion !== e.currentSchemaVersion || !e.validate(r) ? {
 		accepted: !1,
 		reason: "invalid-state",
 		schemaVersion: i
@@ -1150,37 +1175,37 @@ function Je(e) {
 		normalized: o
 	};
 }
-function Ye(e) {
-	if (!Ze(e)) throw RangeError("currentSchemaVersion must be a non-negative safe integer.");
+function Ze(e) {
+	if (!C(e)) throw RangeError("currentSchemaVersion must be a non-negative safe integer.");
 }
-function Xe(e) {
+function Qe(e) {
 	let t = /* @__PURE__ */ new Set();
 	for (let n of e) {
-		if (!Ze(n.fromSchemaVersion) || !Ze(n.toSchemaVersion)) throw RangeError("State migration versions must be non-negative safe integers.");
+		if (!C(n.fromSchemaVersion) || !C(n.toSchemaVersion)) throw RangeError("State migration versions must be non-negative safe integers.");
 		if (n.toSchemaVersion <= n.fromSchemaVersion) throw RangeError("State migration must advance schemaVersion.");
 		if (t.has(n.fromSchemaVersion)) throw RangeError(`Duplicate state migration from schemaVersion ${n.fromSchemaVersion}.`);
 		t.add(n.fromSchemaVersion);
 	}
 }
-function Ze(e) {
+function C(e) {
 	return typeof e == "number" && Number.isSafeInteger(e) && e >= 0;
 }
-function Qe(e) {
+function $e(e) {
 	return typeof e == "object" && !!e && !Array.isArray(e);
 }
 //#endregion
 //#region src/application/save-transfer.ts
-var $e = "idle-game-kit-save-v1";
-function et(e, t) {
+var et = "idle-game-kit-save-v1";
+function tt(e, t) {
 	let n = {
-		formatId: $e,
+		formatId: et,
 		gameId: e.gameId,
 		exportedAtMs: t,
 		state: e
 	};
 	return JSON.stringify(n, null, 2);
 }
-function tt(e, t) {
+function nt(e, t) {
 	let n;
 	try {
 		n = JSON.parse(e);
@@ -1190,13 +1215,13 @@ function tt(e, t) {
 			reason: "invalid-json"
 		};
 	}
-	return !it(n) || n.formatId !== "idle-game-kit-save-v1" || typeof n.gameId != "string" || typeof n.exportedAtMs != "number" || !Number.isFinite(n.exportedAtMs) || !("state" in n) ? {
+	return !at(n) || n.formatId !== "idle-game-kit-save-v1" || typeof n.gameId != "string" || typeof n.exportedAtMs != "number" || !Number.isFinite(n.exportedAtMs) || !("state" in n) ? {
 		accepted: !1,
 		reason: "invalid-envelope"
 	} : n.gameId === t ? {
 		accepted: !0,
 		envelope: {
-			formatId: $e,
+			formatId: et,
 			gameId: n.gameId,
 			exportedAtMs: n.exportedAtMs,
 			state: n.state
@@ -1206,8 +1231,8 @@ function tt(e, t) {
 		reason: "wrong-game"
 	};
 }
-function nt(e, t, n) {
-	let r = tt(e, t);
+function rt(e, t, n) {
+	let r = nt(e, t);
 	return r.accepted ? n(r.envelope.state) ? {
 		accepted: !0,
 		envelope: {
@@ -1219,10 +1244,10 @@ function nt(e, t, n) {
 		reason: "invalid-state"
 	} : r;
 }
-function rt(e) {
-	let t = tt(e.text, e.expectedGameId);
+function it(e) {
+	let t = nt(e.text, e.expectedGameId);
 	if (!t.accepted) return t;
-	let n = Je({
+	let n = Xe({
 		candidate: t.envelope.state,
 		expectedGameId: e.expectedGameId,
 		currentSchemaVersion: e.currentSchemaVersion,
@@ -1243,12 +1268,12 @@ function rt(e) {
 		stateLoad: n
 	};
 }
-function it(e) {
+function at(e) {
 	return typeof e == "object" && !!e && !Array.isArray(e);
 }
 //#endregion
 //#region src/application/store.ts
-var at = class {
+var ot = class {
 	#e;
 	#t = /* @__PURE__ */ new Set();
 	constructor(e) {
@@ -1268,8 +1293,8 @@ var at = class {
 };
 //#endregion
 //#region src/application/timeline-boundary.ts
-function ot(e) {
-	if (st("currentSimTimeSec", e.currentSimTimeSec), st("targetSimTimeSec", e.targetSimTimeSec), e.targetSimTimeSec < e.currentSimTimeSec) throw RangeError("targetSimTimeSec must be at or after currentSimTimeSec.");
+function st(e) {
+	if (ct("currentSimTimeSec", e.currentSimTimeSec), ct("targetSimTimeSec", e.targetSimTimeSec), e.targetSimTimeSec < e.currentSimTimeSec) throw RangeError("targetSimTimeSec must be at or after currentSimTimeSec.");
 	if (e.targetSimTimeSec === e.currentSimTimeSec) return {
 		targetSimTimeSec: e.targetSimTimeSec,
 		boundaries: []
@@ -1279,7 +1304,7 @@ function ot(e) {
 		if (r != null) {
 			if (r.id.length === 0) throw RangeError("Timeline boundary id must not be empty.");
 			if (t.has(r.id)) throw RangeError(`Duplicate timeline boundary id: ${r.id}`);
-			if (t.add(r.id), st(`timeline boundary ${r.id}`, r.atSimTimeSec), r.order !== void 0 && !Number.isSafeInteger(r.order)) throw RangeError(`Timeline boundary ${r.id} order must be a safe integer.`);
+			if (t.add(r.id), ct(`timeline boundary ${r.id}`, r.atSimTimeSec), r.order !== void 0 && !Number.isSafeInteger(r.order)) throw RangeError(`Timeline boundary ${r.id} order must be a safe integer.`);
 			if (r.atSimTimeSec <= e.currentSimTimeSec) throw RangeError(`Timeline boundary ${r.id} must be after currentSimTimeSec to guarantee progress.`);
 			r.atSimTimeSec <= e.targetSimTimeSec && n.push({
 				candidate: r,
@@ -1296,62 +1321,62 @@ function ot(e) {
 		boundaries: n.filter(({ candidate: e }) => e.atSimTimeSec === r).sort((e, t) => (e.candidate.order ?? 0) - (t.candidate.order ?? 0) || e.inputOrder - t.inputOrder).map(({ candidate: e }) => e)
 	};
 }
-function st(e, t) {
+function ct(e, t) {
 	if (!Number.isFinite(t) || t < 0) throw RangeError(`${e} must be a finite non-negative number.`);
 }
 //#endregion
 //#region src/domain/condition/condition.ts
-function C(e, t) {
+function w(e, t) {
 	switch (e.type) {
-		case "and": return e.conditions.every((e) => C(e, t));
-		case "or": return e.conditions.some((e) => C(e, t));
-		case "not": return !C(e.condition, t);
+		case "and": return e.conditions.every((e) => w(e, t));
+		case "or": return e.conditions.some((e) => w(e, t));
+		case "not": return !w(e.condition, t);
 		case "currency-balance-at-least": return t.currencyBalance(e.currencyId).greaterThanOrEqual(e.amount);
 		case "lifetime-currency-earned-at-least": return t.lifetimeCurrencyEarned(e.currencyId).greaterThanOrEqual(e.amount);
 		case "producer-count-at-least": return t.producerCount(e.producerId) >= e.count;
-		case "producer-level-at-least": return w(t.producerLevel, "producerLevel")(e.producerId) >= e.level;
+		case "producer-level-at-least": return T(t.producerLevel, "producerLevel")(e.producerId) >= e.level;
 		case "character-owned": return t.characterOwned(e.characterDefinitionId);
-		case "character-level-at-least": return w(t.characterLevel, "characterLevel")(e.characterDefinitionId) >= e.level;
+		case "character-level-at-least": return T(t.characterLevel, "characterLevel")(e.characterDefinitionId) >= e.level;
 		case "activity-progress-at-least": return t.activityProgress(e.activityId) >= e.progress;
-		case "activity-milestone-reached": return w(t.activityMilestoneReached, "activityMilestoneReached")(e.activityId, e.milestoneId);
+		case "activity-milestone-reached": return T(t.activityMilestoneReached, "activityMilestoneReached")(e.activityId, e.milestoneId);
 		case "achievement-completed": return t.achievementCompleted(e.achievementId);
-		case "prestige-count-at-least": return w(t.prestigeCount, "prestigeCount")(e.prestigeId) >= e.count;
-		case "gacha-draw-count-at-least": return w(t.gachaDrawCount, "gachaDrawCount")(e.gachaId) >= e.count;
-		case "calendar-streak-at-least": return w(t.calendarStreak, "calendarStreak")(e.calendarRewardId) >= e.count;
+		case "prestige-count-at-least": return T(t.prestigeCount, "prestigeCount")(e.prestigeId) >= e.count;
+		case "gacha-draw-count-at-least": return T(t.gachaDrawCount, "gachaDrawCount")(e.gachaId) >= e.count;
+		case "calendar-streak-at-least": return T(t.calendarStreak, "calendarStreak")(e.calendarRewardId) >= e.count;
 		case "unlock-flag": return t.unlockFlag(e.flagId);
 	}
 }
-function w(e, t) {
+function T(e, t) {
 	if (e === void 0) throw Error(`ConditionContext.${t} is required for this predicate.`);
 	return e;
 }
 //#endregion
 //#region src/domain/achievement/achievement.ts
-function ct(e, t, n) {
+function lt(e, t, n) {
 	let r = e.achievements[t.id] === !0;
 	return {
 		id: t.id,
 		completed: r,
 		visible: t.hidden !== !0 || r,
-		progress: t.progressMetric === void 0 ? null : r ? 1 : lt(t.progressMetric, n)
+		progress: t.progressMetric === void 0 ? null : r ? 1 : ut(t.progressMetric, n)
 	};
 }
-function lt(e, t) {
+function ut(e, t) {
 	switch (e.type) {
-		case "currency-balance": return dt(t.currencyBalance(e.currencyId), e.target);
-		case "lifetime-currency-earned": return dt(t.lifetimeCurrencyEarned(e.currencyId), e.target);
-		case "producer-count": return T(t.producerCount(e.producerId), e.target);
-		case "producer-level": return T(E(t.producerLevel, "producerLevel")(e.producerId), e.target);
-		case "character-level": return T(E(t.characterLevel, "characterLevel")(e.characterDefinitionId), e.target);
-		case "activity-progress": return T(t.activityProgress(e.activityId), e.target);
-		case "gacha-draw-count": return T(E(t.gachaDrawCount, "gachaDrawCount")(e.gachaId), e.target);
-		case "prestige-count": return T(E(t.prestigeCount, "prestigeCount")(e.prestigeId), e.target);
-		case "calendar-streak": return T(E(t.calendarStreak, "calendarStreak")(e.calendarRewardId), e.target);
+		case "currency-balance": return ft(t.currencyBalance(e.currencyId), e.target);
+		case "lifetime-currency-earned": return ft(t.lifetimeCurrencyEarned(e.currencyId), e.target);
+		case "producer-count": return E(t.producerCount(e.producerId), e.target);
+		case "producer-level": return E(D(t.producerLevel, "producerLevel")(e.producerId), e.target);
+		case "character-level": return E(D(t.characterLevel, "characterLevel")(e.characterDefinitionId), e.target);
+		case "activity-progress": return E(t.activityProgress(e.activityId), e.target);
+		case "gacha-draw-count": return E(D(t.gachaDrawCount, "gachaDrawCount")(e.gachaId), e.target);
+		case "prestige-count": return E(D(t.prestigeCount, "prestigeCount")(e.prestigeId), e.target);
+		case "calendar-streak": return E(D(t.calendarStreak, "calendarStreak")(e.calendarRewardId), e.target);
 	}
 }
-function ut(e) {
+function dt(e) {
 	let t = e.state, n = [];
-	for (let r of e.definitions) t.achievements[r.id] !== !0 && C(r.condition, e.createConditionContext(t)) && (t = {
+	for (let r of e.definitions) t.achievements[r.id] !== !0 && w(r.condition, e.createConditionContext(t)) && (t = {
 		...t,
 		achievements: {
 			...t.achievements,
@@ -1368,33 +1393,33 @@ function ut(e) {
 		events: n
 	};
 }
-function dt(e, t) {
+function ft(e, t) {
 	let n = y.from(t);
-	return n.compare(0) <= 0 || e.greaterThanOrEqual(n) ? 1 : e.compare(0) <= 0 ? 0 : ft(e.divide(n).toNumber());
-}
-function T(e, t) {
-	if (!Number.isFinite(e) || !Number.isFinite(t)) throw RangeError("Achievement progress values must be finite.");
-	return t <= 0 ? 1 : ft(e / t);
-}
-function ft(e) {
-	return Math.min(1, Math.max(0, e));
+	return n.compare(0) <= 0 || e.greaterThanOrEqual(n) ? 1 : e.compare(0) <= 0 ? 0 : pt(e.divide(n).toNumber());
 }
 function E(e, t) {
+	if (!Number.isFinite(e) || !Number.isFinite(t)) throw RangeError("Achievement progress values must be finite.");
+	return t <= 0 ? 1 : pt(e / t);
+}
+function pt(e) {
+	return Math.min(1, Math.max(0, e));
+}
+function D(e, t) {
 	if (e === void 0) throw Error(`ConditionContext.${t} is required for this achievement progress metric.`);
 	return e;
 }
 //#endregion
 //#region src/domain/currency/currency.ts
-var D = (e, t) => y.deserialize(e[t] ?? y.zero().serialize());
-function pt(e, t, n) {
-	n !== void 0 && ht(n, t.currencyId);
+var O = (e, t) => y.deserialize(e[t] ?? y.zero().serialize());
+function mt(e, t, n) {
+	n !== void 0 && gt(n, t.currencyId);
 	let r = y.from(t.amount);
 	if (r.isNegative()) return {
 		accepted: !1,
 		balances: e,
 		reason: "invalid-amount"
 	};
-	let i = mt(r, n), a = D(e, t.currencyId);
+	let i = ht(r, n), a = O(e, t.currencyId);
 	if (t.kind === "spend") return n?.allowNegativeBalance !== !0 && a.compare(i) < 0 ? {
 		accepted: !1,
 		balances: e,
@@ -1417,12 +1442,12 @@ function pt(e, t, n) {
 		};
 	}
 }
-function mt(e, t) {
+function ht(e, t) {
 	if (t?.precision === void 0 || t.roundingMode === void 0) return e;
 	let n = y.from(10).pow(t.precision), r = e.multiply(n);
 	return (t.roundingMode === "floor" ? r.floor() : t.roundingMode === "ceil" ? r.ceil() : r.round()).divide(n);
 }
-function ht(e, t) {
+function gt(e, t) {
 	if (e.id !== t) throw RangeError(`CurrencyDefinition ID mismatch: expected ${t}, got ${e.id}`);
 	if (e.precision !== void 0 != (e.roundingMode !== void 0)) throw RangeError("Currency precision and roundingMode must be specified together.");
 	if (e.precision !== void 0 && (!Number.isSafeInteger(e.precision) || e.precision < 0)) throw RangeError("Currency precision must be a non-negative safe integer.");
@@ -1430,7 +1455,7 @@ function ht(e, t) {
 }
 //#endregion
 //#region src/domain/modifier/modifier.ts
-function gt(e) {
+function _t(e) {
 	return {
 		id: e.id,
 		operation: e.operation,
@@ -1438,18 +1463,18 @@ function gt(e) {
 		...e.overridePriority === void 0 ? {} : { overridePriority: e.overridePriority }
 	};
 }
-function _t(e, t, n) {
+function vt(e, t, n) {
 	let r = /* @__PURE__ */ new Set(), i = [];
 	for (let a of e) {
 		if (r.has(a)) continue;
 		r.add(a);
 		let e = t[a];
 		if (e === void 0) throw Error(`Unknown active Modifier definition ID: ${a}`);
-		e.target === n && i.push(gt(e));
+		e.target === n && i.push(_t(e));
 	}
 	return i;
 }
-function vt(e, t) {
+function yt(e, t) {
 	let n = t.filter((e) => e.operation === "flatAdd").reduce((e, t) => e.add(t.value), y.zero()), r = t.filter((e) => e.operation === "percentAdd").reduce((e, t) => e.add(t.value), y.zero()), i = t.filter((e) => e.operation === "multiply").reduce((e, t) => e.multiply(t.value), y.one()), a = y.from(e).add(n).multiply(y.one().add(r)).multiply(i), o = t.filter((e) => e.operation === "override").toSorted((e, t) => {
 		let n = (t.overridePriority ?? 0) - (e.overridePriority ?? 0);
 		return n === 0 ? e.id.localeCompare(t.id) : n;
@@ -1458,7 +1483,7 @@ function vt(e, t) {
 }
 //#endregion
 //#region src/domain/producer/producer.ts
-function yt(e, t, n) {
+function bt(e, t, n) {
 	if (!Number.isSafeInteger(n) || n < 0) throw RangeError("Producer ownedCount must be a non-negative safe integer.");
 	let r = e[t] ?? {
 		definitionId: t,
@@ -1473,7 +1498,7 @@ function yt(e, t, n) {
 		}
 	};
 }
-function bt(e, t, n) {
+function xt(e, t, n) {
 	if (!Number.isSafeInteger(n) || n < 1) return {
 		accepted: !1,
 		producers: e,
@@ -1497,18 +1522,18 @@ function bt(e, t, n) {
 }
 //#endregion
 //#region src/domain/token/token.ts
-function xt(e, t) {
+function St(e, t) {
 	return e[t] ?? 0;
 }
-function St(e, t, n) {
-	return wt(n), {
+function Ct(e, t, n) {
+	return Tt(n), {
 		...e,
-		[t]: xt(e, t) + n
+		[t]: St(e, t) + n
 	};
 }
-function Ct(e, t, n) {
-	wt(n);
-	let r = xt(e, t);
+function wt(e, t, n) {
+	Tt(n);
+	let r = St(e, t);
 	return r < n ? {
 		accepted: !1,
 		tokens: e,
@@ -1521,16 +1546,16 @@ function Ct(e, t, n) {
 		}
 	};
 }
-function wt(e) {
+function Tt(e) {
 	if (!Number.isSafeInteger(e) || e < 0) throw RangeError("Token count must be a non-negative safe integer.");
 }
 //#endregion
 //#region src/domain/reward/reward.ts
-function Tt(e, t, n = {}) {
+function Et(e, t, n = {}) {
 	let r = e;
 	for (let e of t) switch (e.type) {
 		case "currency": {
-			let t = pt(r.currencies, {
+			let t = mt(r.currencies, {
 				currencyId: e.currencyId,
 				amount: e.amount,
 				kind: "earn",
@@ -1555,24 +1580,24 @@ function Tt(e, t, n = {}) {
 			let t = r.producers[e.producerId]?.ownedCount ?? 0;
 			r = {
 				...r,
-				producers: yt(r.producers, e.producerId, t + e.count)
+				producers: bt(r.producers, e.producerId, t + e.count)
 			};
 			break;
 		}
 		case "character":
-			r = Ot(n.grantCharacter, "character")(r, e.characterDefinitionId);
+			r = kt(n.grantCharacter, "character")(r, e.characterDefinitionId);
 			break;
 		case "token":
 			r = {
 				...r,
-				tokens: St(r.tokens, e.tokenId, e.count)
+				tokens: Ct(r.tokens, e.tokenId, e.count)
 			};
 			break;
 		case "boost":
-			r = Ot(n.activateBoost, "boost")(r, e.boostId);
+			r = kt(n.activateBoost, "boost")(r, e.boostId);
 			break;
 		case "permanent-modifier":
-			r = Ot(n.grantPermanentModifier, "permanent-modifier")(r, e.modifierId);
+			r = kt(n.grantPermanentModifier, "permanent-modifier")(r, e.modifierId);
 			break;
 		case "activity-advance": {
 			if (!Number.isSafeInteger(e.seconds) || e.seconds <= 0) throw RangeError("Activity advance reward seconds must be a positive safe integer.");
@@ -1599,11 +1624,11 @@ function Tt(e, t, n = {}) {
 				}
 			};
 			break;
-		case "composite": r = Tt(r, e.rewards, n);
+		case "composite": r = Et(r, e.rewards, n);
 	}
 	return r;
 }
-function Et(e, t, n) {
+function Dt(e, t, n) {
 	let r = y.deserialize(e.statistics.lifetimeCurrencySpent[t] ?? y.zero().serialize());
 	return {
 		...e,
@@ -1616,33 +1641,33 @@ function Et(e, t, n) {
 		}
 	};
 }
-var Dt = (e, t) => D(e.currencies, t);
-function Ot(e, t) {
+var Ot = (e, t) => O(e.currencies, t);
+function kt(e, t) {
 	if (e === void 0) throw Error(`Reward type ${t} requires a RewardApplicationHooks handler.`);
 	return e;
 }
 //#endregion
 //#region src/domain/active-gain/active-gain.ts
-function kt(e) {
+function At(e) {
 	let t = y.from(e.definition.baseAmount);
 	if (t.isNegative()) throw RangeError("Active gain baseAmount must be non-negative.");
 	if (e.definition.eligibility !== void 0) {
 		if (e.createConditionContext === void 0) throw Error("Active gain eligibility requires createConditionContext.");
-		if (!C(e.definition.eligibility, e.createConditionContext(e.state))) return {
+		if (!w(e.definition.eligibility, e.createConditionContext(e.state))) return {
 			accepted: !1,
 			state: e.state,
 			events: [],
 			reason: "ineligible"
 		};
 	}
-	let n = vt(t, e.modifiers ?? []);
+	let n = yt(t, e.modifiers ?? []);
 	if (n.isNegative()) throw RangeError("Active gain modifiers must not produce a negative reward.");
-	let r = D(e.state.currencies, e.definition.currencyId), i = e.resolveCurrencyDefinition === void 0 ? {} : { resolveCurrencyDefinition: e.resolveCurrencyDefinition }, a = Tt(e.state, [{
+	let r = O(e.state.currencies, e.definition.currencyId), i = e.resolveCurrencyDefinition === void 0 ? {} : { resolveCurrencyDefinition: e.resolveCurrencyDefinition }, a = Et(e.state, [{
 		type: "currency",
 		currencyId: e.definition.currencyId,
 		amount: n,
 		source: `active-gain.${e.definition.id}`
-	}], i), o = D(a.currencies, e.definition.currencyId).subtract(r);
+	}], i), o = O(a.currencies, e.definition.currencyId).subtract(r);
 	if (o.isZero()) return {
 		accepted: !1,
 		state: e.state,
@@ -1668,14 +1693,14 @@ function kt(e) {
 }
 //#endregion
 //#region src/domain/activity/activity-common.ts
-function At(e) {
-	if (O(e.definition), !(e.definition.eligibility === void 0 || C(e.definition.eligibility, It(e.createConditionContext)(e.state)))) return {
+function jt(e) {
+	if (k(e.definition), !(e.definition.eligibility === void 0 || w(e.definition.eligibility, Lt(e.createConditionContext)(e.state)))) return {
 		eligible: !1,
 		affordable: !0,
 		canStart: !1,
 		blockingCost: null
 	};
-	let t = jt({
+	let t = Mt({
 		state: e.state,
 		costs: e.definition.startCosts ?? [],
 		...e.resolveCurrencyDefinition === void 0 ? {} : { resolveCurrencyDefinition: e.resolveCurrencyDefinition }
@@ -1692,11 +1717,11 @@ function At(e) {
 		blockingCost: t.blockingCost
 	};
 }
-function jt(e) {
+function Mt(e) {
 	let t = e.state;
 	for (let n of e.costs) {
-		if (Ft(n), n.type === "currency") {
-			let r = pt(t.currencies, {
+		if (It(n), n.type === "currency") {
+			let r = mt(t.currencies, {
 				currencyId: n.currencyId,
 				amount: n.amount,
 				kind: "spend",
@@ -1708,13 +1733,13 @@ function jt(e) {
 				blockingCost: n,
 				reason: "insufficient-currency"
 			};
-			t = Et({
+			t = Dt({
 				...t,
 				currencies: r.balances
 			}, n.currencyId, r.appliedAmount);
 			continue;
 		}
-		let r = Ct(t.tokens, n.tokenId, n.count);
+		let r = wt(t.tokens, n.tokenId, n.count);
 		if (!r.accepted) return {
 			accepted: !1,
 			state: e.state,
@@ -1731,11 +1756,11 @@ function jt(e) {
 		state: t
 	};
 }
-function Mt(e) {
+function Nt(e) {
 	return e.offlinePolicy !== "pause";
 }
-function Nt(e, t, n) {
-	if (O(e), !Number.isSafeInteger(t.maxSlots) || t.maxSlots <= 0) throw RangeError("Activity concurrency maxSlots must be a positive safe integer.");
+function Pt(e, t, n) {
+	if (k(e), !Number.isSafeInteger(t.maxSlots) || t.maxSlots <= 0) throw RangeError("Activity concurrency maxSlots must be a positive safe integer.");
 	if (!Number.isSafeInteger(n) || n < 0) throw RangeError("Activity usedSlots must be a non-negative safe integer.");
 	if (e.concurrencyGroupId !== t.id) throw RangeError(`Activity concurrency group mismatch: expected ${e.concurrencyGroupId ?? "none"}, got ${t.id}`);
 	let r = e.slotCost ?? 1, i = Math.max(0, t.maxSlots - n);
@@ -1747,17 +1772,17 @@ function Nt(e, t, n) {
 		remainingSlots: i
 	};
 }
-function Pt(e, t) {
+function Ft(e, t) {
 	return (e.startCosts ?? []).filter((e) => e.type === "currency" && e.currencyId === t).reduce((e, t) => e.add(t.amount), y.zero());
 }
-function O(e, t) {
+function k(e, t) {
 	if (e.id.length === 0) throw RangeError("Activity id must not be empty.");
 	if (t !== void 0 && e.mode !== t) throw RangeError(`Activity mode mismatch: expected ${t}, got ${e.mode}`);
 	if (e.concurrencyGroupId !== void 0 && e.concurrencyGroupId.length === 0) throw RangeError("Activity concurrencyGroupId must not be empty when specified.");
 	if (e.slotCost !== void 0 && (!Number.isSafeInteger(e.slotCost) || e.slotCost <= 0)) throw RangeError("Activity slotCost must be a positive safe integer.");
-	for (let t of e.startCosts ?? []) Ft(t);
+	for (let t of e.startCosts ?? []) It(t);
 }
-function Ft(e) {
+function It(e) {
 	if (e.type === "currency") {
 		if (e.currencyId.length === 0) throw RangeError("Activity currency cost requires currencyId.");
 		let t = y.from(e.amount);
@@ -1767,14 +1792,14 @@ function Ft(e) {
 	if (e.tokenId.length === 0) throw RangeError("Activity token cost requires tokenId.");
 	if (!Number.isSafeInteger(e.count) || e.count <= 0) throw RangeError("Activity token cost must be a positive safe integer.");
 }
-function It(e) {
+function Lt(e) {
 	if (e === void 0) throw Error("Activity eligibility requires createConditionContext.");
 	return e;
 }
 //#endregion
 //#region src/domain/activity/continuous-activity.ts
-function Lt(e) {
-	if (O(e.definition, "continuous"), !Number.isSafeInteger(e.elapsedSec) || e.elapsedSec < 0) throw RangeError("elapsedSec must be a non-negative safe integer.");
+function Rt(e) {
+	if (k(e.definition, "continuous"), !Number.isSafeInteger(e.elapsedSec) || e.elapsedSec < 0) throw RangeError("elapsedSec must be a non-negative safe integer.");
 	if (!e.activity.running || e.elapsedSec === 0 || e.isOffline === !0 && e.definition.offlinePolicy === "pause") return {
 		state: e.state,
 		activity: e.activity,
@@ -1810,8 +1835,8 @@ function Lt(e) {
 		events: a
 	};
 }
-function Rt(e, t, n) {
-	if (O(t, "continuous"), !Number.isSafeInteger(n) || n < 0) throw RangeError("simTimeSec must be a non-negative safe integer.");
+function zt(e, t, n) {
+	if (k(t, "continuous"), !Number.isSafeInteger(n) || n < 0) throw RangeError("simTimeSec must be a non-negative safe integer.");
 	return e.running ? t.cancellationPolicy === "forbid" ? {
 		accepted: !1,
 		activity: e,
@@ -1838,7 +1863,7 @@ function Rt(e, t, n) {
 }
 //#endregion
 //#region src/domain/activity/timed-activity.ts
-function zt(e) {
+function Bt(e) {
 	return {
 		activityId: e,
 		status: "available",
@@ -1847,18 +1872,18 @@ function zt(e) {
 		completionCount: 0
 	};
 }
-function Bt(e) {
-	if (Gt(e.definition), k(e.startSimTimeSec, "startSimTimeSec"), e.activity.status !== "available") return qt(e.state, e.activity, "not-available");
+function Vt(e) {
+	if (Kt(e.definition), A(e.startSimTimeSec, "startSimTimeSec"), e.activity.status !== "available") return Jt(e.state, e.activity, "not-available");
 	let t = {
 		...e.activity,
 		status: "running",
 		startedAtSimTimeSec: e.startSimTimeSec,
 		completesAtSimTimeSec: e.startSimTimeSec + e.definition.durationSec
 	};
-	return Kt(e.state, t, [A(e.definition.id, "timedActivityStarted", e.startSimTimeSec, e.activity.completionCount + 1)]);
+	return qt(e.state, t, [j(e.definition.id, "timedActivityStarted", e.startSimTimeSec, e.activity.completionCount + 1)]);
 }
-function Vt(e) {
-	if (Gt(e.definition), k(e.targetSimTimeSec, "targetSimTimeSec"), e.offlineElapsedSec !== void 0 && k(e.offlineElapsedSec, "offlineElapsedSec"), e.activity.status !== "running") return {
+function Ht(e) {
+	if (Kt(e.definition), A(e.targetSimTimeSec, "targetSimTimeSec"), e.offlineElapsedSec !== void 0 && A(e.offlineElapsedSec, "offlineElapsedSec"), e.activity.status !== "running") return {
 		state: e.state,
 		activity: e.activity,
 		events: []
@@ -1890,17 +1915,17 @@ function Vt(e) {
 			...e.activity,
 			status: "completed-unclaimed"
 		},
-		events: [A(e.definition.id, "timedActivityCompleted", t, e.activity.completionCount + 1)]
+		events: [j(e.definition.id, "timedActivityCompleted", t, e.activity.completionCount + 1)]
 	};
 	let r = e.hooks.grantRewards(e.state, e.definition.completionRewards), i = e.activity.completionCount + 1;
 	return {
 		state: r,
-		activity: Wt(e.activity, e.definition, i),
-		events: [A(e.definition.id, "timedActivityAutoResolved", t, i)]
+		activity: Gt(e.activity, e.definition, i),
+		events: [j(e.definition.id, "timedActivityAutoResolved", t, i)]
 	};
 }
-function Ht(e, t, n) {
-	return Gt(t), k(n, "simTimeSec"), e.status === "running" ? t.cancellationPolicy === "forbid" ? {
+function Ut(e, t, n) {
+	return Kt(t), A(n, "simTimeSec"), e.status === "running" ? t.cancellationPolicy === "forbid" ? {
 		accepted: !1,
 		activity: e,
 		events: [],
@@ -1913,7 +1938,7 @@ function Ht(e, t, n) {
 			startedAtSimTimeSec: null,
 			completesAtSimTimeSec: null
 		},
-		events: [A(t.id, "timedActivityCancelled", n, e.completionCount + 1)]
+		events: [j(t.id, "timedActivityCancelled", n, e.completionCount + 1)]
 	} : {
 		accepted: !1,
 		activity: e,
@@ -1921,12 +1946,12 @@ function Ht(e, t, n) {
 		reason: "not-running"
 	};
 }
-function Ut(e) {
-	if (Gt(e.definition), k(e.claimSimTimeSec, "claimSimTimeSec"), e.activity.status !== "completed-unclaimed") return qt(e.state, e.activity, "not-claimable");
+function Wt(e) {
+	if (Kt(e.definition), A(e.claimSimTimeSec, "claimSimTimeSec"), e.activity.status !== "completed-unclaimed") return Jt(e.state, e.activity, "not-claimable");
 	let t = e.hooks.grantRewards(e.state, e.definition.completionRewards), n = e.activity.completionCount + 1;
-	return Kt(t, Wt(e.activity, e.definition, n), [A(e.definition.id, "timedActivityClaimed", e.claimSimTimeSec, n)]);
+	return qt(t, Gt(e.activity, e.definition, n), [j(e.definition.id, "timedActivityClaimed", e.claimSimTimeSec, n)]);
 }
-function Wt(e, t, n) {
+function Gt(e, t, n) {
 	return {
 		...e,
 		status: t.repeatPolicy === "repeatable" ? "available" : "exhausted",
@@ -1935,13 +1960,13 @@ function Wt(e, t, n) {
 		completionCount: n
 	};
 }
-function Gt(e) {
-	if (O(e, "timed"), !Number.isSafeInteger(e.durationSec) || e.durationSec <= 0) throw RangeError("Timed Activity durationSec must be a positive safe integer.");
+function Kt(e) {
+	if (k(e, "timed"), !Number.isSafeInteger(e.durationSec) || e.durationSec <= 0) throw RangeError("Timed Activity durationSec must be a positive safe integer.");
 }
-function k(e, t) {
+function A(e, t) {
 	if (!Number.isSafeInteger(e) || e < 0) throw RangeError(`${t} must be a non-negative safe integer.`);
 }
-function A(e, t, n, r) {
+function j(e, t, n, r) {
 	return {
 		id: `${e}:${t}:${r}:${n}`,
 		type: t,
@@ -1952,7 +1977,7 @@ function A(e, t, n, r) {
 		}
 	};
 }
-function Kt(e, t, n) {
+function qt(e, t, n) {
 	return {
 		accepted: !0,
 		state: e,
@@ -1960,7 +1985,7 @@ function Kt(e, t, n) {
 		events: n
 	};
 }
-function qt(e, t, n) {
+function Jt(e, t, n) {
 	return {
 		accepted: !1,
 		state: e,
@@ -1971,8 +1996,8 @@ function qt(e, t, n) {
 }
 //#endregion
 //#region src/domain/boost/boost.ts
-function Jt(e, t, n) {
-	Qt(t);
+function Yt(e, t, n) {
+	$t(t);
 	let r = Object.values(e).find((e) => e.stackingKey === t.stackingKey && e.expiresAtSimTimeSec > n);
 	if (r !== void 0 && t.stackingPolicy === "non-stackable") return e;
 	if (r !== void 0 && t.stackingPolicy === "replace-weaker") {
@@ -1994,28 +2019,28 @@ function Jt(e, t, n) {
 		[t.id]: i
 	};
 }
-function Yt(e, t, n, r) {
+function Xt(e, t, n, r) {
 	return Object.values(e).flatMap((e) => {
 		if (e.expiresAtSimTimeSec <= r) return [];
 		let i = t[e.boostId];
 		return i === void 0 || i.target !== n ? [] : [i.modifier];
 	});
 }
-function Xt(e, t, n) {
+function Zt(e, t, n) {
 	let r = null;
 	for (let i of Object.values(e)) i.expiresAtSimTimeSec <= t || i.expiresAtSimTimeSec >= n || (r === null || i.expiresAtSimTimeSec < r) && (r = i.expiresAtSimTimeSec);
 	return r;
 }
-function Zt(e, t) {
+function Qt(e, t) {
 	return Object.fromEntries(Object.entries(e).filter(([, e]) => e.expiresAtSimTimeSec > t));
 }
-function Qt(e) {
+function $t(e) {
 	if (!Number.isSafeInteger(e.durationSec) || e.durationSec <= 0) throw RangeError("Boost durationSec must be a positive safe integer.");
 	if (e.stackingPolicy === "replace-weaker" && (!Number.isFinite(e.stackingStrength) || e.stackingStrength <= 0)) throw RangeError("replace-weaker Boost stackingStrength must be positive and finite.");
 }
 //#endregion
 //#region src/domain/calendar/calendar-reward.ts
-function $t(e, t, n) {
+function en(e, t, n) {
 	if (!Number.isFinite(e) || !Number.isSafeInteger(t)) throw RangeError("Calendar clock inputs must be finite integers.");
 	let r = e + t * 6e4, i = new Date(r), a = i.getUTCFullYear(), o = i.getUTCMonth(), s = Date.UTC(a, o, i.getUTCDate()), c = Math.floor(s / 864e5);
 	switch (n) {
@@ -2024,9 +2049,9 @@ function $t(e, t, n) {
 		case "monthly": return a * 12 + o;
 	}
 }
-function en(e, t, n, r) {
+function tn(e, t, n, r) {
 	if (t.rewardsByClaim.length === 0) throw RangeError(`Calendar reward sequence is empty: ${t.id}`);
-	let i = $t(n, r, t.period), a = e.calendarRewardStates[t.id] ?? {
+	let i = en(n, r, t.period), a = e.calendarRewardStates[t.id] ?? {
 		lastClaimedPeriodIndex: null,
 		claimCount: 0,
 		streakCount: 0
@@ -2041,18 +2066,18 @@ function en(e, t, n, r) {
 		sequenceReset: s
 	};
 }
-function tn(e, t, n, r, i) {
+function nn(e, t, n, r, i) {
 	return (t.claimPolicy ?? "manual") === "auto" ? {
 		accepted: !1,
 		state: e,
 		reason: "manual-claim-disabled"
-	} : rn(e, t, n, r, i);
+	} : an(e, t, n, r, i);
 }
-function nn(e, t, n, r, i) {
+function rn(e, t, n, r, i) {
 	let a = e, o = [];
 	for (let e of t) {
 		if ((e.claimPolicy ?? "manual") !== "auto") continue;
-		let t = rn(a, e, n, r, i);
+		let t = an(a, e, n, r, i);
 		t.accepted && (a = t.state, o.push({
 			calendarRewardId: e.id,
 			rewards: t.rewards
@@ -2063,8 +2088,8 @@ function nn(e, t, n, r, i) {
 		claimed: o
 	};
 }
-function rn(e, t, n, r, i) {
-	let a = en(e, t, n, r), o = e.calendarRewardStates[t.id] ?? {
+function an(e, t, n, r, i) {
+	let a = tn(e, t, n, r), o = e.calendarRewardStates[t.id] ?? {
 		lastClaimedPeriodIndex: null,
 		claimCount: 0,
 		streakCount: 0
@@ -2093,8 +2118,8 @@ function rn(e, t, n, r, i) {
 }
 //#endregion
 //#region src/domain/character/character.ts
-var an = (e, t) => Object.values(e).some((e) => e.definitionId === t);
-function on(e, t) {
+var on = (e, t) => Object.values(e).some((e) => e.definitionId === t);
+function sn(e, t) {
 	return e[t.instanceId] === void 0 ? {
 		accepted: !0,
 		characters: {
@@ -2106,7 +2131,7 @@ function on(e, t) {
 		characters: e
 	};
 }
-function sn(e, t, n) {
+function cn(e, t, n) {
 	if (!Number.isSafeInteger(n) || n < 1) return {
 		accepted: !1,
 		characters: e,
@@ -2128,7 +2153,7 @@ function sn(e, t, n) {
 		}
 	};
 }
-function cn(e, t, n = 1, r = {}) {
+function ln(e, t, n = 1, r = {}) {
 	if (!Number.isSafeInteger(n) || n <= 0) return {
 		accepted: !1,
 		characters: e,
@@ -2163,16 +2188,16 @@ function cn(e, t, n = 1, r = {}) {
 }
 //#endregion
 //#region src/domain/cooldown/cooldown.ts
-function ln() {
+function un() {
 	return {
 		readyAtSimTimeSec: 0,
 		useCount: 0
 	};
 }
-function un(e, t, n) {
-	pn(e), gn(n, "simTimeSec");
-	let r = t ?? ln();
-	mn(r);
+function dn(e, t, n) {
+	mn(e), _n(n, "simTimeSec");
+	let r = t ?? un();
+	hn(r);
 	let i = Math.max(0, r.readyAtSimTimeSec - n);
 	return {
 		ready: i === 0,
@@ -2181,8 +2206,8 @@ function un(e, t, n) {
 		useCount: r.useCount
 	};
 }
-function dn(e) {
-	let t = e.cooldown ?? ln(), n = un(e.definition, t, e.simTimeSec);
+function fn(e) {
+	let t = e.cooldown ?? un(), n = dn(e.definition, t, e.simTimeSec);
 	if (!n.ready) return {
 		accepted: !1,
 		cooldown: t,
@@ -2190,7 +2215,7 @@ function dn(e) {
 		remainingSec: n.remainingSec
 	};
 	let r = e.durationSecOverride ?? e.definition.durationSec;
-	hn(r, "durationSecOverride");
+	gn(r, "durationSecOverride");
 	let i = e.simTimeSec + r;
 	if (!Number.isSafeInteger(i)) throw RangeError("Cooldown readyAtSimTimeSec exceeds safe integer range.");
 	return {
@@ -2202,33 +2227,33 @@ function dn(e) {
 		previous: t
 	};
 }
-function fn(e) {
-	mn(e.cooldown), gn(e.simTimeSec, "simTimeSec"), hn(e.reductionSec, "reductionSec");
+function pn(e) {
+	hn(e.cooldown), _n(e.simTimeSec, "simTimeSec"), gn(e.reductionSec, "reductionSec");
 	let t = Math.max(e.simTimeSec, e.cooldown.readyAtSimTimeSec - e.reductionSec);
 	return t === e.cooldown.readyAtSimTimeSec ? e.cooldown : {
 		...e.cooldown,
 		readyAtSimTimeSec: t
 	};
 }
-function pn(e) {
-	if (e.id.length === 0) throw RangeError("Cooldown id must not be empty.");
-	hn(e.durationSec, "Cooldown durationSec");
-}
 function mn(e) {
-	if (gn(e.readyAtSimTimeSec, "Cooldown readyAtSimTimeSec"), !Number.isSafeInteger(e.useCount) || e.useCount < 0) throw RangeError("Cooldown useCount must be a non-negative safe integer.");
+	if (e.id.length === 0) throw RangeError("Cooldown id must not be empty.");
+	gn(e.durationSec, "Cooldown durationSec");
 }
-function hn(e, t) {
-	if (!Number.isSafeInteger(e) || e < 0) throw RangeError(`${t} must be a non-negative safe integer.`);
+function hn(e) {
+	if (_n(e.readyAtSimTimeSec, "Cooldown readyAtSimTimeSec"), !Number.isSafeInteger(e.useCount) || e.useCount < 0) throw RangeError("Cooldown useCount must be a non-negative safe integer.");
 }
 function gn(e, t) {
 	if (!Number.isSafeInteger(e) || e < 0) throw RangeError(`${t} must be a non-negative safe integer.`);
 }
+function _n(e, t) {
+	if (!Number.isSafeInteger(e) || e < 0) throw RangeError(`${t} must be a non-negative safe integer.`);
+}
 //#endregion
 //#region src/domain/definition/definition-validation.ts
-function _n(e) {
+function vn(e) {
 	let t = [], n = /* @__PURE__ */ new Map(), r = e.continuousActivities ?? [], i = e.timedActivities ?? [], a = e.achievements ?? [], o = e.missions ?? [], s = e.missionSets ?? [], c = e.gachas ?? [];
-	for (let [r, i] of Object.entries(e.ids)) yn(i, `ids.${r}`, t, n);
-	j(e.activeGains ?? [], "activeGains", t, n), j(e.curves ?? [], "curves", t, n), j(e.levelDefinitions ?? [], "levelDefinitions", t, n), j(e.activityConcurrencyGroups ?? [], "activityConcurrencyGroups", t, n), j(r, "continuousActivities", t, n), j(i, "timedActivities", t, n), j(e.boosts ?? [], "boosts", t, n), j(c, "gachas", t, n), j(e.calendarRewards ?? [], "calendarRewards", t, n), j(e.rewardedOffers ?? [], "rewardedOffers", t, n), j(a, "achievements", t, n), j(s, "missionSets", t, n), j(o, "missions", t, n), j(e.opportunities ?? [], "opportunities", t, n), j(e.prestiges ?? [], "prestiges", t, n);
+	for (let [r, i] of Object.entries(e.ids)) bn(i, `ids.${r}`, t, n);
+	M(e.activeGains ?? [], "activeGains", t, n), M(e.curves ?? [], "curves", t, n), M(e.levelDefinitions ?? [], "levelDefinitions", t, n), M(e.activityConcurrencyGroups ?? [], "activityConcurrencyGroups", t, n), M(r, "continuousActivities", t, n), M(i, "timedActivities", t, n), M(e.boosts ?? [], "boosts", t, n), M(c, "gachas", t, n), M(e.calendarRewards ?? [], "calendarRewards", t, n), M(e.rewardedOffers ?? [], "rewardedOffers", t, n), M(a, "achievements", t, n), M(s, "missionSets", t, n), M(o, "missions", t, n), M(e.opportunities ?? [], "opportunities", t, n), M(e.prestiges ?? [], "prestiges", t, n);
 	let l = {
 		currencies: new Set(e.ids.currencies),
 		producers: new Set(e.ids.producers),
@@ -2252,348 +2277,348 @@ function _n(e) {
 	}, u = /* @__PURE__ */ new Set();
 	for (let [n, r] of (e.titleDefinitions ?? []).entries()) {
 		let e = `titleDefinitions[${n}]`;
-		u.has(r.id) && B(t, "duplicate-id", `${e}.id`, `Duplicate TitleDefinition ID: ${r.id}`), u.add(r.id), z(l.titles, r.id, `${e}.id`, "title", t), r.displayName.length === 0 && B(t, "invalid-value", `${e}.displayName`, "Title displayName must not be empty."), r.description !== void 0 && r.description.length === 0 && B(t, "invalid-value", `${e}.description`, "Title description must not be empty when specified.");
+		u.has(r.id) && V(t, "duplicate-id", `${e}.id`, `Duplicate TitleDefinition ID: ${r.id}`), u.add(r.id), B(l.titles, r.id, `${e}.id`, "title", t), r.displayName.length === 0 && V(t, "invalid-value", `${e}.displayName`, "Title displayName must not be empty."), r.description !== void 0 && r.description.length === 0 && V(t, "invalid-value", `${e}.description`, "Title description must not be empty when specified.");
 	}
 	let d = /* @__PURE__ */ new Set();
 	for (let [n, r] of (e.modifierDefinitions ?? []).entries()) {
 		let e = `modifierDefinitions[${n}]`;
-		d.has(r.id) && B(t, "duplicate-id", `${e}.id`, `Duplicate ModifierDefinition ID: ${r.id}`), d.add(r.id), z(l.permanentModifiers, r.id, `${e}.id`, "permanent modifier", t), On(r, e, t);
+		d.has(r.id) && V(t, "duplicate-id", `${e}.id`, `Duplicate ModifierDefinition ID: ${r.id}`), d.add(r.id), B(l.permanentModifiers, r.id, `${e}.id`, "permanent modifier", t), kn(r, e, t);
 	}
 	let ee = /* @__PURE__ */ new Set();
 	for (let [n, r] of (e.currencyDefinitions ?? []).entries()) {
 		let e = `currencyDefinitions[${n}]`;
-		ee.has(r.id) && B(t, "duplicate-id", `${e}.id`, `Duplicate CurrencyDefinition ID: ${r.id}`), ee.add(r.id), z(l.currencies, r.id, `${e}.id`, "currency", t), bn(r, e, t);
+		ee.has(r.id) && V(t, "duplicate-id", `${e}.id`, `Duplicate CurrencyDefinition ID: ${r.id}`), ee.add(r.id), B(l.currencies, r.id, `${e}.id`, "currency", t), xn(r, e, t);
 	}
 	let te = /* @__PURE__ */ new Set();
 	for (let [n, r] of (e.producerDefinitions ?? []).entries()) {
 		let e = `producerDefinitions[${n}]`;
-		te.has(r.id) && B(t, "duplicate-id", `${e}.id`, `Duplicate ProducerDefinition ID: ${r.id}`), te.add(r.id), z(l.producers, r.id, `${e}.id`, "producer", t), r.displayName !== void 0 && r.displayName.length === 0 && B(t, "invalid-value", `${e}.displayName`, "Producer displayName must not be empty when specified."), r.hireCostCurve !== void 0 && M(r.hireCostCurve, `${e}.hireCostCurve`, t), r.levelDefinitionId !== void 0 && z(l.levels, r.levelDefinitionId, `${e}.levelDefinitionId`, "level definition", t), r.unlockCondition !== void 0 && P(r.unlockCondition, `${e}.unlockCondition`, l, t);
-		for (let [n, i] of Object.entries(r.baseProduction ?? {})) z(l.currencies, n, `${e}.baseProduction.${n}`, "currency", t), L(i, `${e}.baseProduction.${n}`, t, !0);
+		te.has(r.id) && V(t, "duplicate-id", `${e}.id`, `Duplicate ProducerDefinition ID: ${r.id}`), te.add(r.id), B(l.producers, r.id, `${e}.id`, "producer", t), r.displayName !== void 0 && r.displayName.length === 0 && V(t, "invalid-value", `${e}.displayName`, "Producer displayName must not be empty when specified."), r.hireCostCurve !== void 0 && N(r.hireCostCurve, `${e}.hireCostCurve`, t), r.levelDefinitionId !== void 0 && B(l.levels, r.levelDefinitionId, `${e}.levelDefinitionId`, "level definition", t), r.unlockCondition !== void 0 && F(r.unlockCondition, `${e}.unlockCondition`, l, t);
+		for (let [n, i] of Object.entries(r.baseProduction ?? {})) B(l.currencies, n, `${e}.baseProduction.${n}`, "currency", t), R(i, `${e}.baseProduction.${n}`, t, !0);
 		r.tags?.forEach((n, r) => {
-			n.length === 0 && B(t, "invalid-value", `${e}.tags[${r}]`, "Producer tag must not be empty.");
+			n.length === 0 && V(t, "invalid-value", `${e}.tags[${r}]`, "Producer tag must not be empty.");
 		});
 	}
 	let ne = /* @__PURE__ */ new Set();
 	for (let [n, r] of (e.characterDefinitions ?? []).entries()) {
 		let e = `characterDefinitions[${n}]`;
-		ne.has(r.id) && B(t, "duplicate-id", `${e}.id`, `Duplicate CharacterDefinition ID: ${r.id}`), ne.add(r.id), z(l.characters, r.id, `${e}.id`, "character", t), r.displayName !== void 0 && r.displayName.length === 0 && B(t, "invalid-value", `${e}.displayName`, "Character displayName must not be empty when specified."), r.rarity !== void 0 && r.rarity.length === 0 && B(t, "invalid-value", `${e}.rarity`, "Character rarity must not be empty when specified."), r.levelDefinitionId !== void 0 && z(l.levels, r.levelDefinitionId, `${e}.levelDefinitionId`, "level definition", t), r.unlockCondition !== void 0 && P(r.unlockCondition, `${e}.unlockCondition`, l, t), r.limitBreak?.maxCount !== void 0 && (!Number.isSafeInteger(r.limitBreak.maxCount) || r.limitBreak.maxCount <= 0) && B(t, "invalid-value", `${e}.limitBreak.maxCount`, "Character limitBreak maxCount must be a positive safe integer.");
-		for (let [n, i] of Object.entries(r.baseStats ?? {})) n.length === 0 && B(t, "invalid-value", `${e}.baseStats`, "Character stat ID must not be empty."), L(i, `${e}.baseStats.${n}`, t, !1);
+		ne.has(r.id) && V(t, "duplicate-id", `${e}.id`, `Duplicate CharacterDefinition ID: ${r.id}`), ne.add(r.id), B(l.characters, r.id, `${e}.id`, "character", t), r.displayName !== void 0 && r.displayName.length === 0 && V(t, "invalid-value", `${e}.displayName`, "Character displayName must not be empty when specified."), r.rarity !== void 0 && r.rarity.length === 0 && V(t, "invalid-value", `${e}.rarity`, "Character rarity must not be empty when specified."), r.levelDefinitionId !== void 0 && B(l.levels, r.levelDefinitionId, `${e}.levelDefinitionId`, "level definition", t), r.unlockCondition !== void 0 && F(r.unlockCondition, `${e}.unlockCondition`, l, t), r.limitBreak?.maxCount !== void 0 && (!Number.isSafeInteger(r.limitBreak.maxCount) || r.limitBreak.maxCount <= 0) && V(t, "invalid-value", `${e}.limitBreak.maxCount`, "Character limitBreak maxCount must be a positive safe integer.");
+		for (let [n, i] of Object.entries(r.baseStats ?? {})) n.length === 0 && V(t, "invalid-value", `${e}.baseStats`, "Character stat ID must not be empty."), R(i, `${e}.baseStats.${n}`, t, !1);
 		r.traits?.forEach((n, r) => {
-			n.length === 0 && B(t, "invalid-value", `${e}.traits[${r}]`, "Character trait must not be empty.");
+			n.length === 0 && V(t, "invalid-value", `${e}.traits[${r}]`, "Character trait must not be empty.");
 		});
 	}
 	for (let [n, r] of (e.activeGains ?? []).entries()) {
 		let e = `activeGains[${n}]`;
-		z(l.currencies, r.currencyId, `${e}.currencyId`, "currency", t), An(r.baseAmount, `${e}.baseAmount`, t), r.eligibility !== void 0 && P(r.eligibility, `${e}.eligibility`, l, t);
+		B(l.currencies, r.currencyId, `${e}.currencyId`, "currency", t), jn(r.baseAmount, `${e}.baseAmount`, t), r.eligibility !== void 0 && F(r.eligibility, `${e}.eligibility`, l, t);
 	}
-	for (let [n, r] of (e.curves ?? []).entries()) M(r.definition, `curves[${n}].definition`, t);
+	for (let [n, r] of (e.curves ?? []).entries()) N(r.definition, `curves[${n}].definition`, t);
 	for (let [n, r] of (e.levelDefinitions ?? []).entries()) {
 		let e = `levelDefinitions[${n}]`;
-		M(r.costCurve, `${e}.costCurve`, t), r.statCurve !== void 0 && M(r.statCurve, `${e}.statCurve`, t), r.maxLevel !== void 0 && R(r.maxLevel, `${e}.maxLevel`, "Level maxLevel", t), r.eligibility !== void 0 && P(r.eligibility, `${e}.eligibility`, l, t);
+		N(r.costCurve, `${e}.costCurve`, t), r.statCurve !== void 0 && N(r.statCurve, `${e}.statCurve`, t), r.maxLevel !== void 0 && z(r.maxLevel, `${e}.maxLevel`, "Level maxLevel", t), r.eligibility !== void 0 && F(r.eligibility, `${e}.eligibility`, l, t);
 		let i = /* @__PURE__ */ new Set(), a = 0;
 		for (let [n, o] of (r.milestones ?? []).entries()) {
 			let s = `${e}.milestones[${n}]`;
-			i.has(o.id) && B(t, "duplicate-id", `${s}.id`, `Duplicate level milestone ID: ${o.id}`), i.add(o.id), R(o.level, `${s}.level`, "Level milestone level", t), o.level < a && B(t, "invalid-value", `${s}.level`, "Level milestones must be authored in non-decreasing level order."), a = o.level, r.maxLevel !== void 0 && o.level > r.maxLevel && B(t, "invalid-value", `${s}.level`, "Level milestone cannot exceed maxLevel."), N(o.rewards, `${s}.rewards`, l, t);
+			i.has(o.id) && V(t, "duplicate-id", `${s}.id`, `Duplicate level milestone ID: ${o.id}`), i.add(o.id), z(o.level, `${s}.level`, "Level milestone level", t), o.level < a && V(t, "invalid-value", `${s}.level`, "Level milestones must be authored in non-decreasing level order."), a = o.level, r.maxLevel !== void 0 && o.level > r.maxLevel && V(t, "invalid-value", `${s}.level`, "Level milestone cannot exceed maxLevel."), P(o.rewards, `${s}.rewards`, l, t);
 		}
 	}
 	for (let [n, r] of (e.activityConcurrencyGroups ?? []).entries()) {
 		let e = `activityConcurrencyGroups[${n}]`;
-		(!Number.isSafeInteger(r.maxSlots) || r.maxSlots <= 0) && B(t, "invalid-value", `${e}.maxSlots`, "Activity concurrency group maxSlots must be a positive safe integer.");
+		(!Number.isSafeInteger(r.maxSlots) || r.maxSlots <= 0) && V(t, "invalid-value", `${e}.maxSlots`, "Activity concurrency group maxSlots must be a positive safe integer.");
 	}
 	for (let [e, n] of r.entries()) {
 		let r = `continuousActivities[${e}]`;
-		xn(n, "continuous", r, l, t);
+		Sn(n, "continuous", r, l, t);
 		let i = /* @__PURE__ */ new Set();
 		for (let [e, a] of n.milestones.entries()) {
 			let n = `${r}.milestones[${e}]`;
-			i.has(a.id) && B(t, "duplicate-id", `${n}.id`, `Duplicate milestone ID: ${a.id}`), i.add(a.id), (!Number.isFinite(a.threshold) || a.threshold < 0 || a.threshold > 1) && B(t, "invalid-value", `${n}.threshold`, "Continuous milestone threshold must be finite and in [0, 1]."), N(a.rewards, `${n}.rewards`, l, t);
+			i.has(a.id) && V(t, "duplicate-id", `${n}.id`, `Duplicate milestone ID: ${a.id}`), i.add(a.id), (!Number.isFinite(a.threshold) || a.threshold < 0 || a.threshold > 1) && V(t, "invalid-value", `${n}.threshold`, "Continuous milestone threshold must be finite and in [0, 1]."), P(a.rewards, `${n}.rewards`, l, t);
 		}
 	}
 	for (let [e, n] of i.entries()) {
 		let r = `timedActivities[${e}]`;
-		xn(n, "timed", r, l, t), (!Number.isSafeInteger(n.durationSec) || n.durationSec <= 0) && B(t, "invalid-value", `${r}.durationSec`, "Timed Activity durationSec must be a positive safe integer."), N(n.completionRewards, `${r}.completionRewards`, l, t);
+		Sn(n, "timed", r, l, t), (!Number.isSafeInteger(n.durationSec) || n.durationSec <= 0) && V(t, "invalid-value", `${r}.durationSec`, "Timed Activity durationSec must be a positive safe integer."), P(n.completionRewards, `${r}.completionRewards`, l, t);
 	}
 	let f = /* @__PURE__ */ new Map();
 	for (let [n, r] of (e.boosts ?? []).entries()) {
 		let e = `boosts[${n}]`;
-		(!Number.isSafeInteger(r.durationSec) || r.durationSec <= 0) && B(t, "invalid-value", `${e}.durationSec`, "Boost durationSec must be a positive safe integer."), kn(r.modifier, `${e}.modifier`, t), r.target.length === 0 && B(t, "invalid-value", `${e}.target`, "Boost target must not be empty."), r.stackingKey.length === 0 && B(t, "invalid-value", `${e}.stackingKey`, "Boost stackingKey must not be empty."), r.stackingPolicy === "replace-weaker" && (!Number.isFinite(r.stackingStrength) || r.stackingStrength <= 0) && B(t, "invalid-value", `${e}.stackingStrength`, "replace-weaker Boost stackingStrength must be positive and finite.");
+		(!Number.isSafeInteger(r.durationSec) || r.durationSec <= 0) && V(t, "invalid-value", `${e}.durationSec`, "Boost durationSec must be a positive safe integer."), An(r.modifier, `${e}.modifier`, t), r.target.length === 0 && V(t, "invalid-value", `${e}.target`, "Boost target must not be empty."), r.stackingKey.length === 0 && V(t, "invalid-value", `${e}.stackingKey`, "Boost stackingKey must not be empty."), r.stackingPolicy === "replace-weaker" && (!Number.isFinite(r.stackingStrength) || r.stackingStrength <= 0) && V(t, "invalid-value", `${e}.stackingStrength`, "replace-weaker Boost stackingStrength must be positive and finite.");
 		let i = f.get(r.stackingKey);
-		i !== void 0 && i.policy !== r.stackingPolicy ? B(t, "invalid-value", `${e}.stackingPolicy`, `Boosts sharing stackingKey ${r.stackingKey} must use one stacking policy; ${i.path} uses ${i.policy}.`) : i === void 0 && f.set(r.stackingKey, {
+		i !== void 0 && i.policy !== r.stackingPolicy ? V(t, "invalid-value", `${e}.stackingPolicy`, `Boosts sharing stackingKey ${r.stackingKey} must use one stacking policy; ${i.path} uses ${i.policy}.`) : i === void 0 && f.set(r.stackingKey, {
 			policy: r.stackingPolicy,
 			path: e
 		});
 	}
 	for (let [n, r] of c.entries()) {
 		let i = `gachas[${n}]`;
-		"currencyId" in r.cost ? (z(l.currencies, r.cost.currencyId, `${i}.cost.currencyId`, "currency", t), L(r.cost.amountPerDraw, `${i}.cost.amountPerDraw`, t, !0)) : (r.cost.tokenId.length === 0 && B(t, "invalid-value", `${i}.cost.tokenId`, "Gacha token ID must not be empty."), (!Number.isSafeInteger(r.cost.countPerDraw) || r.cost.countPerDraw < 0) && B(t, "invalid-value", `${i}.cost.countPerDraw`, "Gacha token cost must be a non-negative safe integer.")), z(l.rngStreams, r.rngStreamName, `${i}.rngStreamName`, "RNG stream", t), r.allowedDrawCounts.length === 0 && B(t, "invalid-value", `${i}.allowedDrawCounts`, "Gacha requires at least one allowed draw count.");
+		"currencyId" in r.cost ? (B(l.currencies, r.cost.currencyId, `${i}.cost.currencyId`, "currency", t), R(r.cost.amountPerDraw, `${i}.cost.amountPerDraw`, t, !0)) : (r.cost.tokenId.length === 0 && V(t, "invalid-value", `${i}.cost.tokenId`, "Gacha token ID must not be empty."), (!Number.isSafeInteger(r.cost.countPerDraw) || r.cost.countPerDraw < 0) && V(t, "invalid-value", `${i}.cost.countPerDraw`, "Gacha token cost must be a non-negative safe integer.")), B(l.rngStreams, r.rngStreamName, `${i}.rngStreamName`, "RNG stream", t), r.allowedDrawCounts.length === 0 && V(t, "invalid-value", `${i}.allowedDrawCounts`, "Gacha requires at least one allowed draw count.");
 		let a = /* @__PURE__ */ new Set();
-		for (let [e, n] of r.allowedDrawCounts.entries()) (!Number.isSafeInteger(n) || n <= 0) && B(t, "invalid-value", `${i}.allowedDrawCounts[${e}]`, "Gacha draw count must be a positive safe integer."), a.has(n) && B(t, "duplicate-id", `${i}.allowedDrawCounts[${e}]`, `Duplicate Gacha draw count: ${n}`), a.add(n);
-		r.pool.length === 0 && B(t, "invalid-value", `${i}.pool`, "Gacha pool must not be empty.");
+		for (let [e, n] of r.allowedDrawCounts.entries()) (!Number.isSafeInteger(n) || n <= 0) && V(t, "invalid-value", `${i}.allowedDrawCounts[${e}]`, "Gacha draw count must be a positive safe integer."), a.has(n) && V(t, "duplicate-id", `${i}.allowedDrawCounts[${e}]`, `Duplicate Gacha draw count: ${n}`), a.add(n);
+		r.pool.length === 0 && V(t, "invalid-value", `${i}.pool`, "Gacha pool must not be empty.");
 		let o = /* @__PURE__ */ new Set();
 		for (let [n, a] of r.pool.entries()) {
 			let r = `${i}.pool[${n}]`;
-			o.has(a.id) && B(t, "duplicate-id", `${r}.id`, `Duplicate Gacha pool entry ID: ${a.id}`), o.add(a.id), (!(a.weight > 0) || !Number.isFinite(a.weight)) && B(t, "invalid-value", `${r}.weight`, "Gacha weight must be positive and finite."), a.rarity !== void 0 && a.rarity.length === 0 && B(t, "invalid-value", `${r}.rarity`, "Gacha rarity metadata must not be empty."), t.push(...e.validateGachaReward?.(a.reward, `${r}.reward`) ?? []);
+			o.has(a.id) && V(t, "duplicate-id", `${r}.id`, `Duplicate Gacha pool entry ID: ${a.id}`), o.add(a.id), (!(a.weight > 0) || !Number.isFinite(a.weight)) && V(t, "invalid-value", `${r}.weight`, "Gacha weight must be positive and finite."), a.rarity !== void 0 && a.rarity.length === 0 && V(t, "invalid-value", `${r}.rarity`, "Gacha rarity metadata must not be empty."), t.push(...e.validateGachaReward?.(a.reward, `${r}.reward`) ?? []);
 		}
 		let s = /* @__PURE__ */ new Set(), c = /* @__PURE__ */ new Set();
 		for (let [e, n] of (r.guaranteedSlots ?? []).entries()) {
 			let a = `${i}.guaranteedSlots[${e}]`;
-			Cn(n.id, a, s, t), r.allowedDrawCounts.includes(n.drawCount) || B(t, "invalid-value", `${a}.drawCount`, `Guaranteed slot drawCount is not allowed: ${n.drawCount}`), (!Number.isSafeInteger(n.drawIndex) || n.drawIndex < 0 || n.drawIndex >= n.drawCount) && B(t, "invalid-value", `${a}.drawIndex`, "Guaranteed slot drawIndex must be within its drawCount.");
+			wn(n.id, a, s, t), r.allowedDrawCounts.includes(n.drawCount) || V(t, "invalid-value", `${a}.drawCount`, `Guaranteed slot drawCount is not allowed: ${n.drawCount}`), (!Number.isSafeInteger(n.drawIndex) || n.drawIndex < 0 || n.drawIndex >= n.drawCount) && V(t, "invalid-value", `${a}.drawIndex`, "Guaranteed slot drawIndex must be within its drawCount.");
 			let l = `${n.drawCount}:${n.drawIndex}`;
-			c.has(l) && B(t, "duplicate-id", a, `Duplicate guaranteed Gacha slot: ${l}`), c.add(l), wn(n.poolEntryIds, o, `${a}.poolEntryIds`, t);
+			c.has(l) && V(t, "duplicate-id", a, `Duplicate guaranteed Gacha slot: ${l}`), c.add(l), Tn(n.poolEntryIds, o, `${a}.poolEntryIds`, t);
 		}
 		let u = /* @__PURE__ */ new Set();
 		for (let [e, n] of (r.batchGuarantees ?? []).entries()) {
 			let a = `${i}.batchGuarantees[${e}]`;
-			Cn(n.id, a, s, t), r.allowedDrawCounts.includes(n.drawCount) || B(t, "invalid-value", `${a}.drawCount`, `Batch guarantee drawCount is not allowed: ${n.drawCount}`), !Number.isSafeInteger(n.batchSize) || n.batchSize <= 0 || n.batchSize > n.drawCount ? B(t, "invalid-value", `${a}.batchSize`, "Batch guarantee batchSize must be a positive safe integer <= drawCount.") : n.drawCount % n.batchSize !== 0 && B(t, "invalid-value", `${a}.batchSize`, "Batch guarantee batchSize must evenly divide drawCount."), u.has(n.drawCount) && B(t, "duplicate-id", a, `Only one batch guarantee may target drawCount ${n.drawCount}.`), u.add(n.drawCount), wn(n.poolEntryIds, o, `${a}.poolEntryIds`, t);
+			wn(n.id, a, s, t), r.allowedDrawCounts.includes(n.drawCount) || V(t, "invalid-value", `${a}.drawCount`, `Batch guarantee drawCount is not allowed: ${n.drawCount}`), !Number.isSafeInteger(n.batchSize) || n.batchSize <= 0 || n.batchSize > n.drawCount ? V(t, "invalid-value", `${a}.batchSize`, "Batch guarantee batchSize must be a positive safe integer <= drawCount.") : n.drawCount % n.batchSize !== 0 && V(t, "invalid-value", `${a}.batchSize`, "Batch guarantee batchSize must evenly divide drawCount."), u.has(n.drawCount) && V(t, "duplicate-id", a, `Only one batch guarantee may target drawCount ${n.drawCount}.`), u.add(n.drawCount), Tn(n.poolEntryIds, o, `${a}.poolEntryIds`, t);
 		}
 		if (r.pity !== void 0) {
 			let e = `${i}.pity`;
-			Cn(r.pity.id, e, s, t), (!Number.isSafeInteger(r.pity.threshold) || r.pity.threshold <= 0) && B(t, "invalid-value", `${e}.threshold`, "Gacha pity threshold must be a positive safe integer."), wn(r.pity.poolEntryIds, o, `${e}.poolEntryIds`, t);
+			wn(r.pity.id, e, s, t), (!Number.isSafeInteger(r.pity.threshold) || r.pity.threshold <= 0) && V(t, "invalid-value", `${e}.threshold`, "Gacha pity threshold must be a positive safe integer."), Tn(r.pity.poolEntryIds, o, `${e}.poolEntryIds`, t);
 			let n = new Set(r.pity.poolEntryIds);
-			for (let [e, a] of (r.batchGuarantees ?? []).entries()) a.poolEntryIds.some((e) => n.has(e)) || B(t, "invalid-value", `${i}.batchGuarantees[${e}].poolEntryIds`, "Batch guarantee and pity pools must overlap.");
+			for (let [e, a] of (r.batchGuarantees ?? []).entries()) a.poolEntryIds.some((e) => n.has(e)) || V(t, "invalid-value", `${i}.batchGuarantees[${e}].poolEntryIds`, "Batch guarantee and pity pools must overlap.");
 		}
 	}
 	for (let [n, r] of (e.opportunities ?? []).entries()) {
 		let e = `opportunities[${n}]`;
-		(!Number.isSafeInteger(r.lifetimeSec) || r.lifetimeSec <= 0) && B(t, "invalid-value", `${e}.lifetimeSec`, "Opportunity lifetimeSec must be a positive safe integer."), r.offlinePolicy !== void 0 && r.offlinePolicy !== "elapse" && r.offlinePolicy !== "pause" && B(t, "invalid-value", `${e}.offlinePolicy`, "Opportunity offlinePolicy must be elapse or pause."), r.dismissalPolicy !== void 0 && r.dismissalPolicy !== "allow" && r.dismissalPolicy !== "forbid" && B(t, "invalid-value", `${e}.dismissalPolicy`, "Opportunity dismissalPolicy must be allow or forbid.");
+		(!Number.isSafeInteger(r.lifetimeSec) || r.lifetimeSec <= 0) && V(t, "invalid-value", `${e}.lifetimeSec`, "Opportunity lifetimeSec must be a positive safe integer."), r.offlinePolicy !== void 0 && r.offlinePolicy !== "elapse" && r.offlinePolicy !== "pause" && V(t, "invalid-value", `${e}.offlinePolicy`, "Opportunity offlinePolicy must be elapse or pause."), r.dismissalPolicy !== void 0 && r.dismissalPolicy !== "allow" && r.dismissalPolicy !== "forbid" && V(t, "invalid-value", `${e}.dismissalPolicy`, "Opportunity dismissalPolicy must be allow or forbid.");
 	}
 	for (let [n, r] of (e.rewardedOffers ?? []).entries()) {
 		let e = `rewardedOffers[${n}]`;
-		r.placementId.length === 0 && B(t, "invalid-value", `${e}.placementId`, "Rewarded Offer placementId must not be empty."), r.rewards.length === 0 && B(t, "invalid-value", `${e}.rewards`, "Rewarded Offer rewards must not be empty."), r.cooldownSec !== void 0 && (!Number.isSafeInteger(r.cooldownSec) || r.cooldownSec < 0) && B(t, "invalid-value", `${e}.cooldownSec`, "Rewarded Offer cooldownSec must be a non-negative safe integer."), r.dailyCap !== void 0 && (!Number.isSafeInteger(r.dailyCap) || r.dailyCap <= 0) && B(t, "invalid-value", `${e}.dailyCap`, "Rewarded Offer dailyCap must be a positive safe integer."), r.eligibility !== void 0 && P(r.eligibility, `${e}.eligibility`, l, t), N(r.rewards, `${e}.rewards`, l, t);
+		r.placementId.length === 0 && V(t, "invalid-value", `${e}.placementId`, "Rewarded Offer placementId must not be empty."), r.rewards.length === 0 && V(t, "invalid-value", `${e}.rewards`, "Rewarded Offer rewards must not be empty."), r.cooldownSec !== void 0 && (!Number.isSafeInteger(r.cooldownSec) || r.cooldownSec < 0) && V(t, "invalid-value", `${e}.cooldownSec`, "Rewarded Offer cooldownSec must be a non-negative safe integer."), r.dailyCap !== void 0 && (!Number.isSafeInteger(r.dailyCap) || r.dailyCap <= 0) && V(t, "invalid-value", `${e}.dailyCap`, "Rewarded Offer dailyCap must be a positive safe integer."), r.eligibility !== void 0 && F(r.eligibility, `${e}.eligibility`, l, t), P(r.rewards, `${e}.rewards`, l, t);
 	}
 	for (let [n, r] of (e.calendarRewards ?? []).entries()) {
 		let e = `calendarRewards[${n}]`;
-		r.rewardsByClaim.length === 0 && B(t, "invalid-value", `${e}.rewardsByClaim`, "Calendar reward sequence must not be empty.");
-		for (let [n, i] of r.rewardsByClaim.entries()) i.length === 0 && B(t, "invalid-value", `${e}.rewardsByClaim[${n}]`, "Calendar claim reward must not be empty."), N(i, `${e}.rewardsByClaim[${n}]`, l, t);
+		r.rewardsByClaim.length === 0 && V(t, "invalid-value", `${e}.rewardsByClaim`, "Calendar reward sequence must not be empty.");
+		for (let [n, i] of r.rewardsByClaim.entries()) i.length === 0 && V(t, "invalid-value", `${e}.rewardsByClaim[${n}]`, "Calendar claim reward must not be empty."), P(i, `${e}.rewardsByClaim[${n}]`, l, t);
 	}
 	for (let [e, n] of a.entries()) {
 		let r = `achievements[${e}]`;
-		P(n.condition, `${r}.condition`, l, t), N(n.rewards, `${r}.rewards`, l, t), n.displayName !== void 0 && n.displayName.length === 0 && B(t, "invalid-value", `${r}.displayName`, "Achievement displayName must not be empty when specified."), n.description !== void 0 && n.description.length === 0 && B(t, "invalid-value", `${r}.description`, "Achievement description must not be empty when specified."), n.progressMetric !== void 0 && Sn(n.progressMetric, `${r}.progressMetric`, l, t);
+		F(n.condition, `${r}.condition`, l, t), P(n.rewards, `${r}.rewards`, l, t), n.displayName !== void 0 && n.displayName.length === 0 && V(t, "invalid-value", `${r}.displayName`, "Achievement displayName must not be empty when specified."), n.description !== void 0 && n.description.length === 0 && V(t, "invalid-value", `${r}.description`, "Achievement description must not be empty when specified."), n.progressMetric !== void 0 && Cn(n.progressMetric, `${r}.progressMetric`, l, t);
 	}
-	En(a, t);
+	Dn(a, t);
 	let re = new Map(o.map((e) => [e.id, e]));
 	for (let [e, n] of s.entries()) {
 		let r = `missionSets[${e}]`;
-		n.missionIds.length === 0 && B(t, "invalid-value", `${r}.missionIds`, "Mission set must contain at least one Mission ID.");
+		n.missionIds.length === 0 && V(t, "invalid-value", `${r}.missionIds`, "Mission set must contain at least one Mission ID.");
 		let i = /* @__PURE__ */ new Set();
 		for (let [e, a] of n.missionIds.entries()) {
 			let o = `${r}.missionIds[${e}]`;
-			i.has(a) && B(t, "duplicate-id", o, `Duplicate Mission ID in set: ${a}`), i.add(a), z(l.missions, a, o, "mission", t);
+			i.has(a) && V(t, "duplicate-id", o, `Duplicate Mission ID in set: ${a}`), i.add(a), B(l.missions, a, o, "mission", t);
 			let s = re.get(a);
-			s !== void 0 && s.setId !== n.id && B(t, "invalid-value", o, `Mission ${a} belongs to ${s.setId}, not ${n.id}.`);
+			s !== void 0 && s.setId !== n.id && V(t, "invalid-value", o, `Mission ${a} belongs to ${s.setId}, not ${n.id}.`);
 		}
 		let a = /* @__PURE__ */ new Set(), o = 0;
 		for (let [e, i] of (n.pointMilestones ?? []).entries()) {
 			let n = `${r}.pointMilestones[${e}]`;
-			a.has(i.id) && B(t, "duplicate-id", `${n}.id`, `Duplicate Mission point milestone ID: ${i.id}`), a.add(i.id), !Number.isSafeInteger(i.pointsRequired) || i.pointsRequired <= 0 ? B(t, "invalid-value", `${n}.pointsRequired`, "Mission point milestone pointsRequired must be a positive safe integer.") : i.pointsRequired <= o && B(t, "invalid-value", `${n}.pointsRequired`, "Mission point milestones must be authored in strictly increasing point order."), o = Math.max(o, i.pointsRequired), i.rewards.length === 0 && B(t, "invalid-value", `${n}.rewards`, "Mission point milestone rewards must not be empty."), N(i.rewards, `${n}.rewards`, l, t);
+			a.has(i.id) && V(t, "duplicate-id", `${n}.id`, `Duplicate Mission point milestone ID: ${i.id}`), a.add(i.id), !Number.isSafeInteger(i.pointsRequired) || i.pointsRequired <= 0 ? V(t, "invalid-value", `${n}.pointsRequired`, "Mission point milestone pointsRequired must be a positive safe integer.") : i.pointsRequired <= o && V(t, "invalid-value", `${n}.pointsRequired`, "Mission point milestones must be authored in strictly increasing point order."), o = Math.max(o, i.pointsRequired), i.rewards.length === 0 && V(t, "invalid-value", `${n}.rewards`, "Mission point milestone rewards must not be empty."), P(i.rewards, `${n}.rewards`, l, t);
 		}
 	}
 	let ie = new Map(s.map((e) => [e.id, new Set(e.missionIds)]));
 	for (let [e, n] of o.entries()) {
 		let r = `missions[${e}]`;
-		z(l.missionSets, n.setId, `${r}.setId`, "mission set", t);
+		B(l.missionSets, n.setId, `${r}.setId`, "mission set", t);
 		let i = ie.get(n.setId);
-		i !== void 0 && !i.has(n.id) && B(t, "invalid-value", `${r}.setId`, `Mission ${n.id} is not listed by Mission set ${n.setId}.`), n.objective.type === "condition" ? (P(n.objective.condition, `${r}.objective.condition`, l, t), n.objective.progressMetric !== void 0 && Sn(n.objective.progressMetric, `${r}.objective.progressMetric`, l, t)) : (n.objective.metricId.length === 0 && B(t, "invalid-value", `${r}.objective.metricId`, "Mission counter metricId must not be empty."), An(n.objective.target, `${r}.objective.target`, t)), n.rewards.length === 0 && B(t, "invalid-value", `${r}.rewards`, "Mission rewards must not be empty."), N(n.rewards, `${r}.rewards`, l, t), n.points !== void 0 && (!Number.isSafeInteger(n.points) || n.points < 0) && B(t, "invalid-value", `${r}.points`, "Mission points must be a non-negative safe integer."), n.displayName !== void 0 && n.displayName.length === 0 && B(t, "invalid-value", `${r}.displayName`, "Mission displayName must not be empty when specified."), n.description !== void 0 && n.description.length === 0 && B(t, "invalid-value", `${r}.description`, "Mission description must not be empty when specified.");
+		i !== void 0 && !i.has(n.id) && V(t, "invalid-value", `${r}.setId`, `Mission ${n.id} is not listed by Mission set ${n.setId}.`), n.objective.type === "condition" ? (F(n.objective.condition, `${r}.objective.condition`, l, t), n.objective.progressMetric !== void 0 && Cn(n.objective.progressMetric, `${r}.objective.progressMetric`, l, t)) : (n.objective.metricId.length === 0 && V(t, "invalid-value", `${r}.objective.metricId`, "Mission counter metricId must not be empty."), jn(n.objective.target, `${r}.objective.target`, t)), n.rewards.length === 0 && V(t, "invalid-value", `${r}.rewards`, "Mission rewards must not be empty."), P(n.rewards, `${r}.rewards`, l, t), n.points !== void 0 && (!Number.isSafeInteger(n.points) || n.points < 0) && V(t, "invalid-value", `${r}.points`, "Mission points must be a non-negative safe integer."), n.displayName !== void 0 && n.displayName.length === 0 && V(t, "invalid-value", `${r}.displayName`, "Mission displayName must not be empty when specified."), n.description !== void 0 && n.description.length === 0 && V(t, "invalid-value", `${r}.description`, "Mission description must not be empty when specified.");
 	}
 	for (let [n, r] of (e.prestiges ?? []).entries()) {
 		let e = `prestiges[${n}]`;
-		P(r.eligibility, `${e}.eligibility`, l, t), Tn(r.resetPolicy, `${e}.resetPolicy`, l, t);
+		F(r.eligibility, `${e}.eligibility`, l, t), En(r.resetPolicy, `${e}.resetPolicy`, l, t);
 	}
-	for (let n of e.additionalConditions ?? []) P(n.condition, n.path, l, t);
-	for (let n of e.additionalRewardSets ?? []) N(n.rewards, n.path, l, t);
+	for (let n of e.additionalConditions ?? []) F(n.condition, n.path, l, t);
+	for (let n of e.additionalRewardSets ?? []) P(n.rewards, n.path, l, t);
 	return t;
 }
-function vn(e) {
-	let t = _n(e);
+function yn(e) {
+	let t = vn(e);
 	if (t.length !== 0) throw Error(`Invalid definition bundle:\n${t.map((e) => `- [${e.code}] ${e.path}: ${e.message}`).join("\n")}`);
 }
-function j(e, t, n, r) {
-	yn(e.map((e) => e.id), t, n, r);
+function M(e, t, n, r) {
+	bn(e.map((e) => e.id), t, n, r);
 }
-function yn(e, t, n, r) {
+function bn(e, t, n, r) {
 	let i = /* @__PURE__ */ new Set();
 	for (let [a, o] of e.entries()) {
 		let e = `${t}[${a}]`;
-		o.length === 0 && B(n, "invalid-value", e, "Definition ID must not be empty."), i.has(o) && B(n, "duplicate-id", e, `Duplicate ID in ${t}: ${o}`), i.add(o);
+		o.length === 0 && V(n, "invalid-value", e, "Definition ID must not be empty."), i.has(o) && V(n, "duplicate-id", e, `Duplicate ID in ${t}: ${o}`), i.add(o);
 		let s = r.get(o);
-		s !== void 0 && s !== t ? B(n, "duplicate-id", e, `ID ${o} is also declared in ${s}.`) : s === void 0 && r.set(o, t);
+		s !== void 0 && s !== t ? V(n, "duplicate-id", e, `ID ${o} is also declared in ${s}.`) : s === void 0 && r.set(o, t);
 	}
 }
-function bn(e, t, n) {
-	e.precision !== void 0 != (e.roundingMode !== void 0) && B(n, "invalid-value", t, "Currency precision and roundingMode must be specified together."), e.precision !== void 0 && (!Number.isSafeInteger(e.precision) || e.precision < 0) && B(n, "invalid-value", `${t}.precision`, "Currency precision must be a non-negative safe integer."), e.cap !== void 0 && L(e.cap, `${t}.cap`, n, !0), e.displayName !== void 0 && e.displayName.length === 0 && B(n, "invalid-value", `${t}.displayName`, "Currency displayName must not be empty when specified."), e.symbol !== void 0 && e.symbol.length === 0 && B(n, "invalid-value", `${t}.symbol`, "Currency symbol must not be empty when specified.");
+function xn(e, t, n) {
+	e.precision !== void 0 != (e.roundingMode !== void 0) && V(n, "invalid-value", t, "Currency precision and roundingMode must be specified together."), e.precision !== void 0 && (!Number.isSafeInteger(e.precision) || e.precision < 0) && V(n, "invalid-value", `${t}.precision`, "Currency precision must be a non-negative safe integer."), e.cap !== void 0 && R(e.cap, `${t}.cap`, n, !0), e.displayName !== void 0 && e.displayName.length === 0 && V(n, "invalid-value", `${t}.displayName`, "Currency displayName must not be empty when specified."), e.symbol !== void 0 && e.symbol.length === 0 && V(n, "invalid-value", `${t}.symbol`, "Currency symbol must not be empty when specified.");
 }
-function xn(e, t, n, r, i) {
-	e.mode !== t && B(i, "invalid-value", `${n}.mode`, `Activity mode must be ${t}.`), e.eligibility !== void 0 && P(e.eligibility, `${n}.eligibility`, r, i), e.concurrencyGroupId !== void 0 && (e.concurrencyGroupId.length === 0 ? B(i, "invalid-value", `${n}.concurrencyGroupId`, "Activity concurrencyGroupId must not be empty.") : z(r.activityConcurrencyGroups, e.concurrencyGroupId, `${n}.concurrencyGroupId`, "activity concurrency group", i)), e.slotCost !== void 0 && (!Number.isSafeInteger(e.slotCost) || e.slotCost <= 0) && B(i, "invalid-value", `${n}.slotCost`, "Activity slotCost must be a positive safe integer.");
+function Sn(e, t, n, r, i) {
+	e.mode !== t && V(i, "invalid-value", `${n}.mode`, `Activity mode must be ${t}.`), e.eligibility !== void 0 && F(e.eligibility, `${n}.eligibility`, r, i), e.concurrencyGroupId !== void 0 && (e.concurrencyGroupId.length === 0 ? V(i, "invalid-value", `${n}.concurrencyGroupId`, "Activity concurrencyGroupId must not be empty.") : B(r.activityConcurrencyGroups, e.concurrencyGroupId, `${n}.concurrencyGroupId`, "activity concurrency group", i)), e.slotCost !== void 0 && (!Number.isSafeInteger(e.slotCost) || e.slotCost <= 0) && V(i, "invalid-value", `${n}.slotCost`, "Activity slotCost must be a positive safe integer.");
 	for (let [t, a] of (e.startCosts ?? []).entries()) {
 		let e = `${n}.startCosts[${t}]`;
 		if (a.type === "currency") {
-			z(r.currencies, a.currencyId, `${e}.currencyId`, "currency", i), L(a.amount, `${e}.amount`, i, !0);
+			B(r.currencies, a.currencyId, `${e}.currencyId`, "currency", i), R(a.amount, `${e}.amount`, i, !0);
 			try {
-				y.from(a.amount).isZero() && B(i, "invalid-value", `${e}.amount`, "Activity currency start cost must be positive.");
+				y.from(a.amount).isZero() && V(i, "invalid-value", `${e}.amount`, "Activity currency start cost must be positive.");
 			} catch {}
 			continue;
 		}
-		z(r.tokens, a.tokenId, `${e}.tokenId`, "token", i), jn(a.count, `${e}.count`, "Activity token start cost", i);
+		B(r.tokens, a.tokenId, `${e}.tokenId`, "token", i), Mn(a.count, `${e}.count`, "Activity token start cost", i);
 	}
 }
-function M(e, t, n) {
+function N(e, t, n) {
 	switch (e.type) {
 		case "linear":
-			L(e.base, `${t}.base`, n, !1), L(e.step, `${t}.step`, n, !1);
+			R(e.base, `${t}.base`, n, !1), R(e.step, `${t}.step`, n, !1);
 			return;
 		case "polynomial":
-			e.coefficients.length === 0 && B(n, "invalid-value", `${t}.coefficients`, "Polynomial curve must contain at least one coefficient."), e.coefficients.forEach((e, r) => L(e, `${t}.coefficients[${r}]`, n, !1));
+			e.coefficients.length === 0 && V(n, "invalid-value", `${t}.coefficients`, "Polynomial curve must contain at least one coefficient."), e.coefficients.forEach((e, r) => R(e, `${t}.coefficients[${r}]`, n, !1));
 			return;
 		case "geometric":
-			L(e.base, `${t}.base`, n, !1), (!(e.ratio > 0) || !Number.isFinite(e.ratio)) && B(n, "invalid-value", `${t}.ratio`, "Geometric curve ratio must be positive and finite.");
+			R(e.base, `${t}.base`, n, !1), (!(e.ratio > 0) || !Number.isFinite(e.ratio)) && V(n, "invalid-value", `${t}.ratio`, "Geometric curve ratio must be positive and finite.");
 			return;
 		case "table":
-			e.values.length === 0 && B(n, "invalid-value", `${t}.values`, "Curve table must not be empty."), e.values.forEach((e, r) => L(e, `${t}.values[${r}]`, n, !1));
+			e.values.length === 0 && V(n, "invalid-value", `${t}.values`, "Curve table must not be empty."), e.values.forEach((e, r) => R(e, `${t}.values[${r}]`, n, !1));
 			return;
 		case "piecewise": {
-			(e.segments.length === 0 || e.segments[0]?.startIndex !== 0) && B(n, "invalid-value", `${t}.segments`, "Piecewise curve must start with segment index 0.");
+			(e.segments.length === 0 || e.segments[0]?.startIndex !== 0) && V(n, "invalid-value", `${t}.segments`, "Piecewise curve must start with segment index 0.");
 			let r = -1;
 			for (let [i, a] of e.segments.entries()) {
 				let e = `${t}.segments[${i}]`;
-				(!Number.isSafeInteger(a.startIndex) || a.startIndex <= r) && B(n, "invalid-value", `${e}.startIndex`, "Piecewise segment startIndex must be strictly increasing safe integers."), r = a.startIndex, M(a.curve, `${e}.curve`, n);
+				(!Number.isSafeInteger(a.startIndex) || a.startIndex <= r) && V(n, "invalid-value", `${e}.startIndex`, "Piecewise segment startIndex must be strictly increasing safe integers."), r = a.startIndex, N(a.curve, `${e}.curve`, n);
 			}
 		}
 	}
 }
-function N(e, t, n, r) {
+function P(e, t, n, r) {
 	for (let [i, a] of e.entries()) {
 		let e = `${t}[${i}]`;
 		switch (a.type) {
 			case "currency":
-				z(n.currencies, a.currencyId, `${e}.currencyId`, "currency", r), L(a.amount, `${e}.amount`, r, !0);
+				B(n.currencies, a.currencyId, `${e}.currencyId`, "currency", r), R(a.amount, `${e}.amount`, r, !0);
 				break;
 			case "producer":
-				z(n.producers, a.producerId, `${e}.producerId`, "producer", r), jn(a.count, `${e}.count`, "Producer reward count", r);
+				B(n.producers, a.producerId, `${e}.producerId`, "producer", r), Mn(a.count, `${e}.count`, "Producer reward count", r);
 				break;
 			case "character":
-				z(n.characters, a.characterDefinitionId, `${e}.characterDefinitionId`, "character", r);
+				B(n.characters, a.characterDefinitionId, `${e}.characterDefinitionId`, "character", r);
 				break;
 			case "token":
-				z(n.tokens, a.tokenId, `${e}.tokenId`, "token", r), jn(a.count, `${e}.count`, "Token reward count", r);
+				B(n.tokens, a.tokenId, `${e}.tokenId`, "token", r), Mn(a.count, `${e}.count`, "Token reward count", r);
 				break;
 			case "boost":
-				z(n.boosts, a.boostId, `${e}.boostId`, "boost", r);
+				B(n.boosts, a.boostId, `${e}.boostId`, "boost", r);
 				break;
 			case "permanent-modifier":
-				z(n.permanentModifiers, a.modifierId, `${e}.modifierId`, "permanent modifier", r);
+				B(n.permanentModifiers, a.modifierId, `${e}.modifierId`, "permanent modifier", r);
 				break;
 			case "activity-advance":
-				z(n.activities, a.activityId, `${e}.activityId`, "activity", r), (!Number.isSafeInteger(a.seconds) || a.seconds <= 0) && B(r, "invalid-value", `${e}.seconds`, "Activity advance reward seconds must be a positive safe integer.");
+				B(n.activities, a.activityId, `${e}.activityId`, "activity", r), (!Number.isSafeInteger(a.seconds) || a.seconds <= 0) && V(r, "invalid-value", `${e}.seconds`, "Activity advance reward seconds must be a positive safe integer.");
 				break;
 			case "title":
-				z(n.titles, a.titleId, `${e}.titleId`, "title", r);
+				B(n.titles, a.titleId, `${e}.titleId`, "title", r);
 				break;
 			case "unlock":
-				z(n.unlockFlags, a.flagId, `${e}.flagId`, "unlock flag", r);
+				B(n.unlockFlags, a.flagId, `${e}.flagId`, "unlock flag", r);
 				break;
-			case "composite": N(a.rewards, `${e}.rewards`, n, r);
+			case "composite": P(a.rewards, `${e}.rewards`, n, r);
 		}
 	}
 }
-function P(e, t, n, r) {
+function F(e, t, n, r) {
 	switch (e.type) {
 		case "and":
 		case "or":
-			e.conditions.forEach((e, i) => P(e, `${t}.conditions[${i}]`, n, r));
+			e.conditions.forEach((e, i) => F(e, `${t}.conditions[${i}]`, n, r));
 			return;
 		case "not":
-			P(e.condition, `${t}.condition`, n, r);
+			F(e.condition, `${t}.condition`, n, r);
 			return;
 		case "currency-balance-at-least":
 		case "lifetime-currency-earned-at-least":
-			z(n.currencies, e.currencyId, `${t}.currencyId`, "currency", r), L(e.amount, `${t}.amount`, r, !0);
+			B(n.currencies, e.currencyId, `${t}.currencyId`, "currency", r), R(e.amount, `${t}.amount`, r, !0);
 			return;
 		case "producer-count-at-least":
-			z(n.producers, e.producerId, `${t}.producerId`, "producer", r), (!Number.isSafeInteger(e.count) || e.count < 0) && B(r, "invalid-value", `${t}.count`, "Producer condition count must be a non-negative safe integer.");
+			B(n.producers, e.producerId, `${t}.producerId`, "producer", r), (!Number.isSafeInteger(e.count) || e.count < 0) && V(r, "invalid-value", `${t}.count`, "Producer condition count must be a non-negative safe integer.");
 			return;
 		case "producer-level-at-least":
-			z(n.producers, e.producerId, `${t}.producerId`, "producer", r), R(e.level, `${t}.level`, "Producer level", r);
+			B(n.producers, e.producerId, `${t}.producerId`, "producer", r), z(e.level, `${t}.level`, "Producer level", r);
 			return;
 		case "character-owned":
-			z(n.characters, e.characterDefinitionId, `${t}.characterDefinitionId`, "character", r);
+			B(n.characters, e.characterDefinitionId, `${t}.characterDefinitionId`, "character", r);
 			return;
 		case "character-level-at-least":
-			z(n.characters, e.characterDefinitionId, `${t}.characterDefinitionId`, "character", r), R(e.level, `${t}.level`, "Character level", r);
+			B(n.characters, e.characterDefinitionId, `${t}.characterDefinitionId`, "character", r), z(e.level, `${t}.level`, "Character level", r);
 			return;
 		case "activity-progress-at-least":
-			z(n.activities, e.activityId, `${t}.activityId`, "activity", r), (!Number.isFinite(e.progress) || e.progress < 0) && B(r, "invalid-value", `${t}.progress`, "Activity progress condition must be finite and non-negative.");
+			B(n.activities, e.activityId, `${t}.activityId`, "activity", r), (!Number.isFinite(e.progress) || e.progress < 0) && V(r, "invalid-value", `${t}.progress`, "Activity progress condition must be finite and non-negative.");
 			return;
 		case "activity-milestone-reached": {
-			z(n.activities, e.activityId, `${t}.activityId`, "activity", r);
+			B(n.activities, e.activityId, `${t}.activityId`, "activity", r);
 			let i = n.activityMilestones.get(e.activityId);
-			i !== void 0 && !i.has(e.milestoneId) && B(r, "missing-reference", `${t}.milestoneId`, `Unknown activity milestone ID: ${e.milestoneId}`);
+			i !== void 0 && !i.has(e.milestoneId) && V(r, "missing-reference", `${t}.milestoneId`, `Unknown activity milestone ID: ${e.milestoneId}`);
 			return;
 		}
 		case "achievement-completed":
-			z(n.achievements, e.achievementId, `${t}.achievementId`, "achievement", r);
+			B(n.achievements, e.achievementId, `${t}.achievementId`, "achievement", r);
 			return;
 		case "prestige-count-at-least":
-			z(n.prestiges, e.prestigeId, `${t}.prestigeId`, "prestige", r), (!Number.isSafeInteger(e.count) || e.count < 0) && B(r, "invalid-value", `${t}.count`, "Prestige count must be a non-negative safe integer.");
+			B(n.prestiges, e.prestigeId, `${t}.prestigeId`, "prestige", r), (!Number.isSafeInteger(e.count) || e.count < 0) && V(r, "invalid-value", `${t}.count`, "Prestige count must be a non-negative safe integer.");
 			return;
 		case "gacha-draw-count-at-least":
-			z(n.gachas, e.gachaId, `${t}.gachaId`, "gacha", r), (!Number.isSafeInteger(e.count) || e.count < 0) && B(r, "invalid-value", `${t}.count`, "Gacha draw count must be a non-negative safe integer.");
+			B(n.gachas, e.gachaId, `${t}.gachaId`, "gacha", r), (!Number.isSafeInteger(e.count) || e.count < 0) && V(r, "invalid-value", `${t}.count`, "Gacha draw count must be a non-negative safe integer.");
 			return;
 		case "calendar-streak-at-least":
-			z(n.calendarRewards, e.calendarRewardId, `${t}.calendarRewardId`, "calendar reward", r), (!Number.isSafeInteger(e.count) || e.count < 0) && B(r, "invalid-value", `${t}.count`, "Calendar streak count must be a non-negative safe integer.");
+			B(n.calendarRewards, e.calendarRewardId, `${t}.calendarRewardId`, "calendar reward", r), (!Number.isSafeInteger(e.count) || e.count < 0) && V(r, "invalid-value", `${t}.count`, "Calendar streak count must be a non-negative safe integer.");
 			return;
-		case "unlock-flag": z(n.unlockFlags, e.flagId, `${t}.flagId`, "unlock flag", r);
+		case "unlock-flag": B(n.unlockFlags, e.flagId, `${t}.flagId`, "unlock flag", r);
 	}
 }
-function Sn(e, t, n, r) {
+function Cn(e, t, n, r) {
 	switch (e.type) {
 		case "currency-balance":
 		case "lifetime-currency-earned":
-			z(n.currencies, e.currencyId, `${t}.currencyId`, "currency", r), An(e.target, `${t}.target`, r);
+			B(n.currencies, e.currencyId, `${t}.currencyId`, "currency", r), jn(e.target, `${t}.target`, r);
 			return;
 		case "producer-count":
 		case "producer-level":
-			z(n.producers, e.producerId, `${t}.producerId`, "producer", r), F(e.target, `${t}.target`, r);
+			B(n.producers, e.producerId, `${t}.producerId`, "producer", r), I(e.target, `${t}.target`, r);
 			return;
 		case "character-level":
-			z(n.characters, e.characterDefinitionId, `${t}.characterDefinitionId`, "character", r), F(e.target, `${t}.target`, r);
+			B(n.characters, e.characterDefinitionId, `${t}.characterDefinitionId`, "character", r), I(e.target, `${t}.target`, r);
 			return;
 		case "activity-progress":
-			z(n.activities, e.activityId, `${t}.activityId`, "activity", r), (!Number.isFinite(e.target) || e.target <= 0 || e.target > 1) && B(r, "invalid-value", `${t}.target`, "Activity progress target must be > 0 and <= 1.");
+			B(n.activities, e.activityId, `${t}.activityId`, "activity", r), (!Number.isFinite(e.target) || e.target <= 0 || e.target > 1) && V(r, "invalid-value", `${t}.target`, "Activity progress target must be > 0 and <= 1.");
 			return;
 		case "gacha-draw-count":
-			z(n.gachas, e.gachaId, `${t}.gachaId`, "gacha", r), F(e.target, `${t}.target`, r);
+			B(n.gachas, e.gachaId, `${t}.gachaId`, "gacha", r), I(e.target, `${t}.target`, r);
 			return;
 		case "prestige-count":
-			z(n.prestiges, e.prestigeId, `${t}.prestigeId`, "prestige", r), F(e.target, `${t}.target`, r);
+			B(n.prestiges, e.prestigeId, `${t}.prestigeId`, "prestige", r), I(e.target, `${t}.target`, r);
 			return;
-		case "calendar-streak": z(n.calendarRewards, e.calendarRewardId, `${t}.calendarRewardId`, "calendar reward", r), F(e.target, `${t}.target`, r);
+		case "calendar-streak": B(n.calendarRewards, e.calendarRewardId, `${t}.calendarRewardId`, "calendar reward", r), I(e.target, `${t}.target`, r);
 	}
 }
-function F(e, t, n) {
-	(!Number.isFinite(e) || e <= 0) && B(n, "invalid-value", t, "Achievement progress target must be a positive finite number.");
-}
-function Cn(e, t, n, r) {
-	e.length === 0 && B(r, "invalid-value", `${t}.id`, "Gacha rule ID must not be empty."), n.has(e) && B(r, "duplicate-id", `${t}.id`, `Duplicate Gacha rule ID: ${e}`), n.add(e);
+function I(e, t, n) {
+	(!Number.isFinite(e) || e <= 0) && V(n, "invalid-value", t, "Achievement progress target must be a positive finite number.");
 }
 function wn(e, t, n, r) {
-	e.length === 0 && B(r, "invalid-value", n, "Gacha rule pool must not be empty.");
-	let i = /* @__PURE__ */ new Set();
-	for (let [a, o] of e.entries()) i.has(o) && B(r, "duplicate-id", `${n}[${a}]`, `Duplicate Gacha rule pool entry ID: ${o}`), i.add(o), t.has(o) || B(r, "missing-reference", `${n}[${a}]`, `Unknown Gacha pool entry ID: ${o}`);
+	e.length === 0 && V(r, "invalid-value", `${t}.id`, "Gacha rule ID must not be empty."), n.has(e) && V(r, "duplicate-id", `${t}.id`, `Duplicate Gacha rule ID: ${e}`), n.add(e);
 }
 function Tn(e, t, n, r) {
-	I(e.currencies, n.currencies, `${t}.currencies`, "currency", r), I(e.tokens, n.tokens, `${t}.tokens`, "token", r), I(e.producers, n.producers, `${t}.producers`, "producer", r), I(e.characters, n.characters, `${t}.characters`, "character", r), I(e.achievements, n.achievements, `${t}.achievements`, "achievement", r), I(e.titles, n.titles, `${t}.titles`, "title", r), I(e.progressionFlags, n.unlockFlags, `${t}.progressionFlags`, "unlock flag", r), I(e.gachaStates, n.gachas, `${t}.gachaStates`, "gacha", r), I(e.activeBoosts, n.boosts, `${t}.activeBoosts`, "boost", r);
+	e.length === 0 && V(r, "invalid-value", n, "Gacha rule pool must not be empty.");
+	let i = /* @__PURE__ */ new Set();
+	for (let [a, o] of e.entries()) i.has(o) && V(r, "duplicate-id", `${n}[${a}]`, `Duplicate Gacha rule pool entry ID: ${o}`), i.add(o), t.has(o) || V(r, "missing-reference", `${n}[${a}]`, `Unknown Gacha pool entry ID: ${o}`);
 }
-function I(e, t, n, r, i) {
+function En(e, t, n, r) {
+	L(e.currencies, n.currencies, `${t}.currencies`, "currency", r), L(e.tokens, n.tokens, `${t}.tokens`, "token", r), L(e.producers, n.producers, `${t}.producers`, "producer", r), L(e.characters, n.characters, `${t}.characters`, "character", r), L(e.achievements, n.achievements, `${t}.achievements`, "achievement", r), L(e.titles, n.titles, `${t}.titles`, "title", r), L(e.progressionFlags, n.unlockFlags, `${t}.progressionFlags`, "unlock flag", r), L(e.gachaStates, n.gachas, `${t}.gachaStates`, "gacha", r), L(e.activeBoosts, n.boosts, `${t}.activeBoosts`, "boost", r);
+}
+function L(e, t, n, r, i) {
 	if (e === void 0 || e === "retain" || e === "reset") return;
 	let a = /* @__PURE__ */ new Set();
-	for (let [o, s] of e.resetIds.entries()) a.has(s) && B(i, "duplicate-id", `${n}.resetIds[${o}]`, `Duplicate reset ${r} ID: ${s}`), a.add(s), z(t, s, `${n}.resetIds[${o}]`, r, i);
+	for (let [o, s] of e.resetIds.entries()) a.has(s) && V(i, "duplicate-id", `${n}.resetIds[${o}]`, `Duplicate reset ${r} ID: ${s}`), a.add(s), B(t, s, `${n}.resetIds[${o}]`, r, i);
 }
-function En(e, t) {
-	let n = new Map(e.map((e) => [e.id, Dn(e.condition)])), r = /* @__PURE__ */ new Set(), i = /* @__PURE__ */ new Set(), a = (e, o) => {
+function Dn(e, t) {
+	let n = new Map(e.map((e) => [e.id, On(e.condition)])), r = /* @__PURE__ */ new Set(), i = /* @__PURE__ */ new Set(), a = (e, o) => {
 		if (!i.has(e)) {
 			if (r.has(e)) {
 				let n = o.indexOf(e);
-				B(t, "cyclic-dependency", "achievements", `Achievement dependency cycle: ${[...o.slice(Math.max(0, n)), e].join(" -> ")}`);
+				V(t, "cyclic-dependency", "achievements", `Achievement dependency cycle: ${[...o.slice(Math.max(0, n)), e].join(" -> ")}`);
 				return;
 			}
 			r.add(e);
@@ -2603,46 +2628,46 @@ function En(e, t) {
 	};
 	for (let e of n.keys()) a(e, []);
 }
-function Dn(e) {
+function On(e) {
 	switch (e.type) {
 		case "achievement-completed": return [e.achievementId];
 		case "and":
-		case "or": return e.conditions.flatMap(Dn);
-		case "not": return Dn(e.condition);
+		case "or": return e.conditions.flatMap(On);
+		case "not": return On(e.condition);
 		default: return [];
 	}
 }
-function On(e, t, n) {
-	e.target.length === 0 && B(n, "invalid-value", `${t}.target`, "Modifier target must not be empty."), e.source.length === 0 && B(n, "invalid-value", `${t}.source`, "Modifier source must not be empty."), kn(e, t, n);
-}
 function kn(e, t, n) {
-	L(e.value, `${t}.value`, n, !1), e.operation === "override" ? e.overridePriority !== void 0 && !Number.isSafeInteger(e.overridePriority) && B(n, "invalid-value", `${t}.overridePriority`, "Override priority must be a safe integer when specified.") : e.overridePriority !== void 0 && B(n, "invalid-value", `${t}.overridePriority`, "overridePriority is only valid for override modifiers.");
+	e.target.length === 0 && V(n, "invalid-value", `${t}.target`, "Modifier target must not be empty."), e.source.length === 0 && V(n, "invalid-value", `${t}.source`, "Modifier source must not be empty."), An(e, t, n);
 }
 function An(e, t, n) {
-	try {
-		y.from(e).compare(0) <= 0 && B(n, "invalid-value", t, "Value must be positive.");
-	} catch {
-		B(n, "invalid-value", t, "Value must be a finite GameNumber.");
-	}
+	R(e.value, `${t}.value`, n, !1), e.operation === "override" ? e.overridePriority !== void 0 && !Number.isSafeInteger(e.overridePriority) && V(n, "invalid-value", `${t}.overridePriority`, "Override priority must be a safe integer when specified.") : e.overridePriority !== void 0 && V(n, "invalid-value", `${t}.overridePriority`, "overridePriority is only valid for override modifiers.");
 }
-function L(e, t, n, r) {
+function jn(e, t, n) {
 	try {
-		let i = y.from(e);
-		r && i.isNegative() && B(n, "invalid-value", t, "Value must be non-negative.");
+		y.from(e).compare(0) <= 0 && V(n, "invalid-value", t, "Value must be positive.");
 	} catch {
-		B(n, "invalid-value", t, "Value must be a finite GameNumber.");
+		V(n, "invalid-value", t, "Value must be a finite GameNumber.");
 	}
 }
 function R(e, t, n, r) {
-	(!Number.isSafeInteger(e) || e < 1) && B(r, "invalid-value", t, `${n} must be a positive safe integer.`);
+	try {
+		let i = y.from(e);
+		r && i.isNegative() && V(n, "invalid-value", t, "Value must be non-negative.");
+	} catch {
+		V(n, "invalid-value", t, "Value must be a finite GameNumber.");
+	}
 }
-function jn(e, t, n, r) {
-	(!Number.isSafeInteger(e) || e <= 0) && B(r, "invalid-value", t, `${n} must be a positive safe integer.`);
+function z(e, t, n, r) {
+	(!Number.isSafeInteger(e) || e < 1) && V(r, "invalid-value", t, `${n} must be a positive safe integer.`);
 }
-function z(e, t, n, r, i) {
-	e.has(t) || B(i, "missing-reference", n, `Unknown ${r} ID: ${t}`);
+function Mn(e, t, n, r) {
+	(!Number.isSafeInteger(e) || e <= 0) && V(r, "invalid-value", t, `${n} must be a positive safe integer.`);
 }
-function B(e, t, n, r) {
+function B(e, t, n, r, i) {
+	e.has(t) || V(i, "missing-reference", n, `Unknown ${r} ID: ${t}`);
+}
+function V(e, t, n, r) {
 	e.push({
 		code: t,
 		path: n,
@@ -2651,18 +2676,18 @@ function B(e, t, n, r) {
 }
 //#endregion
 //#region src/domain/rng/rng.ts
-var Mn = 4294967296;
-function Nn(e) {
+var Nn = 4294967296;
+function Pn(e) {
 	let t = e.state + 1831565813 >>> 0, n = t;
 	return n = Math.imul(n ^ n >>> 15, n | 1), n ^= n + Math.imul(n ^ n >>> 7, n | 61), {
-		value: ((n ^ n >>> 14) >>> 0) / Mn,
+		value: ((n ^ n >>> 14) >>> 0) / Nn,
 		stream: {
 			algorithmId: "mulberry32-v1",
 			state: t
 		}
 	};
 }
-function Pn(e, t) {
+function Fn(e, t) {
 	if (!(t >= 0 && t < 1)) throw RangeError("randomValue must be in [0, 1).");
 	if (e.length === 0) throw RangeError("Weighted candidate list must not be empty.");
 	let n = 0;
@@ -2675,42 +2700,42 @@ function Pn(e, t) {
 	for (let t of e) if (i += t.weight, r < i) return t;
 	return e[e.length - 1];
 }
-function Fn(e, t) {
+function In(e, t) {
 	let n = e >>> 0;
 	return Object.fromEntries(t.map((e, t) => [e, {
 		algorithmId: "mulberry32-v1",
-		state: In(n, t + 1, e)
+		state: Ln(n, t + 1, e)
 	}]));
 }
-function In(e, t, n) {
+function Ln(e, t, n) {
 	let r = (e ^ Math.imul(t, 2654435769)) >>> 0;
 	for (let e of n) r = Math.imul(r ^ e.codePointAt(0), 2246822507) >>> 0;
 	return r || 1831565813;
 }
 //#endregion
 //#region src/domain/gacha/gacha.ts
-function Ln(e) {
-	if (Bn(e.definition), !e.definition.allowedDrawCounts.includes(e.drawCount)) return V(e.state, "invalid-draw-count");
+function Rn(e) {
+	if (Vn(e.definition), !e.definition.allowedDrawCounts.includes(e.drawCount)) return H(e.state, "invalid-draw-count");
 	let t = e.state.rngStreams[e.definition.rngStreamName];
-	if (t === void 0) return V(e.state, "missing-rng-stream");
+	if (t === void 0) return H(e.state, "missing-rng-stream");
 	let n = e.state;
 	if ("currencyId" in e.definition.cost) {
-		let t = y.from(e.definition.cost.amountPerDraw).multiply(e.drawCount), r = pt(e.state.currencies, {
+		let t = y.from(e.definition.cost.amountPerDraw).multiply(e.drawCount), r = mt(e.state.currencies, {
 			currencyId: e.definition.cost.currencyId,
 			amount: t,
 			kind: "spend",
 			source: `gacha.${e.definition.id}`
 		}, e.resolveCurrencyDefinition?.(e.definition.cost.currencyId));
-		if (!r.accepted) return V(e.state, "insufficient-currency");
+		if (!r.accepted) return H(e.state, "insufficient-currency");
 		n = {
 			...e.state,
 			currencies: r.balances
-		}, n = Et(n, e.definition.cost.currencyId, r.appliedAmount);
+		}, n = Dt(n, e.definition.cost.currencyId, r.appliedAmount);
 	} else {
 		let t = e.definition.cost.countPerDraw * e.drawCount;
 		if (!Number.isSafeInteger(t)) throw RangeError("Gacha token cost exceeds safe integer range.");
-		let r = Ct(e.state.tokens, e.definition.cost.tokenId, t);
-		if (!r.accepted) return V(e.state, "insufficient-token");
+		let r = wt(e.state.tokens, e.definition.cost.tokenId, t);
+		if (!r.accepted) return H(e.state, "insufficient-token");
 		n = {
 			...e.state,
 			tokens: r.tokens
@@ -2718,7 +2743,7 @@ function Ln(e) {
 	}
 	let r = e.state.gachaStates[e.definition.id], i = r?.totalDrawCount ?? 0, a = r?.pityMissCount ?? 0, o = t, s = [], c = e.definition.batchGuarantees?.find((t) => t.drawCount === e.drawCount);
 	for (let t = 0; t < e.drawCount; t += 1) {
-		let n = Rn({
+		let n = zn({
 			definition: e.definition,
 			drawCount: e.drawCount,
 			drawIndex: t,
@@ -2729,7 +2754,7 @@ function Ln(e) {
 		let r = t + 1 - c.batchSize, i = s.slice(r, t + 1), l = new Set(c.poolEntryIds);
 		if (i.some((e) => l.has(e.entry.id))) continue;
 		a = s[t].pityMissCountBefore;
-		let u = Math.floor(t / c.batchSize), d = Rn({
+		let u = Math.floor(t / c.batchSize), d = zn({
 			definition: e.definition,
 			drawCount: e.drawCount,
 			drawIndex: t,
@@ -2786,16 +2811,16 @@ function Ln(e) {
 		events: l
 	};
 }
-function Rn(e) {
-	let t = Nn(e.stream), n = e.definition.pity, r = n !== void 0 && e.pityMissCount + 1 >= n.threshold, i = e.definition.guaranteedSlots?.find((t) => t.drawCount === e.drawCount && t.drawIndex === e.drawIndex), a, o;
+function zn(e) {
+	let t = Pn(e.stream), n = e.definition.pity, r = n !== void 0 && e.pityMissCount + 1 >= n.threshold, i = e.definition.guaranteedSlots?.find((t) => t.drawCount === e.drawCount && t.drawIndex === e.drawIndex), a, o;
 	e.forcedPoolEntryIds === void 0 ? r && n !== void 0 ? (a = {
 		kind: "pity",
 		ruleId: n.id
 	}, o = n.poolEntryIds) : i === void 0 ? (a = null, o = void 0) : (a = {
 		kind: "guaranteed-slot",
 		ruleId: i.id
-	}, o = i.poolEntryIds) : (a = e.forcedSelectionRule ?? null, o = r && n !== void 0 ? Un(e.forcedPoolEntryIds, n.poolEntryIds) : e.forcedPoolEntryIds);
-	let s = zn(o === void 0 ? e.definition.pool : e.definition.pool.filter((e) => o.includes(e.id)), t.value), c = n === void 0 ? e.pityMissCount : n.poolEntryIds.includes(s.id) ? 0 : e.pityMissCount + 1;
+	}, o = i.poolEntryIds) : (a = e.forcedSelectionRule ?? null, o = r && n !== void 0 ? Wn(e.forcedPoolEntryIds, n.poolEntryIds) : e.forcedPoolEntryIds);
+	let s = Bn(o === void 0 ? e.definition.pool : e.definition.pool.filter((e) => o.includes(e.id)), t.value), c = n === void 0 ? e.pityMissCount : n.poolEntryIds.includes(s.id) ? 0 : e.pityMissCount + 1;
 	return {
 		draw: {
 			entry: s,
@@ -2806,10 +2831,10 @@ function Rn(e) {
 		pityMissCount: c
 	};
 }
-function zn(e, t) {
-	return Pn(e, t);
+function Bn(e, t) {
+	return Fn(e, t);
 }
-function Bn(e) {
+function Vn(e) {
 	if (e.pool.length === 0) throw RangeError("Gacha pool must not be empty.");
 	let t = /* @__PURE__ */ new Set();
 	for (let n of e.pool) {
@@ -2829,32 +2854,32 @@ function Bn(e) {
 	}
 	let r = /* @__PURE__ */ new Set(), i = /* @__PURE__ */ new Set();
 	for (let a of e.guaranteedSlots ?? []) {
-		if (Vn(a.id, r), !n.has(a.drawCount)) throw RangeError(`Guaranteed slot drawCount is not allowed: ${a.drawCount}`);
+		if (Hn(a.id, r), !n.has(a.drawCount)) throw RangeError(`Guaranteed slot drawCount is not allowed: ${a.drawCount}`);
 		if (!Number.isSafeInteger(a.drawIndex) || a.drawIndex < 0 || a.drawIndex >= a.drawCount) throw RangeError(`Guaranteed slot drawIndex is outside its drawCount: ${a.drawIndex}`);
 		let e = `${a.drawCount}:${a.drawIndex}`;
 		if (i.has(e)) throw RangeError(`Duplicate guaranteed Gacha slot: ${e}`);
-		i.add(e), Hn(a.poolEntryIds, t, `Guaranteed slot ${a.id}`);
+		i.add(e), Un(a.poolEntryIds, t, `Guaranteed slot ${a.id}`);
 	}
 	let a = /* @__PURE__ */ new Set();
 	for (let i of e.batchGuarantees ?? []) {
-		if (Vn(i.id, r), !n.has(i.drawCount)) throw RangeError(`Batch guarantee drawCount is not allowed: ${i.drawCount}`);
+		if (Hn(i.id, r), !n.has(i.drawCount)) throw RangeError(`Batch guarantee drawCount is not allowed: ${i.drawCount}`);
 		if (!Number.isSafeInteger(i.batchSize) || i.batchSize <= 0 || i.batchSize > i.drawCount) throw RangeError(`Batch guarantee batchSize must be a positive safe integer <= drawCount: ${i.id}`);
 		if (i.drawCount % i.batchSize !== 0) throw RangeError(`Batch guarantee batchSize must evenly divide drawCount: ${i.id}`);
 		if (a.has(i.drawCount)) throw RangeError(`Only one batch guarantee may target a drawCount: ${i.drawCount}`);
-		a.add(i.drawCount), Hn(i.poolEntryIds, t, `Batch guarantee ${i.id}`);
+		a.add(i.drawCount), Un(i.poolEntryIds, t, `Batch guarantee ${i.id}`);
 	}
 	if (e.pity !== void 0) {
-		if (Vn(e.pity.id, r), !Number.isSafeInteger(e.pity.threshold) || e.pity.threshold <= 0) throw RangeError("Gacha pity threshold must be a positive safe integer.");
-		Hn(e.pity.poolEntryIds, t, `Pity ${e.pity.id}`);
-		for (let t of e.batchGuarantees ?? []) if (Un(t.poolEntryIds, e.pity.poolEntryIds).length === 0) throw RangeError(`Batch guarantee and pity pools must overlap: ${t.id}`);
+		if (Hn(e.pity.id, r), !Number.isSafeInteger(e.pity.threshold) || e.pity.threshold <= 0) throw RangeError("Gacha pity threshold must be a positive safe integer.");
+		Un(e.pity.poolEntryIds, t, `Pity ${e.pity.id}`);
+		for (let t of e.batchGuarantees ?? []) if (Wn(t.poolEntryIds, e.pity.poolEntryIds).length === 0) throw RangeError(`Batch guarantee and pity pools must overlap: ${t.id}`);
 	}
 }
-function Vn(e, t) {
+function Hn(e, t) {
 	if (e.length === 0) throw RangeError("Gacha rule ID must not be empty.");
 	if (t.has(e)) throw RangeError(`Duplicate Gacha rule ID: ${e}`);
 	t.add(e);
 }
-function Hn(e, t, n) {
+function Un(e, t, n) {
 	if (e.length === 0) throw RangeError(`${n} pool must not be empty.`);
 	let r = /* @__PURE__ */ new Set();
 	for (let i of e) {
@@ -2862,11 +2887,11 @@ function Hn(e, t, n) {
 		if (r.add(i), !t.has(i)) throw RangeError(`${n} references unknown pool entry ID: ${i}`);
 	}
 }
-function Un(e, t) {
+function Wn(e, t) {
 	let n = new Set(t);
 	return e.filter((e) => n.has(e));
 }
-function V(e, t) {
+function H(e, t) {
 	return {
 		accepted: !1,
 		state: e,
@@ -2876,8 +2901,8 @@ function V(e, t) {
 }
 //#endregion
 //#region src/domain/inventory/inventory.ts
-function Wn(e, t) {
-	return Qn(t) ? e[t.instanceId] === void 0 ? {
+function Gn(e, t) {
+	return $n(t) ? e[t.instanceId] === void 0 ? {
 		accepted: !0,
 		inventory: {
 			...e,
@@ -2893,7 +2918,7 @@ function Wn(e, t) {
 		reason: "invalid-item"
 	};
 }
-function Gn(e, t) {
+function Kn(e, t) {
 	let n = e[t];
 	if (n === void 0) return {
 		accepted: !1,
@@ -2907,8 +2932,8 @@ function Gn(e, t) {
 		removed: n
 	};
 }
-function Kn(e) {
-	U(e);
+function qn(e) {
+	W(e);
 	let t = e.slots.filter((e) => e.initiallyLocked === !0).map((e) => e.id);
 	return {
 		definitionId: e.id,
@@ -2916,11 +2941,11 @@ function Kn(e) {
 		...t.length > 0 ? { lockedSlotIds: t } : {}
 	};
 }
-function H(e, t) {
+function U(e, t) {
 	return !(e.lockedSlotIds ?? []).includes(t);
 }
-function qn(e, t, n) {
-	if (U(e), t.definitionId !== e.id) return {
+function Jn(e, t, n) {
+	if (W(e), t.definitionId !== e.id) return {
 		accepted: !1,
 		loadout: t,
 		reason: "definition-mismatch"
@@ -2930,7 +2955,7 @@ function qn(e, t, n) {
 		loadout: t,
 		reason: "unknown-slot"
 	};
-	if (H(t, n)) return {
+	if (U(t, n)) return {
 		accepted: !0,
 		loadout: t,
 		changed: !1
@@ -2948,8 +2973,8 @@ function qn(e, t, n) {
 		changed: !0
 	};
 }
-function Jn(e) {
-	if (U(e.loadoutDefinition), e.loadout.definitionId !== e.loadoutDefinition.id) return {
+function Yn(e) {
+	if (W(e.loadoutDefinition), e.loadout.definitionId !== e.loadoutDefinition.id) return {
 		accepted: !1,
 		loadout: e.loadout,
 		reason: "definition-mismatch"
@@ -2960,7 +2985,7 @@ function Jn(e) {
 		loadout: e.loadout,
 		reason: "unknown-slot"
 	};
-	if (!H(e.loadout, e.slotId)) return {
+	if (!U(e.loadout, e.slotId)) return {
 		accepted: !1,
 		loadout: e.loadout,
 		reason: "slot-locked"
@@ -2977,7 +3002,7 @@ function Jn(e) {
 		loadout: e.loadout,
 		reason: "unknown-item-definition"
 	};
-	if (!Zn(t, r)) return {
+	if (!Qn(t, r)) return {
 		accepted: !1,
 		loadout: e.loadout,
 		reason: "slot-restriction"
@@ -3004,8 +3029,8 @@ function Jn(e) {
 		replacedItemInstanceId: i
 	};
 }
-function Yn(e, t, n) {
-	if (U(e), t.definitionId !== e.id) return {
+function Xn(e, t, n) {
+	if (W(e), t.definitionId !== e.id) return {
 		accepted: !1,
 		loadout: t,
 		reason: "definition-mismatch"
@@ -3032,8 +3057,8 @@ function Yn(e, t, n) {
 		removedItemInstanceId: r
 	};
 }
-function Xn(e) {
-	if (U(e.loadoutDefinition), e.loadout.definitionId !== e.loadoutDefinition.id) return {
+function Zn(e) {
+	if (W(e.loadoutDefinition), e.loadout.definitionId !== e.loadoutDefinition.id) return {
 		accepted: !1,
 		loadout: e.loadout,
 		reason: "definition-mismatch"
@@ -3056,7 +3081,7 @@ function Xn(e) {
 		movedItemInstanceId: r,
 		swappedItemInstanceId: null
 	};
-	if (!H(e.loadout, e.toSlotId)) return {
+	if (!U(e.loadout, e.toSlotId)) return {
 		accepted: !1,
 		loadout: e.loadout,
 		reason: "slot-locked"
@@ -3073,7 +3098,7 @@ function Xn(e) {
 		loadout: e.loadout,
 		reason: "unknown-item-definition"
 	};
-	if (!Zn(n, a)) return {
+	if (!Qn(n, a)) return {
 		accepted: !1,
 		loadout: e.loadout,
 		reason: "slot-restriction"
@@ -3097,7 +3122,7 @@ function Xn(e) {
 			loadout: e.loadout,
 			reason: "unknown-item-definition"
 		};
-		if (!Zn(t, r)) return {
+		if (!Qn(t, r)) return {
 			accepted: !1,
 			loadout: e.loadout,
 			reason: "slot-restriction"
@@ -3117,15 +3142,15 @@ function Xn(e) {
 		swappedItemInstanceId: o
 	};
 }
-function Zn(e, t) {
+function Qn(e, t) {
 	if (e.acceptsTags === void 0 || e.acceptsTags.length === 0) return !0;
 	let n = new Set(t.tags ?? []);
 	return e.acceptsTags.some((e) => n.has(e));
 }
-function Qn(e) {
+function $n(e) {
 	return e.instanceId.length > 0 && e.definitionId.length > 0 && Number.isSafeInteger(e.quantity) && e.quantity > 0;
 }
-function U(e) {
+function W(e) {
 	if (e.id.length === 0) throw RangeError("Loadout id must not be empty.");
 	if (e.slots.length === 0) throw RangeError("Loadout must contain at least one slot.");
 	let t = /* @__PURE__ */ new Set();
@@ -3137,12 +3162,12 @@ function U(e) {
 }
 //#endregion
 //#region src/domain/level/level.ts
-function $n(e) {
-	nr(e.currentLevel, "currentLevel");
+function er(e) {
+	rr(e.currentLevel, "currentLevel");
 	let t = e.count ?? 1;
 	if (!Number.isSafeInteger(t) || t <= 0) throw RangeError("Level-up count must be a positive safe integer.");
-	tr(e.definition);
-	let n = er(e.definition);
+	nr(e.definition);
+	let n = tr(e.definition);
 	if (n !== null && e.currentLevel >= n) return {
 		available: !1,
 		currentLevel: e.currentLevel,
@@ -3159,7 +3184,7 @@ function $n(e) {
 	};
 	if (e.definition.eligibility !== void 0) {
 		if (e.conditionContext === void 0) throw Error("Level eligibility requires conditionContext.");
-		if (!C(e.definition.eligibility, e.conditionContext)) return {
+		if (!w(e.definition.eligibility, e.conditionContext)) return {
 			available: !1,
 			currentLevel: e.currentLevel,
 			requestedCount: t,
@@ -3180,7 +3205,7 @@ function $n(e) {
 		crossedMilestones: a
 	};
 }
-function er(e) {
+function tr(e) {
 	let t = [
 		e.maxLevel ?? null,
 		e.costCurve.type === "table" ? e.costCurve.values.length + 1 : null,
@@ -3188,34 +3213,34 @@ function er(e) {
 	].filter((e) => e !== null);
 	return t.length === 0 ? null : Math.min(...t);
 }
-function tr(e) {
-	e.maxLevel !== void 0 && nr(e.maxLevel, "maxLevel");
+function nr(e) {
+	e.maxLevel !== void 0 && rr(e.maxLevel, "maxLevel");
 	let t = /* @__PURE__ */ new Set();
 	for (let n of e.milestones ?? []) {
 		if (t.has(n.id)) throw RangeError(`Duplicate level milestone ID: ${n.id}`);
-		t.add(n.id), nr(n.level, `milestone ${n.id} level`);
+		t.add(n.id), rr(n.level, `milestone ${n.id} level`);
 	}
 }
-function nr(e, t) {
+function rr(e, t) {
 	if (!Number.isSafeInteger(e) || e < 1) throw RangeError(`${t} must be a positive safe integer.`);
 }
 //#endregion
 //#region src/domain/mission/mission.ts
-function rr(e, t, n, r) {
-	G(n);
-	let i = W(e, t.id, n), a = i?.completed === !0, o = i?.claimed === !0;
+function ir(e, t, n, r) {
+	K(n);
+	let i = G(e, t.id, n), a = i?.completed === !0, o = i?.claimed === !0;
 	return {
 		id: t.id,
 		completed: a,
 		claimed: o,
 		claimable: a && !o && (t.claimPolicy ?? "manual") === "manual",
-		progress: a ? 1 : dr(i, t, r),
-		points: xr(t.points)
+		progress: a ? 1 : fr(i, t, r),
+		points: Sr(t.points)
 	};
 }
-function ir(e, t, n, r) {
-	G(r);
-	let i = pr(e, t, n, r), a = gr(e, t.id, r), o = new Set(a?.claimedMilestoneIds ?? []);
+function ar(e, t, n, r) {
+	K(r);
+	let i = mr(e, t, n, r), a = _r(e, t.id, r), o = new Set(a?.claimedMilestoneIds ?? []);
 	return {
 		id: t.id,
 		periodIndex: r,
@@ -3228,62 +3253,62 @@ function ir(e, t, n, r) {
 		}))
 	};
 }
-function ar(e) {
-	if (G(e.periodIndex), hr(e.state, e.setDefinition, e.missionDefinitions, e.periodIndex)) return {
+function or(e) {
+	if (K(e.periodIndex), gr(e.state, e.setDefinition, e.missionDefinitions, e.periodIndex)) return {
 		accepted: !1,
 		state: e.state,
 		events: [],
 		reason: "clock-rollback"
 	};
-	let t = mr(e.setDefinition, e.missionDefinitions), n = e.state, r = [];
+	let t = hr(e.setDefinition, e.missionDefinitions), n = e.state, r = [];
 	for (let i of e.setDefinition.missionIds) {
 		let a = t.get(i);
-		if (a === void 0 || a.objective.type !== "condition" || W(n, a.id, e.periodIndex)?.completed === !0 || !C(a.objective.condition, e.createConditionContext(n))) continue;
-		let o = lr(n, a, e.periodIndex, e.grantRewards);
+		if (a === void 0 || a.objective.type !== "condition" || G(n, a.id, e.periodIndex)?.completed === !0 || !w(a.objective.condition, e.createConditionContext(n))) continue;
+		let o = ur(n, a, e.periodIndex, e.grantRewards);
 		n = o.state, r.push(...o.events);
 	}
-	let i = ur(n, e.setDefinition, e.missionDefinitions, e.periodIndex, e.grantRewards);
+	let i = dr(n, e.setDefinition, e.missionDefinitions, e.periodIndex, e.grantRewards);
 	return {
 		accepted: !0,
 		state: i.state,
 		events: [...r, ...i.events]
 	};
 }
-function or(e) {
-	if (G(e.periodIndex), hr(e.state, e.setDefinition, e.missionDefinitions, e.periodIndex)) return {
+function sr(e) {
+	if (K(e.periodIndex), gr(e.state, e.setDefinition, e.missionDefinitions, e.periodIndex)) return {
 		accepted: !1,
 		state: e.state,
 		events: [],
 		reason: "clock-rollback"
 	};
-	let t = fr(e.updates), n = mr(e.setDefinition, e.missionDefinitions), r = e.state, i = [];
+	let t = pr(e.updates), n = hr(e.setDefinition, e.missionDefinitions), r = e.state, i = [];
 	for (let a of e.setDefinition.missionIds) {
 		let o = n.get(a);
 		if (o === void 0 || o.objective.type !== "counter") continue;
 		let s = t.get(o.objective.metricId);
 		if (s === void 0 || s.compare(0) <= 0) continue;
-		let c = W(r, o.id, e.periodIndex);
+		let c = G(r, o.id, e.periodIndex);
 		if (c?.completed === !0) continue;
 		let l = c?.progress === void 0 ? y.zero() : y.from(c.progress), u = y.from(o.objective.target), d = l.add(s);
-		if (r = _r(r, o.id, {
+		if (r = vr(r, o.id, {
 			periodIndex: e.periodIndex,
 			completed: !1,
 			claimed: !1,
 			progress: d.serialize()
 		}), d.greaterThanOrEqual(u)) {
-			let t = lr(r, o, e.periodIndex, e.grantRewards, d.serialize());
+			let t = ur(r, o, e.periodIndex, e.grantRewards, d.serialize());
 			r = t.state, i.push(...t.events);
 		}
 	}
-	let a = ur(r, e.setDefinition, e.missionDefinitions, e.periodIndex, e.grantRewards);
+	let a = dr(r, e.setDefinition, e.missionDefinitions, e.periodIndex, e.grantRewards);
 	return {
 		accepted: !0,
 		state: a.state,
 		events: [...i, ...a.events]
 	};
 }
-function sr(e, t, n, r) {
-	G(n);
+function cr(e, t, n, r) {
+	K(n);
 	let i = e.missionStates?.[t.id];
 	if (i !== void 0 && i.periodIndex > n) return {
 		accepted: !1,
@@ -3297,7 +3322,7 @@ function sr(e, t, n, r) {
 		events: [],
 		reason: "auto-claim"
 	};
-	let a = W(e, t.id, n);
+	let a = G(e, t.id, n);
 	if (a?.completed !== !0) return {
 		accepted: !1,
 		state: e,
@@ -3311,18 +3336,18 @@ function sr(e, t, n, r) {
 		reason: "already-claimed"
 	};
 	let o = r(e, t.rewards);
-	return o = _r(o, t.id, {
+	return o = vr(o, t.id, {
 		...a,
 		claimed: !0
 	}), {
 		accepted: !0,
 		state: o,
 		rewards: t.rewards,
-		events: [yr(o, "missionClaimed", t.id, n)]
+		events: [br(o, "missionClaimed", t.id, n)]
 	};
 }
-function cr(e, t, n, r, i, a) {
-	G(i);
+function lr(e, t, n, r, i, a) {
+	K(i);
 	let o = e.missionSetStates?.[t.id];
 	if (o !== void 0 && o.periodIndex > i) return {
 		accepted: !1,
@@ -3343,61 +3368,61 @@ function cr(e, t, n, r, i, a) {
 		events: [],
 		reason: "auto-claim"
 	};
-	let c = gr(e, t.id, i);
+	let c = _r(e, t.id, i);
 	if (c?.claimedMilestoneIds.includes(s.id) === !0) return {
 		accepted: !1,
 		state: e,
 		events: [],
 		reason: "already-claimed"
 	};
-	if (pr(e, t, n, i) < s.pointsRequired) return {
+	if (mr(e, t, n, i) < s.pointsRequired) return {
 		accepted: !1,
 		state: e,
 		events: [],
 		reason: "not-reached"
 	};
 	let l = a(e, s.rewards);
-	return l = vr(l, t.id, {
+	return l = yr(l, t.id, {
 		periodIndex: i,
 		claimedMilestoneIds: [...c?.claimedMilestoneIds ?? [], s.id]
 	}), {
 		accepted: !0,
 		state: l,
 		rewards: s.rewards,
-		events: [br(l, t.id, s.id, i)]
+		events: [xr(l, t.id, s.id, i)]
 	};
 }
-function lr(e, t, n, r, i) {
-	let a = (t.claimPolicy ?? "manual") === "auto", o = _r(e, t.id, {
+function ur(e, t, n, r, i) {
+	let a = (t.claimPolicy ?? "manual") === "auto", o = vr(e, t.id, {
 		periodIndex: n,
 		completed: !0,
 		claimed: a,
 		...i === void 0 ? {} : { progress: i }
-	}), s = [yr(o, "missionCompleted", t.id, n)];
-	return a && (o = r(o, t.rewards), s.push(yr(o, "missionClaimed", t.id, n))), {
+	}), s = [br(o, "missionCompleted", t.id, n)];
+	return a && (o = r(o, t.rewards), s.push(br(o, "missionClaimed", t.id, n))), {
 		state: o,
 		events: s
 	};
 }
-function ur(e, t, n, r, i) {
-	let a = pr(e, t, n, r), o = gr(e, t.id, r), s = new Set(o?.claimedMilestoneIds ?? []), c = e, l = [];
-	for (let e of t.pointMilestones ?? []) (e.claimPolicy ?? "manual") === "auto" && (s.has(e.id) || a < e.pointsRequired || (c = i(c, e.rewards), s.add(e.id), c = vr(c, t.id, {
+function dr(e, t, n, r, i) {
+	let a = mr(e, t, n, r), o = _r(e, t.id, r), s = new Set(o?.claimedMilestoneIds ?? []), c = e, l = [];
+	for (let e of t.pointMilestones ?? []) (e.claimPolicy ?? "manual") === "auto" && (s.has(e.id) || a < e.pointsRequired || (c = i(c, e.rewards), s.add(e.id), c = yr(c, t.id, {
 		periodIndex: r,
 		claimedMilestoneIds: [...s]
-	}), l.push(br(c, t.id, e.id, r))));
+	}), l.push(xr(c, t.id, e.id, r))));
 	return {
 		state: c,
 		events: l
 	};
 }
-function dr(e, t, n) {
-	if (t.objective.type === "condition") return t.objective.progressMetric === void 0 ? null : lt(t.objective.progressMetric, n);
+function fr(e, t, n) {
+	if (t.objective.type === "condition") return t.objective.progressMetric === void 0 ? null : ut(t.objective.progressMetric, n);
 	let r = y.from(t.objective.target);
 	if (r.compare(0) <= 0) return 1;
 	let i = e?.progress === void 0 ? y.zero() : y.from(e.progress);
 	return i.greaterThanOrEqual(r) ? 1 : i.compare(0) <= 0 ? 0 : Math.min(1, Math.max(0, i.divide(r).toNumber()));
 }
-function fr(e) {
+function pr(e) {
 	let t = /* @__PURE__ */ new Map();
 	for (let n of e) {
 		if (n.metricId.length === 0) throw RangeError("Mission progress metricId must not be empty.");
@@ -3407,17 +3432,17 @@ function fr(e) {
 	}
 	return t;
 }
-function pr(e, t, n, r) {
-	let i = mr(t, n);
+function mr(e, t, n, r) {
+	let i = hr(t, n);
 	return t.missionIds.reduce((t, n) => {
 		let a = i.get(n);
-		return a === void 0 ? t : W(e, n, r)?.completed === !0 ? t + xr(a.points) : t;
+		return a === void 0 ? t : G(e, n, r)?.completed === !0 ? t + Sr(a.points) : t;
 	}, 0);
 }
-function mr(e, t) {
+function hr(e, t) {
 	return new Map(t.filter((t) => t.setId === e.id).map((e) => [e.id, e]));
 }
-function hr(e, t, n, r) {
+function gr(e, t, n, r) {
 	let i = e.missionSetStates?.[t.id];
 	if (i !== void 0 && i.periodIndex > r) return !0;
 	let a = new Set(t.missionIds);
@@ -3427,15 +3452,15 @@ function hr(e, t, n, r) {
 		return i !== void 0 && i.periodIndex > r;
 	});
 }
-function W(e, t, n) {
+function G(e, t, n) {
 	let r = e.missionStates?.[t];
 	return r?.periodIndex === n ? r : void 0;
 }
-function gr(e, t, n) {
+function _r(e, t, n) {
 	let r = e.missionSetStates?.[t];
 	return r?.periodIndex === n ? r : void 0;
 }
-function _r(e, t, n) {
+function vr(e, t, n) {
 	return {
 		...e,
 		missionStates: {
@@ -3444,7 +3469,7 @@ function _r(e, t, n) {
 		}
 	};
 }
-function vr(e, t, n) {
+function yr(e, t, n) {
 	return {
 		...e,
 		missionSetStates: {
@@ -3453,7 +3478,7 @@ function vr(e, t, n) {
 		}
 	};
 }
-function yr(e, t, n, r) {
+function br(e, t, n, r) {
 	return {
 		id: `${t}:${n}:${r}:${e.simTimeSec}`,
 		type: t,
@@ -3464,7 +3489,7 @@ function yr(e, t, n, r) {
 		}
 	};
 }
-function br(e, t, n, r) {
+function xr(e, t, n, r) {
 	return {
 		id: `missionPointMilestoneClaimed:${t}:${n}:${r}:${e.simTimeSec}`,
 		type: "missionPointMilestoneClaimed",
@@ -3476,18 +3501,18 @@ function br(e, t, n, r) {
 		}
 	};
 }
-function xr(e) {
+function Sr(e) {
 	if (e === void 0) return 0;
 	if (!Number.isSafeInteger(e) || e < 0) throw RangeError("Mission points must be a non-negative safe integer.");
 	return e;
 }
-function G(e) {
+function K(e) {
 	if (!Number.isSafeInteger(e)) throw RangeError("Mission periodIndex must be a safe integer.");
 }
 //#endregion
 //#region src/domain/opportunity/opportunity.ts
-function Sr(e) {
-	if (K(e.definition), q(e.offeredAtSimTimeSec, "offeredAtSimTimeSec"), e.instanceId.length === 0) throw RangeError("Opportunity instanceId must not be empty.");
+function Cr(e) {
+	if (q(e.definition), J(e.offeredAtSimTimeSec, "offeredAtSimTimeSec"), e.instanceId.length === 0) throw RangeError("Opportunity instanceId must not be empty.");
 	let t = {
 		instanceId: e.instanceId,
 		opportunityId: e.definition.id,
@@ -3499,13 +3524,13 @@ function Sr(e) {
 	};
 	return {
 		opportunity: t,
-		events: [J(t, "opportunityOffered", e.offeredAtSimTimeSec)]
+		events: [kr(t, "opportunityOffered", e.offeredAtSimTimeSec)]
 	};
 }
-function Cr(e) {
-	K(e.definition), Dr(e.opportunity, e.definition), q(e.targetSimTimeSec, "targetSimTimeSec");
+function wr(e) {
+	q(e.definition), Or(e.opportunity, e.definition), J(e.targetSimTimeSec, "targetSimTimeSec");
 	let t = e.offlineElapsedSec ?? 0;
-	if (q(t, "offlineElapsedSec"), e.opportunity.status !== "open") return {
+	if (J(t, "offlineElapsedSec"), e.opportunity.status !== "open") return {
 		opportunity: e.opportunity,
 		events: []
 	};
@@ -3524,21 +3549,21 @@ function Cr(e) {
 	};
 	return {
 		opportunity: i,
-		events: [J(i, "opportunityExpired", n)]
+		events: [kr(i, "opportunityExpired", n)]
 	};
 }
-function wr(e) {
-	if (K(e.definition), Dr(e.opportunity, e.definition), q(e.acceptedAtSimTimeSec, "acceptedAtSimTimeSec"), e.opportunity.status !== "open") return Y(e.opportunity, "not-open");
+function Tr(e) {
+	if (q(e.definition), Or(e.opportunity, e.definition), J(e.acceptedAtSimTimeSec, "acceptedAtSimTimeSec"), e.opportunity.status !== "open") return Y(e.opportunity, "not-open");
 	if (e.acceptedAtSimTimeSec >= e.opportunity.expiresAtSimTimeSec) return Y(e.opportunity, "expired");
 	let t = {
 		...e.opportunity,
 		status: "accepted",
 		resolvedAtSimTimeSec: e.acceptedAtSimTimeSec
 	};
-	return Or(t, J(t, "opportunityAccepted", e.acceptedAtSimTimeSec));
+	return Ar(t, kr(t, "opportunityAccepted", e.acceptedAtSimTimeSec));
 }
-function Tr(e) {
-	if (K(e.definition), Dr(e.opportunity, e.definition), q(e.dismissedAtSimTimeSec, "dismissedAtSimTimeSec"), e.opportunity.status !== "open") return Y(e.opportunity, "not-open");
+function Er(e) {
+	if (q(e.definition), Or(e.opportunity, e.definition), J(e.dismissedAtSimTimeSec, "dismissedAtSimTimeSec"), e.opportunity.status !== "open") return Y(e.opportunity, "not-open");
 	if (e.dismissedAtSimTimeSec >= e.opportunity.expiresAtSimTimeSec) return Y(e.opportunity, "expired");
 	if (e.definition.dismissalPolicy === "forbid") return Y(e.opportunity, "dismissal-forbidden");
 	let t = {
@@ -3546,22 +3571,22 @@ function Tr(e) {
 		status: "dismissed",
 		resolvedAtSimTimeSec: e.dismissedAtSimTimeSec
 	};
-	return Or(t, J(t, "opportunityDismissed", e.dismissedAtSimTimeSec));
+	return Ar(t, kr(t, "opportunityDismissed", e.dismissedAtSimTimeSec));
 }
-function Er(e, t) {
-	return q(t, "simTimeSec"), e.status === "open" ? Math.max(0, e.expiresAtSimTimeSec - t) : 0;
+function Dr(e, t) {
+	return J(t, "simTimeSec"), e.status === "open" ? Math.max(0, e.expiresAtSimTimeSec - t) : 0;
 }
-function K(e) {
+function q(e) {
 	if (e.id.length === 0) throw RangeError("Opportunity id must not be empty.");
 	if (!Number.isSafeInteger(e.lifetimeSec) || e.lifetimeSec <= 0) throw RangeError("Opportunity lifetimeSec must be a positive safe integer.");
 }
-function Dr(e, t) {
+function Or(e, t) {
 	if (e.opportunityId !== t.id) throw RangeError(`Opportunity definition mismatch: expected ${e.opportunityId}, got ${t.id}`);
 }
-function q(e, t) {
+function J(e, t) {
 	if (!Number.isSafeInteger(e) || e < 0) throw RangeError(`${t} must be a non-negative safe integer.`);
 }
-function J(e, t, n) {
+function kr(e, t, n) {
 	return {
 		id: `${e.instanceId}:${t}:${n}`,
 		type: t,
@@ -3572,7 +3597,7 @@ function J(e, t, n) {
 		}
 	};
 }
-function Or(e, t) {
+function Ar(e, t) {
 	return {
 		accepted: !0,
 		opportunity: e,
@@ -3589,7 +3614,7 @@ function Y(e, t) {
 }
 //#endregion
 //#region src/domain/prestige/prestige.ts
-function kr(e, t) {
+function jr(e, t) {
 	return {
 		records: [
 			X("currencies", e.currencies, t.currencies),
@@ -3605,22 +3630,22 @@ function kr(e, t) {
 		statistics: t.statistics === "reset" ? "reset" : "retain"
 	};
 }
-function Ar(e, t, n) {
+function Mr(e, t, n) {
 	return {
-		eligible: C(t.eligibility, n(e)),
+		eligible: w(t.eligibility, n(e)),
 		nextCount: (e.prestigeStates[t.id]?.count ?? 0) + 1,
 		rewards: t.rewards(e),
-		resetImpact: kr(e, t.resetPolicy)
+		resetImpact: jr(e, t.resetPolicy)
 	};
 }
-function jr(e, t, n) {
-	let r = Ar(e, t, n.createConditionContext);
+function Nr(e, t, n) {
+	let r = Mr(e, t, n.createConditionContext);
 	if (!r.eligible) return {
 		accepted: !1,
 		state: e,
 		reason: "not-eligible"
 	};
-	let i = Mr(e, t.resetPolicy);
+	let i = Pr(e, t.resetPolicy);
 	return n.transformAfterReset !== void 0 && (i = n.transformAfterReset(i)), i = n.grantRewards(i, r.rewards), i = {
 		...i,
 		prestigeStates: {
@@ -3634,7 +3659,7 @@ function jr(e, t, n) {
 		prestigeCount: r.nextCount
 	};
 }
-function Mr(e, t) {
+function Pr(e, t) {
 	return {
 		...e,
 		currencies: Z(e.currencies, t.currencies),
@@ -3685,19 +3710,19 @@ function Z(e, t) {
 }
 //#endregion
 //#region src/domain/rewarded-offer/rewarded-offer.ts
-function Nr(e) {
-	if (Rr(e.definition), zr(e.simTimeSec, "simTimeSec"), !Number.isSafeInteger(e.dailyPeriodIndex)) throw RangeError("dailyPeriodIndex must be a safe integer.");
-	let t = e.offerState ?? Fr();
+function Fr(e) {
+	if (Br(e.definition), Vr(e.simTimeSec, "simTimeSec"), !Number.isSafeInteger(e.dailyPeriodIndex)) throw RangeError("dailyPeriodIndex must be a safe integer.");
+	let t = e.offerState ?? Lr();
 	if (e.definition.eligibility !== void 0) {
 		if (e.createConditionContext === void 0) throw Error("Rewarded Offer eligibility requires createConditionContext.");
-		if (!C(e.definition.eligibility, e.createConditionContext(e.state))) return Ir(!1, "ineligible", t, e);
+		if (!w(e.definition.eligibility, e.createConditionContext(e.state))) return Rr(!1, "ineligible", t, e);
 	}
-	if (Lr(t, e.definition, e.simTimeSec) > 0) return Ir(!1, "cooldown", t, e);
+	if (zr(t, e.definition, e.simTimeSec) > 0) return Rr(!1, "cooldown", t, e);
 	let n = t.dailyPeriodIndex === e.dailyPeriodIndex ? t.dailyGrantCount : 0;
-	return e.definition.dailyCap !== void 0 && n >= e.definition.dailyCap ? Ir(!1, "daily-cap", t, e) : Ir(!0, null, t, e);
+	return e.definition.dailyCap !== void 0 && n >= e.definition.dailyCap ? Rr(!1, "daily-cap", t, e) : Rr(!0, null, t, e);
 }
-function Pr(e) {
-	let t = e.offerStates[e.definition.id] ?? Fr(), n = Nr({
+function Ir(e) {
+	let t = e.offerStates[e.definition.id] ?? Lr(), n = Fr({
 		state: e.state,
 		offerState: t,
 		definition: e.definition,
@@ -3738,7 +3763,7 @@ function Pr(e) {
 		}]
 	};
 }
-function Fr() {
+function Lr() {
 	return {
 		grantCount: 0,
 		lastGrantedAtSimTimeSec: null,
@@ -3746,33 +3771,33 @@ function Fr() {
 		dailyGrantCount: 0
 	};
 }
-function Ir(e, t, n, r) {
+function Rr(e, t, n, r) {
 	let i = n.dailyPeriodIndex === r.dailyPeriodIndex ? n.dailyGrantCount : 0;
 	return {
 		available: e,
 		reason: t,
 		rewards: r.definition.rewards,
 		grantCount: n.grantCount,
-		cooldownRemainingSec: Lr(n, r.definition, r.simTimeSec),
+		cooldownRemainingSec: zr(n, r.definition, r.simTimeSec),
 		dailyRemaining: r.definition.dailyCap === void 0 ? null : Math.max(0, r.definition.dailyCap - i)
 	};
 }
-function Lr(e, t, n) {
+function zr(e, t, n) {
 	return t.cooldownSec === void 0 || e.lastGrantedAtSimTimeSec === null ? 0 : Math.max(0, e.lastGrantedAtSimTimeSec + t.cooldownSec - n);
 }
-function Rr(e) {
+function Br(e) {
 	if (e.id.length === 0) throw RangeError("Rewarded Offer id must not be empty.");
 	if (e.placementId.length === 0) throw RangeError("Rewarded Offer placementId must not be empty.");
 	if (e.rewards.length === 0) throw RangeError("Rewarded Offer rewards must not be empty.");
 	if (e.cooldownSec !== void 0 && (!Number.isSafeInteger(e.cooldownSec) || e.cooldownSec < 0)) throw RangeError("Rewarded Offer cooldownSec must be a non-negative safe integer.");
 	if (e.dailyCap !== void 0 && (!Number.isSafeInteger(e.dailyCap) || e.dailyCap <= 0)) throw RangeError("Rewarded Offer dailyCap must be a positive safe integer.");
 }
-function zr(e, t) {
+function Vr(e, t) {
 	if (!Number.isSafeInteger(e) || e < 0) throw RangeError(`${t} must be a non-negative safe integer.`);
 }
 //#endregion
 //#region src/domain/title/title.ts
-function Br(e, t) {
+function Hr(e, t) {
 	let n = e[t.id] === !0;
 	return {
 		id: t.id,
@@ -3782,19 +3807,19 @@ function Br(e, t) {
 		visible: t.hidden !== !0 || n
 	};
 }
-function Vr(e, t) {
-	return t.map((t) => Br(e, t)).filter((e) => e.visible);
+function Ur(e, t) {
+	return t.map((t) => Hr(e, t)).filter((e) => e.visible);
 }
 //#endregion
 //#region src/domain/title/progressive-title.ts
-function Hr() {
+function Wr() {
 	return {
 		copies: {},
 		equipped: []
 	};
 }
 function Q(e, t) {
-	$(e, "copies"), Zr(t);
+	$(e, "copies"), $r(t);
 	let n = 0;
 	for (let r of t) {
 		if (e < r) break;
@@ -3802,8 +3827,8 @@ function Q(e, t) {
 	}
 	return n;
 }
-function Ur(e, t, n) {
-	Xr(n), $r(t, "titleId");
+function Gr(e, t, n) {
+	Qr(n), ti(t, "titleId");
 	let r = e.copies[t] ?? 0;
 	$(r, `copies[${t}]`);
 	let i = n.copyThresholds.at(-1), a = Math.min(i, r + 1);
@@ -3829,7 +3854,7 @@ function Ur(e, t, n) {
 		level: Q(a, n.copyThresholds)
 	};
 }
-function Wr(e, t) {
+function Kr(e, t) {
 	let n = new Map(t.map((e) => [e.id, e])), r = 0;
 	for (let t of e.equipped) {
 		let e = n.get(t.titleId);
@@ -3837,16 +3862,16 @@ function Wr(e, t) {
 	}
 	return r;
 }
-function Gr(e) {
+function qr(e) {
 	let { collection: t, definitions: n, rules: r, titleId: i, level: a, costLimit: o } = e;
-	Xr(r), $(o, "costLimit");
+	Qr(r), $(o, "costLimit");
 	let s = n.find((e) => e.id === i);
 	if (s === void 0) return {
 		accepted: !1,
 		collection: t,
 		reason: "unknown-title"
 	};
-	Qr(s);
+	ei(s);
 	let c = Q(t.copies[i] ?? 0, r.copyThresholds);
 	return c === 0 ? {
 		accepted: !1,
@@ -3864,7 +3889,7 @@ function Gr(e) {
 		accepted: !1,
 		collection: t,
 		reason: "slot-limit"
-	} : Wr(t, n) + s.cost > o ? {
+	} : Kr(t, n) + s.cost > o ? {
 		accepted: !1,
 		collection: t,
 		reason: "cost-limit"
@@ -3879,9 +3904,9 @@ function Gr(e) {
 		}
 	};
 }
-function Kr(e) {
+function Jr(e) {
 	let { collection: t, rules: n, titleId: r, level: i } = e;
-	Xr(n);
+	Qr(n);
 	let a = t.equipped.findIndex((e) => e.titleId === r);
 	if (a < 0) return {
 		accepted: !1,
@@ -3911,7 +3936,7 @@ function Kr(e) {
 		}
 	};
 }
-function qr(e, t, n) {
+function Yr(e, t, n) {
 	$(n, "targetIndex");
 	let r = e.equipped.findIndex((e) => e.titleId === t);
 	if (r < 0 || n >= e.equipped.length || r === n) return e;
@@ -3921,23 +3946,23 @@ function qr(e, t, n) {
 		equipped: i
 	});
 }
-function Jr(e, t) {
+function Xr(e, t) {
 	let n = e.equipped.filter((e) => e.titleId !== t);
 	return n.length === e.equipped.length ? e : {
 		...e,
 		equipped: n
 	};
 }
-function Yr(e) {
+function Zr(e) {
 	return e.equipped.length === 0 ? e : {
 		...e,
 		equipped: []
 	};
 }
-function Xr(e) {
-	if (Zr(e.copyThresholds), !Number.isSafeInteger(e.maxSlots) || e.maxSlots <= 0) throw RangeError("maxSlots must be a positive safe integer.");
+function Qr(e) {
+	if ($r(e.copyThresholds), !Number.isSafeInteger(e.maxSlots) || e.maxSlots <= 0) throw RangeError("maxSlots must be a positive safe integer.");
 }
-function Zr(e) {
+function $r(e) {
 	if (e.length === 0) throw RangeError("copyThresholds must not be empty.");
 	let t = 0;
 	for (let n of e) {
@@ -3945,14 +3970,14 @@ function Zr(e) {
 		t = n;
 	}
 }
-function Qr(e) {
-	if ($r(e.id, "definition.id"), !Number.isSafeInteger(e.cost) || e.cost <= 0) throw RangeError("title cost must be a positive safe integer.");
+function ei(e) {
+	if (ti(e.id, "definition.id"), !Number.isSafeInteger(e.cost) || e.cost <= 0) throw RangeError("title cost must be a positive safe integer.");
 }
 function $(e, t) {
 	if (!Number.isSafeInteger(e) || e < 0) throw RangeError(`${t} must be a non-negative safe integer.`);
 }
-function $r(e, t) {
+function ti(e, t) {
 	if (e.trim().length === 0) throw RangeError(`${t} must not be empty.`);
 }
 //#endregion
-export { at as ApplicationStore, oe as CloudSaveCoordinator, y as GameNumber, $e as SAVE_FORMAT_ID, wr as acceptOpportunity, lt as achievementProgressRatio, Jt as activateTemporaryBoost, Yt as activeBoostModifiers, Mt as activityAdvancesOffline, Pt as activityStartCurrencyCost, on as addCharacter, Wn as addItemInstance, Ur as addProgressiveTitleCopy, Lt as advanceContinuousActivity, Cr as advanceOpportunity, Vt as advanceTimedActivity, jt as applyActivityStartCosts, pt as applyCurrencyTransaction, vt as applyModifiers, l as applyNonConsumableEntitlementTransaction, Tt as applyRewards, vn as assertValidDefinitionBundle, $t as calendarPeriodIndex, Ht as cancelTimedActivity, tn as claimCalendarReward, sr as claimMission, cr as claimMissionPointMilestone, Ut as claimTimedActivity, We as classifyRewardSignals, Yr as clearEquippedProgressiveTitles, dn as consumeCooldown, ln as createCooldownState, a as createEmptyNonConsumableEntitlementState, Kn as createLoadoutState, He as createOfflineReturnSummary, Sr as createOpportunityState, Hr as createProgressiveTitleCollection, Fn as createRngStreams, zt as createTimedActivityState, Dt as currencyBalance, x as curveIntervalSum, b as curveValueAt, o as dismissCurrentPresentation, Tr as dismissOpportunity, Ln as drawGacha, Fr as emptyRewardedOfferState, c as enqueuePresentationItems, Jn as equipItem, Gr as equipProgressiveTitle, ut as evaluateAchievements, C as evaluateCondition, ar as evaluateMissions, kt as executeActiveGain, jr as executePrestige, Be as formatGameNumber, ve as gameNumber, Pr as grantRewardedOffer, St as grantToken, s as hasNonConsumableEntitlement, cn as incrementCharacterLimitBreak, H as isLoadoutSlotUnlocked, n as isValidIdentityPart, Oe as maxAffordableCurvePurchase, Je as migrateNormalizeAndValidateState, gt as modifierFromDefinition, Xn as moveEquippedItem, Xt as nextBoostExpiry, Nn as nextRandom, Er as opportunityRemainingSec, an as ownsCharacterDefinition, e as ownsGameProfile, rt as parseMigratedSaveImport, tt as parseSaveEnvelope, nt as parseSaveImport, zn as pickWeightedEntry, Nt as previewActivityConcurrency, At as previewActivityStart, en as previewCalendarReward, un as previewCooldown, $n as previewLevelUp, Ar as previewPrestige, kr as previewPrestigeResetImpact, Nr as previewRewardedOffer, Q as progressiveTitleLevelFromCopies, Wr as progressiveTitleTotalCost, Zt as pruneExpiredBoosts, D as readCurrency, xt as readToken, Et as recordCurrencySpend, or as recordMissionProgress, fn as reduceCooldown, Gn as removeItemInstance, qr as reorderProgressiveTitle, nn as resolveAutomaticCalendarRewards, _t as resolveModifierDefinitions, Ve as resolveOfflineElapsed, i as restoreNonConsumablePurchases, r as runNonConsumablePurchaseFlow, qe as runRewardedAdFlow, ct as selectAchievementStatus, Me as selectAttentionSummary, ir as selectMissionSetStatus, rr as selectMissionStatus, Ne as selectNextMeaningfulTarget, ot as selectTimelineSegment, Br as selectTitleStatus, Vr as selectVisibleTitles, Pn as selectWeightedCandidate, et as serializeSave, sn as setCharacterLevel, bt as setProducerLevel, yt as setProducerOwnedCount, Ct as spendToken, Bt as startTimedActivity, Rt as stopContinuousActivity, Yn as unequipItem, Jr as unequipProgressiveTitle, qn as unlockLoadoutSlot, Kr as updateProgressiveTitleLevel, O as validateCommonActivityDefinition, _n as validateDefinitionBundle, t as validateGameProfileOwnershipInput, K as validateOpportunityDefinition, Ke as validateRewardSignal };
+export { ot as ApplicationStore, oe as CloudSaveCoordinator, y as GameNumber, et as SAVE_FORMAT_ID, Tr as acceptOpportunity, ut as achievementProgressRatio, Yt as activateTemporaryBoost, Xt as activeBoostModifiers, Nt as activityAdvancesOffline, Ft as activityStartCurrencyCost, sn as addCharacter, Gn as addItemInstance, Gr as addProgressiveTitleCopy, Rt as advanceContinuousActivity, He as advanceOfflineInChunks, wr as advanceOpportunity, Ht as advanceTimedActivity, Mt as applyActivityStartCosts, mt as applyCurrencyTransaction, yt as applyModifiers, l as applyNonConsumableEntitlementTransaction, Et as applyRewards, yn as assertValidDefinitionBundle, en as calendarPeriodIndex, Ut as cancelTimedActivity, nn as claimCalendarReward, cr as claimMission, lr as claimMissionPointMilestone, Wt as claimTimedActivity, Ke as classifyRewardSignals, Zr as clearEquippedProgressiveTitles, fn as consumeCooldown, un as createCooldownState, a as createEmptyNonConsumableEntitlementState, qn as createLoadoutState, We as createOfflineReturnSummary, Cr as createOpportunityState, Wr as createProgressiveTitleCollection, In as createRngStreams, Bt as createTimedActivityState, Ot as currencyBalance, x as curveIntervalSum, b as curveValueAt, o as dismissCurrentPresentation, Er as dismissOpportunity, Rn as drawGacha, Lr as emptyRewardedOfferState, c as enqueuePresentationItems, Yn as equipItem, qr as equipProgressiveTitle, dt as evaluateAchievements, w as evaluateCondition, or as evaluateMissions, At as executeActiveGain, Nr as executePrestige, Be as formatGameNumber, ve as gameNumber, Ir as grantRewardedOffer, Ct as grantToken, s as hasNonConsumableEntitlement, ln as incrementCharacterLimitBreak, U as isLoadoutSlotUnlocked, n as isValidIdentityPart, Oe as maxAffordableCurvePurchase, Xe as migrateNormalizeAndValidateState, _t as modifierFromDefinition, Zn as moveEquippedItem, Zt as nextBoostExpiry, Pn as nextRandom, Dr as opportunityRemainingSec, on as ownsCharacterDefinition, e as ownsGameProfile, it as parseMigratedSaveImport, nt as parseSaveEnvelope, rt as parseSaveImport, Bn as pickWeightedEntry, Pt as previewActivityConcurrency, jt as previewActivityStart, tn as previewCalendarReward, dn as previewCooldown, er as previewLevelUp, Mr as previewPrestige, jr as previewPrestigeResetImpact, Fr as previewRewardedOffer, Q as progressiveTitleLevelFromCopies, Kr as progressiveTitleTotalCost, Qt as pruneExpiredBoosts, O as readCurrency, St as readToken, Dt as recordCurrencySpend, sr as recordMissionProgress, pn as reduceCooldown, Kn as removeItemInstance, Yr as reorderProgressiveTitle, rn as resolveAutomaticCalendarRewards, vt as resolveModifierDefinitions, Ve as resolveOfflineElapsed, i as restoreNonConsumablePurchases, r as runNonConsumablePurchaseFlow, Ye as runRewardedAdFlow, lt as selectAchievementStatus, Me as selectAttentionSummary, ar as selectMissionSetStatus, ir as selectMissionStatus, Ne as selectNextMeaningfulTarget, st as selectTimelineSegment, Hr as selectTitleStatus, Ur as selectVisibleTitles, Fn as selectWeightedCandidate, tt as serializeSave, cn as setCharacterLevel, xt as setProducerLevel, bt as setProducerOwnedCount, wt as spendToken, Vt as startTimedActivity, zt as stopContinuousActivity, Xn as unequipItem, Xr as unequipProgressiveTitle, Jn as unlockLoadoutSlot, Jr as updateProgressiveTitleLevel, k as validateCommonActivityDefinition, vn as validateDefinitionBundle, t as validateGameProfileOwnershipInput, q as validateOpportunityDefinition, Je as validateRewardSignal };

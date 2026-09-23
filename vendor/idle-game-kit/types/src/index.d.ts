@@ -6,6 +6,7 @@ export * from './application/curve-purchase.js';
 export * from './application/engagement-cues.js';
 export * from './application/format-game-number.js';
 export * from './application/offline-time.js';
+export * from './application/offline-advance.js';
 export * from './application/offline-return-summary.js';
 export * from './application/reward-signals.js';
 export * from './application/rewarded-ad-flow.js';
