@@ -1,4 +1,5 @@
 export * from './world';
+export * from './offline-progress';
 export * from './dispatch';
 export * from './equipment';
 export * from './simulator';

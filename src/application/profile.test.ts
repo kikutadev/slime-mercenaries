@@ -3,6 +3,7 @@ import type { ProfileRepository, StoredProfile } from 'idle-game-kit';
 import { craftPlainSlime, createJobSlime } from '../domain/commands';
 import { assignSlimeToFormation } from '../domain/combat';
 import { AREA_IDS } from '../domain/definitions';
+import { advanceSlimeWorldFromWallClock, advanceSlimeWorldTo } from '../domain/world';
 import { firstSlimeIdByType } from '../domain/roster';
 import {
   createInitialSlimeMercenariesState,
@@ -11,7 +12,9 @@ import {
   withHighestStageClearedForArea,
   type SlimeMercenariesState,
 } from '../domain/state';
+import { prepareValidationRoster, setValidationSlimeLevel } from './validation-mode';
 import { loadOrCreateSlimeProfile, saveSlimeProfile } from './profile';
+import { buildOfflineReturnView } from './presentation-events';
 
 class MemoryProfileRepository implements ProfileRepository<SlimeMercenariesState> {
   readonly profiles = new Map<string, StoredProfile<SlimeMercenariesState>>();
@@ -90,6 +93,74 @@ it('keeps an uncleared major frontier locked during offline resume while farming
   expect(loaded.offlineEvents.some((event) => event.type === 'bossDefeated')).toBe(false);
   expect(loaded.offlineEvents.some((event) => event.type === 'frontierBreakthroughDeferred')).toBe(true);
   expect(loaded.offlineEvents.some((event) => event.type === 'stageCleared' && event.payload?.farming === true)).toBe(true);
+});
+
+it('loads and checkpoints a full day of offline validation progression without iteration overflow', async () => {
+  const repository = new MemoryProfileRepository();
+  let state = createInitialSlimeMercenariesState(1_000, 123);
+  const prepared = prepareValidationRoster(state);
+  if (!prepared.accepted) throw new Error('validation roster setup failed');
+  state = prepared.state;
+
+  for (const slimeId of Object.keys(state.gameData.roster.slimes)) {
+    const leveled = setValidationSlimeLevel(state, slimeId, 40);
+    if (!leveled.accepted) throw new Error('validation level setup failed');
+    state = leveled.state;
+  }
+
+  await saveSlimeProfile(repository, 'default', state, 1_000);
+  const loaded = await loadOrCreateSlimeProfile({
+    repository,
+    nowMs: 1_000 + 24 * 60 * 60 * 1_000,
+  });
+
+  expect(loaded.appliedOfflineSec).toBe(24 * 60 * 60);
+  expect(loaded.state.simTimeSec).toBe(24 * 60 * 60);
+  expect(loaded.offlineEvents).toHaveLength(1);
+  expect(loaded.offlineEvents[0]?.type).toBe('offlineProgressAggregated');
+  expect(loaded.offlineEvents[0]?.payload?.stageClearCount).toEqual(expect.any(Number));
+  expect(Number(loaded.offlineEvents[0]?.payload?.stageClearCount)).toBeGreaterThan(0);
+  expect(repository.profiles.get('default')?.state).toEqual(loaded.state);
+});
+
+it('keeps compacted long-offline state and return summary identical to raw analytical progression', () => {
+  let state = createInitialSlimeMercenariesState(1_000, 321);
+  const prepared = prepareValidationRoster(state);
+  if (!prepared.accepted) throw new Error('validation roster setup failed');
+  state = prepared.state;
+
+  for (const slimeId of Object.keys(state.gameData.roster.slimes)) {
+    const leveled = setValidationSlimeLevel(state, slimeId, 40);
+    if (!leveled.accepted) throw new Error('validation level setup failed');
+    state = leveled.state;
+  }
+
+  const elapsedSec = 3 * 60 * 60;
+  const raw = advanceSlimeWorldTo(
+    state,
+    state.simTimeSec + elapsedSec,
+    { allowFrontierFirstClear: false },
+  );
+  const compacted = advanceSlimeWorldFromWallClock(
+    state,
+    state.lastWallClockMs + elapsedSec * 1_000,
+    {},
+    { allowFrontierFirstClear: false },
+  );
+
+  expect(compacted.state.simTimeSec).toBe(raw.state.simTimeSec);
+  expect(compacted.state.currencies).toEqual(raw.state.currencies);
+  expect(compacted.state.tokens).toEqual(raw.state.tokens);
+  expect(compacted.state.rngStreams).toEqual(raw.state.rngStreams);
+  expect(compacted.state.gameData).toEqual(raw.state.gameData);
+  expect(compacted.events).toHaveLength(1);
+
+  const current = {
+    areaId: raw.state.gameData.progression.currentAreaId,
+    stageNumber: raw.state.gameData.progression.currentStage,
+  };
+  expect(buildOfflineReturnView(elapsedSec, compacted.events, current))
+    .toEqual(buildOfflineReturnView(elapsedSec, raw.events, current));
 });
 
 it('preserves a partially elapsed frontier defeat across reloads without restarting the countdown', async () => {

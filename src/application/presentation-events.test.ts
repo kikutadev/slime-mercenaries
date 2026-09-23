@@ -250,6 +250,37 @@ describe('presentation event policy', () => {
     ]);
   });
 
+  it('renders compacted long-offline progress with exact counts, frontier and rewards', () => {
+    const summary = buildOfflineReturnView(86_400, [
+      event('offlineProgressAggregated', {
+        stageClearCount: 321,
+        bossDefeatedCount: 2,
+        dispatchCompletedCount: 3,
+        materialDropCount: 77,
+        furthestAreaId: 'area.mushroom-forest',
+        furthestStageNumber: 5,
+        frontierAreaId: 'area.mushroom-forest',
+        frontierStageNumber: 5,
+        grantedRewards: [
+          { kind: 'currency', id: 'currency.gold', amount: 12_345 },
+          { kind: 'token', id: 'token.material.slime-gel', amount: 88 },
+        ],
+      }),
+    ], { areaId: 'area.mushroom-forest', stageNumber: 4 });
+
+    expect(summary.elapsedLabel).toBe('24時間 0分');
+    expect(summary.stageClearCount).toBe(321);
+    expect(summary.bossDefeatedCount).toBe(2);
+    expect(summary.dispatchCompletedCount).toBe(3);
+    expect(summary.materialDropCount).toBe(77);
+    expect(summary.furthest).toEqual({ areaId: 'area.mushroom-forest', stageNumber: 5 });
+    expect(summary.frontier).toEqual({ areaId: 'area.mushroom-forest', stageNumber: 5 });
+    expect(summary.battleRewards).toEqual([
+      { kind: 'gold', id: 'currency.gold', label: 'G', amount: 12_345 },
+      { kind: 'material', id: 'token.material.slime-gel', label: 'スライムジェル', amount: 88 },
+    ]);
+  });
+
   it('orders Area transitions as forward progress even when Stage 5 resets to Stage 1', () => {
     const report = buildBattleActivityReport({
       elapsedSec: 30,

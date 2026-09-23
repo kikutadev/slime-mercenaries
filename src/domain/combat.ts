@@ -138,11 +138,19 @@ export function advanceCombatTo(
 
   let nextState = resumedState;
   const events: DomainEvent[] = [];
-  let guard = 0;
+  let lastObservedSimTimeSec = nextState.simTimeSec;
+  let noTimeProgressIterations = 0;
 
   while (nextState.simTimeSec < targetSimTimeSec) {
-    guard += 1;
-    if (guard > 10_000) throw new Error('Combat advancement exceeded safety iteration limit.');
+    if (nextState.simTimeSec === lastObservedSimTimeSec) {
+      noTimeProgressIterations += 1;
+      if (noTimeProgressIterations > 100) {
+        throw new Error('Combat advancement stopped making time progress.');
+      }
+    } else {
+      lastObservedSimTimeSec = nextState.simTimeSec;
+      noTimeProgressIterations = 0;
+    }
     if (nextState.gameData.combat.contentBoundaryReached) {
       nextState = setSimTime(nextState, targetSimTimeSec);
       break;

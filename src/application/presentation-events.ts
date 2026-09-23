@@ -1,5 +1,5 @@
 import type { DomainEvent, PresentationQueueItem } from 'idle-game-kit';
-import { WORLD_AREA_IDS, ids, jobCreationDefinitions, resolveAreaDefinition, type JobSlimeId, type SlimeMutationId } from '../domain';
+import { OFFLINE_PROGRESS_AGGREGATED_EVENT_TYPE, WORLD_AREA_IDS, ids, jobCreationDefinitions, resolveAreaDefinition, type JobSlimeId, type SlimeMutationId } from '../domain';
 import type { BattleRewardCue, BattleRewardItem, BattleRewardTarget } from '../game/battle-reward';
 
 export type PresentationTone = 'reward' | 'milestone' | 'warning' | 'system';
@@ -80,7 +80,10 @@ export function toBattleRewardCue(events: readonly DomainEvent[]): BattleRewardC
       const stageNumber = numberPayload(event, 'stageNumber');
       if (stageNumber !== null) target = { kind: 'boss', stageNumber };
     }
-    if (event.type !== 'combatWaveCleared' && event.type !== 'bossDefeated' && event.type !== 'stageCleared') continue;
+    if (event.type !== 'combatWaveCleared'
+      && event.type !== 'bossDefeated'
+      && event.type !== 'stageCleared'
+      && event.type !== OFFLINE_PROGRESS_AGGREGATED_EVENT_TYPE) continue;
     const rewards = event.payload?.grantedRewards;
     if (!Array.isArray(rewards)) continue;
     let contributed = false;
@@ -479,6 +482,22 @@ export function buildOfflineReturnView(
   let frontier: WorldStagePosition | null = null;
 
   for (const event of events) {
+    if (event.type === OFFLINE_PROGRESS_AGGREGATED_EVENT_TYPE) {
+      stageClearCount += nonNegativeIntegerPayload(event, 'stageClearCount');
+      bossDefeatedCount += nonNegativeIntegerPayload(event, 'bossDefeatedCount');
+      dispatchCompletedCount += nonNegativeIntegerPayload(event, 'dispatchCompletedCount');
+      materialDropCount += nonNegativeIntegerPayload(event, 'materialDropCount');
+
+      const compactedFurthest = explicitWorldPositionFromEvent(event, 'furthestAreaId', 'furthestStageNumber');
+      if (compactedFurthest !== null) furthest = maxWorldStagePosition(furthest, compactedFurthest);
+      const compactedFrontier = explicitWorldPositionFromEvent(event, 'frontierAreaId', 'frontierStageNumber');
+      if (compactedFrontier !== null) {
+        frontier = frontier === null ? compactedFrontier : maxWorldStagePosition(frontier, compactedFrontier);
+        furthest = maxWorldStagePosition(furthest, compactedFrontier);
+      }
+      continue;
+    }
+
     if (event.type === 'stageCleared') {
       stageClearCount += 1;
       for (const candidate of worldStagePositionsFromEvent(event)) {
@@ -546,6 +565,21 @@ function worldStagePositionsFromEvent(event: DomainEvent): readonly WorldStagePo
     if (nextAreaId !== null) positions.push({ areaId: nextAreaId, stageNumber: nextStageNumber });
   }
   return positions;
+}
+
+function nonNegativeIntegerPayload(event: DomainEvent, key: string): number {
+  const value = numberPayload(event, key);
+  return value === null ? 0 : Math.max(0, Math.floor(value));
+}
+
+function explicitWorldPositionFromEvent(
+  event: DomainEvent,
+  areaKey: string,
+  stageKey: string,
+): WorldStagePosition | null {
+  const areaId = stringPayload(event, areaKey);
+  const stageNumber = numberPayload(event, stageKey);
+  return areaId === null || stageNumber === null ? null : { areaId, stageNumber };
 }
 
 function eventStagePosition(event: DomainEvent, stageKey: string): WorldStagePosition | null {

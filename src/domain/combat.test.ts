@@ -12,7 +12,7 @@ import {
 import { balance } from './balance';
 import { areaDefinitions, ids } from './definitions';
 import { firstSlimeIdByType } from './roster';
-import { createInitialSlimeMercenariesState, highestStageClearedForArea, type SlimeMercenariesState } from './state';
+import { createInitialSlimeMercenariesState, highestStageClearedForArea, withHighestStageClearedForArea, type SlimeMercenariesState } from './state';
 
 function createSwordParty(seed = 1): SlimeMercenariesState {
   const initial = createInitialSlimeMercenariesState(1_000, seed);
@@ -173,6 +173,48 @@ describe('analytical combat progression', () => {
     expect(state.gameData.progression.currentStage).toBe(2);
     expect(state.gameData.combat.retryFarmClearsRemaining).toBe(balance.combat.frontier.retryFarmClears);
     expect(state.gameData.combat.frontierDefeatTimeRemainingSec).toBeNull();
+  });
+
+  it('does not treat a long but time-progressing offline farm as an infinite combat loop', () => {
+    const base = createSwordParty(222);
+    const swordId = firstSlimeIdByType(base, 'sword');
+    if (swordId === null) throw new Error('test setup: sword missing');
+    const sword = base.gameData.roster.slimes[swordId]!;
+    const frontier: SlimeMercenariesState = {
+      ...base,
+      gameData: {
+        ...base.gameData,
+        progression: {
+          ...withHighestStageClearedForArea(
+            withHighestStageClearedForArea(base.gameData.progression, 'area.clover-road', 5),
+            'area.mushroom-forest',
+            4,
+          ),
+          currentAreaId: 'area.mushroom-forest',
+          currentStage: 5,
+        },
+        combat: {
+          currentWaveIndex: 3,
+          waveWorkRemaining: null,
+          retryFarmClearsRemaining: 0,
+          frontierDefeatTimeRemainingSec: null,
+          contentBoundaryReached: false,
+        },
+        roster: {
+          ...base.gameData.roster,
+          slimes: {
+            ...base.gameData.roster.slimes,
+            [swordId]: { ...sword, level: 40 },
+          },
+        },
+      },
+    };
+
+    const target = frontier.simTimeSec + 24 * 60 * 60;
+    const advanced = advanceCombatTo(frontier, target, { allowFrontierFirstClear: false });
+
+    expect(advanced.state.simTimeSec).toBe(target);
+    expect(advanced.events.length).toBeGreaterThan(1_000);
   });
 
   it('keeps farming during offline elapsed time instead of freezing at the failed frontier', () => {
