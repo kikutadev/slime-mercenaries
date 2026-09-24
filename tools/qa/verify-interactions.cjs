@@ -767,6 +767,32 @@ async function runBattleWatchQa(browser) {
   return { frames, enemyHud, status };
 }
 
+async function runCampMotionQa(browser) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  page.setDefaultTimeout(9000);
+  const errors = observePage(page);
+  await prepareValidation(page);
+
+  const stage = page.locator('.camp-resident-stage');
+  await stage.waitFor({ state: 'visible' });
+  await stage.locator('canvas').waitFor({ state: 'visible' });
+  await page.waitForTimeout(350);
+
+  const frames = [];
+  const delays = [0, 900, 900, 700, 650, 850, 850, 900, 850];
+  for (let index = 0; index < delays.length; index += 1) {
+    if (delays[index] > 0) await page.waitForTimeout(delays[index]);
+    const framePath = path.join(OUT_DIR, `camp-motion-${String(index).padStart(2, '0')}.png`);
+    await page.screenshot({ path: framePath });
+    frames.push(framePath);
+  }
+
+  if (errors.length > 0) throw new Error('Camp motion browser errors:\n' + errors.join('\n'));
+  await context.close();
+  return { frames };
+}
+
 async function runSoundSettingsQa(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
@@ -882,6 +908,7 @@ async function runBattleReportQa(browser) {
     const battleWatch = shouldRun('battle-watch') ? await runBattleWatchQa(browser) : null;
     const tier3BattleWatch = shouldRun('tier3-watch') ? await runTier3BattleWatchQa(browser) : null;
     const tier3FamilyWatch = shouldRun('tier3-family-watch') ? await runTier3FamilyWatchQa(browser) : null;
+    const campMotion = ONLY.has('camp-motion') ? await runCampMotionQa(browser) : null;
     const soundSettings = shouldRun('sound') ? await runSoundSettingsQa(browser) : null;
     const battleReport = shouldRun('battle') ? await runBattleReportQa(browser) : null;
     const result = {
@@ -893,6 +920,7 @@ async function runBattleReportQa(browser) {
       battleWatch,
       tier3BattleWatch,
       tier3FamilyWatch,
+      campMotion,
       soundSettings,
       battleReport,
     };

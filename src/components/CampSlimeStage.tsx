@@ -2,6 +2,7 @@ import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { getCampIdleMotion } from '../game/camp-slime-motion';
 import type { SlimePresentation } from '../game/slimes';
 import { applySlimeMutationVisuals, disposeSlimeMutationVisuals } from '../game/slime-mutation-visuals';
 
@@ -38,14 +39,15 @@ function resetBody(parts: ModelParts) {
   parts.body?.scale.copy(parts.bodyBaseScale);
 }
 
-function animateIdle(parts: ModelParts, time: number) {
+function animateIdle(parts: ModelParts, time: number, presentation: SlimePresentation, group: THREE.Group) {
   resetBody(parts);
-  const breathe = Math.sin(time * 2.25);
-  setMorph(parts.body, 'Squash', 0.025 * (0.5 + 0.5 * breathe));
-  setMorph(parts.body, 'Stretch', 0.014 * (0.5 - 0.5 * breathe));
-  const sway = Math.sin(time * 1.15) * 0.045;
-  setMorph(parts.body, sway < 0 ? 'LeanLeft' : 'LeanRight', Math.abs(sway));
-  setMorph(parts.body, sway < 0 ? 'WobbleLeft' : 'WobbleRight', Math.abs(sway) * 0.72);
+  const pose = getCampIdleMotion(time, presentation.id);
+  group.position.set(pose.offsetX, -0.50 + pose.offsetY, 0);
+  group.rotation.set(pose.pitch, -0.24 + pose.yawOffset, pose.roll);
+  setMorph(parts.body, 'Squash', pose.squash);
+  setMorph(parts.body, 'Stretch', pose.stretch);
+  setMorph(parts.body, pose.lean < 0 ? 'LeanLeft' : 'LeanRight', Math.abs(pose.lean));
+  setMorph(parts.body, pose.wobble < 0 ? 'WobbleLeft' : 'WobbleRight', Math.abs(pose.wobble));
 }
 
 function CampResident({
@@ -70,6 +72,7 @@ function CampResident({
   const groupRef = useRef<THREE.Group>(null);
   const latestTime = useRef(0);
   const reactionStartedAt = useRef(-Infinity);
+  const idleStartedAt = useRef(0);
 
   useEffect(() => {
     model.traverse((object) => {
@@ -82,9 +85,12 @@ function CampResident({
   }, [model]);
 
   useEffect(() => {
-    if (reaction === 'idle') return;
+    if (reaction === 'idle') {
+      idleStartedAt.current = latestTime.current;
+      return;
+    }
     reactionStartedAt.current = latestTime.current;
-  }, [reaction, reactionKey]);
+  }, [reaction, reactionKey, presentation.asset]);
 
   useFrame(({ clock }) => {
     latestTime.current = clock.elapsedTime;
@@ -94,9 +100,8 @@ function CampResident({
     const time = clock.elapsedTime;
     const elapsed = time - reactionStartedAt.current;
     group.position.set(0, -0.50, 0);
-    group.rotation.set(0, -0.24 + Math.sin(time * 0.55) * 0.025, 0);
+    group.rotation.set(0, -0.24, 0);
     group.scale.setScalar(MODEL_SCALE);
-    animateIdle(parts, time);
 
     if (reaction === 'level-up' && elapsed >= 0 && elapsed < 1.12) {
       resetBody(parts);
@@ -150,7 +155,20 @@ function CampResident({
       group.rotation.y = -0.24 + u * Math.PI * 2;
       setMorph(parts.body, 'Stretch', 0.24 * Math.max(0, Math.sin(u * Math.PI * 4)));
       setMorph(parts.body, 'WobbleLeft', 0.12 * Math.abs(Math.sin(u * Math.PI * 3)));
+      return;
     }
+
+    const completedReactionDuration = reaction === 'level-up'
+      ? 1.12
+      : reaction === 'formation'
+        ? 0.78
+        : reaction === 'recruit'
+          ? 1.12
+          : 0;
+    const idleTime = reaction === 'idle'
+      ? Math.max(0, time - idleStartedAt.current)
+      : Math.max(0, elapsed - completedReactionDuration);
+    animateIdle(parts, idleTime, presentation, group);
   });
 
   return <group ref={groupRef}><primitive object={model} /></group>;
