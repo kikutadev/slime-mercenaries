@@ -171,6 +171,21 @@ export function updateHopTravel(
   return u >= 1;
 }
 
+const MELEE_PRESENTATION_TARGET_X = [-0.48, 0, 0.48, -0.54, 0, 0.54] as const;
+
+/**
+ * Keep simultaneous melee attacks readable by aiming each ally at a small visual lane
+ * around the real target. Damage still applies to the authoritative target itself.
+ */
+export function meleePresentationTarget(
+  unit: AllyUnit,
+  target: EnemyUnit,
+  out: THREE.Vector3,
+): THREE.Vector3 {
+  const laneOffset = MELEE_PRESENTATION_TARGET_X[unit.slotIndex] ?? 0;
+  return out.copy(target.root.position).setX(target.root.position.x + laneOffset);
+}
+
 export function safeMeleeForwardOffset(
   anchor: THREE.Vector3,
   direction: THREE.Vector3,

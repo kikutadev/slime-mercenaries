@@ -188,3 +188,41 @@ Phase 1 camera
 - Domain combat結果・balance・save semanticsに変更なし
 - TypeScript / focused tests / full Vitest / production build PASS
 - 390x844 actual-speed rendered acceptance PASS
+
+## 13. Progress — 2026-09-24 first implementation pass
+
+Completed:
+
+- [x] Existing production interaction/live-combat work integrated into `origin/main` at `ed74bc1`.
+- [x] Normal Battle camera moved closer; boss keeps a wider authored framing.
+- [x] Normal battlefield depth compressed so the fight occupies more of portrait space.
+- [x] Six-job party home positions re-authored in screen space so all six bodies remain inside 390x844.
+- [x] Melee combat anchors widened.
+- [x] Melee attack presentation uses per-slot contact lanes around the same authoritative enemy target; damage/target authority is unchanged.
+- [x] Added focused camera/layout/anti-clumping tests.
+- [x] Added `battle-watch` browser QA with load-ready gating and actual-speed time slices.
+- [x] Routine `交戦中` status and party rail visual weight reduced.
+- [x] Battle report peek compacted; detailed elapsed/reward data remains in the sheet and accessible label.
+
+Rendered observations at 390x844:
+
+- all six validation-party slimes remain on-screen; the previous left-edge clipping is removed
+- ranged/rear bodies remain separate instead of stacking under the melee row
+- simultaneous melee attacks preserve visibly different left/center/right approach lanes
+- enemy HUD and bottom controls do not cover the combat cluster
+- routine status is subordinate to the battlefield
+
+Verification for this checkpoint:
+
+- focused Battle tests: 34 tests PASS in 0.42s
+- full Vitest: 68 files / 429 tests PASS in 2.79s wall time
+- TypeScript: PASS in 3.15s
+- production Vite build: PASS in 2.14s
+- actual-speed `battle-watch` browser QA: PASS in 11.60s
+- `git diff --check`: PASS
+
+Next:
+
+1. Phase 3 actual-speed motion readability across the six job families and representative Tier 3 signatures.
+2. Phase 4 Battle sound foundation.
+3. Phase 6 boss / defeat / victory-transition acceptance, then final HUD tuning if needed.

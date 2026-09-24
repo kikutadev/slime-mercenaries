@@ -220,6 +220,16 @@
   font-weight: 850;
 }
 
+.status.routine {
+  background: rgb(29 61 62 / 58%);
+  box-shadow: 0 5px 14px rgb(27 57 45 / 10%);
+  opacity: .76;
+}
+
+.status.routine .statusDot {
+  box-shadow: none;
+}
+
 .status.warning {
   background: rgb(121 72 42 / 90%);
 }
@@ -429,7 +439,7 @@
   padding: 5px;
   border: 1px solid rgb(255 255 255 / 48%);
   border-radius: 18px;
-  background: rgb(32 65 55 / 52%);
+  background: rgb(32 65 55 / 40%);
   box-shadow: 0 10px 26px rgb(25 57 43 / 14%);
   backdrop-filter: blur(12px);
 }

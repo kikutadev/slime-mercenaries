@@ -269,7 +269,11 @@ export function BattleScreen({
         </div>
       )}
 
-      <div className={`${styles.status} ${battle.result === null && state.gameData.combat.retryFarmClearsRemaining > 0 ? styles.warning : ''}`}>
+      <div className={[
+        styles.status,
+        battle.result === null && state.gameData.combat.retryFarmClearsRemaining > 0 ? styles.warning : '',
+        battle.phase === 'combat' && battle.result === null && state.gameData.combat.retryFarmClearsRemaining === 0 ? styles.routine : '',
+      ].filter(Boolean).join(' ')}>
         <span className={styles.statusDot} />
         {battleStatus}
       </div>

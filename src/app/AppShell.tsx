@@ -257,14 +257,16 @@ export function AppShell() {
           <button
             className={styles.battleReportPeek}
             type="button"
+            aria-label={[
+              '戦闘レポート',
+              battleActivityProgressLabel(battleActivityReport),
+              formatBattleActivityElapsed(battleActivityReport.elapsedSec),
+              battleActivityRewardLabel,
+            ].filter(Boolean).join(' · ')}
             onClick={() => setBattleReportOpen(true)}
           >
             <span>戦闘レポート</span>
             <strong>{battleActivityProgressLabel(battleActivityReport)}</strong>
-            <small>
-              {formatBattleActivityElapsed(battleActivityReport.elapsedSec)}
-              {battleActivityRewardLabel === null ? '' : ` · ${battleActivityRewardLabel}`}
-            </small>
           </button>
         )}
 

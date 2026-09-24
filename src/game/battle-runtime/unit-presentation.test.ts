@@ -4,6 +4,7 @@ import {
   enemyTargetPosition,
   equipmentKindFor,
   findNearest,
+  meleePresentationTarget,
   safeMeleeForwardOffset,
 } from './unit-presentation';
 import type { AllyUnit, EnemyUnit } from './types';
@@ -17,6 +18,7 @@ function ally(behaviorId: AllyUnit['behaviorId'], x = 0, z = 0): AllyUnit {
     root,
     alive: true,
     combatAnchor: new THREE.Vector3(0.2, 0, 0.3),
+    slotIndex: 0,
   } as AllyUnit;
 }
 
@@ -51,6 +53,25 @@ describe('battle unit presentation helpers', () => {
     const near = enemy(0.5, 0);
     const far = enemy(2, 0);
     expect(findNearest(source, [hidden, dead, far, near])).toBe(near);
+  });
+
+  it('fans simultaneous melee presentation around the same target without changing the target', () => {
+    const target = enemy(0, -1);
+    const left = ally('sword-melee');
+    left.slotIndex = 0;
+    const center = ally('shield-defender');
+    center.slotIndex = 1;
+    const right = ally('dagger-skirmisher');
+    right.slotIndex = 2;
+
+    const leftPoint = meleePresentationTarget(left, target, new THREE.Vector3());
+    const centerPoint = meleePresentationTarget(center, target, new THREE.Vector3());
+    const rightPoint = meleePresentationTarget(right, target, new THREE.Vector3());
+
+    expect(leftPoint.x).toBeLessThan(target.root.position.x);
+    expect(centerPoint.x).toBe(target.root.position.x);
+    expect(rightPoint.x).toBeGreaterThan(target.root.position.x);
+    expect(target.root.position.x).toBe(0);
   });
 
   it('caps forward melee travel before overlapping an enemy body', () => {

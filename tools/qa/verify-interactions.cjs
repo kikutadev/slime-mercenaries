@@ -356,6 +356,39 @@ async function runDispatchQa(browser) {
   return { cueText, sendBottom: sendRect.y + sendRect.height, navTop: navRect.y, departureFrame };
 }
 
+async function runBattleWatchQa(browser) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  page.setDefaultTimeout(9000);
+  const errors = observePage(page);
+  await prepareValidation(page);
+
+  const nav = page.locator('nav[aria-label="メインメニュー"]');
+  await nav.getByRole('button', { name: '戦闘' }).click();
+  const battleRoot = page.locator('section[aria-label="戦闘"]');
+  await battleRoot.waitFor({ state: 'visible' });
+  await battleRoot.locator('canvas').waitFor({ state: 'visible' });
+  await page.locator('[aria-label="敵の体力"]').waitFor({ state: 'visible' });
+  await waitForCondition(async () => {
+    const text = await battleRoot.innerText();
+    return !text.includes('出撃準備中') && !text.includes('戦闘データを再読込中');
+  }, 9000, 100);
+
+  const frames = [];
+  for (const [name, delay] of [['approach', 450], ['combat-early', 1_150], ['combat-late', 1_700]]) {
+    await page.waitForTimeout(delay);
+    const pathName = path.join(OUT_DIR, `battle-watch-${name}.png`);
+    await page.screenshot({ path: pathName });
+    frames.push({ name, path: pathName });
+  }
+
+  const enemyHud = await page.locator('[aria-label="敵の体力"]').innerText().catch(() => '');
+  const status = await page.locator('[class*="status"]').first().innerText().catch(() => '');
+  if (errors.length > 0) throw new Error('Battle watch browser errors:\n' + errors.join('\n'));
+  await context.close();
+  return { frames, enemyHud, status };
+}
+
 async function runBattleReportQa(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
@@ -443,12 +476,14 @@ async function runBattleReportQa(browser) {
 
     const fusion = shouldRun('fusion') ? await runFusionQa(browser) : null;
     const dispatch = shouldRun('dispatch') ? await runDispatchQa(browser) : null;
+    const battleWatch = shouldRun('battle-watch') ? await runBattleWatchQa(browser) : null;
     const battleReport = shouldRun('battle') ? await runBattleReportQa(browser) : null;
     const result = {
       elapsedMs: Date.now() - startedAt,
       browser: findHeadlessShell(),
       fusion,
       dispatch,
+      battleWatch,
       battleReport,
     };
     await fsp.writeFile(path.join(OUT_DIR, 'result.json'), JSON.stringify(result, null, 2) + '\n');

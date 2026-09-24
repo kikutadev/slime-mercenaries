@@ -9,6 +9,7 @@ import {
   type BattleSnapshot,
 } from '../game/BattleRuntime';
 import type { BattleRewardCue } from '../game/battle-reward';
+import { CAMERA_BASE_POSITION } from '../game/battle-runtime/layout';
 
 interface BattleCanvasProps {
   model: BattleSceneModel;
@@ -205,7 +206,12 @@ export function BattleCanvas(props: BattleCanvasProps) {
     <Canvas
       key={props.model.runtimeKey}
       className="battle-canvas"
-      camera={{ fov: 31, near: 0.1, far: 50, position: [2.8, 5.35, 8.9] }}
+      camera={{
+        fov: 31,
+        near: 0.1,
+        far: 50,
+        position: [CAMERA_BASE_POSITION.x, CAMERA_BASE_POSITION.y, CAMERA_BASE_POSITION.z],
+      }}
       dpr={[1, 2]}
       gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
       shadows

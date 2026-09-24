@@ -27,6 +27,7 @@ import {
   applyUnitDeformation,
   facePoint,
   findNearest,
+  meleePresentationTarget,
   safeMeleeForwardOffset,
   setEquipmentSwing,
   updateIdle,

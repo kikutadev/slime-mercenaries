@@ -2,7 +2,12 @@ import * as THREE from 'three';
 import { clamp01 } from '../slime-motion';
 import { getApproachCameraRetreat, getBossApproachPresentation } from '../battle-approach';
 import { getVictoryPresentationElapsed, getVictoryTransitionPose } from '../battle-transition';
-import { CAMERA_BASE_POSITION, CAMERA_LOOK_AT } from './layout';
+import {
+  BOSS_CAMERA_BASE_POSITION,
+  BOSS_CAMERA_LOOK_AT,
+  CAMERA_BASE_POSITION,
+  CAMERA_LOOK_AT,
+} from './layout';
 import type { BattleSnapshot } from './types';
 
 export interface BattleCameraFrame {
@@ -37,7 +42,14 @@ export class BattleCameraController {
   }
 
   update(frame: BattleCameraFrame): void {
-    this.camera.position.copy(CAMERA_BASE_POSITION);
+    const basePosition = frame.bossEncounter
+      ? BOSS_CAMERA_BASE_POSITION
+      : CAMERA_BASE_POSITION;
+    const lookAt = frame.bossEncounter
+      ? BOSS_CAMERA_LOOK_AT
+      : CAMERA_LOOK_AT;
+
+    this.camera.position.copy(basePosition);
     if (frame.phase === 'approach') {
       const approachElapsed = frame.approachPresentationElapsed
         ?? frame.simulationNow - frame.phaseStartedAt;
@@ -63,6 +75,6 @@ export class BattleCameraController {
       this.shakeAmplitude = 0;
     }
 
-    this.camera.lookAt(CAMERA_LOOK_AT);
+    this.camera.lookAt(lookAt);
   }
 }
