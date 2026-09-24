@@ -4,6 +4,7 @@ import {
   CAMERA_BASE_POSITION,
   CAMERA_LOOK_AT,
   allyHome,
+  allyOpeningAttackDelay,
   meleeCombatAnchor,
 } from './layout';
 
@@ -25,6 +26,20 @@ describe('battle presentation layout', () => {
     }
 
     expect(minimumDistance).toBeGreaterThanOrEqual(0.44);
+  });
+
+  it('stages the first six-job attack instead of firing every presentation cue together', () => {
+    const delays = [
+      allyOpeningAttackDelay(0, true),
+      allyOpeningAttackDelay(1, true),
+      allyOpeningAttackDelay(2, false),
+      allyOpeningAttackDelay(3, false),
+      allyOpeningAttackDelay(4, true),
+      allyOpeningAttackDelay(5, false),
+    ];
+    expect(new Set(delays).size).toBe(delays.length);
+    expect(Math.max(...delays) - Math.min(...delays)).toBeGreaterThan(0.6);
+    expect(Math.max(...delays)).toBeLessThan(1);
   });
 
   it('keeps battle homes in two readable portrait rows', () => {

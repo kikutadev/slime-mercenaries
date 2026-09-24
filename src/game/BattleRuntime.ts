@@ -72,6 +72,7 @@ import {
   SCALE,
   TARGET_HOME,
   allyHome,
+  allyOpeningAttackDelay,
   enemyHome,
   meleeCombatAnchor,
 } from './battle-runtime/layout';
@@ -873,8 +874,9 @@ export class BattleRuntime {
     if (now - this.phaseStartedAt >= duration) {
       this.allies.forEach((ally) => {
         if (!ally.alive) return;
-        ally.root.position.copy(isMeleeBehavior(ally) ? ally.combatAnchor : ally.home);
-        ally.nextAttackAt = now + (isMeleeBehavior(ally) ? 0.12 : 0.2 + ally.slotIndex * 0.06);
+        const melee = isMeleeBehavior(ally);
+        ally.root.position.copy(melee ? ally.combatAnchor : ally.home);
+        ally.nextAttackAt = now + allyOpeningAttackDelay(ally.slotIndex, melee);
       });
       if (this.environmentSceneryRoot) this.environmentSceneryRoot.position.z = 0;
       this.phase = 'combat';

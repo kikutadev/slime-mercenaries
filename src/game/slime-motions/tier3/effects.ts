@@ -32,6 +32,15 @@ function makeBillboard(name: string, width: number, height: number, color: strin
   return mesh;
 }
 
+function makeDiscBillboard(name: string, width: number, height: number, color: string): THREE.Mesh {
+  const geometry = new THREE.CircleGeometry(0.5, 36);
+  geometry.scale(width, height, 1);
+  const mesh = new THREE.Mesh(geometry, material(color));
+  mesh.name = name;
+  mesh.visible = false;
+  return mesh;
+}
+
 function makeBeam(name: string, radius: number, color: string): THREE.Mesh {
   const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, 1, 7), material(color));
   mesh.name = name;
@@ -102,11 +111,11 @@ export function createNinjaSignatureVfx(): THREE.Group {
   group.name = 'NinjaSignatureVfx';
   group.visible = false;
 
-  group.add(makeBillboard('NinjaVanishSmoke', 0.42, 0.30, '#9b8ac7'));
-  group.add(makeBillboard('NinjaReturnSmoke', 0.38, 0.28, '#b7a9df'));
+  group.add(makeDiscBillboard('NinjaVanishSmoke', 0.42, 0.30, '#9b8ac7'));
+  group.add(makeDiscBillboard('NinjaReturnSmoke', 0.38, 0.28, '#b7a9df'));
 
   for (let i = 0; i < 4; i += 1) {
-    const ghost = makeBillboard(`NinjaAfterimage${i}`, 0.20, 0.34, i % 2 === 0 ? '#b9a8ff' : '#7d6cc7');
+    const ghost = makeDiscBillboard(`NinjaAfterimage${i}`, 0.20, 0.34, i % 2 === 0 ? '#b9a8ff' : '#7d6cc7');
     group.add(ghost);
   }
   for (let i = 0; i < 5; i += 1) {
@@ -283,16 +292,24 @@ export function createCannoneerSignatureVfx(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'CannoneerSignatureVfx';
   group.visible = false;
-  group.add(makeBillboard('CannoneerMuzzleGlow', 0.36, 0.36, '#ffb14a'));
-  group.add(makeBillboard('CannoneerMuzzleCore', 0.20, 0.20, '#fff3cf'));
+  group.add(makeDiscBillboard('CannoneerMuzzleGlow', 0.36, 0.36, '#ffb14a'));
+  group.add(makeDiscBillboard('CannoneerMuzzleCore', 0.20, 0.20, '#fff3cf'));
   group.add(makeBeam('CannoneerTracerGlow', 0.024, '#ffb04a'));
   group.add(makeBeam('CannoneerTracerCore', 0.008, '#fff6d8'));
   for (let i = 0; i < 4; i += 1) {
-    group.add(makeBillboard(`CannoneerSmoke${i}`, 0.24, 0.18, i % 2 === 0 ? '#d2c5b2' : '#a99f95'));
+    group.add(makeDiscBillboard(`CannoneerSmoke${i}`, 0.24, 0.18, i % 2 === 0 ? '#d2c5b2' : '#a99f95'));
   }
-  group.add(makeBillboard('CannoneerImpactFlash', 0.36, 0.36, '#fff4cc'));
-  group.add(makeBillboard('CannoneerExplosion', 0.54, 0.54, '#ff7a35'));
-  group.add(makeBillboard('CannoneerImpactSmoke', 0.48, 0.38, '#a88f7d'));
+  group.add(makeDiscBillboard('CannoneerImpactFlash', 0.36, 0.36, '#fff4cc'));
+  group.add(makeDiscBillboard('CannoneerExplosion', 0.54, 0.54, '#ff6f32'));
+  group.add(makeDiscBillboard('CannoneerExplosionCore', 0.34, 0.34, '#ffd269'));
+  const explosionRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.18, 0.25, 44),
+    material('#ffad45'),
+  );
+  explosionRing.name = 'CannoneerExplosionRing';
+  explosionRing.visible = false;
+  group.add(explosionRing);
+  group.add(makeDiscBillboard('CannoneerImpactSmoke', 0.48, 0.38, '#a88f7d'));
   return group;
 }
 
@@ -373,13 +390,30 @@ export function applyCannoneerSignatureVfx(
     0.74 + vfx.impactFlash * 2.25,
     0.74 + vfx.impactFlash * 2.25,
   );
+  const explosionScale = Math.max(0.01, vfx.explosionScale);
   setBillboard(
     group.getObjectByName('CannoneerExplosion') as THREE.Mesh | undefined,
     TEMP_POSITION,
     cameraQuaternion,
-    vfx.explosion * 0.88,
-    Math.max(0.01, vfx.explosionScale),
-    Math.max(0.01, vfx.explosionScale),
+    vfx.explosion * 0.46,
+    explosionScale,
+    explosionScale,
+  );
+  setBillboard(
+    group.getObjectByName('CannoneerExplosionCore') as THREE.Mesh | undefined,
+    TEMP_POSITION,
+    cameraQuaternion,
+    vfx.explosion * 0.82,
+    explosionScale * 0.72,
+    explosionScale * 0.72,
+  );
+  setBillboard(
+    group.getObjectByName('CannoneerExplosionRing') as THREE.Mesh | undefined,
+    TEMP_POSITION,
+    cameraQuaternion,
+    vfx.explosion * 0.68,
+    explosionScale * 0.92,
+    explosionScale * 0.92,
   );
   setBillboard(
     group.getObjectByName('CannoneerImpactSmoke') as THREE.Mesh | undefined,

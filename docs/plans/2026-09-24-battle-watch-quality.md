@@ -226,3 +226,30 @@ Next:
 1. Phase 3 actual-speed motion readability across the six job families and representative Tier 3 signatures.
 2. Phase 4 Battle sound foundation.
 3. Phase 6 boss / defeat / victory-transition acceptance, then final HUD tuning if needed.
+
+### Phase 3 checkpoint — Tier 3 actual-speed readability
+
+Completed:
+
+- [x] First visual attack after approach is staggered per party slot so six signatures do not fire on one frame.
+- [x] Added full-party Tier 3 Battle QA and single-family Tier 3 Battle QA.
+- [x] Added configurable high-frequency family capture for sub-100ms signature timing checks.
+- [x] Cannoneer rectangle billboard defect removed; blast is now shaped as fireball core + outer blast + ring + smoke.
+- [x] Cannoneer maximum blast footprint reduced while preserving a Tier 3 screen-dominant payoff.
+- [x] Ninja smoke/afterimages use shaped ellipse meshes instead of revealing PlaneGeometry rectangles.
+- [x] Sniper sight-lock window widened while preserving the long quiet aim.
+- [x] Sniper projectile remains fast; only a short post-impact piercing afterglow was added.
+- [x] 70ms high-frequency Sniper QA confirms sight lock -> thin piercing line -> recoil is visually present without slowing the projectile.
+- [x] Paladin / Archmage / Blademaster reviewed in isolated actual-speed combat and retained as-authored.
+
+Verification at this checkpoint:
+
+- TypeScript: PASS
+- full Vitest: 69 files / 433 tests PASS
+- production Vite build: PASS
+- `git diff --check`: PASS
+- Ninja family browser QA: PASS
+- Sniper family browser QA: PASS, including 70ms capture cadence
+- Cannoneer family browser QA: PASS, including impact/recovery sequence
+
+Next: Phase 4 Battle sound foundation, then boss/defeat/victory acceptance.

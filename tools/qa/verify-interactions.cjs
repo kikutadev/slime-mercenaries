@@ -356,6 +356,213 @@ async function runDispatchQa(browser) {
   return { cueText, sendBottom: sendRect.y + sendRect.height, navTop: navRect.y, departureFrame };
 }
 
+async function patchTier3BattleParty(page) {
+  await page.goto(NEUTRAL_URL, { waitUntil: 'domcontentloaded' });
+  await page.evaluate(async () => {
+    const formByType = {
+      sword: 'blademaster',
+      shield: 'paladin',
+      bow: 'sniper',
+      wand: 'archmage',
+      dagger: 'ninja',
+      gun: 'cannoneer',
+    };
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('slime-mercenaries', 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const profile = await new Promise((resolve, reject) => {
+      const tx = db.transaction('profiles', 'readonly');
+      const request = tx.objectStore('profiles').get('default.development');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    if (!profile?.state) throw new Error('development profile missing');
+
+    const slimes = Object.fromEntries(Object.entries(profile.state.gameData.roster.slimes).map(([id, slime]) => {
+      const form = formByType[slime.typeId];
+      return [id, form === undefined ? slime : {
+        ...slime,
+        level: 40,
+        jobTier: 3,
+        fusionRank: 4,
+        fusionFormId: form,
+        mutationId: null,
+      }];
+    }));
+    profile.state = {
+      ...profile.state,
+      lastWallClockMs: Date.now(),
+      gameData: {
+        ...profile.state.gameData,
+        progression: {
+          ...profile.state.gameData.progression,
+          currentAreaId: 'area.dragon-crater',
+          currentStage: 1,
+        },
+        combat: {
+          ...profile.state.gameData.combat,
+          currentWaveIndex: 0,
+          waveWorkRemaining: null,
+          retryFarmClearsRemaining: 0,
+          frontierDefeatTimeRemainingSec: null,
+          contentBoundaryReached: false,
+        },
+        roster: { ...profile.state.gameData.roster, slimes },
+      },
+    };
+    profile.savedAtMs = Date.now();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('profiles', 'readwrite');
+      tx.objectStore('profiles').put(profile, 'default.development');
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  });
+}
+
+const TIER3_BATTLE_FAMILY_CASES = [
+  { slug: 'blademaster', typeId: 'sword', form: 'blademaster', slotIndex: 1 },
+  { slug: 'paladin', typeId: 'shield', form: 'paladin', slotIndex: 1 },
+  { slug: 'sniper', typeId: 'bow', form: 'sniper', slotIndex: 4 },
+  { slug: 'archmage', typeId: 'wand', form: 'archmage', slotIndex: 4 },
+  { slug: 'ninja', typeId: 'dagger', form: 'ninja', slotIndex: 1 },
+  { slug: 'cannoneer', typeId: 'gun', form: 'cannoneer', slotIndex: 4 },
+];
+
+async function patchTier3BattleFamily(page, item) {
+  await page.goto(NEUTRAL_URL, { waitUntil: 'domcontentloaded' });
+  await page.evaluate(async ({ typeId, form, slotIndex }) => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('slime-mercenaries', 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const profile = await new Promise((resolve, reject) => {
+      const tx = db.transaction('profiles', 'readonly');
+      const request = tx.objectStore('profiles').get('default.development');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    if (!profile?.state) throw new Error('development profile missing');
+    const target = Object.entries(profile.state.gameData.roster.slimes)
+      .find(([, slime]) => slime.typeId === typeId);
+    if (!target) throw new Error('Tier 3 family slime missing: ' + typeId);
+    const [targetId] = target;
+    const slimes = Object.fromEntries(Object.entries(profile.state.gameData.roster.slimes).map(([id, slime]) => [
+      id,
+      id === targetId
+        ? { ...slime, level: 80, jobTier: 3, fusionRank: 4, fusionFormId: form, mutationId: null, assignment: 'battle' }
+        : { ...slime, assignment: 'reserve' },
+    ]));
+    const formationSlots = Array.from({ length: 6 }, (_, index) => index === slotIndex ? targetId : null);
+    profile.state = {
+      ...profile.state,
+      lastWallClockMs: Date.now(),
+      gameData: {
+        ...profile.state.gameData,
+        progression: {
+          ...profile.state.gameData.progression,
+          currentAreaId: 'area.dragon-crater',
+          currentStage: 1,
+        },
+        combat: {
+          ...profile.state.gameData.combat,
+          currentWaveIndex: 0,
+          waveWorkRemaining: null,
+          retryFarmClearsRemaining: 0,
+          frontierDefeatTimeRemainingSec: null,
+          contentBoundaryReached: false,
+        },
+        roster: { ...profile.state.gameData.roster, slimes, formationSlots },
+      },
+    };
+    profile.savedAtMs = Date.now();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('profiles', 'readwrite');
+      tx.objectStore('profiles').put(profile, 'default.development');
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  }, item);
+}
+
+async function runTier3FamilyWatchQa(browser) {
+  const results = [];
+  const familyOnly = String(process.env.TIER3_FAMILY_ONLY || '').trim();
+  const cases = familyOnly.length === 0
+    ? TIER3_BATTLE_FAMILY_CASES
+    : TIER3_BATTLE_FAMILY_CASES.filter((item) => item.slug === familyOnly);
+  if (cases.length === 0) throw new Error('Unknown TIER3_FAMILY_ONLY: ' + familyOnly);
+  for (const item of cases) {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
+    page.setDefaultTimeout(9000);
+    const errors = observePage(page);
+    await prepareValidation(page);
+    await patchTier3BattleFamily(page, item);
+    await page.goto(APP_URL, { waitUntil: 'domcontentloaded' });
+    const nav = page.locator('nav[aria-label="メインメニュー"]');
+    await nav.getByRole('button', { name: '戦闘' }).click();
+    const battleRoot = page.locator('section[aria-label="戦闘"]');
+    await battleRoot.waitFor({ state: 'visible' });
+    await battleRoot.locator('canvas').waitFor({ state: 'visible' });
+    await page.locator('[aria-label="敵の体力"]').waitFor({ state: 'visible' });
+    await waitForCondition(async () => {
+      const text = await battleRoot.innerText();
+      return !text.includes('出撃準備中') && !text.includes('戦闘データを再読込中');
+    }, 9000, 100);
+
+    const frames = [];
+    const frameCount = Math.max(1, Number(process.env.TIER3_FAMILY_FRAME_COUNT || 8));
+    const frameIntervalMs = Math.max(40, Number(process.env.TIER3_FAMILY_FRAME_INTERVAL_MS || 280));
+    for (let index = 0; index < frameCount; index += 1) {
+      await page.waitForTimeout(index === 0 ? Math.min(180, frameIntervalMs) : frameIntervalMs);
+      const pathName = path.join(OUT_DIR, `battle-tier3-${item.slug}-${String(index).padStart(2, '0')}.png`);
+      await page.screenshot({ path: pathName });
+      frames.push(pathName);
+    }
+    if (errors.length > 0) throw new Error(item.slug + ' Battle watch browser errors:\n' + errors.join('\n'));
+    results.push({ slug: item.slug, frames });
+    await context.close();
+  }
+  return results;
+}
+
+async function runTier3BattleWatchQa(browser) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  page.setDefaultTimeout(9000);
+  const errors = observePage(page);
+  await prepareValidation(page);
+  await patchTier3BattleParty(page);
+  await page.goto(APP_URL, { waitUntil: 'domcontentloaded' });
+  const nav = page.locator('nav[aria-label="メインメニュー"]');
+  await nav.getByRole('button', { name: '戦闘' }).click();
+  const battleRoot = page.locator('section[aria-label="戦闘"]');
+  await battleRoot.waitFor({ state: 'visible' });
+  await battleRoot.locator('canvas').waitFor({ state: 'visible' });
+  await page.locator('[aria-label="敵の体力"]').waitFor({ state: 'visible' });
+  await waitForCondition(async () => {
+    const text = await battleRoot.innerText();
+    return !text.includes('出撃準備中') && !text.includes('戦闘データを再読込中');
+  }, 9000, 100);
+
+  const frames = [];
+  for (let index = 0; index < 8; index += 1) {
+    await page.waitForTimeout(index === 0 ? 250 : 350);
+    const pathName = path.join(OUT_DIR, `battle-tier3-${String(index).padStart(2, '0')}.png`);
+    await page.screenshot({ path: pathName });
+    frames.push(pathName);
+  }
+  if (errors.length > 0) throw new Error('Tier 3 Battle watch browser errors:\n' + errors.join('\n'));
+  await context.close();
+  return { frames };
+}
+
 async function runBattleWatchQa(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
@@ -477,6 +684,8 @@ async function runBattleReportQa(browser) {
     const fusion = shouldRun('fusion') ? await runFusionQa(browser) : null;
     const dispatch = shouldRun('dispatch') ? await runDispatchQa(browser) : null;
     const battleWatch = shouldRun('battle-watch') ? await runBattleWatchQa(browser) : null;
+    const tier3BattleWatch = shouldRun('tier3-watch') ? await runTier3BattleWatchQa(browser) : null;
+    const tier3FamilyWatch = shouldRun('tier3-family-watch') ? await runTier3FamilyWatchQa(browser) : null;
     const battleReport = shouldRun('battle') ? await runBattleReportQa(browser) : null;
     const result = {
       elapsedMs: Date.now() - startedAt,
@@ -484,6 +693,8 @@ async function runBattleReportQa(browser) {
       fusion,
       dispatch,
       battleWatch,
+      tier3BattleWatch,
+      tier3FamilyWatch,
       battleReport,
     };
     await fsp.writeFile(path.join(OUT_DIR, 'result.json'), JSON.stringify(result, null, 2) + '\n');

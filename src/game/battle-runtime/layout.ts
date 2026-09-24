@@ -55,6 +55,16 @@ export const CAMERA_LOOK_AT = new THREE.Vector3(0, 0.36, -0.72);
 export const BOSS_CAMERA_BASE_POSITION = new THREE.Vector3(2.8, 5.35, 8.9);
 export const BOSS_CAMERA_LOOK_AT = new THREE.Vector3(0, 0.38, -1.05);
 
+/**
+ * Stagger only the first visual attack after approach so six authored jobs do not
+ * fire their signature cues on the same frame. Domain combat timing is untouched.
+ */
+export function allyOpeningAttackDelay(slotIndex: number, melee: boolean): number {
+  return melee
+    ? 0.10 + slotIndex * 0.09
+    : 0.26 + slotIndex * 0.11;
+}
+
 export function allyHome(slotIndex: number): THREE.Vector3 {
   return (ALLY_HOME_POSITIONS[slotIndex] ?? ALLY_HOME_POSITIONS[ALLY_HOME_POSITIONS.length - 1]!).clone();
 }

@@ -248,7 +248,7 @@ export function getCannoneerSignatureMotion(uInput: number): CannoneerSignatureM
       impactProgress,
       impactFlash,
       explosion,
-      explosionScale: impactProgress < 0 ? 0 : 1.05 + easeOutCubic(impactProgress) * 2.95,
+      explosionScale: impactProgress < 0 ? 0 : 0.95 + easeOutCubic(impactProgress) * 2.05,
       impactSmoke,
       screenPunch,
     },

@@ -20,9 +20,9 @@ export const TIER3_BOW_TIMING = {
 } as const;
 
 export const TIER3_BOW_THRESHOLDS = {
-  sniperSightLockU: 0.525,
-  sniperReleaseU: 0.565,
-  sniperImpactU: 0.658,
+  sniperSightLockU: 0.490,
+  sniperReleaseU: 0.600,
+  sniperImpactU: 0.693,
   stormFirstReleaseU: 0.485,
   stormSecondReleaseU: 0.535,
   stormThirdReleaseU: 0.585,
@@ -183,10 +183,10 @@ export function getSniperAttackMotion(uInput: number): SniperAttackMotionPose {
     };
   }
 
-  if (u < 0.665) {
+  if (u < 0.720) {
     const releaseU = clamp01(
       (u - TIER3_BOW_THRESHOLDS.sniperReleaseU)
-      / (0.665 - TIER3_BOW_THRESHOLDS.sniperReleaseU),
+      / (0.720 - TIER3_BOW_THRESHOLDS.sniperReleaseU),
     );
     const snap = easeOutCubic(clamp01(releaseU / 0.24));
     const recoil = Math.sin(releaseU * Math.PI);
@@ -223,7 +223,7 @@ export function getSniperAttackMotion(uInput: number): SniperAttackMotionPose {
     };
   }
 
-  const recoverU = easeOutCubic((u - 0.665) / 0.335);
+  const recoverU = easeOutCubic((u - 0.720) / 0.280);
   const settle = Math.sin(recoverU * Math.PI * 2) * Math.exp(-5.2 * recoverU);
   const lingeringCritical = pulseAround(
     u,
@@ -231,6 +231,9 @@ export function getSniperAttackMotion(uInput: number): SniperAttackMotionPose {
     0.015,
     0.095,
   );
+  const lingeringTrail = u >= 0.86
+    ? 0
+    : 1 - clamp01((u - 0.720) / 0.140);
 
   return {
     tension: 0,
@@ -239,7 +242,7 @@ export function getSniperAttackMotion(uInput: number): SniperAttackMotionPose {
     focusPulse: 0,
     sightLockPulse: 0,
     shotFlash: 0,
-    trailPulse: 0.04 * (1 - recoverU),
+    trailPulse: lingeringTrail * 0.38,
     criticalPulse: lingeringCritical,
     deformation: {
       squash: Math.max(0, settle) * 0.10,
