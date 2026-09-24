@@ -319,3 +319,19 @@ Final verification:
 The Battle watch-quality pass is complete. The next quality work should be treated as a new scope, not as unfinished work in this plan.
 
 The current Battle surface now satisfies the intended hierarchy: character readability first, authored job motion second, impact/sound third, environment/HUD support last. Domain combat authority and balance were not changed by this pass.
+
+### Production deployment — 2026-09-25
+
+- [x] validation-mode production build (`VITE_VALIDATION_MODE=true`) completed from the accepted worktree
+- [x] synced accepted `dist` into the clean `games.kikuta.dev` portal build without touching the stale/dirty canonical slime worktree
+- [x] Cloudflare Worker deployed successfully
+- [x] Worker Version ID: `0bc5afb8-4a10-4055-8537-65bbc445d69e`
+- [x] public HTML references accepted bundle `assets/main-BlSVPTyG.js`
+- [x] public Battle bundle/settings content returns HTTP 200
+- [x] 390x844 public Battle smoke: six-job party, enemy HP, validation Gold infinity, and live combat PASS
+- [x] 390x844 public Settings smoke: Battle SE toggle present and enabled by default PASS
+- [x] the only observed HTTP 404 is Cloudflare Browser Insights `/cdn-cgi/rum?`; no game asset 404 was observed
+
+Public URL: `https://games.kikuta.dev/slime-mercenaries/`
+
+The watch-quality pass is therefore complete in both source and production.
