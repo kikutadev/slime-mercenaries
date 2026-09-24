@@ -87,21 +87,30 @@ export function createAllyDefeatEyes(root: THREE.Object3D): {
     .filter((eye): eye is THREE.Object3D => Boolean(eye));
   if (normalEyes.length !== 2) return { normalEyes, xEyes: [] };
 
-  const xMaterial = new THREE.MeshBasicMaterial({ color: '#201925' });
-  const barGeometry = new THREE.BoxGeometry(0.28, 0.052, 0.034);
+  const xMaterial = new THREE.MeshBasicMaterial({
+    color: '#ffe9f1',
+    depthTest: false,
+    depthWrite: false,
+  });
+  const barGeometry = new THREE.BoxGeometry(0.44, 0.09, 0.045);
   const xEyes: THREE.Object3D[] = [];
+  root.updateMatrixWorld(true);
+
   for (const eye of normalEyes) {
+    const worldPosition = eye.getWorldPosition(new THREE.Vector3());
+    const rootLocalPosition = root.worldToLocal(worldPosition.clone());
     const group = new THREE.Group();
     group.name = `${eye.name}_DefeatX`;
-    group.position.copy(eye.position);
-    group.position.z += 0.068;
+    group.position.copy(rootLocalPosition);
+    group.userData.defeatEyeBasePosition = rootLocalPosition.clone();
     for (const rotation of [-Math.PI / 4, Math.PI / 4]) {
       const bar = new THREE.Mesh(barGeometry, xMaterial);
+      bar.renderOrder = 12;
       bar.rotation.z = rotation;
       group.add(bar);
     }
     group.visible = false;
-    eye.parent?.add(group);
+    root.add(group);
     xEyes.push(group);
   }
   return { normalEyes, xEyes };
@@ -109,7 +118,34 @@ export function createAllyDefeatEyes(root: THREE.Object3D): {
 
 export function setAllyDefeatEyes(unit: AllyUnit, defeated: boolean): void {
   unit.normalEyes.forEach((eye) => { eye.visible = !defeated; });
-  unit.xEyes.forEach((eye) => { eye.visible = defeated; });
+  unit.xEyes.forEach((eye) => {
+    eye.visible = defeated;
+    if (!defeated) {
+      const base = eye.userData.defeatEyeBasePosition as THREE.Vector3 | undefined;
+      if (base !== undefined) eye.position.copy(base);
+      eye.scale.set(1, 1, 1);
+    }
+  });
+}
+
+/** Keep the mandatory × eyes on the flattened face without inheriting model-specific FaceRoot transforms. */
+export function compensateAllyDefeatEyeScale(
+  unit: AllyUnit,
+  bodyScaleX: number,
+  bodyScaleY: number,
+  bodyScaleZ: number,
+): void {
+  unit.xEyes.forEach((eye) => {
+    const base = eye.userData.defeatEyeBasePosition as THREE.Vector3 | undefined;
+    if (base !== undefined) {
+      eye.position.set(
+        base.x * bodyScaleX,
+        base.y * bodyScaleY,
+        base.z * bodyScaleZ,
+      );
+    }
+    eye.scale.set(1, 1, 1);
+  });
 }
 
 export function setEnemyDefeatEyes(

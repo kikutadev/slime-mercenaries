@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import {
+  compensateAllyDefeatEyeScale,
   createAllyDefeatEyes,
   createShadow,
   createWorldHealthBar,
@@ -77,11 +78,22 @@ describe('battle unit visual helpers', () => {
     const eyes = createAllyDefeatEyes(root);
     const unit = { normalEyes: eyes.normalEyes, xEyes: eyes.xEyes } as AllyUnit;
     expect(eyes.xEyes).toHaveLength(2);
-    expect(eyes.xEyes.every((eye) => eye.parent === face)).toBe(true);
+    expect(eyes.xEyes.every((eye) => eye.parent === root)).toBe(true);
 
     setAllyDefeatEyes(unit, true);
     expect(left.visible).toBe(false);
     expect(right.visible).toBe(false);
     expect(eyes.xEyes.every((eye) => eye.visible)).toBe(true);
+    const firstBar = eyes.xEyes[0]?.children[0];
+    expect(firstBar).toBeInstanceOf(THREE.Mesh);
+    expect((firstBar as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>).material.depthTest).toBe(false);
+    expect(firstBar?.renderOrder).toBe(12);
+
+    compensateAllyDefeatEyeScale(unit, 1.4, 0.28, 1.22);
+    expect(eyes.xEyes[0]?.position.y).toBeLessThan(0.3);
+    expect(eyes.xEyes[0]?.scale.toArray()).toEqual([1, 1, 1]);
+
+    setAllyDefeatEyes(unit, false);
+    expect(eyes.xEyes[0]?.scale.toArray()).toEqual([1, 1, 1]);
   });
 });

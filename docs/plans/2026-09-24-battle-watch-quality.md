@@ -1,6 +1,6 @@
 # 2026-09-24 — Battle Watch Quality Pass
 
-Status: Active
+Status: Completed
 Baseline: `origin/main` at `ed74bc1`
 Scope: Battle観賞品質 / character readability / temporal feel / sound / HUD restraint
 
@@ -282,3 +282,40 @@ Verification at this checkpoint:
 - 390x844 Battle watch QA after audio integration: PASS
 
 Next: final actual-speed acceptance for boss, ally defeat, and victory -> march -> next encounter.
+
+### Final acceptance — Completed
+
+390x844 actual-speed acceptance now covers the three terminal/transition cases that were previously missing:
+
+- [x] Dragon boss encounter: boss body, six allies, boss HUD, and dedicated wide camera remain readable during landing/combat.
+- [x] Ally defeat: collapse is held until visibly complete; the defeated slime reads as a flattened body with explicit `× ×` eyes before the result overlay.
+- [x] Defeat result: defeat messaging and retreat/retry state are presented after the authored collapse.
+- [x] Victory: stage-clear overlay and six surviving slimes remain readable together.
+- [x] Victory transition: the same party marches into the next stage and combat resumes without stale result UI.
+- [x] Final QA stores both `acceptance-ally-defeat-expression.png` and the subsequent result-overlay screenshot so the required expression cannot regress unnoticed.
+
+Defeat-expression correction made during acceptance:
+
+- the generated × eyes were moved out of model-specific `FaceRoot` hierarchy and attached to `SlimeRoot` as dedicated presentation overlays
+- their position follows body squash while their glyph size remains readable at phone scale
+- defeat glyphs ignore depth testing so a slime facing away from the camera cannot hide the mandatory expression behind its translucent body
+- the glyph was increased to a phone-readable pale cross while preserving the normal-eye state outside defeat
+
+Final verification:
+
+- TypeScript: PASS
+- full Vitest: 70 files / 438 tests PASS
+- production Vite build: PASS
+- `git diff --check`: PASS
+- final browser acceptance (`battle-final`): PASS
+- boss landing screenshot: PASS
+- defeat collapse + `× ×` screenshot: PASS
+- defeat result/retreat screenshot: PASS
+- victory screenshot: PASS
+- next-stage continuation screenshot: PASS
+
+## 14. Completion judgement
+
+The Battle watch-quality pass is complete. The next quality work should be treated as a new scope, not as unfinished work in this plan.
+
+The current Battle surface now satisfies the intended hierarchy: character readability first, authored job motion second, impact/sound third, environment/HUD support last. Domain combat authority and balance were not changed by this pass.

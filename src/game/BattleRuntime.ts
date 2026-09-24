@@ -95,6 +95,7 @@ import {
   updateIdle,
 } from './battle-runtime/unit-presentation';
 import {
+  compensateAllyDefeatEyeScale,
   createAllyDefeatEyes,
   createShadow,
   createWorldHealthBar,
@@ -789,6 +790,12 @@ export class BattleRuntime {
       unit.bodyBaseScale.y * pose.bodyScaleY,
       unit.bodyBaseScale.z * pose.bodyScaleZ,
     );
+    if (unit.faceRoot) {
+      // The face is a sibling of Body in the GLB hierarchy, so explicitly follow the
+      // defeat squash or the mandatory × eyes would float above the flattened slime.
+      unit.faceRoot.scale.set(pose.bodyScaleX, pose.bodyScaleY, pose.bodyScaleZ);
+    }
+    compensateAllyDefeatEyeScale(unit, pose.bodyScaleX, pose.bodyScaleY, pose.bodyScaleZ);
     setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
     if (u >= 1) unit.state = 'dead';
   }

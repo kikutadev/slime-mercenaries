@@ -563,6 +563,177 @@ async function runTier3BattleWatchQa(browser) {
   return { frames };
 }
 
+async function patchBattleAcceptanceProfile(page, scenario) {
+  await page.goto(NEUTRAL_URL, { waitUntil: 'domcontentloaded' });
+  await page.evaluate(async (scenarioName) => {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('slime-mercenaries', 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const profile = await new Promise((resolve, reject) => {
+      const tx = db.transaction('profiles', 'readonly');
+      const request = tx.objectStore('profiles').get('default.development');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    if (!profile?.state) throw new Error('development profile missing');
+
+    const formByType = {
+      sword: 'blademaster',
+      shield: 'paladin',
+      bow: 'sniper',
+      wand: 'archmage',
+      dagger: 'ninja',
+      gun: 'cannoneer',
+    };
+    const entries = Object.entries(profile.state.gameData.roster.slimes);
+    const strong = scenarioName !== 'defeat';
+    const sword = entries.find(([, slime]) => slime.typeId === 'sword');
+    if (!sword) throw new Error('sword slime missing');
+
+    const slimes = Object.fromEntries(entries.map(([id, slime]) => {
+      if (!strong) {
+        return [id, id === sword[0]
+          ? { ...slime, level: 1, jobTier: 1, fusionRank: 0, fusionFormId: null, mutationId: null, assignment: 'battle' }
+          : { ...slime, assignment: 'reserve' }];
+      }
+      const form = formByType[slime.typeId];
+      return [id, form === undefined
+        ? { ...slime, assignment: 'reserve' }
+        : { ...slime, level: 80, jobTier: 3, fusionRank: 4, fusionFormId: form, mutationId: null, assignment: 'battle' }];
+    }));
+    const strongIds = Object.entries(slimes)
+      .filter(([, slime]) => slime.assignment === 'battle')
+      .slice(0, 6)
+      .map(([id]) => id);
+    const formationSlots = strong
+      ? Array.from({ length: 6 }, (_, index) => strongIds[index] ?? null)
+      : [sword[0], null, null, null, null, null];
+
+    const location = scenarioName === 'victory-march'
+      ? { areaId: 'area.clover-road', stage: 1, wave: 2 }
+      : { areaId: 'area.dragon-crater', stage: 5, wave: 3 };
+
+    profile.state = {
+      ...profile.state,
+      lastWallClockMs: Date.now(),
+      gameData: {
+        ...profile.state.gameData,
+        progression: {
+          ...profile.state.gameData.progression,
+          currentAreaId: location.areaId,
+          currentStage: location.stage,
+        },
+        combat: {
+          ...profile.state.gameData.combat,
+          currentWaveIndex: location.wave,
+          waveWorkRemaining: null,
+          retryFarmClearsRemaining: 0,
+          frontierDefeatTimeRemainingSec: null,
+          contentBoundaryReached: false,
+        },
+        roster: { ...profile.state.gameData.roster, slimes, formationSlots },
+      },
+    };
+    profile.savedAtMs = Date.now();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('profiles', 'readwrite');
+      tx.objectStore('profiles').put(profile, 'default.development');
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  }, scenario);
+}
+
+async function openPatchedBattle(page, scenario) {
+  await prepareValidation(page);
+  await patchBattleAcceptanceProfile(page, scenario);
+  await page.goto(APP_URL, { waitUntil: 'domcontentloaded' });
+  const nav = page.locator('nav[aria-label="メインメニュー"]');
+  await nav.getByRole('button', { name: '戦闘' }).click();
+  const battleRoot = page.locator('section[aria-label="戦闘"]');
+  await battleRoot.waitFor({ state: 'visible' });
+  await battleRoot.locator('canvas').waitFor({ state: 'visible' });
+  await page.locator('[aria-label="敵の体力"]').waitFor({ state: 'visible' });
+  await waitForCondition(async () => {
+    const text = await battleRoot.innerText();
+    return !text.includes('出撃準備中') && !text.includes('戦闘データを再読込中');
+  }, 9000, 100);
+  return battleRoot;
+}
+
+async function runBattleFinalAcceptanceQa(browser) {
+  const results = {};
+
+  {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
+    page.setDefaultTimeout(12000);
+    const errors = observePage(page);
+    const battleRoot = await openPatchedBattle(page, 'boss');
+    await page.waitForTimeout(1050);
+    const bossPath = path.join(OUT_DIR, 'acceptance-boss-landing.png');
+    await page.screenshot({ path: bossPath });
+    const bossText = await battleRoot.innerText();
+    if (!bossText.includes('BOSS')) throw new Error('Boss acceptance did not render boss HUD');
+    if (errors.length > 0) throw new Error('Boss acceptance browser errors:\n' + errors.join('\n'));
+    results.boss = { path: bossPath, text: bossText.slice(0, 500) };
+    await context.close();
+  }
+
+  {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
+    page.setDefaultTimeout(16000);
+    const errors = observePage(page);
+    const battleRoot = await openPatchedBattle(page, 'defeat');
+    const defeatFrames = [];
+    let lastPreResultPath = null;
+    for (let index = 0; index < 48; index += 1) {
+      await page.waitForTimeout(180);
+      const framePath = path.join(OUT_DIR, `acceptance-ally-defeat-${String(index).padStart(2, '0')}.png`);
+      await page.screenshot({ path: framePath });
+      defeatFrames.push(framePath);
+      if (await page.getByText('敗北', { exact: true }).isVisible().catch(() => false)) break;
+      lastPreResultPath = framePath;
+    }
+    await page.getByText('敗北', { exact: true }).waitFor({ state: 'visible', timeout: 5000 });
+    if (lastPreResultPath === null) throw new Error('Defeat acceptance did not capture a pre-result collapse frame');
+    const defeatExpressionPath = path.join(OUT_DIR, 'acceptance-ally-defeat-expression.png');
+    fs.copyFileSync(lastPreResultPath, defeatExpressionPath);
+    const defeatPath = path.join(OUT_DIR, 'acceptance-ally-defeat.png');
+    await page.screenshot({ path: defeatPath });
+    await page.getByText('戦線を立て直します', { exact: true }).waitFor({ state: 'visible' });
+    const defeatText = await battleRoot.innerText();
+    if (errors.length > 0) throw new Error('Defeat acceptance browser errors:\n' + errors.join('\n'));
+    results.defeat = { path: defeatPath, expressionPath: defeatExpressionPath, frames: defeatFrames, text: defeatText.slice(0, 500) };
+    await context.close();
+  }
+
+  {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const page = await context.newPage();
+    page.setDefaultTimeout(16000);
+    const errors = observePage(page);
+    await openPatchedBattle(page, 'victory-march');
+    await page.getByText('勝利', { exact: true }).waitFor({ state: 'visible', timeout: 10000 });
+    const victoryPath = path.join(OUT_DIR, 'acceptance-victory.png');
+    await page.screenshot({ path: victoryPath });
+    await page.getByText(/クローバー街道 · ステージ 2/).waitFor({ state: 'visible', timeout: 10000 });
+    await page.waitForTimeout(450);
+    const marchPath = path.join(OUT_DIR, 'acceptance-next-stage.png');
+    await page.screenshot({ path: marchPath });
+    const stageText = await page.locator('section[aria-label="戦闘"]').innerText();
+    if (errors.length > 0) throw new Error('Victory/march acceptance browser errors:\n' + errors.join('\n'));
+    results.victoryMarch = { victoryPath, marchPath, text: stageText.slice(0, 500) };
+    await context.close();
+  }
+
+  return results;
+}
+
 async function runBattleWatchQa(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
@@ -707,6 +878,7 @@ async function runBattleReportQa(browser) {
 
     const fusion = shouldRun('fusion') ? await runFusionQa(browser) : null;
     const dispatch = shouldRun('dispatch') ? await runDispatchQa(browser) : null;
+    const finalBattleAcceptance = shouldRun('battle-final') ? await runBattleFinalAcceptanceQa(browser) : null;
     const battleWatch = shouldRun('battle-watch') ? await runBattleWatchQa(browser) : null;
     const tier3BattleWatch = shouldRun('tier3-watch') ? await runTier3BattleWatchQa(browser) : null;
     const tier3FamilyWatch = shouldRun('tier3-family-watch') ? await runTier3FamilyWatchQa(browser) : null;
@@ -717,6 +889,7 @@ async function runBattleReportQa(browser) {
       browser: findHeadlessShell(),
       fusion,
       dispatch,
+      finalBattleAcceptance,
       battleWatch,
       tier3BattleWatch,
       tier3FamilyWatch,
