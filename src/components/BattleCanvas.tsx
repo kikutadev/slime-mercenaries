@@ -19,6 +19,7 @@ interface BattleCanvasProps {
   restartRevision: number;
   onEncounterRestarted: (model: BattleSceneModel) => void;
   rewardCue: BattleRewardCue | null;
+  isSoundEnabled: () => boolean;
 }
 
 function enemyConfigs(model: BattleSceneModel): readonly BattleRuntimeEnemyConfig[] {
@@ -58,6 +59,7 @@ function BattleRuntimeScene({
   restartRevision,
   onEncounterRestarted,
   rewardCue,
+  isSoundEnabled,
 }: BattleCanvasProps) {
   const { scene, camera, gl } = useThree();
   const runtimeRef = useRef<BattleRuntime | null>(null);
@@ -107,6 +109,7 @@ function BattleRuntimeScene({
       })),
       enemies: enemyConfigs(initialModel),
       onSnapshot: (snapshot) => snapshotRef.current(snapshot),
+      isSoundEnabled,
     });
 
     runtimeRef.current = runtime;

@@ -43,6 +43,22 @@ function storageFor(mode: 'normal' | 'development') {
 }
 
 describe('SlimeGameController settings and save management', () => {
+  it('persists sound preference independently from save profiles', () => {
+    const storage = storageFor('normal');
+    const controller = new SlimeGameController('default', {
+      repository: new MemoryRepository(),
+      settingsStorage: storage,
+    });
+
+    expect(controller.soundEnabled).toBe(true);
+    controller.setSoundEnabled(false);
+    expect(controller.soundEnabled).toBe(false);
+    expect(JSON.parse(storage.values.get(RUNTIME_SETTINGS_STORAGE_KEY) ?? '{}')).toEqual({
+      economyMode: 'normal',
+      soundEnabled: false,
+    });
+  });
+
   it('keeps development progression isolated from the normal profile', async () => {
     const repository = new MemoryRepository();
     const controller = new SlimeGameController('default', {

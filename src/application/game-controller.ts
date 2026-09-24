@@ -109,6 +109,7 @@ export class SlimeGameController {
   #lastBackgroundCheckpointMs = 0;
   #initialized = false;
   #economyMode: EconomyMode;
+  #soundEnabled: boolean;
   #activeProfileId: string;
   #developmentResources: ResourceSnapshot | null = null;
   #persistenceEpoch = 0;
@@ -119,7 +120,9 @@ export class SlimeGameController {
     this.#developmentProfileId = profileId + '.development';
     this.#repository = options.repository ?? createSlimeMercenariesBrowserRepository();
     this.#settingsStorage = options.settingsStorage;
-    this.#economyMode = readRuntimeSettings(this.#settingsStorage).economyMode;
+    const runtimeSettings = readRuntimeSettings(this.#settingsStorage);
+    this.#economyMode = runtimeSettings.economyMode;
+    this.#soundEnabled = runtimeSettings.soundEnabled;
     this.#activeProfileId = this.profileIdForMode(this.#economyMode);
     this.store = new ApplicationStore(createInitialSlimeMercenariesState(Date.now()));
   }
@@ -130,6 +133,19 @@ export class SlimeGameController {
 
   get economyMode(): EconomyMode {
     return this.#economyMode;
+  }
+
+  get soundEnabled(): boolean {
+    return this.#soundEnabled;
+  }
+
+  setSoundEnabled(enabled: boolean): void {
+    if (enabled === this.#soundEnabled) return;
+    this.#soundEnabled = enabled;
+    writeRuntimeSettings({
+      economyMode: this.#economyMode,
+      soundEnabled: this.#soundEnabled,
+    }, this.#settingsStorage);
   }
 
   /** Existing presentation name retained internally: true means the runtime resource sandbox is active. */
@@ -204,7 +220,7 @@ export class SlimeGameController {
 
       this.#economyMode = mode;
       this.#activeProfileId = targetProfileId;
-      writeRuntimeSettings({ economyMode: mode }, this.#settingsStorage);
+      writeRuntimeSettings({ economyMode: mode, soundEnabled: this.#soundEnabled }, this.#settingsStorage);
       this.installPersistedState(persisted);
       if (mode === 'normal') syncSlimePortalProgress(persisted, nowMs);
     } catch (cause) {

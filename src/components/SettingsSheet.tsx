@@ -13,6 +13,7 @@ type PendingAction =
 export function SettingsSheet({ onClose }: { onClose: () => void }) {
   const controller = useGameController();
   const [mode, setMode] = useState<EconomyMode>(controller.economyMode);
+  const [soundEnabled, setSoundEnabled] = useState(controller.soundEnabled);
   const [pending, setPending] = useState<PendingAction>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -128,6 +129,30 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
           <div className={styles.modeNote}>
             通常モードと開発用モードは別々に保存されます。開発用モードの資源・育成・ステージ進行は通常モードへ反映されません。
           </div>
+        </section>
+
+        <section className={styles.section}>
+          <div className={styles.sectionHeading}>
+            <span>サウンド</span>
+            <small>戦闘SE</small>
+          </div>
+          <button
+            className={styles.soundRow}
+            type="button"
+            role="switch"
+            aria-checked={soundEnabled}
+            onClick={() => {
+              const next = !soundEnabled;
+              controller.setSoundEnabled(next);
+              setSoundEnabled(next);
+            }}
+          >
+            <span>
+              <strong>効果音</strong>
+              <small>攻撃・被弾・勝敗の音を再生します。</small>
+            </span>
+            <i className={soundEnabled ? styles.soundSwitchOn : ''} aria-hidden="true"><b /></i>
+          </button>
         </section>
 
         <section className={styles.section}>

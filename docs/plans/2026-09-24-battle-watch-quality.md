@@ -253,3 +253,32 @@ Verification at this checkpoint:
 - Cannoneer family browser QA: PASS, including impact/recovery sequence
 
 Next: Phase 4 Battle sound foundation, then boss/defeat/victory acceptance.
+
+### Phase 4 checkpoint — Battle sound foundation
+
+Completed:
+
+- [x] Added a dedicated `BattleAudioSystem` presentation subsystem; Domain combat remains sound-agnostic.
+- [x] Added browser-policy audio unlock on first pointer/key interaction.
+- [x] Added cue routing for melee hit, projectile hit, ally hit, arrow release, magic release, gun shot, ally defeat, enemy defeat, victory, defeat, and boss landing.
+- [x] Added per-cue debounce so multi-unit combat does not collapse into uncontrolled audio spam.
+- [x] Added persistent `soundEnabled` runtime setting with migration from the older economy-only settings payload.
+- [x] Added Settings sheet sound toggle; no persistent Battle HUD control was added.
+- [x] Settings changes are read live by BattleRuntime without rebuilding the rendered encounter.
+- [x] Added focused audio/settings/controller tests and browser QA for toggle persistence.
+
+Implementation note:
+
+- Current Battle SE uses a lightweight WebAudio synthesis backend rather than shipping placeholder external audio files.
+- This gives production-safe cue timing/autoplay/mute architecture now; authored audio samples can replace the backend later without changing combat presentation contracts.
+
+Verification at this checkpoint:
+
+- TypeScript: PASS in 2.99s
+- full Vitest: 70 files / 438 tests PASS in 2.35s
+- production Vite build: PASS in 2.10s
+- `git diff --check`: PASS
+- 390x844 sound-settings browser QA: PASS
+- 390x844 Battle watch QA after audio integration: PASS
+
+Next: final actual-speed acceptance for boss, ally defeat, and victory -> march -> next encounter.

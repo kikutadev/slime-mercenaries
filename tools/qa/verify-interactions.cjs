@@ -596,6 +596,30 @@ async function runBattleWatchQa(browser) {
   return { frames, enemyHud, status };
 }
 
+async function runSoundSettingsQa(browser) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  page.setDefaultTimeout(9000);
+  const errors = observePage(page);
+  await prepareValidation(page);
+
+  const nav = page.locator('nav[aria-label="メインメニュー"]');
+  await nav.getByRole('button', { name: '設定' }).click();
+  const soundSwitch = page.getByRole('switch', { name: /効果音/ });
+  await soundSwitch.waitFor({ state: 'visible' });
+  const initial = await soundSwitch.getAttribute('aria-checked');
+  await soundSwitch.click();
+  const toggled = await soundSwitch.getAttribute('aria-checked');
+  if (initial === toggled) throw new Error('Sound setting did not toggle');
+  const stored = await page.evaluate(() => localStorage.getItem('slime-mercenaries.runtime-settings.v1'));
+  if (stored === null || !stored.includes('soundEnabled')) throw new Error('Sound setting did not persist');
+  await page.screenshot({ path: path.join(OUT_DIR, 'settings-sound-toggle.png') });
+
+  if (errors.length > 0) throw new Error('Sound settings browser errors:\n' + errors.join('\n'));
+  await context.close();
+  return { initial, toggled, stored };
+}
+
 async function runBattleReportQa(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
@@ -686,6 +710,7 @@ async function runBattleReportQa(browser) {
     const battleWatch = shouldRun('battle-watch') ? await runBattleWatchQa(browser) : null;
     const tier3BattleWatch = shouldRun('tier3-watch') ? await runTier3BattleWatchQa(browser) : null;
     const tier3FamilyWatch = shouldRun('tier3-family-watch') ? await runTier3FamilyWatchQa(browser) : null;
+    const soundSettings = shouldRun('sound') ? await runSoundSettingsQa(browser) : null;
     const battleReport = shouldRun('battle') ? await runBattleReportQa(browser) : null;
     const result = {
       elapsedMs: Date.now() - startedAt,
@@ -695,6 +720,7 @@ async function runBattleReportQa(browser) {
       battleWatch,
       tier3BattleWatch,
       tier3FamilyWatch,
+      soundSettings,
       battleReport,
     };
     await fsp.writeFile(path.join(OUT_DIR, 'result.json'), JSON.stringify(result, null, 2) + '\n');

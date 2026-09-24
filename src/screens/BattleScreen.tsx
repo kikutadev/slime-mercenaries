@@ -220,6 +220,7 @@ export function BattleScreen({
           restartRevision={restartRevision}
           onEncounterRestarted={handleEncounterRestarted}
           rewardCue={visibleRewardCue}
+          isSoundEnabled={() => controller.soundEnabled}
         />
       ) : (
         <div className={styles.emptyVisual} aria-hidden="true">

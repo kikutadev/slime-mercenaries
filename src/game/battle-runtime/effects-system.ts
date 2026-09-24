@@ -17,6 +17,7 @@ import {
 import { battleRewardParticleCount, battleRewardVisual, type BattleRewardCue } from '../battle-reward';
 import { applyTimedMultiplier, distanceSqToSegment2D } from '../combat-effects';
 import { disposeOwnedObjectResources } from './resource-disposal';
+import type { BattleSoundCue } from './audio-system';
 import type {
   AllyUnit,
   EnemyProjectileRuntime,
@@ -43,6 +44,7 @@ export interface BattleEffectsSystemDependencies {
     source: DamageSource,
     sourcePosition: THREE.Vector3,
   ) => void;
+  playSound: (cue: BattleSoundCue) => void;
 }
 
 /**
@@ -127,6 +129,7 @@ export class BattleEffectsSystem {
     damage = 1,
     splashDamage = splashRadius > 0 ? 1 : 0,
   ): void {
+    this.deps.playSound('magic-release');
     const root = enhanced ? createMageOrbVfx() : createMagicOrbMesh();
     (wand.spellOrigin ?? wand.equipmentAnchor).getWorldPosition(this.tempVector);
     const start = this.tempVector.clone();
@@ -164,6 +167,7 @@ export class BattleEffectsSystem {
       durationScale?: number;
     }> = {},
   ): void {
+    this.deps.playSound('gun-shot');
     const root = createGunBulletMesh();
     (gun.projectileOrigin ?? gun.equipmentAnchor).getWorldPosition(this.tempVector);
     const start = this.tempVector.clone();
@@ -250,6 +254,7 @@ export class BattleEffectsSystem {
       pierceWidth?: number;
     }> = {},
   ): void {
+    this.deps.playSound('arrow-release');
     const root = createSlimeArrowMesh();
     (bow.projectileOrigin ?? bow.equipmentAnchor).getWorldPosition(this.tempVector);
     const start = this.tempVector.clone();

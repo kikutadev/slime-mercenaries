@@ -179,6 +179,68 @@
   line-height: 1.55;
 }
 
+.soundRow {
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 11px;
+  border: 1px solid rgb(55 91 64 / 12%);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--text-default);
+  text-align: left;
+  cursor: pointer;
+}
+
+.soundRow > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.soundRow strong {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.soundRow small {
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.soundRow > i {
+  width: 42px;
+  height: 24px;
+  flex: 0 0 auto;
+  display: block;
+  padding: 3px;
+  border-radius: 999px;
+  background: #d9e0d5;
+  transition: background .16s ease;
+}
+
+.soundRow > i > b {
+  width: 18px;
+  height: 18px;
+  display: block;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(32 54 40 / 24%);
+  transform: translateX(0);
+  transition: transform .16s ease;
+}
+
+.soundRow > i.soundSwitchOn {
+  background: #4c9a5a;
+}
+
+.soundRow > i.soundSwitchOn > b {
+  transform: translateX(18px);
+}
+
 .dataActions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -63,6 +63,7 @@ import {
 } from './battle-transition';
 import type { BattleRewardCue } from './battle-reward';
 import { BattleClock } from './battle-runtime/clock';
+import { BattleAudioSystem } from './battle-runtime/audio-system';
 import { BattleCameraController } from './battle-runtime/camera';
 import { BattleEffectsSystem } from './battle-runtime/effects-system';
 import { BattleAllyCombatSystem } from './battle-runtime/ally-combat-system';
@@ -126,6 +127,7 @@ export class BattleRuntime {
   private readonly camera: THREE.PerspectiveCamera;
   private readonly clock = new BattleClock();
   private readonly cameraController: BattleCameraController;
+  private readonly audio: BattleAudioSystem;
   private readonly effects: BattleEffectsSystem;
   private readonly allyCombat: BattleAllyCombatSystem;
   private readonly enemyCombat: BattleEnemyCombatSystem;
@@ -167,6 +169,7 @@ export class BattleRuntime {
     this.scene = options.scene;
     this.camera = options.camera;
     this.cameraController = new BattleCameraController(this.camera);
+    this.audio = new BattleAudioSystem({ isEnabled: options.isSoundEnabled ?? (() => true) });
     this.effects = new BattleEffectsSystem({
       camera: this.camera,
       addSceneObject: (object) => this.addSceneObject(object),
@@ -177,6 +180,7 @@ export class BattleRuntime {
       applyDamage: (target, amount, source, sourcePosition) => {
         this.applyDamage(target, amount, source, sourcePosition);
       },
+      playSound: (cue) => this.audio.play(cue),
     });
     this.allyCombat = new BattleAllyCombatSystem({
       camera: this.camera,
@@ -729,6 +733,8 @@ export class BattleRuntime {
     const impactSize = target.side === 'enemy' ? (source === 'melee' ? 0.082 : 0.11) : 0.09;
     this.effects.createImpact(this.tempVector, target.side === 'enemy' ? '#fff0a0' : '#ffb4a8', impactSize);
     this.startCameraShake(0.12, target.side === 'enemy' ? 0.025 : 0.017);
+    if (target.side === 'enemy') this.audio.play(source === 'melee' ? 'melee-hit' : 'projectile-hit');
+    else this.audio.play('ally-hit');
     if (source !== 'projectile') this.startHitStop(source === 'enemy' ? 0.028 : 0.038);
 
     if (target.side === 'enemy') {
@@ -755,6 +761,7 @@ export class BattleRuntime {
     unit.defeatStartedAt = this.simulationNow;
     resetBranchAccents(unit);
     setAllyDefeatEyes(unit, true);
+    this.audio.play('ally-defeat');
   }
 
   private beginEnemyDefeat(enemy: EnemyUnit): void {
@@ -767,6 +774,7 @@ export class BattleRuntime {
     enemy.attackTarget = null;
     if (enemy.attackTelegraph) enemy.attackTelegraph.visible = false;
     setEnemyDefeatEyes(enemy.normalEyes, enemy.xEyes, true);
+    this.audio.play('enemy-defeat');
   }
 
   private updateAllyDefeat(unit: AllyUnit, now: number): void {
@@ -868,6 +876,7 @@ export class BattleRuntime {
         impactPosition.y += 0.16;
         this.effects.createImpact(impactPosition, '#ffd58a', 0.22, 0.38);
         this.startCameraShake(0.22, 0.052);
+        this.audio.play('boss-land');
       }
       this.bossLandingTriggered = true;
     }
@@ -909,6 +918,7 @@ export class BattleRuntime {
     this.phase = 'result';
     this.phaseStartedAt = now;
     this.result = result;
+    this.audio.play(result === 'victory' ? 'victory' : 'defeat');
     this.allies.forEach((ally) => {
       ally.attackStartedAt = -Infinity;
       ally.attackTarget = null;

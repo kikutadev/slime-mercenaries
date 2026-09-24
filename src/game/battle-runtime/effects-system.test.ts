@@ -40,6 +40,7 @@ describe('BattleEffectsSystem', () => {
       getAllies: () => [],
       getLivingEnemies: () => [],
       applyDamage: () => undefined,
+      playSound: () => undefined,
     });
 
     system.createImpact(new THREE.Vector3(), '#fff', 0.1, 0.2);
@@ -53,6 +54,7 @@ describe('BattleEffectsSystem', () => {
     const camera = new THREE.PerspectiveCamera();
     const removed: THREE.Object3D[] = [];
     const damage = vi.fn();
+    const playSound = vi.fn();
     const target = makeEnemy();
     const system = new BattleEffectsSystem({
       camera,
@@ -62,11 +64,13 @@ describe('BattleEffectsSystem', () => {
       getAllies: () => [],
       getLivingEnemies: () => [target],
       applyDamage: damage,
+      playSound,
     });
 
     system.fireBullet(makeAlly(), target);
     system.update(1);
 
+    expect(playSound).toHaveBeenCalledWith('gun-shot');
     expect(damage).toHaveBeenCalledTimes(1);
     expect(damage.mock.calls[0]?.[0]).toBe(target);
     expect(removed.length).toBeGreaterThanOrEqual(2);
@@ -85,6 +89,7 @@ describe('BattleEffectsSystem', () => {
       getAllies: () => allies,
       getLivingEnemies: () => [],
       applyDamage: () => undefined,
+      playSound: () => undefined,
     });
 
     system.presentRewardCue({

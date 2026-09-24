@@ -245,6 +245,7 @@ export interface BattleRuntimeOptions {
   allies: readonly BattleRuntimeAllyConfig[];
   enemies: readonly BattleRuntimeEnemyConfig[];
   onSnapshot: (snapshot: BattleSnapshot) => void;
+  isSoundEnabled?: () => boolean;
 }
 
 export type BattleRuntimeEncounterUpdate = Readonly<{

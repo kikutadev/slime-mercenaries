@@ -15,12 +15,18 @@ class MemoryStorage implements Pick<Storage, 'getItem' | 'setItem'> {
 describe('runtime settings', () => {
   it('persists explicit economy mode independently from game save data', () => {
     const storage = new MemoryStorage();
-    writeRuntimeSettings({ economyMode: 'normal' }, storage);
-    expect(storage.values.get(RUNTIME_SETTINGS_STORAGE_KEY)).toBe(JSON.stringify({ economyMode: 'normal' }));
-    expect(readRuntimeSettings(storage)).toEqual({ economyMode: 'normal' });
+    writeRuntimeSettings({ economyMode: 'normal', soundEnabled: true }, storage);
+    expect(storage.values.get(RUNTIME_SETTINGS_STORAGE_KEY)).toBe(JSON.stringify({ economyMode: 'normal', soundEnabled: true }));
+    expect(readRuntimeSettings(storage)).toEqual({ economyMode: 'normal', soundEnabled: true });
 
-    writeRuntimeSettings({ economyMode: 'development' }, storage);
-    expect(readRuntimeSettings(storage)).toEqual({ economyMode: 'development' });
+    writeRuntimeSettings({ economyMode: 'development', soundEnabled: false }, storage);
+    expect(readRuntimeSettings(storage)).toEqual({ economyMode: 'development', soundEnabled: false });
+  });
+
+  it('migrates older settings without a sound preference to enabled', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(RUNTIME_SETTINGS_STORAGE_KEY, JSON.stringify({ economyMode: 'normal' }));
+    expect(readRuntimeSettings(storage)).toEqual({ economyMode: 'normal', soundEnabled: true });
   });
 
   it('falls back when stored settings are malformed', () => {
