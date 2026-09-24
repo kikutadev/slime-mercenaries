@@ -2,7 +2,16 @@ import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { isGreatswordRank } from '../../game/fusion';
+import {
+  applyEquipmentPose,
+  type SlimeEquipmentMotionKind,
+} from '../../game/slime-motion';
+import {
+  getFusionCeremonyDurationSec,
+  getFusionPreviewAttackDurationSec,
+  getFusionPreviewAttackStartSec,
+  getFusionPreviewPose,
+} from '../../game/fusion-preview';
 import { type FusionCeremonyPreset } from '../../game/fusion-presentation';
 import { type SlimeId, type SlimePresentation } from '../../game/slimes';
 import { applySlimeMutationVisuals, disposeSlimeMutationVisuals } from '../../game/slime-mutation-visuals';
@@ -38,11 +47,10 @@ interface FusionSceneProps {
 const BASE_SCALE = 0.46;
 const LEFT_X = -0.82;
 const RIGHT_X = 0.82;
-const tempQuaternion = new THREE.Quaternion();
-const swordAxis = new THREE.Vector3(1, 0, 0);
-const swordSweepAxis = new THREE.Vector3(0, 0, 1);
-const tempSweepQuaternion = new THREE.Quaternion();
-const bowAxis = new THREE.Vector3(0, 0, 1);
+const MERGE_START_SEC = 0.10;
+const MERGE_END_SEC = 0.48;
+const RESULT_REVEAL_START_SEC = 0.52;
+const RESULT_REVEAL_END_SEC = 0.82;
 
 function setMorph(body: MorphMesh | null, name: string, value: number) {
   if (!body?.morphTargetDictionary || !body.morphTargetInfluences) return;
@@ -51,9 +59,9 @@ function setMorph(body: MorphMesh | null, name: string, value: number) {
   body.morphTargetInfluences[index] = THREE.MathUtils.clamp(value, 0, 1);
 }
 
-function getParts(model: THREE.Object3D, slimeId: SlimeId): ModelParts {
+function getParts(model: THREE.Object3D, presentation: SlimePresentation): ModelParts {
   const body = model.getObjectByName('Body') as MorphMesh | null;
-  const equipment = model.getObjectByName(slimeId === 'sword' ? 'WeaponAnchor' : 'BowAnchor') ?? null;
+  const equipment = model.getObjectByName(presentation.battle.equipmentAnchorName) ?? null;
   return {
     body,
     equipment,
@@ -82,67 +90,48 @@ function animateJelly(parts: ModelParts, time: number, phase = 0) {
   setMorph(parts.body, lean < 0 ? 'WobbleLeft' : 'WobbleRight', Math.abs(lean) * 0.7);
 }
 
-function animateResultAttack(parts: ModelParts, slimeId: SlimeId, fusionRank: number, u: number): number {
+function applyResultPreview(
+  parts: ModelParts,
+  presentation: SlimePresentation,
+  slimeId: SlimeId,
+  u: number,
+) {
   resetParts(parts);
-  if (slimeId !== 'sword' || !parts.equipment) return 0;
+  const pose = getFusionPreviewPose(presentation, u);
+  const deformation = pose.deformation;
+  setMorph(parts.body, 'Squash', deformation.squash);
+  setMorph(parts.body, 'Stretch', deformation.stretch);
+  setMorph(parts.body, deformation.lean < 0 ? 'LeanLeft' : 'LeanRight', Math.abs(deformation.lean));
+  setMorph(parts.body, deformation.wobble < 0 ? 'WobbleLeft' : 'WobbleRight', Math.abs(deformation.wobble));
+  applyEquipmentPose(
+    parts.equipment,
+    parts.equipmentBaseQuaternion,
+    parts.equipmentBasePosition,
+    equipmentKind(slimeId),
+    pose.equipment,
+  );
+  return pose;
+}
 
-  if (isGreatswordRank(fusionRank)) {
-    const anticipation = THREE.MathUtils.clamp(u / 0.16, 0, 1);
-    const slashU = THREE.MathUtils.clamp((u - 0.14) / 0.22, 0, 1);
-    const slashEase = 1 - ((1 - slashU) ** 4);
-    const settle = THREE.MathUtils.clamp((u - 0.52) / 0.48, 0, 1);
-    const settleEase = 1 - ((1 - settle) ** 3);
-    const squash = u < 0.18 ? 0.28 * anticipation : 0.05 * (1 - settleEase);
-    const stretch = slashU > 0 && slashU < 1 ? 0.30 * Math.sin(slashU * Math.PI) : 0;
-    const wobble = slashU > 0 && slashU < 1 ? Math.sin(slashU * Math.PI * 2) * 0.07 : 0;
-    setMorph(parts.body, 'Squash', squash);
-    setMorph(parts.body, 'Stretch', stretch);
-    setMorph(parts.body, wobble < 0 ? 'WobbleLeft' : 'WobbleRight', Math.abs(wobble));
-
-    const horizontalTilt = slashU > 0
-      ? THREE.MathUtils.lerp(-1.52, -1.68, Math.sin(slashU * Math.PI))
-      : THREE.MathUtils.lerp(0, -1.52, anticipation);
-    const recoverTilt = settle > 0 ? THREE.MathUtils.lerp(horizontalTilt, 0, settleEase) : horizontalTilt;
-    const bladeSweep = slashU > 0
-      ? THREE.MathUtils.lerp(-0.78, -1.02, Math.sin(slashU * Math.PI))
-      : THREE.MathUtils.lerp(0, -0.78, anticipation);
-    const recoverSweep = settle > 0 ? THREE.MathUtils.lerp(bladeSweep, 0, settleEase) : bladeSweep;
-    tempQuaternion.setFromAxisAngle(swordAxis, recoverTilt);
-    tempSweepQuaternion.setFromAxisAngle(swordSweepAxis, recoverSweep);
-    parts.equipment.quaternion.copy(parts.equipmentBaseQuaternion).multiply(tempQuaternion).multiply(tempSweepQuaternion);
-
-    const windupOffset = -0.30 * anticipation;
-    const sweepEndOffset = -0.30 + Math.PI * 0.78;
-    return slashU < 1
-      ? THREE.MathUtils.lerp(windupOffset, sweepEndOffset, slashEase)
-      : THREE.MathUtils.lerp(sweepEndOffset, 0, settleEase);
+function equipmentKind(slimeId: SlimeId): SlimeEquipmentMotionKind {
+  switch (slimeId) {
+    case 'sword':
+    case 'shield':
+    case 'bow':
+    case 'wand':
+    case 'dagger':
+    case 'gun':
+      return slimeId;
+    case 'mimic':
+      return 'sword';
   }
-
-  const anticipation = THREE.MathUtils.clamp(u / 0.30, 0, 1);
-  const release = THREE.MathUtils.clamp((u - 0.30) / 0.38, 0, 1);
-  const recover = THREE.MathUtils.clamp((u - 0.68) / 0.32, 0, 1);
-  const swing = u < 0.30
-    ? THREE.MathUtils.lerp(0, -0.82, anticipation)
-    : u < 0.68
-      ? THREE.MathUtils.lerp(-0.82, 1.15, release)
-      : THREE.MathUtils.lerp(1.15, 0, recover);
-  const squash = u < 0.30 ? 0.22 * anticipation : 0.06 * (1 - recover);
-  const stretch = u >= 0.30 && u < 0.68 ? 0.30 * Math.sin(release * Math.PI) : 0;
-  setMorph(parts.body, 'Squash', squash);
-  setMorph(parts.body, 'Stretch', stretch);
-  setMorph(parts.body, 'LeanRight', 0.13 * Math.sin(u * Math.PI));
-  tempQuaternion.setFromAxisAngle(swordAxis, swing);
-  parts.equipment.quaternion.copy(parts.equipmentBaseQuaternion).multiply(tempQuaternion);
-  return 0;
 }
 
 function FusionScene(props: FusionSceneProps) {
   const fullMerge = props.ceremony === 'major-form';
-  const ceremonyDuration = props.ceremony === 'major-form'
-    ? 1.58
-    : props.ceremony === 'major-behavior'
-      ? 1.34
-      : 1.08;
+  const ceremonyDuration = getFusionCeremonyDurationSec(props.resultPresentation);
+  const attackDuration = getFusionPreviewAttackDurationSec(props.resultPresentation);
+  const attackStart = getFusionPreviewAttackStartSec();
   const currentGltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}${props.currentPresentation.asset}`);
   const resultGltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}${props.resultPresentation.asset}`);
 
@@ -161,9 +150,18 @@ function FusionScene(props: FusionSceneProps) {
     applySlimeMutationVisuals(clone, props.resultPresentation.mutationId);
     return clone;
   }, [resultGltf.scene, props.resultPresentation.mutationId]);
-  const leftParts = useMemo(() => getParts(leftModel, props.slimeId), [leftModel, props.slimeId]);
-  const rightParts = useMemo(() => getParts(rightModel, props.slimeId), [rightModel, props.slimeId]);
-  const resultParts = useMemo(() => getParts(resultModel, props.slimeId), [resultModel, props.slimeId]);
+  const leftParts = useMemo(
+    () => getParts(leftModel, props.currentPresentation),
+    [leftModel, props.currentPresentation],
+  );
+  const rightParts = useMemo(
+    () => getParts(rightModel, props.currentPresentation),
+    [rightModel, props.currentPresentation],
+  );
+  const resultParts = useMemo(
+    () => getParts(resultModel, props.resultPresentation),
+    [resultModel, props.resultPresentation],
+  );
   const leftRef = useRef<THREE.Group>(null);
   const rightRef = useRef<THREE.Group>(null);
   const resultRef = useRef<THREE.Group>(null);
@@ -227,15 +225,18 @@ function FusionScene(props: FusionSceneProps) {
     }
 
     const elapsed = clock.elapsedTime - startedAt.current;
-    const timeline = elapsed * (1.58 / ceremonyDuration);
-    const moveU = THREE.MathUtils.clamp((timeline - 0.16) / 0.43, 0, 1);
+    const moveU = THREE.MathUtils.clamp(
+      (elapsed - MERGE_START_SEC) / (MERGE_END_SEC - MERGE_START_SEC),
+      0,
+      1,
+    );
     const eased = 1 - ((1 - moveU) ** 3);
-    const anticipation = THREE.MathUtils.clamp(timeline / 0.18, 0, 1);
-    const tremble = Math.sin(timeline * 48) * 0.018 * (1 - moveU);
+    const anticipation = THREE.MathUtils.clamp(elapsed / 0.18, 0, 1);
+    const tremble = Math.sin(elapsed * 48) * 0.018 * (1 - moveU);
     const squeeze = Math.sin(moveU * Math.PI) * (props.ceremony === 'enhancement' ? 0.16 : 0.10);
 
-    left.visible = timeline < 0.62;
-    right.visible = fullMerge && timeline < 0.62;
+    left.visible = elapsed < RESULT_REVEAL_START_SEC + 0.04;
+    right.visible = fullMerge && elapsed < RESULT_REVEAL_START_SEC + 0.04;
     if (fullMerge) {
       left.position.set(THREE.MathUtils.lerp(LEFT_X, -0.035, eased) + tremble, -0.45 + Math.sin(moveU * Math.PI) * 0.08, 0);
       right.position.set(THREE.MathUtils.lerp(RIGHT_X, 0.035, eased) - tremble, -0.45 + Math.sin(moveU * Math.PI) * 0.08, 0);
@@ -249,9 +250,13 @@ function FusionScene(props: FusionSceneProps) {
     left.rotation.y = -0.18 - anticipation * (props.ceremony === 'major-behavior' ? 0.18 : 0.08);
     animateJelly(leftParts, clock.elapsedTime, 0);
 
-    if (timeline >= 0.58) {
+    if (elapsed >= RESULT_REVEAL_START_SEC) {
       result.visible = true;
-      const revealU = THREE.MathUtils.clamp((timeline - 0.58) / 0.42, 0, 1);
+      const revealU = THREE.MathUtils.clamp(
+        (elapsed - RESULT_REVEAL_START_SEC) / (RESULT_REVEAL_END_SEC - RESULT_REVEAL_START_SEC),
+        0,
+        1,
+      );
       const overshoot = 1 + Math.sin(revealU * Math.PI) * 0.12;
       const revealScale = BASE_SCALE * THREE.MathUtils.lerp(0.12, 1, 1 - ((1 - revealU) ** 3)) * overshoot;
       result.position.set(0, -0.45 + Math.sin(revealU * Math.PI) * 0.07, 0);
@@ -259,10 +264,17 @@ function FusionScene(props: FusionSceneProps) {
       result.rotation.y = THREE.MathUtils.lerp(0.55, -0.24, revealU);
       animateJelly(resultParts, clock.elapsedTime, 0.7);
 
-      if (timeline >= 1.02) {
-        const attackU = THREE.MathUtils.clamp((timeline - 1.02) / 0.46, 0, 1);
-        const attackRotation = animateResultAttack(resultParts, props.slimeId, props.toRank, attackU);
-        result.rotation.y = -0.24 + attackRotation + Math.sin(attackU * Math.PI) * 0.04;
+      if (elapsed >= attackStart) {
+        const attackU = THREE.MathUtils.clamp((elapsed - attackStart) / attackDuration, 0, 1);
+        const pose = applyResultPreview(resultParts, props.resultPresentation, props.slimeId, attackU);
+        const forward = THREE.MathUtils.clamp(pose.bodyOffset * 0.42, -0.42, 0.58);
+        const lateral = THREE.MathUtils.clamp(pose.lateralOffset * 0.8, -0.24, 0.24);
+        result.position.set(
+          forward,
+          -0.45 + pose.deformation.jump * 0.42,
+          lateral,
+        );
+        result.rotation.y = -0.24 + pose.rootYawOffset;
       }
     }
 
@@ -337,6 +349,7 @@ export function FusionStage(props: FusionStageProps) {
     </div>
   );
 }
+
 function ceremonyClass(ceremony: FusionCeremonyPreset): string {
   switch (ceremony) {
     case 'enhancement': return styles.enhancement;

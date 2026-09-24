@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { clamp01 } from '../slime-motion';
-import type { AllyUnit, BasicMaterial, BattleSnapshot, HealthBarGroup } from './types';
+import type { AllyUnit, BasicMaterial, BattleSnapshot, EnemyUnit, HealthBarGroup } from './types';
 
 export function createShadow(radius = 0.3): THREE.Mesh<THREE.CircleGeometry, BasicMaterial> {
   const material = new THREE.MeshBasicMaterial({
@@ -16,7 +16,7 @@ export function createShadow(radius = 0.3): THREE.Mesh<THREE.CircleGeometry, Bas
   return shadow;
 }
 
-export function createWorldHealthBar(): HealthBarGroup {
+export function createWorldHealthBar(side: 'ally' | 'enemy' = 'ally'): HealthBarGroup {
   const group = new THREE.Group() as HealthBarGroup;
   group.renderOrder = 8;
   const backMaterial = new THREE.MeshBasicMaterial({
@@ -27,7 +27,7 @@ export function createWorldHealthBar(): HealthBarGroup {
     depthWrite: false,
   });
   const fillMaterial = new THREE.MeshBasicMaterial({
-    color: '#58d681',
+    color: side === 'enemy' ? '#ff756d' : '#58d681',
     transparent: true,
     opacity: 0.96,
     depthTest: false,
@@ -47,7 +47,7 @@ export function createWorldHealthBar(): HealthBarGroup {
 }
 
 export function updateWorldHealthBar(
-  unit: AllyUnit,
+  unit: AllyUnit | EnemyUnit,
   camera: THREE.PerspectiveCamera,
   phase: BattleSnapshot['phase'],
   result: BattleSnapshot['result'],
@@ -62,9 +62,17 @@ export function updateWorldHealthBar(
   unit.healthBar.visible = unit.root.visible
     && (unit.alive || unit.state === 'defeat')
     && !(phase === 'result' && result === 'victory');
+  const standingOffset = unit.side === 'enemy'
+    ? unit.scaleClass === 'boss'
+      ? 0.72
+      : unit.scaleClass === 'elite'
+        ? 0.50
+        : 0.38
+    : 0.34;
+  const defeatOffset = unit.side === 'enemy' ? 0.24 : 0.18;
   unit.healthBar.position.set(
     unit.root.position.x,
-    Math.max(0.31, unit.root.position.y + (unit.state === 'defeat' ? 0.18 : 0.34)),
+    Math.max(0.31, unit.root.position.y + (unit.state === 'defeat' ? defeatOffset : standingOffset)),
     unit.root.position.z + 0.015,
   );
   unit.healthBar.quaternion.copy(camera.quaternion);

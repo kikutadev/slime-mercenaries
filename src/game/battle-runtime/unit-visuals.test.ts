@@ -7,7 +7,7 @@ import {
   setAllyDefeatEyes,
   updateWorldHealthBar,
 } from './unit-visuals';
-import type { AllyUnit } from './types';
+import type { AllyUnit, EnemyUnit } from './types';
 
 describe('battle unit visual helpers', () => {
   it('creates a reusable ground shadow with the expected presentation defaults', () => {
@@ -38,6 +38,30 @@ describe('battle unit visual helpers', () => {
     expect(healthBar.userData.fill?.scale.x).toBeCloseTo(0.5);
     expect(healthBar.visible).toBe(true);
     expect(healthBar.quaternion.equals(camera.quaternion)).toBe(true);
+  });
+
+  it('tracks a world-space health bar independently for each enemy unit', () => {
+    const root = new THREE.Group();
+    root.visible = true;
+    root.position.set(-0.5, 0.1, -1);
+    const healthBar = createWorldHealthBar('enemy');
+    const enemy = {
+      side: 'enemy',
+      scaleClass: 'normal',
+      root,
+      healthBar,
+      hp: 2,
+      maxHp: 4,
+      alive: true,
+      state: 'idle',
+    } as unknown as EnemyUnit;
+    const camera = new THREE.PerspectiveCamera();
+
+    updateWorldHealthBar(enemy, camera, 'combat', null);
+
+    expect(healthBar.userData.fill?.scale.x).toBeCloseTo(0.5);
+    expect(healthBar.visible).toBe(true);
+    expect(healthBar.position.y).toBeCloseTo(0.48);
   });
 
   it('replaces normal ally eyes with defeat X eyes without detaching them', () => {

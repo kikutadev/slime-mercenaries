@@ -5,9 +5,11 @@ import {
   advanceCombatFromWallClock,
   advanceCombatTo,
   assignSlimeToFormation,
+  currentCombatEncounterIdentity,
   nextCombatBoundarySec,
   partyCombatDps,
   partyCombatPower,
+  resolveLiveCombatEncounter,
 } from './combat';
 import { balance } from './balance';
 import { areaDefinitions, ids } from './definitions';
@@ -53,6 +55,117 @@ describe('analytical combat progression', () => {
       && typeof reward.amount === 'number'
       && reward.amount > 0
     ))).toBe(true);
+  });
+
+  it('does not resolve or reward a rendered encounter while live presentation owns the result', () => {
+    const state = createSwordParty(301);
+    const identity = currentCombatEncounterIdentity(state);
+    if (identity === null) throw new Error('test setup: encounter missing');
+    const beforeGold = readCurrency(state.currencies, ids.currency.gold);
+    const analyticalBoundary = requireCombatBoundary(state);
+
+    const deferred = advanceCombatTo(
+      state,
+      analyticalBoundary + 30,
+      { deferEncounterResolution: true },
+    );
+
+    expect(deferred.state.gameData.combat.currentWaveIndex).toBe(0);
+    expect(deferred.events).toEqual([]);
+    expect(readCurrency(deferred.state.currencies, ids.currency.gold)).toEqual(beforeGold);
+    expect(currentCombatEncounterIdentity(deferred.state)).toEqual(identity);
+    expect(deferred.state.gameData.combat.waveWorkRemaining).not.toBeNull();
+  });
+
+  it('accepts one rendered victory and rejects a duplicate stale result without duplicating rewards', () => {
+    const state = createSwordParty(302);
+    const identity = currentCombatEncounterIdentity(state);
+    if (identity === null) throw new Error('test setup: encounter missing');
+    const deferred = advanceCombatTo(
+      state,
+      requireCombatBoundary(state) + 10,
+      { deferEncounterResolution: true },
+    );
+    const beforeGold = readCurrency(deferred.state.currencies, ids.currency.gold);
+
+    const first = resolveLiveCombatEncounter(deferred.state, identity, 'victory');
+    expect(first.accepted).toBe(true);
+    if (!first.accepted) throw new Error('live victory unexpectedly rejected');
+    expect(first.state.gameData.combat.currentWaveIndex).toBe(1);
+    expect(readCurrency(first.state.currencies, ids.currency.gold).compare(beforeGold)).toBeGreaterThan(0);
+    expect(first.events.filter((event) => event.type === 'combatWaveCleared')).toHaveLength(1);
+
+    const afterFirstGold = readCurrency(first.state.currencies, ids.currency.gold);
+    const duplicate = resolveLiveCombatEncounter(first.state, identity, 'victory');
+    expect(duplicate.accepted).toBe(false);
+    if (duplicate.accepted) throw new Error('duplicate live result unexpectedly accepted');
+    expect(duplicate.reason).toBe('stale-encounter');
+    expect(readCurrency(duplicate.state.currencies, ids.currency.gold)).toEqual(afterFirstGold);
+  });
+
+  it('defers an analytical frontier defeat until the rendered fight reports defeat', () => {
+    let state = advanceUntilHighestStageCleared(createSwordParty(303), 2);
+    expect(state.gameData.progression.currentStage).toBe(3);
+    const identity = currentCombatEncounterIdentity(state);
+    if (identity === null) throw new Error('test setup: frontier encounter missing');
+    const beforeGold = readCurrency(state.currencies, ids.currency.gold);
+
+    const deferred = advanceCombatTo(
+      state,
+      state.simTimeSec + balance.combat.frontier.defeatDurationSec + 10,
+      { deferEncounterResolution: true },
+    );
+
+    expect(deferred.state.gameData.progression.currentStage).toBe(3);
+    expect(deferred.state.gameData.combat.frontierDefeatTimeRemainingSec).toBe(0);
+    expect(deferred.events.some((event) => event.type === 'partyDefeated')).toBe(false);
+    expect(readCurrency(deferred.state.currencies, ids.currency.gold)).toEqual(beforeGold);
+
+    const defeated = resolveLiveCombatEncounter(deferred.state, identity, 'defeat');
+    expect(defeated.accepted).toBe(true);
+    if (!defeated.accepted) throw new Error('live defeat unexpectedly rejected');
+    expect(defeated.state.gameData.progression.currentStage).toBe(2);
+    expect(defeated.state.gameData.combat.retryFarmClearsRemaining).toBe(balance.combat.frontier.retryFarmClears);
+    expect(defeated.events.some((event) => event.type === 'partyDefeated')).toBe(true);
+    expect(defeated.events.some((event) => event.type === 'stageRetreated')).toBe(true);
+  });
+
+  it('lets a rendered victory override the analytical frontier power gate', () => {
+    let state = advanceUntilHighestStageCleared(createSwordParty(304), 2);
+    expect(state.gameData.progression.currentStage).toBe(3);
+    const identity = currentCombatEncounterIdentity(state);
+    if (identity === null) throw new Error('test setup: frontier encounter missing');
+
+    const deferred = advanceCombatTo(
+      state,
+      state.simTimeSec + balance.combat.frontier.defeatDurationSec + 10,
+      { deferEncounterResolution: true },
+    );
+    expect(deferred.state.gameData.combat.frontierDefeatTimeRemainingSec).toBe(0);
+
+    const victory = resolveLiveCombatEncounter(deferred.state, identity, 'victory');
+    expect(victory.accepted).toBe(true);
+    if (!victory.accepted) throw new Error('rendered frontier victory unexpectedly rejected');
+    expect(victory.state.gameData.progression.currentStage).toBe(3);
+    expect(victory.state.gameData.combat.currentWaveIndex).toBe(1);
+    expect(victory.events.some((event) => event.type === 'combatWaveCleared')).toBe(true);
+    expect(victory.state.gameData.combat.frontierDefeatTimeRemainingSec).toBeNull();
+  });
+
+  it('retries stage 1 in place after a rendered defeat instead of inventing a retreat loop', () => {
+    const state = createSwordParty(305);
+    const identity = currentCombatEncounterIdentity(state);
+    if (identity === null) throw new Error('test setup: encounter missing');
+
+    const defeated = resolveLiveCombatEncounter(state, identity, 'defeat');
+
+    expect(defeated.accepted).toBe(true);
+    if (!defeated.accepted) throw new Error('stage-1 defeat unexpectedly rejected');
+    expect(defeated.state.gameData.progression.currentStage).toBe(1);
+    expect(defeated.state.gameData.combat.currentWaveIndex).toBe(0);
+    expect(defeated.state.gameData.combat.retryFarmClearsRemaining).toBe(0);
+    expect(defeated.events.some((event) => event.type === 'partyDefeated')).toBe(true);
+    expect(defeated.events.some((event) => event.type === 'stageRetreated')).toBe(false);
   });
 
   it('moves to the next stage and grants deterministic stage-clear progression materials', () => {

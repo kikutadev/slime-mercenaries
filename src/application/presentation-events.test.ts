@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DomainEvent } from 'idle-game-kit';
-import { battleActivityProgressLabel, battleActivityReportIsMeaningful, buildBattleActivityReport, buildOfflineReturnView, mergeBattleActivityReports, routePresentationEvents, toBattleRewardCue, toPresentationNotices } from './presentation-events';
+import { battleActivityProgressLabel, battleActivityReportIsMeaningful, buildBattleActivityReport, buildOfflineReturnView, mergeBattleActivityReports, routePresentationEvents, toBattleRewardCue, toDispatchReturnCues, toPresentationNotices } from './presentation-events';
 
 function event(type: string, payload?: Readonly<Record<string, unknown>>): DomainEvent {
   return { id: `${type}:1`, type, simTimeSec: 12, ...(payload === undefined ? {} : { payload }) };
@@ -43,6 +43,7 @@ describe('presentation event policy', () => {
   it('aggregates authoritative combat rewards into one battle cue', () => {
     const cue = toBattleRewardCue([
       event('combatWaveCleared', {
+        areaId: 'area.clover-road',
         stageNumber: 2,
         waveNumber: 3,
         grantedRewards: [
@@ -59,7 +60,7 @@ describe('presentation event policy', () => {
     ]);
 
     expect(cue).not.toBeNull();
-    expect(cue?.target).toEqual({ kind: 'wave', stageNumber: 2, waveIndex: 2 });
+    expect(cue?.target).toEqual({ kind: 'wave', areaId: 'area.clover-road', stageNumber: 2, waveIndex: 2 });
     expect(cue?.items).toEqual([
       { kind: 'gold', id: 'currency.gold', label: 'G', amount: 12 },
       { kind: 'material', id: 'token.material.slime-gel', label: 'スライムジェル', amount: 3 },
@@ -85,11 +86,11 @@ describe('presentation event policy', () => {
 
   it('marks a reward cue as boss-grade when boss defeat contributed', () => {
     const cue = toBattleRewardCue([
-      event('bossDefeated', { stageNumber: 5, grantedRewards: [{ kind: 'currency', id: 'currency.gold', amount: 80 }] }),
+      event('bossDefeated', { areaId: 'area.clover-road', stageNumber: 5, grantedRewards: [{ kind: 'currency', id: 'currency.gold', amount: 80 }] }),
       event('stageCleared', { grantedRewards: [{ kind: 'token', id: 'token.material.life-water', amount: 1 }] }),
     ]);
     expect(cue?.importance).toBe('boss');
-    expect(cue?.target).toEqual({ kind: 'boss', stageNumber: 5 });
+    expect(cue?.target).toEqual({ kind: 'boss', areaId: 'area.clover-road', stageNumber: 5 });
     expect(cue?.items).toHaveLength(2);
   });
 
@@ -163,6 +164,20 @@ describe('presentation event policy', () => {
     const [notice] = toPresentationNotices([event('dispatchCompleted', { contractId: 'roadEscort' })]);
     expect(notice?.title).toBe('派遣帰還');
     expect(notice?.tone).toBe('reward');
+  });
+
+  it('keeps dispatch return identity in a durable cue for later screen presentation', () => {
+    const cues = toDispatchReturnCues([
+      event('combatWaveCleared'),
+      event('dispatchCompleted', { contractId: 'forestExploration', slimeId: 'slime.7' }),
+      event('dispatchCompleted', { contractId: 'unknown-contract', slimeId: 'slime.9' }),
+    ]);
+
+    expect(cues).toEqual([{
+      id: 'dispatchCompleted:1',
+      contractId: 'forestExploration',
+      slimeId: 'slime.7',
+    }]);
   });
   it('does not surface a trivial one-second away report without progress', () => {
     const report = buildBattleActivityReport({

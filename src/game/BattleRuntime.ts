@@ -62,7 +62,6 @@ import {
   shouldUseMarchEntry,
 } from './battle-transition';
 import type { BattleRewardCue } from './battle-reward';
-import { authoritativeResultTriggerDelay } from './battle-runtime-timing';
 import { BattleClock } from './battle-runtime/clock';
 import { BattleCameraController } from './battle-runtime/camera';
 import { BattleEffectsSystem } from './battle-runtime/effects-system';
@@ -77,6 +76,7 @@ import {
   meleeCombatAnchor,
 } from './battle-runtime/layout';
 import { createBattleSnapshot } from './battle-runtime/snapshot';
+import { areAllUnitsVisiblyDefeated } from './battle-runtime/outcome';
 import {
   disposeObjectMaterials,
   disposeOwnedObjectResources,
@@ -119,8 +119,6 @@ export type {
   BattleSnapshotAlly,
 } from './battle-runtime/types';
 
-const RESULT_HOLD_SECONDS = 1.85;
-
 export class BattleRuntime {
   private readonly scene: THREE.Scene;
   private readonly ownedSceneObjects = new Set<THREE.Object3D>();
@@ -138,8 +136,6 @@ export class BattleRuntime {
   private waveIndex: number;
   private readonly allyConfigs: readonly BattleRuntimeAllyConfig[];
   private enemyConfigs: readonly BattleRuntimeEnemyConfig[];
-  private authoritativeResult: 'victory' | 'defeat' | null;
-  private authoritativeResultDelaySec: number | null;
   private readonly onSnapshot: (snapshot: BattleSnapshot) => void;
   private bossEncounter: boolean;
   private readonly tempVector = new THREE.Vector3();
@@ -207,8 +203,6 @@ export class BattleRuntime {
     this.waveIndex = options.waveIndex;
     this.allyConfigs = options.allies;
     this.enemyConfigs = options.enemies;
-    this.authoritativeResult = options.authoritativeResult;
-    this.authoritativeResultDelaySec = options.authoritativeResultDelaySec;
     this.onSnapshot = options.onSnapshot;
     this.bossEncounter = options.enemies.some((enemy) => enemy.scaleClass === 'boss');
     this.continuationEntryPending = shouldUseMarchEntry(options.stageNumber, options.waveIndex);
@@ -233,14 +227,6 @@ export class BattleRuntime {
 
   private async prepareEnvironment(areaId: string, stageNumber: number, waveIndex: number): Promise<StageEnvironmentRuntime> {
     return createStageEnvironment(this.scene, this.baseUrl, areaId, stageNumber, waveIndex);
-  }
-
-  public updateAuthoritativeResult(
-    result: 'victory' | 'defeat' | null,
-    delaySec: number | null,
-  ): void {
-    this.authoritativeResult = result;
-    this.authoritativeResultDelaySec = delaySec;
   }
 
   public async updateEncounter(update: BattleRuntimeEncounterUpdate): Promise<void> {
@@ -276,8 +262,6 @@ export class BattleRuntime {
     this.stageNumber = update.stageNumber;
     this.waveIndex = update.waveIndex;
     this.enemyConfigs = update.enemies;
-    this.authoritativeResult = update.authoritativeResult;
-    this.authoritativeResultDelaySec = update.authoritativeResultDelaySec;
     this.bossEncounter = update.enemies.some((enemy) => enemy.scaleClass === 'boss');
     this.continuationEntryPending = shouldUseMarchEntry(update.stageNumber, update.waveIndex);
     if (preparedEnvironment !== null) this.applyEnvironment(preparedEnvironment);
@@ -357,7 +341,6 @@ export class BattleRuntime {
       else if (this.phase === 'combat') this.updateCombat(frame.simulationNow);
       else if (this.phase === 'result') this.updateResult(frame.simulationNow);
 
-      this.enforceAuthoritativeResult(frame.simulationNow);
       this.allies.forEach((ally) => this.updateAllyDefeat(ally, frame.simulationNow));
       this.effects.update(frame.simulationNow);
       this.evaluateBattleOutcome(frame.simulationNow);
@@ -471,6 +454,8 @@ export class BattleRuntime {
     const shadow = createShadow(config.shadowRadius);
     if (attachToScene) this.addSceneObject(shadow);
     shadow.position.set(home.x, 0.011, home.z);
+    const healthBar = createWorldHealthBar('enemy');
+    if (attachToScene) this.addSceneObject(healthBar);
 
     return {
       id: `enemy-${config.enemyId}-${config.instanceIndex + 1}`,
@@ -486,6 +471,7 @@ export class BattleRuntime {
       rigParts,
       rigRest,
       shadow,
+      healthBar,
       home,
       baseScale: config.renderScale, maxHp: config.maxHp, hp: config.maxHp, moveSpeed: config.moveSpeed,
       attackRange: config.attackRange, attackInterval: config.attackInterval, attackDamage: config.attackDamage,
@@ -499,6 +485,7 @@ export class BattleRuntime {
   private attachEnemy(enemy: EnemyUnit): void {
     this.addSceneObject(enemy.root);
     this.addSceneObject(enemy.shadow);
+    this.addSceneObject(enemy.healthBar);
     if (enemy.attackTelegraph !== null) this.addSceneObject(enemy.attackTelegraph);
   }
 
@@ -510,6 +497,9 @@ export class BattleRuntime {
 
     this.removeSceneObject(enemy.shadow);
     disposeOwnedObjectResources(enemy.shadow);
+
+    this.removeSceneObject(enemy.healthBar);
+    disposeOwnedObjectResources(enemy.healthBar);
 
     if (enemy.attackTelegraph !== null) {
       this.removeSceneObject(enemy.attackTelegraph);
@@ -716,6 +706,9 @@ export class BattleRuntime {
     this.allies.forEach((ally) => {
       updateWorldHealthBar(ally, this.camera, this.phase, this.result);
     });
+    this.enemies.forEach((enemy) => {
+      updateWorldHealthBar(enemy, this.camera, this.phase, this.result);
+    });
   }
 
   private applyDamage(
@@ -728,15 +721,7 @@ export class BattleRuntime {
     const effectiveAmount = target.side === 'ally'
       ? amount * resolveTimedMultiplier(target.damageTakenEffect, this.simulationNow)
       : amount;
-    let nextHp = Math.max(0, target.hp - effectiveAmount);
-    // A Domain-owned encounter must not resolve locally before its authored boundary.
-    if (this.authoritativeResult !== null && nextHp <= 0) {
-      const isLast = target.side === 'enemy'
-        ? this.getLivingEnemies().length === 1
-        : this.getLivingAllies().length === 1;
-      if (isLast) nextHp = 1;
-    }
-    target.hp = nextHp;
+    target.hp = Math.max(0, target.hp - effectiveAmount);
     target.hitStartedAt = this.simulationNow;
     this.tempVector.copy(target.root.position);
     this.tempVector.y += target.side === 'enemy' ? 0.28 : 0.22;
@@ -796,6 +781,7 @@ export class BattleRuntime {
       unit.bodyBaseScale.z * pose.bodyScaleZ,
     );
     setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
+    if (u >= 1) unit.state = 'dead';
   }
 
   private updateEnemyDefeat(enemy: EnemyUnit, now: number): void {
@@ -910,42 +896,10 @@ export class BattleRuntime {
     this.enemies.forEach((enemy) => this.enemyCombat.update(enemy, now, this.phase));
   }
 
-  private enforceAuthoritativeResult(now: number): void {
-    if (this.authoritativeResult === null || this.authoritativeResultDelaySec === null) return;
-    // Analytical idle progress can complete in one second. Presentation must never kill
-    // an encounter while it is still entering the screen.
-    if (this.phase !== 'combat') return;
-    const triggerDelay = authoritativeResultTriggerDelay(
-      this.authoritativeResult,
-      this.authoritativeResultDelaySec,
-      this.bossEncounter,
-    );
-    if (now - this.battleStartedAt < triggerDelay) return;
-
-    if (this.authoritativeResult === 'defeat') {
-      const livingAllies = this.getLivingAllies();
-      if (livingAllies.length === 0) return;
-      livingAllies.forEach((ally) => {
-        ally.hp = 0;
-        this.beginAllyDefeat(ally);
-      });
-      this.enterResult('defeat', now);
-      return;
-    }
-
-    const livingEnemies = this.getLivingEnemies();
-    if (livingEnemies.length === 0) return;
-    livingEnemies.forEach((enemy) => {
-      enemy.hp = 0;
-      this.beginEnemyDefeat(enemy);
-    });
-    this.enterResult('victory', now);
-  }
-
   private evaluateBattleOutcome(now: number): void {
     if (this.phase === 'result' || this.phase === 'loading') return;
-    if (this.getLivingEnemies().length === 0) this.enterResult('victory', now);
-    else if (this.getLivingAllies().length === 0) this.enterResult('defeat', now);
+    if (areAllUnitsVisiblyDefeated(this.enemies)) this.enterResult('victory', now);
+    else if (areAllUnitsVisiblyDefeated(this.allies)) this.enterResult('defeat', now);
   }
 
   private enterResult(result: 'victory' | 'defeat', now: number): void {
@@ -990,20 +944,7 @@ export class BattleRuntime {
     this.allies.forEach((ally) => {
       if (ally.alive) updateIdle(ally, now, ally.slotIndex * 0.31);
     });
-    // Domain-owned results stay visible until the Domain advances/remounts the encounter.
-    if (this.authoritativeResult !== null) return;
-    if (elapsed >= RESULT_HOLD_SECONDS) this.resetWave(now);
-  }
-
-  private resetWave(now: number): void {
-    this.continuationEntryPending = false;
-    this.clearProjectiles();
-    this.allies.forEach((ally) => {
-      this.resetAlly(ally);
-      facePoint(ally, TARGET_HOME);
-    });
-    this.enemies.forEach((enemy, index) => this.resetEnemy(enemy, now + index * 0.02));
-    this.startBattle(now + 0.1);
+    // Hold the completed encounter until Domain accepts the result and supplies the next encounter.
   }
 
   private resetAlly(unit: AllyUnit): void {
@@ -1033,35 +974,6 @@ export class BattleRuntime {
     unit.shadow.visible = true;
     unit.shadow.material.opacity = 0.22;
     unit.healthBar.visible = true;
-  }
-
-  private resetEnemy(enemy: EnemyUnit, now: number): void {
-    enemy.hp = enemy.maxHp;
-    enemy.alive = true;
-    enemy.state = 'idle';
-    enemy.defeatStartedAt = -Infinity;
-    enemy.hitStartedAt = -Infinity;
-    enemy.attackStartedAt = -Infinity;
-    enemy.attackTarget = null;
-    enemy.attackHitApplied = false;
-    if (enemy.attackTelegraph) enemy.attackTelegraph.visible = false;
-    enemy.nextAttackAt = now + enemy.initialAttackDelay;
-    enemy.lastUpdateAt = now;
-    enemy.root.visible = true;
-    enemy.root.position.copy(enemy.home);
-    enemy.root.rotation.set(0, 0, 0);
-    enemy.root.scale.setScalar(enemy.baseScale);
-    enemy.bodyRoot.scale.copy(enemy.bodyBaseScale);
-    resetEnemySecondaryPose(enemy.rigParts, enemy.rigRest);
-    if (enemy.faceRoot) {
-      enemy.faceRoot.position.copy(enemy.faceBasePosition);
-      enemy.faceRoot.scale.copy(enemy.faceBaseScale);
-    }
-    setEnemyDefeatEyes(enemy.normalEyes, enemy.xEyes, false);
-    enemy.shadow.visible = true;
-    enemy.shadow.position.set(enemy.home.x, 0.011, enemy.home.z);
-    enemy.shadow.scale.set(1.35, 0.68, 1);
-    enemy.shadow.material.opacity = 0.22;
   }
 
   private clearFlightVfx(): void {

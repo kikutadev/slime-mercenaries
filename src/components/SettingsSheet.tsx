@@ -1,4 +1,3 @@
-
 import { useRef, useState } from 'react';
 import { BottomSheet } from 'idle-game-kit/react';
 import { useGameController } from '../app/GameProvider';
@@ -18,9 +17,11 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const commitLockRef = useRef(false);
 
   const changeMode = async (next: EconomyMode) => {
-    if (busy || next === mode) return;
+    if (busy || commitLockRef.current || next === mode) return;
+    commitLockRef.current = true;
     setBusy(true);
     setMessage(null);
     try {
@@ -32,6 +33,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'プレイモードを切り替えられませんでした。');
     } finally {
+      commitLockRef.current = false;
       setBusy(false);
     }
   };
@@ -73,7 +75,8 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   };
 
   const confirmPending = async () => {
-    if (pending === null || busy) return;
+    if (pending === null || busy || commitLockRef.current) return;
+    commitLockRef.current = true;
     setBusy(true);
     setMessage(null);
     try {
@@ -84,6 +87,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
       }
       window.location.reload();
     } catch (cause) {
+      commitLockRef.current = false;
       setBusy(false);
       setMessage(cause instanceof Error ? cause.message : 'データを更新できませんでした。');
     }
@@ -98,7 +102,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
       headerClassName={styles.header}
       closeButtonClassName={styles.close}
     >
-      <div className={styles.content}>
+      <div className={styles.content} aria-busy={busy}>
         <section className={styles.section}>
           <div className={styles.sectionHeading}>
             <span>プレイモード</span>
@@ -109,6 +113,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
               active={mode === 'normal'}
               title="通常モード"
               description="GOLDと素材を獲得・消費して遊ぶ通常のモードです。"
+              disabled={busy}
               onClick={() => void changeMode('normal')}
             />
             <ModeButton
@@ -116,6 +121,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
               title="開発用モード"
               description="GOLDと素材が∞になり、合成・鍛造・育成を自由に試せます。"
               badge="∞"
+              disabled={busy}
               onClick={() => void changeMode('development')}
             />
           </div>
@@ -193,12 +199,14 @@ function ModeButton({
   description,
   badge,
   onClick,
+  disabled = false,
 }: {
   active: boolean;
   title: string;
   description: string;
   badge?: string;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -206,6 +214,7 @@ function ModeButton({
       className={styles.modeButton + ' ' + (active ? styles.modeActive : '')}
       role="radio"
       aria-checked={active}
+      disabled={disabled}
       onClick={onClick}
     >
       <span className={styles.modeCheck}>{active ? '✓' : ''}</span>

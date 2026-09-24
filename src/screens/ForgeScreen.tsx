@@ -1,13 +1,14 @@
 import { useMemo, useRef, useState } from 'react';
 import { useGameController, useGameState } from '../app/GameProvider';
 import { useManagedTimeouts } from '../app/useManagedTimeouts';
-import { selectForgeScreen } from '../application/selectors/ui-selectors';
+import { selectForgeScreen, selectForgeWeaponTarget } from '../application/selectors/ui-selectors';
 import { ForgeStage, type ForgeVisualPhase } from '../components/ForgeStage';
 import { ForgeKeyIcon, WeaponFamilyIcon } from '../components/WeaponFamilyIcon';
 import {
   equipmentForgeDefinition,
   weaponDefinitions,
   weaponDefinitionsByDefinitionId,
+  type SlimeInstanceId,
   type WeaponRarity,
 } from '../domain';
 import { getForgeWeaponPresentation } from '../game/forge-presentation';
@@ -21,7 +22,7 @@ interface ForgeResultView {
 
 type ForgePhase = ForgeVisualPhase;
 
-export function ForgeScreen() {
+export function ForgeScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInstanceId) => void }) {
   const state = useGameState();
   const controller = useGameController();
   const view = selectForgeScreen(state);
@@ -30,6 +31,9 @@ export function ForgeScreen() {
   const [phase, setPhase] = useState<ForgePhase>('idle');
   const [sequenceKey, setSequenceKey] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
+  const [resultTargetSlimeId, setResultTargetSlimeId] = useState<SlimeInstanceId | null>(null);
+  const [resultEquipLabel, setResultEquipLabel] = useState<string | null>(null);
+  const forgeLockRef = useRef(false);
   const impactTimer = useRef<number | null>(null);
   const revealTimer = useRef<number | null>(null);
   const { schedule, clear } = useManagedTimeouts();
@@ -40,9 +44,11 @@ export function ForgeScreen() {
   );
 
   const draw = (count: 1 | 10) => {
-    if (phase !== 'idle' && phase !== 'reveal') return;
+    if (forgeLockRef.current || (phase !== 'idle' && phase !== 'reveal')) return;
+    forgeLockRef.current = true;
     const result = controller.forge(count);
     if (!result.accepted) {
+      forgeLockRef.current = false;
       setNotice(result.reason === 'insufficient-token' ? '鍛造キーが足りません' : `鍛造できません: ${result.reason}`);
       return;
     }
@@ -63,16 +69,30 @@ export function ForgeScreen() {
     clear(revealTimer.current);
     setNotice(null);
     setResults(nextResults);
+    const strongestResult = [...nextResults].sort((left, right) => rarityRank(right.rarity) - rarityRank(left.rarity))[0] ?? null;
+    const strongestTarget = strongestResult === null
+      ? null
+      : selectForgeWeaponTarget(result.state, strongestResult.weaponDefinitionId);
+    const strongestEquipLabel = strongestResult === null || strongestResult.duplicate || strongestTarget?.equipped !== true
+      ? null
+      : `${strongestTarget.slimeName}が装備`;
+    setResultTargetSlimeId(strongestTarget?.slimeId ?? null);
+    setResultEquipLabel(strongestEquipLabel);
     setSequenceKey((current) => current + 1);
     setPhase('charging');
 
     impactTimer.current = schedule(() => setPhase('impact'), 360);
     revealTimer.current = schedule(() => {
+      forgeLockRef.current = false;
       setPhase('reveal');
       const best = [...nextResults].sort((left, right) => rarityRank(right.rarity) - rarityRank(left.rarity))[0];
       if (best !== undefined) {
         const weapon = weaponDefinitionsByDefinitionId[best.weaponDefinitionId];
-        setNotice(best.duplicate ? `${weapon.displayName} · 精錬 +1` : `${weapon.displayName} を獲得`);
+        setNotice(best.duplicate
+          ? `${weapon.displayName} · 精錬 +1`
+          : strongestEquipLabel === null
+            ? `${weapon.displayName} を獲得`
+            : `${weapon.displayName} を獲得 · ${strongestEquipLabel}`);
       }
     }, 760);
   };
@@ -109,7 +129,7 @@ export function ForgeScreen() {
           <div className={`${styles.reveal} ${forgeRarityClass(bestWeapon.rarity)} `}>
             <span>{rarityLabel(bestWeapon.rarity)}</span>
             <strong>{bestWeapon.displayName}</strong>
-            <small>{bestResult?.duplicate ? '精錬 +1' : '新武器'}</small>
+            <small>{bestResult?.duplicate ? '精錬 +1' : resultEquipLabel ?? '新武器'}</small>
           </div>
         )}
 
@@ -129,17 +149,39 @@ export function ForgeScreen() {
         </div>
 
         <div className={styles.actions}>
-          <button type="button" disabled={!view.canSingle || phase === 'charging' || phase === 'impact'} onClick={() => draw(1)}>
-            <span>1回鍛造</span>
+          <button
+            type="button"
+            aria-busy={phase === 'charging' || phase === 'impact'}
+            disabled={!view.canSingle || phase === 'charging' || phase === 'impact'}
+            onClick={() => draw(1)}
+          >
+            <span>{phase === 'charging' || phase === 'impact' ? '鍛造中…' : '1回鍛造'}</span>
             <strong><ForgeKeyIcon />{view.singleCost}</strong>
             <small>武器1個</small>
           </button>
-          <button className={styles.ten} type="button" disabled={!view.canTen || phase === 'charging' || phase === 'impact'} onClick={() => draw(10)}>
-            <span>10回鍛造</span>
+          <button
+            className={styles.ten}
+            type="button"
+            aria-busy={phase === 'charging' || phase === 'impact'}
+            disabled={!view.canTen || phase === 'charging' || phase === 'impact'}
+            onClick={() => draw(10)}
+          >
+            <span>{phase === 'charging' || phase === 'impact' ? '鍛造中…' : '10回鍛造'}</span>
             <strong><ForgeKeyIcon />{view.tenCost}</strong>
             <small>武器10個</small>
           </button>
         </div>
+
+        {phase === 'reveal' && bestWeapon !== null && resultTargetSlimeId !== null && (
+          <button
+            className={styles.resultNextAction}
+            type="button"
+            onClick={() => onOpenSlime(resultTargetSlimeId)}
+          >
+            <span>次に試す</span>
+            <strong>キャンプで装備を見る</strong>
+          </button>
+        )}
 
         {phase === 'reveal' && results.length > 1 && (
           <div className={styles.resultRack} aria-label="10回鍛造の結果">
@@ -163,15 +205,28 @@ export function ForgeScreen() {
             <div className={styles.collectionList}>
               {ownedWeapons.map((weapon) => {
                 const presentation = getForgeWeaponPresentation(weapon.id);
+                const target = selectForgeWeaponTarget(state, weapon.id);
+                const targetSlimeId = target?.slimeId ?? null;
                 return (
-                  <div key={weapon.id}>
+                  <button
+                    key={weapon.id}
+                    type="button"
+                    disabled={targetSlimeId === null}
+                    onClick={() => {
+                      if (targetSlimeId !== null) onOpenSlime(targetSlimeId);
+                    }}
+                    aria-label={`${weapon.displayName}の装備を見る`}
+                  >
                     <span className={`${styles.weaponRarity} ${forgeRarityClass(weapon.rarity)}`}>{rarityLabel(weapon.rarity)}</span>
                     <span>
                       <strong>{weapon.displayName}</strong>
-                      <small>{presentation.familyLabel} · 攻撃倍率 ×{weapon.dpsMultiplier.toFixed(2)}</small>
+                      <small>
+                        {presentation.familyLabel} · 攻撃倍率 ×{weapon.dpsMultiplier.toFixed(2)}
+                        {targetSlimeId === null ? ' · 対応する仲間なし' : ' · 装備を見る'}
+                      </small>
                     </span>
                     <em>+{weapon.refinementRank}</em>
-                  </div>
+                  </button>
                 );
               })}
             </div>

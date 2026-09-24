@@ -1,4 +1,3 @@
-
 .backdrop {
   position: fixed;
   z-index: var(--layer-sheet);
@@ -106,8 +105,16 @@
   cursor: pointer;
 }
 
-.modeButton:active {
+.modeButton:not(:disabled):active {
   transform: translateY(1px);
+}
+
+.modeButton:disabled {
+  opacity: .58;
+}
+
+.modeButton.modeActive:disabled {
+  opacity: .82;
 }
 
 .modeActive {

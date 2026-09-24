@@ -1,4 +1,4 @@
-import { currentCombatEncounter, currentStageDefinition, equippedWeaponDefinition, nextCombatBoundarySec, partyCombatPower, resolveStageDefinition, type SlimeInstanceId, type SlimeMercenariesState, type SlimeMutationId } from '../../domain';
+import { currentCombatEncounter, currentStageDefinition, equippedWeaponDefinition, type SlimeInstanceId, type SlimeMercenariesState, type SlimeMutationId } from '../../domain';
 import { resolveEncounterDefinition, type ResolvedEncounter } from '../../game/encounters';
 import { getSlimePresentation, type BattleBehaviorId } from '../../game/slimes';
 
@@ -32,8 +32,6 @@ export type BattleSceneModel = Readonly<{
   stageNumber: number;
   waveIndex: number;
   encounter: ResolvedEncounter | null;
-  authoritativeResult: 'victory' | 'defeat' | null;
-  authoritativeResultDeadlineMs: number | null;
   isStageFinalEncounter: boolean;
   shouldCelebrateVictory: boolean;
   allies: readonly BattleSceneAlly[];
@@ -74,34 +72,10 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
   const waveIndex = state.gameData.combat.currentWaveIndex;
   const combatEncounter = currentCombatEncounter(state);
   const stage = currentStageDefinition(state);
-  const terminalStage = state.gameData.combat.contentBoundaryReached
-    ? resolveStageDefinition(state.gameData.progression.currentAreaId, stageNumber)
-    : null;
-  const terminalEncounterId = terminalStage === null
-    ? undefined
-    : terminalStage.boss?.encounterId
-      ?? terminalStage.waves[Math.max(0, terminalStage.waves.length - 1)]?.encounterId;
   const encounterId = combatEncounter?.kind === 'wave'
     ? combatEncounter.wave?.encounterId
-    : combatEncounter?.boss?.encounterId ?? terminalEncounterId;
+    : combatEncounter?.boss?.encounterId;
   const encounter = encounterId === undefined ? null : resolveEncounterDefinition(encounterId);
-  const terminalVictory = combatEncounter === null
-    && state.gameData.combat.contentBoundaryReached
-    && encounter !== null;
-  const authoritativeResult = terminalVictory
-    ? 'victory'
-    : combatEncounter === null
-      ? null
-      : combatEncounter.requiredPartyPower !== null
-        && partyCombatPower(state).compare(combatEncounter.requiredPartyPower) < 0
-        ? 'defeat'
-        : 'victory';
-  const nextBoundarySec = nextCombatBoundarySec(state);
-  const authoritativeResultDeadlineMs = terminalVictory
-    ? state.lastWallClockMs
-    : authoritativeResult === null || nextBoundarySec === null
-      ? null
-      : state.lastWallClockMs + Math.max(0, nextBoundarySec - state.simTimeSec) * 1_000;
   const encounterKey = `${state.gameData.progression.currentAreaId}:${stageNumber}:${waveIndex}:${encounter?.id ?? 'none'}`;
   const runtimeKey = allies
     .map((ally) => [
@@ -115,8 +89,8 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
       ally.behaviorId,
     ].join(':'))
     .join('|');
-  const visualKey = `${runtimeKey}|result:${authoritativeResult ?? '-'}`;
-  const isStageFinalEncounter = terminalVictory || combatEncounter?.kind === 'boss'
+  const visualKey = runtimeKey;
+  const isStageFinalEncounter = combatEncounter?.kind === 'boss'
     || (combatEncounter?.kind === 'wave'
       && stage !== null
       && stage.boss === undefined
@@ -124,5 +98,5 @@ export function selectBattleSceneModel(state: SlimeMercenariesState): BattleScen
   const shouldCelebrateVictory = isStageFinalEncounter
     && state.gameData.combat.retryFarmClearsRemaining === 0;
 
-  return { areaId: state.gameData.progression.currentAreaId, encounterKey, runtimeKey, visualKey, stageNumber, waveIndex, encounter, authoritativeResult, authoritativeResultDeadlineMs, isStageFinalEncounter, shouldCelebrateVictory, allies };
+  return { areaId: state.gameData.progression.currentAreaId, encounterKey, runtimeKey, visualKey, stageNumber, waveIndex, encounter, isStageFinalEncounter, shouldCelebrateVictory, allies };
 }

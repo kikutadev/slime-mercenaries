@@ -14,6 +14,7 @@ import {
   equipWeapon,
   enterAreaStage,
   forgeEquipment,
+  resolveLiveCombatEncounter,
   fuseSlime,
   levelUpSlime,
   markCodexEntriesViewed,
@@ -24,11 +25,13 @@ import {
   createInitialSlimeMercenariesState,
   type CodexCategory,
   type CombatAdvancePolicy,
+  type CombatEncounterIdentity,
   type DispatchContractId,
   type JobSlimeId,
   type SlimeInstanceId,
   type SlimeMercenariesState,
   type SlimeMutationId,
+  type LiveCombatResult,
 } from '../domain';
 import { createSlimeMercenariesBrowserRepository } from '../platform/web';
 import { syncSlimePortalProgress } from '../platform/portal-progress';
@@ -109,6 +112,7 @@ export class SlimeGameController {
   #activeProfileId: string;
   #developmentResources: ResourceSnapshot | null = null;
   #persistenceEpoch = 0;
+  #liveBattleActive = false;
 
   constructor(profileId = DEFAULT_PROFILE_ID, options: SlimeGameControllerOptions = {}) {
     this.#normalProfileId = profileId;
@@ -132,6 +136,15 @@ export class SlimeGameController {
   get validationMode(): boolean {
     return this.#economyMode === 'development';
   }
+  /** True only while the rendered Battle surface owns live encounter resolution. */
+  get liveBattleActive(): boolean {
+    return this.#liveBattleActive;
+  }
+
+  setLiveBattleActive(active: boolean): void {
+    this.#liveBattleActive = active;
+  }
+
 
   async initialize(nowMs = Date.now()): Promise<LoadedSlimeProfile> {
     const loaded = await this.loadModeProfile(this.#economyMode, nowMs);
@@ -209,11 +222,15 @@ export class SlimeGameController {
   ): readonly DomainEvent[] {
     if (!this.#initialized) return [];
     const current = this.store.getSnapshot();
+    const source = options.source ?? 'live';
+    const combatPolicy: CombatAdvancePolicy = source === 'live' && this.#liveBattleActive
+      ? { ...options.combatPolicy, deferEncounterResolution: true }
+      : options.combatPolicy ?? {};
     const advanced = advanceSlimeWorldFromWallClock(
       current,
       nowMs,
       {},
-      options.combatPolicy ?? {},
+      combatPolicy,
     );
     if (advanced.appliedOfflineSec <= 0) return [];
 
@@ -222,7 +239,7 @@ export class SlimeGameController {
       : advanced.state;
     this.store.replaceState(nextState);
     this.emitEvents(advanced.events, {
-      source: options.source ?? 'live',
+      source,
       elapsedSec: advanced.appliedOfflineSec,
       fromAreaId: current.gameData.progression.currentAreaId,
       fromStage: current.gameData.progression.currentStage,
@@ -237,6 +254,13 @@ export class SlimeGameController {
       this.queueCheckpoint(nextState, nowMs);
     }
     return advanced.events;
+  }
+
+  resolveLiveBattleEncounter(
+    identity: CombatEncounterIdentity,
+    result: LiveCombatResult,
+  ) {
+    return this.execute((state) => resolveLiveCombatEncounter(state, identity, result));
   }
 
   checkpointNow(nowMs = Date.now()): Promise<void> {

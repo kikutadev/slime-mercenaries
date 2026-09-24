@@ -119,6 +119,7 @@ export interface EnemyUnit {
   rigParts: EnemyRigParts;
   rigRest: EnemyRigRestPose;
   shadow: THREE.Mesh<THREE.CircleGeometry, BasicMaterial>;
+  healthBar: HealthBarGroup;
   home: THREE.Vector3;
   baseScale: number;
   maxHp: number;
@@ -243,9 +244,6 @@ export interface BattleRuntimeOptions {
   waveIndex: number;
   allies: readonly BattleRuntimeAllyConfig[];
   enemies: readonly BattleRuntimeEnemyConfig[];
-  /** Domain-authored encounter result. Runtime presents it but never owns progression. */
-  authoritativeResult: 'victory' | 'defeat' | null;
-  authoritativeResultDelaySec: number | null;
   onSnapshot: (snapshot: BattleSnapshot) => void;
 }
 
@@ -254,6 +252,4 @@ export type BattleRuntimeEncounterUpdate = Readonly<{
   stageNumber: number;
   waveIndex: number;
   enemies: readonly BattleRuntimeEnemyConfig[];
-  authoritativeResult: 'victory' | 'defeat' | null;
-  authoritativeResultDelaySec: number | null;
 }>;

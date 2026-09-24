@@ -101,7 +101,8 @@
     "qa:environment:verify": "python3 tools/qa/verify-stage-environment-frames.py",
     "qa:world-battle": "node tools/qa/capture-world-battle-states.cjs",
     "simulate:world": "vite-node scripts/simulate-world.ts",
-    "simulate:world:check": "vite-node scripts/simulate-world.ts --seeds 20 --check"
+    "simulate:world:check": "vite-node scripts/simulate-world.ts --seeds 20 --check",
+    "qa:interaction": "node tools/qa/verify-interactions.cjs"
   },
   "dependencies": {
     "@react-three/fiber": "^9.7.0",
@@ -116,6 +117,7 @@
     "@types/react-dom": "^19.2.2",
     "@types/three": "^0.180.0",
     "@vitejs/plugin-react": "^5.0.4",
+    "playwright-core": "1.62.1",
     "typescript": "^5.9.2",
     "vite": "^7.1.5",
     "vite-node": "^3.2.4",

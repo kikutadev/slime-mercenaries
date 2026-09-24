@@ -1,5 +1,5 @@
 import type { DomainEvent, PresentationQueueItem } from 'idle-game-kit';
-import { OFFLINE_PROGRESS_AGGREGATED_EVENT_TYPE, WORLD_AREA_IDS, ids, jobCreationDefinitions, resolveAreaDefinition, type JobSlimeId, type SlimeMutationId } from '../domain';
+import { OFFLINE_PROGRESS_AGGREGATED_EVENT_TYPE, WORLD_AREA_IDS, dispatchContractDefinitions, ids, jobCreationDefinitions, resolveAreaDefinition, type DispatchContractId, type JobSlimeId, type SlimeInstanceId, type SlimeMutationId } from '../domain';
 import type { BattleRewardCue, BattleRewardItem, BattleRewardTarget } from '../game/battle-reward';
 
 export type PresentationTone = 'reward' | 'milestone' | 'warning' | 'system';
@@ -19,6 +19,26 @@ export type SlimePresentationNotice = PresentationQueueItem & Readonly<{
   tone: PresentationTone;
 }>;
 
+
+export type DispatchReturnCue = Readonly<{
+  id: string;
+  contractId: DispatchContractId;
+  slimeId: SlimeInstanceId | null;
+}>;
+
+export function toDispatchReturnCues(events: readonly DomainEvent[]): readonly DispatchReturnCue[] {
+  return events.flatMap((event) => {
+    if (event.type !== 'dispatchCompleted') return [];
+    const contractId = stringPayload(event, 'contractId');
+    if (contractId === null || !(contractId in dispatchContractDefinitions)) return [];
+    const slimeId = stringPayload(event, 'slimeId') as SlimeInstanceId | null;
+    return [{
+      id: event.id,
+      contractId: contractId as DispatchContractId,
+      slimeId,
+    }];
+  });
+}
 
 export type RoutedPresentationEvents = Readonly<{
   notices: readonly SlimePresentationNotice[];
@@ -67,18 +87,21 @@ export function toBattleRewardCue(events: readonly DomainEvent[]): BattleRewardC
 
   for (const event of events) {
     if (event.type === 'combatWaveCleared') {
+      const areaId = stringPayload(event, 'areaId');
       const stageNumber = numberPayload(event, 'stageNumber');
       const waveNumber = numberPayload(event, 'waveNumber');
-      if (stageNumber !== null && waveNumber !== null) {
+      if (areaId !== null && stageNumber !== null && waveNumber !== null) {
         target = {
           kind: 'wave',
+          areaId,
           stageNumber,
           waveIndex: Math.max(0, Math.floor(waveNumber) - 1),
         };
       }
     } else if (event.type === 'bossDefeated') {
+      const areaId = stringPayload(event, 'areaId');
       const stageNumber = numberPayload(event, 'stageNumber');
-      if (stageNumber !== null) target = { kind: 'boss', stageNumber };
+      if (areaId !== null && stageNumber !== null) target = { kind: 'boss', areaId, stageNumber };
     }
     if (event.type !== 'combatWaveCleared'
       && event.type !== 'bossDefeated'

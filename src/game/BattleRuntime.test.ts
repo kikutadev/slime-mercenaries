@@ -46,13 +46,49 @@ function createRuntime(scene: THREE.Scene, camera: THREE.PerspectiveCamera, stag
     waveIndex: 0,
     allies: [],
     enemies: [],
-    authoritativeResult: null,
-    authoritativeResultDelaySec: null,
     onSnapshot: () => undefined,
   });
 }
 
 describe('BattleRuntime scene lifecycle', () => {
+  it('holds a completed defeat until Domain supplies another encounter instead of locally replaying it', async () => {
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera();
+    const snapshots: import('./BattleRuntime').BattleSnapshot[] = [];
+    const runtime = new BattleRuntime({
+      scene,
+      camera,
+      baseUrl: '/',
+      areaId: 'area.clover-road',
+      stageNumber: 1,
+      waveIndex: 0,
+      allies: [],
+      enemies: [],
+      onSnapshot: (snapshot) => snapshots.push(snapshot),
+    });
+    await runtime.initialize();
+
+    const internal = runtime as unknown as {
+      enterResult: (result: 'victory' | 'defeat', now: number) => void;
+    };
+    internal.enterResult('defeat', 0);
+    runtime.tick(10);
+
+    expect(snapshots.at(-1)?.phase).toBe('result');
+    expect(snapshots.at(-1)?.result).toBe('defeat');
+
+    await runtime.updateEncounter({
+      areaId: 'area.clover-road',
+      stageNumber: 1,
+      waveIndex: 0,
+      enemies: [],
+    });
+    expect(snapshots.at(-1)?.phase).not.toBe('result');
+    expect(snapshots.at(-1)?.result).toBeNull();
+
+    runtime.dispose();
+  });
+
   it('disposes only objects owned by the runtime being replaced', async () => {
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera();

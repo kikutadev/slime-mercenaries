@@ -30,6 +30,19 @@ body {
 button {
   font: inherit;
   color: inherit;
+  touch-action: manipulation;
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+button:not(:disabled):active {
+  filter: brightness(.96);
+}
+
+button:disabled {
+  cursor: default;
 }
 
 button,

@@ -1,21 +1,24 @@
-import { lazy, Suspense, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useGameController, useGameState } from '../app/GameProvider';
 import { useManagedTimeouts } from '../app/useManagedTimeouts';
 import { validationToolsVisible } from '../application/validation-mode';
 import {
   selectCampUpgradeOpportunities,
+  selectCodexSummary,
   selectCreateSlimePanel,
   selectEarlyGameCue,
   selectFormation,
   selectGlobalHud,
   selectOwnedSlimeIds,
   selectSlimeDetail,
+  selectSlimeWeaponOptions,
 } from '../application/selectors/ui-selectors';
 import type { CampSlimeReaction } from '../components/CampSlimeStage';
 import { CampStrengthenEffect, type StrengthenCeremony, type StrengthenVariant } from '../components/CampStrengthenEffect';
 import { CampFormationBoard, type CampFormationCeremony } from '../components/CampFormationBoard';
 import { CampStationIcon } from '../components/CampStationIcon';
 import type { NurseryCeremony } from '../components/NurseryCeremonyStage';
+import { CodexSheet } from '../components/CodexSheet';
 import { NurseryPanel } from '../components/NurseryPanel';
 import { sameTypeCount, slimeInstanceIdForSerial, type JobSlimeId, type SlimeInstanceId, type SlimeMutationId } from '../domain';
 import { getSlimePresentation } from '../game/slimes';
@@ -40,9 +43,12 @@ interface Props {
   selectedId: SlimeInstanceId | null;
   onSelect: (id: SlimeInstanceId) => void;
   onOpenBattle: () => void;
+  onOpenForge: () => void;
+  entryMode: CampMode;
+  entryRevision: number;
 }
 
-type CampMode = 'none' | 'train' | 'formation' | 'fusion' | 'mutation';
+export type CampMode = 'none' | 'train' | 'formation' | 'fusion' | 'mutation' | 'equipment';
 
 type CampFeedback = Readonly<{
   key: number;
@@ -59,7 +65,14 @@ type CampLevelAction = Readonly<{
   available: boolean;
 }>;
 
-export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
+export function SlimesScreen({
+  selectedId,
+  onSelect,
+  onOpenBattle,
+  onOpenForge,
+  entryMode,
+  entryRevision,
+}: Props) {
   const state = useGameState();
   const controller = useGameController();
   const hud = selectGlobalHud(state);
@@ -70,8 +83,10 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
     ? selectedId
     : ownedIds[0] ?? null;
   const detail = selected === null ? null : selectSlimeDetail(state, selected);
+  const weaponView = selected === null ? { current: null, options: [] } : selectSlimeWeaponOptions(state, selected);
   const formation = selectFormation(state);
   const createPanel = selectCreateSlimePanel(state);
+  const codexSummary = selectCodexSummary(state);
   const upgradeOpportunities = selectCampUpgradeOpportunities(state);
   const selectedUpgrades = selected === null
     ? []
@@ -90,14 +105,22 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   const mutationReady = detail?.mutationOptions.some((option) => option.canMutate) ?? false;
   const [mode, setMode] = useState<CampMode>('none');
   const [createOpen, setCreateOpen] = useState(false);
+  const [codexOpen, setCodexOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<CampFeedback>({ key: 0, reaction: 'idle', title: '' });
   const [nurseryCeremony, setNurseryCeremony] = useState<NurseryCeremony | null>(null);
   const [strengthenCeremony, setStrengthenCeremony] = useState<StrengthenCeremony | null>(null);
   const [formationCeremony, setFormationCeremony] = useState<CampFormationCeremony | null>(null);
+
+  useEffect(() => {
+    setMode(entryMode);
+  }, [entryMode, entryRevision]);
   const nurseryCeremonyKey = useRef(0);
+  const nurseryCommitLockRef = useRef(false);
   const strengthenCeremonyKey = useRef(0);
+  const strengthenCommitLockRef = useRef(false);
   const formationCeremonyKey = useRef(0);
+  const formationCommitLockRef = useRef(false);
   const { schedule } = useManagedTimeouts();
   const nurseryBusy = nurseryCeremony !== null;
   const strengthenBusy = strengthenCeremony !== null;
@@ -132,9 +155,27 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
         ? 400
         : 320;
     schedule(() => {
+      formationCommitLockRef.current = false;
       setFormationCeremony((current) => current?.key === key ? null : current);
       triggerFeedback('formation', title, detailText);
     }, durationMs);
+  };
+
+  const handleEquipWeapon = (weaponDefinitionId: string) => {
+    if (selected === null || detail === null || campInteractionBusy) return;
+    const option = weaponView.options.find((candidate) => candidate.id === weaponDefinitionId);
+    if (option === undefined || option.equipped) return;
+    const result = controller.equipWeapon(selected, weaponDefinitionId);
+    if (!result.accepted) {
+      setNotice(rejectionLabel(result.reason));
+      return;
+    }
+    setNotice(null);
+    triggerFeedback(
+      'formation',
+      `${option.name}を装備`,
+      option.equippedByName === null ? '戦闘力に反映されました' : `${option.equippedByName}から移し替えました`,
+    );
   };
 
   const handleMutation = (mutationId: SlimeMutationId) => {
@@ -152,13 +193,15 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   };
 
   const handleFormationSlot = (slotIndex: number) => {
-    if (selected === null || detail === null || formationBusy || detail.assignment === 'dispatch') return;
+    if (selected === null || detail === null || formationBusy || formationCommitLockRef.current || detail.assignment === 'dispatch') return;
     const fromSlot = formation.find((slot) => slot.slimeId === selected)?.slotIndex ?? null;
     const target = formation[slotIndex];
     if (target === undefined || target.slimeId === selected) return;
 
+    formationCommitLockRef.current = true;
     const result = controller.assignSlime(selected, slotIndex);
     if (!result.accepted) {
+      formationCommitLockRef.current = false;
       setNotice(rejectionLabel(result.reason));
       return;
     }
@@ -182,12 +225,14 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   };
 
   const handleFormationReserve = () => {
-    if (selected === null || detail === null || formationBusy) return;
+    if (selected === null || detail === null || formationBusy || formationCommitLockRef.current) return;
     const fromSlot = formation.find((slot) => slot.slimeId === selected)?.slotIndex ?? null;
     if (fromSlot === null) return;
 
+    formationCommitLockRef.current = true;
     const result = controller.removeSlime(fromSlot);
     if (!result.accepted) {
+      formationCommitLockRef.current = false;
       setNotice(rejectionLabel(result.reason));
       return;
     }
@@ -209,9 +254,11 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
     action: CampLevelAction,
     variant: StrengthenVariant,
   ) => {
-    if (selected === null || detail === null || strengthenCeremony?.phase === 'charging') return;
+    if (selected === null || detail === null || strengthenCeremony?.phase === 'charging' || strengthenCommitLockRef.current) return;
+    strengthenCommitLockRef.current = true;
     const result = controller.levelUpSlime(selected, action.count);
     if (!result.accepted) {
+      strengthenCommitLockRef.current = false;
       setNotice(rejectionLabel(result.reason));
       return;
     }
@@ -237,6 +284,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
       triggerFeedback('level-up', `Lv.${action.targetLevel}`, `-${action.cost} G`, strength);
 
       schedule(() => {
+        strengthenCommitLockRef.current = false;
         setStrengthenCeremony((current) => current?.key === key ? null : current);
       }, settleMs);
     }, chargeMs);
@@ -250,16 +298,19 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
     const key = ++nurseryCeremonyKey.current;
     setNurseryCeremony({ ...ceremony, key });
     schedule(() => {
+      nurseryCommitLockRef.current = false;
       setNurseryCeremony((active) => active?.key === key ? null : active);
       onComplete?.();
     }, durationMs);
   };
 
   const handleCraftPlain = () => {
-    if (nurseryBusy) return;
+    if (nurseryBusy || nurseryCommitLockRef.current) return;
+    nurseryCommitLockRef.current = true;
     const beforeStock = createPanel.plainStock;
     const result = controller.craftPlainSlime(1);
     if (!result.accepted) {
+      nurseryCommitLockRef.current = false;
       setNotice(rejectionLabel(result.reason));
       return;
     }
@@ -268,10 +319,12 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   };
 
   const handlePurchasePlain = () => {
-    if (nurseryBusy) return;
+    if (nurseryBusy || nurseryCommitLockRef.current) return;
+    nurseryCommitLockRef.current = true;
     const beforeStock = createPanel.plainStock;
     const result = controller.buyPlainSlime(1);
     if (!result.accepted) {
+      nurseryCommitLockRef.current = false;
       setNotice(rejectionLabel(result.reason));
       return;
     }
@@ -280,16 +333,19 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
   };
 
   const handleCaptureMimic = () => {
-    if (nurseryBusy) return;
+    if (nurseryBusy || nurseryCommitLockRef.current) return;
+    nurseryCommitLockRef.current = true;
     const nextSerial = state.gameData.roster.nextSlimeSerial;
     const result = controller.captureMimic();
     if (!result.accepted) {
+      nurseryCommitLockRef.current = false;
       setNotice(rejectionLabel(result.reason));
       return;
     }
     const capturedId = slimeInstanceIdForSerial(nextSerial);
     const captured = result.state.gameData.roster.slimes[capturedId];
     if (captured === undefined) {
+      nurseryCommitLockRef.current = false;
       setNotice('捕獲したミミックを確認できませんでした');
       return;
     }
@@ -300,19 +356,23 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
     onSelect(capturedId);
     setCreateOpen(false);
     triggerFeedback('recruit', `${name}が仲間になった！`, '宝箱のふりをやめ、傭兵団についてきました', 3);
+    schedule(() => { nurseryCommitLockRef.current = false; }, 320);
   };
 
   const handleCreateJob = (jobId: JobSlimeId) => {
-    if (nurseryBusy) return;
+    if (nurseryBusy || nurseryCommitLockRef.current) return;
+    nurseryCommitLockRef.current = true;
     const wasDiscovered = sameTypeCount(state, jobId) > 0;
     const result = controller.createJobSlime(jobId);
     if (!result.accepted) {
+      nurseryCommitLockRef.current = false;
       setNotice(rejectionLabel(result.reason));
       return;
     }
     const createdId = slimeInstanceIdForSerial(result.state.gameData.roster.nextSlimeSerial - 1);
     const created = result.state.gameData.roster.slimes[createdId];
     if (created === undefined) {
+      nurseryCommitLockRef.current = false;
       setNotice('作成したスライムを確認できませんでした');
       return;
     }
@@ -377,7 +437,9 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
             <CampEnvironmentStage reaction="idle" reactionKey={0} fusionReady={false} />
           </Suspense>
           <button type="button" onClick={() => setCreateOpen(true)}>
-            <span>＋</span><strong>最初のスライムを生み出す</strong><small>素材は揃っています</small>
+            <span aria-hidden="true"><CampStationIcon kind="nursery" /></span>
+            <strong>最初のスライムを生み出す</strong>
+            <small>生成槽で仲間を迎える</small>
           </button>
         </div>
       ) : (
@@ -415,11 +477,23 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
             </div>
           </div>
 
-          <div className={`camp-command-panel camp-command-panel--${mode}`}>
+          <div className={`camp-command-panel camp-command-panel--${mode}`} aria-busy={campInteractionBusy}>
             <div className="camp-roster-block">
               <div className="camp-roster-title">
                 <strong>仲間</strong>
-                <span>{ownedIds.length}匹</span>
+                <div className="camp-roster-meta">
+                  <span>{ownedIds.length}匹</span>
+                  <button
+                    type="button"
+                    className={codexSummary.newCount > 0 ? 'is-new' : ''}
+                    disabled={campInteractionBusy}
+                    onClick={() => setCodexOpen(true)}
+                    aria-haspopup="dialog"
+                  >
+                    図鑑
+                    {codexSummary.newCount > 0 && <em>{codexSummary.newCount}</em>}
+                  </button>
+                </div>
               </div>
               <div className="camp-roster" aria-label="仲間のスライム">
                 {ownedIds.map((id) => {
@@ -430,6 +504,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                       key={id}
                       className={id === selected ? 'is-selected' : ''}
                       type="button"
+                      aria-pressed={id === selected}
                       aria-label={`${p.name} Lv.${strengthenCeremony?.phase === 'charging' && id === selected ? strengthenCeremony.fromLevel : slime.level}`}
                       disabled={campInteractionBusy}
                       onClick={() => {
@@ -444,7 +519,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                   );
                 })}
                 <button className="camp-roster__add" type="button" disabled={campInteractionBusy} onClick={() => setCreateOpen(true)} aria-label="仲間を増やす">
-                  <span>＋</span><strong>追加</strong>
+                  <span aria-hidden="true"><CampStationIcon kind="nursery" /></span><strong>追加</strong>
                 </button>
               </div>
             </div>
@@ -483,6 +558,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
               <button
                 className={`camp-primary-action ${mode === 'train' ? 'is-active' : ''} ${state.gameData.combat.retryFarmClearsRemaining > 0 && selectedUpgrades.some((opportunity) => opportunity.kind === 'level') ? 'is-ready' : ''}`}
                 type="button"
+                aria-pressed={mode === 'train'}
                 disabled={campInteractionBusy}
                 onClick={() => setMode(mode === 'train' ? 'none' : 'train')}
               >
@@ -492,6 +568,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
               <button
                 className={`camp-primary-action ${detail.fusionOptions.some((option) => option.canFuse) ? 'is-ready' : ''}`}
                 type="button"
+                aria-pressed={mode === 'fusion'}
                 disabled={campInteractionBusy}
                 onClick={() => setMode('fusion')}
               >
@@ -501,17 +578,35 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
               <button
                 className={`camp-primary-action ${mode === 'formation' ? 'is-active' : ''}`}
                 type="button"
+                aria-pressed={mode === 'formation'}
                 disabled={campInteractionBusy}
                 onClick={() => setMode(mode === 'formation' ? 'none' : 'formation')}
               >
                 <span><CampStationIcon kind="formation" /></span>
                 <strong>編成</strong>
               </button>
-              <button className="camp-primary-action" type="button" disabled={campInteractionBusy} onClick={() => setCreateOpen(true)}>
+              <button className="camp-primary-action" type="button" aria-haspopup="dialog" disabled={campInteractionBusy} onClick={() => setCreateOpen(true)}>
                 <span><CampStationIcon kind="nursery" /></span>
                 <strong>仲間</strong>
               </button>
             </div>
+
+            {detail.typeId !== 'mimic' && (mode === 'none' || mode === 'equipment') && (
+              <button
+                className={`camp-equipment-entry ${mode === 'equipment' ? 'is-active' : ''}`}
+                type="button"
+                aria-pressed={mode === 'equipment'}
+                disabled={campInteractionBusy}
+                onClick={() => setMode(mode === 'equipment' ? 'none' : 'equipment')}
+              >
+                <div>
+                  <span>装備</span>
+                  <strong>{weaponView.current?.name ?? '未装備'}</strong>
+                </div>
+                <small>{weaponView.options.length > 0 ? `${weaponView.options.length}本から選ぶ` : '鍛造で武器を入手'}</small>
+                <em>›</em>
+              </button>
+            )}
 
             {mutationRelevant && mode === 'none' && (
               <button
@@ -532,6 +627,50 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                 </div>
                 <em>›</em>
               </button>
+            )}
+
+            {mode === 'equipment' && (
+              <div className="camp-inline-tool camp-equipment-tool">
+                <div className="camp-inline-tool__heading">
+                  <div>
+                    <strong>{detail.name}の装備</strong>
+                    <small>{weaponView.current === null ? '武器を選ぶと戦闘力へ反映されます' : `現在: ${weaponView.current.name}`}</small>
+                  </div>
+                  <button type="button" onClick={() => setMode('none')} aria-label="装備を閉じる">×</button>
+                </div>
+                {weaponView.options.length === 0 ? (
+                  <div className="camp-equipment-empty">
+                    <span>この職業の武器をまだ持っていません</span>
+                    <button type="button" onClick={onOpenForge}>鍛造へ</button>
+                  </div>
+                ) : (
+                  <div className="camp-weapon-strip" aria-label="装備できる武器">
+                    {weaponView.options.map((weapon) => (
+                      <button
+                        key={weapon.instanceId}
+                        type="button"
+                        className={weapon.equipped ? 'is-equipped' : ''}
+                        aria-pressed={weapon.equipped}
+                        disabled={weapon.equipped || campInteractionBusy}
+                        onClick={() => handleEquipWeapon(weapon.id)}
+                      >
+                        <span className={`camp-weapon-rarity camp-weapon-rarity--${weapon.rarity}`}>
+                          {weapon.rarity === 'mythic' ? '神話' : weapon.rarity === 'rare' ? '希少' : '一般'}
+                        </span>
+                        <strong>{weapon.name}</strong>
+                        <small>攻撃 ×{weapon.effectiveMultiplier.toFixed(2)} · +{weapon.refinementRank}</small>
+                        <em>
+                          {weapon.equipped
+                            ? '装備中'
+                            : weapon.equippedByName === null
+                              ? '装備する'
+                              : `${weapon.equippedByName}から移す`}
+                        </em>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
 
             {mode === 'mutation' && (
@@ -592,6 +731,7 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
                         key={variant}
                         className={running ? 'is-running' : ''}
                         type="button"
+                        aria-busy={running}
                         disabled={formationBusy || strengthenCeremony?.phase === 'charging' || action === null || !action.available}
                         onClick={() => {
                           if (action === null) return;
@@ -645,6 +785,8 @@ export function SlimesScreen({ selectedId, onSelect, onOpenBattle }: Props) {
 
       {notice !== null && <button className={styles.toast} type="button" onClick={() => setNotice(null)}>{notice}</button>}
 
+      {codexOpen && <CodexSheet onClose={() => setCodexOpen(false)} />}
+
       <NurseryPanel
         open={createOpen}
         busy={nurseryBusy}
@@ -669,6 +811,7 @@ function rejectionLabel(reason: string | undefined): string {
     case 'insufficient-gold': return 'ゴールドが足りません';
     case 'dispatched': return '派遣中です';
     case 'weapon-not-owned': return 'その武器を所持していません';
+    case 'wrong-family': return 'この職業では装備できない武器です';
     case 'already-mutated': return 'この個体はすでに変異しています';
     case 'not-eligible': return 'この形態では選べない変異です';
     case 'missing-catalyst': return '変異核がありません';

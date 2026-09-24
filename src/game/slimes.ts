@@ -255,6 +255,83 @@ export function getSlimePresentation(slime: SlimeProgress): SlimePresentation {
   };
 }
 
+export type SlimeCodexPresentation = Readonly<{
+  name: string;
+  role: string;
+  icon: string | null;
+  accent: string;
+  tier: number | null;
+}>;
+
+export function getSlimeCodexPresentation(codexId: string): SlimeCodexPresentation | null {
+  if (codexId === 'slime.mutation.mimic') {
+    return {
+      name: SLIMES.mimic.name,
+      role: SLIMES.mimic.role,
+      icon: SLIMES.mimic.icon,
+      accent: SLIMES.mimic.accent,
+      tier: 3,
+    };
+  }
+
+  if (codexId.startsWith('slime.mutation.')) {
+    const mutationId = codexId.slice('slime.mutation.'.length) as SlimeMutationId;
+    const mutation = mutationDefinitions[mutationId];
+    if (mutation === undefined) return null;
+    const accentByMutation: Readonly<Record<SlimeMutationId, string>> = {
+      king: '#f4cf55',
+      golden: '#ffd84d',
+      dragon: '#ef765f',
+      prism: '#8be5f3',
+    };
+    return {
+      name: mutation.displayName,
+      role: mutation.identity,
+      icon: null,
+      accent: accentByMutation[mutationId],
+      tier: null,
+    };
+  }
+
+  const [, typeIdRaw, ...formParts] = codexId.split('.');
+  const typeId = typeIdRaw as SlimeTypeId | undefined;
+  if (typeId === undefined || !(typeId in SLIMES)) return null;
+  const baseDefinition = SLIMES[typeId];
+  const fusionFormId = formParts.join('.');
+  if (fusionFormId === '') {
+    return {
+      name: baseDefinition.name,
+      role: baseDefinition.role,
+      icon: baseDefinition.icon,
+      accent: baseDefinition.accent,
+      tier: baseDefinition.tier,
+    };
+  }
+
+  const authored = FUSION_FORMS[fusionFormId];
+  if (authored !== undefined && authored.typeId === typeId) {
+    return {
+      name: authored.name,
+      role: authored.role,
+      icon: baseDefinition.icon,
+      accent: authored.accent,
+      tier: authored.tier,
+    };
+  }
+
+  if (typeId === 'sword' && fusionFormId === 'greatsword') {
+    return {
+      name: '大剣士スライム',
+      role: '前衛・範囲重撃',
+      icon: baseDefinition.icon,
+      accent: '#ffd76f',
+      tier: 2,
+    };
+  }
+
+  return null;
+}
+
 export function getSlimePresentationForRank(id: SlimeId, fusionRank: number): SlimePresentation {
   return getSlimePresentation({
     id: `preview.${id}`,

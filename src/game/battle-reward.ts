@@ -10,8 +10,8 @@ export type BattleRewardItem = Readonly<{
 export type BattleRewardImportance = 'normal' | 'boss';
 
 export type BattleRewardTarget =
-  | Readonly<{ kind: 'wave'; stageNumber: number; waveIndex: number }>
-  | Readonly<{ kind: 'boss'; stageNumber: number }>;
+  | Readonly<{ kind: 'wave'; areaId: string; stageNumber: number; waveIndex: number }>
+  | Readonly<{ kind: 'boss'; areaId: string; stageNumber: number }>;
 
 export type BattleRewardCue = Readonly<{
   id: string;
@@ -22,12 +22,13 @@ export type BattleRewardCue = Readonly<{
 
 export function battleRewardCueMatchesEncounter(
   cue: BattleRewardCue,
+  areaId: string,
   stageNumber: number,
   waveIndex: number,
   bossEncounter: boolean,
 ): boolean {
   if (cue.target === null) return true;
-  if (cue.target.stageNumber !== stageNumber) return false;
+  if (cue.target.areaId !== areaId || cue.target.stageNumber !== stageNumber) return false;
   return cue.target.kind === 'boss'
     ? bossEncounter
     : !bossEncounter && cue.target.waveIndex === waveIndex;

@@ -1,20 +1,31 @@
 import type { BattleSceneModel } from './selectors/battle-scene';
 
 /**
- * Keep the visible encounter stable while the authoritative idle simulation advances.
- * Same-encounter state may refresh immediately, but a new encounter cannot replace the
- * current one until its authored result animation reports that presentation is readable.
+ * Preserve every live encounter observed by React until it has been presented.
+ * Domain progression may advance faster than the renderer, but presentation must not
+ * silently discard intermediate waves that were observed while the Battle screen was active.
  */
-export function canAdoptBattleSceneModel(
+export function enqueueBattleSceneModel(
   presented: BattleSceneModel,
+  pending: BattleSceneModel | null,
+  queued: readonly BattleSceneModel[],
   incoming: BattleSceneModel,
-  presentationReady: boolean,
-): boolean {
-  if (presented.encounterKey === incoming.encounterKey) {
-    return presented.visualKey !== incoming.visualKey;
-  }
+): readonly BattleSceneModel[] {
+  if (incoming.encounter === null) return queued;
+  if (incoming.encounterKey === presented.encounterKey) return queued;
+  if (incoming.encounterKey === pending?.encounterKey) return queued;
 
-  if (incoming.encounter === null) return false;
-  if (presented.encounter === null) return true;
-  return presentationReady;
+  const existingIndex = queued.findIndex((model) => model.encounterKey === incoming.encounterKey);
+  if (existingIndex < 0) return [...queued, incoming];
+  if (queued[existingIndex]?.visualKey === incoming.visualKey) return queued;
+
+  return queued.map((model, index) => index === existingIndex ? incoming : model);
+}
+
+export function canStartQueuedBattleScene(
+  presentationReady: boolean,
+  pending: BattleSceneModel | null,
+  queued: readonly BattleSceneModel[],
+): boolean {
+  return presentationReady && pending === null && queued.length > 0;
 }

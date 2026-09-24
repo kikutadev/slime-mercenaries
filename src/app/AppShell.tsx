@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BottomSheet, usePresentationQueue } from 'idle-game-kit/react';
 import { useGameBootstrap, useGameController, useGameState } from './GameProvider';
 import { selectNavigationAttention, selectOwnedSlimeIds } from '../application/selectors/ui-selectors';
@@ -13,10 +13,12 @@ import {
   mergeBattleActivityReports,
   presentationNoticeDurationMs,
   routePresentationEvents,
+  toDispatchReturnCues,
   type BattleActivityReport,
+  type DispatchReturnCue,
 } from '../application/presentation-events';
 import type { BattleRewardCue } from '../game/battle-reward';
-import { SlimesScreen } from '../screens/SlimesScreen';
+import { SlimesScreen, type CampMode } from '../screens/SlimesScreen';
 import type { SlimeInstanceId } from '../domain';
 import { NavIcon, type NavIconKind } from '../components/navigation/NavIcon';
 import { SlimeMark } from '../components/SlimeMark';
@@ -49,12 +51,14 @@ export function AppShell() {
   const [screen, setScreen] = useState<ScreenId | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedSlimeId, setSelectedSlimeId] = useState<SlimeInstanceId | null>(null);
+  const [campEntry, setCampEntry] = useState<{ mode: CampMode; revision: number }>({ mode: 'none', revision: 0 });
   const [offlineDismissed, setOfflineDismissed] = useState(false);
-  const [battleRewardCue, setBattleRewardCue] = useState<BattleRewardCue | null>(null);
-  const [presentedBattleRewardCueId, setPresentedBattleRewardCueId] = useState<string | null>(null);
+  const [battleRewardCues, setBattleRewardCues] = useState<readonly BattleRewardCue[]>([]);
+  const battleRewardCueTimersRef = useRef(new Map<string, number>());
   const [battleActivityReport, setBattleActivityReport] = useState<BattleActivityReport | null>(null);
   const [battleReportOpen, setBattleReportOpen] = useState(false);
   const [hasPendingBattleActivity, setHasPendingBattleActivity] = useState(false);
+  const [dispatchReturnCues, setDispatchReturnCues] = useState<readonly DispatchReturnCue[]>([]);
   const pendingBattleActivityRef = useRef<BattleActivityReport | null>(null);
   const presentation = usePresentationQueue(presentationNoticeDurationMs);
   const initialScreen: ScreenId = ownedIds.length > 0 && state.gameData.roster.formationSlots.some((slot) => slot !== null)
@@ -70,6 +74,14 @@ export function AppShell() {
 
   useEffect(() => controller.subscribeEvents((events, context) => {
     const activeScreenNow = activeScreenRef.current;
+    const dispatchCues = toDispatchReturnCues(events);
+    if (dispatchCues.length > 0) {
+      setDispatchReturnCues((current) => {
+        const known = new Set(current.map((cue) => cue.id));
+        const fresh = dispatchCues.filter((cue) => !known.has(cue.id));
+        return fresh.length === 0 ? current : [...current, ...fresh];
+      });
+    }
     const collectingBattleActivity = context.source === 'background'
       || (context.source === 'live' && activeScreenNow !== 'battle');
 
@@ -105,23 +117,27 @@ export function AppShell() {
     const presentationEvents = context.source === 'offline'
       ? []
       : collectingBattleActivity
-        ? events.filter((event) => !isBattleActivityEvent(event))
-        : events;
+        ? events.filter((event) => !isBattleActivityEvent(event) && event.type !== 'dispatchCompleted')
+        : events.filter((event) => event.type !== 'dispatchCompleted');
     const routed = routePresentationEvents(
       presentationEvents,
       activeScreenNow === 'battle' && context.source === 'live',
     );
     enqueuePresentationRef.current(routed.notices);
     if (routed.battleRewardCue !== null) {
-      setBattleRewardCue(routed.battleRewardCue);
-      setPresentedBattleRewardCueId(null);
+      const cue = routed.battleRewardCue;
+      setBattleRewardCues((current) =>
+        current.some((queued) => queued.id === cue.id) ? current : [...current, cue]);
     }
   }), [controller]);
 
   useEffect(() => {
     if (activeScreen === 'battle') return;
-    setBattleRewardCue(null);
-    setPresentedBattleRewardCueId(null);
+    for (const timeoutId of battleRewardCueTimersRef.current.values()) {
+      window.clearTimeout(timeoutId);
+    }
+    battleRewardCueTimersRef.current.clear();
+    setBattleRewardCues([]);
   }, [activeScreen]);
 
   useEffect(() => {
@@ -134,18 +150,15 @@ export function AppShell() {
     setHasPendingBattleActivity(false);
   }, [activeScreen]);
 
-  useEffect(() => {
-    if (
-      battleRewardCue === null
-      || presentedBattleRewardCueId !== battleRewardCue.id
-    ) return undefined;
+  const handleBattleRewardCuePresented = useCallback((cueId: string) => {
+    if (battleRewardCueTimersRef.current.has(cueId)) return;
     const timeoutId = window.setTimeout(() => {
-      setBattleRewardCue((current) => current?.id === battleRewardCue.id ? null : current);
-      setPresentedBattleRewardCueId((current) =>
-        current === battleRewardCue.id ? null : current);
+      setBattleRewardCues((current) => current.filter((cue) => cue.id !== cueId));
+      battleRewardCueTimersRef.current.delete(cueId);
     }, 2_200);
-    return () => window.clearTimeout(timeoutId);
-  }, [battleRewardCue, presentedBattleRewardCueId]);
+    battleRewardCueTimersRef.current.set(cueId, timeoutId);
+  }, []);
+
 
   useEffect(() => {
     if (bootstrap.status !== 'ready' || screen !== null) return;
@@ -199,25 +212,44 @@ export function AppShell() {
     );
   }
 
-  const openSlime = (slimeId: SlimeInstanceId) => {
-    setSelectedSlimeId(slimeId);
+  const openCamp = (mode: CampMode = 'none', slimeId: SlimeInstanceId | null = null) => {
+    if (slimeId !== null) setSelectedSlimeId(slimeId);
+    setCampEntry((current) => ({ mode, revision: current.revision + 1 }));
     setScreen('slimes');
   };
+  const openSlime = (slimeId: SlimeInstanceId) => openCamp('none', slimeId);
   return (
     <main className={styles.page}>
       <section className={styles.gameShell} aria-label="ゲーム画面">
         <div className={styles.appContent}>
-          <Suspense fallback={<section className="screen screen--active" aria-label="画面を読み込み中" />}>
+          <Suspense fallback={<ScreenLoading screen={activeScreen} />}>
             {activeScreen === 'battle' && (
               <BattleScreen
                 onOpenSlime={openSlime}
-                rewardCue={battleRewardCue}
-                onRewardCuePresented={setPresentedBattleRewardCueId}
+                rewardCues={battleRewardCues}
+                onRewardCuePresented={handleBattleRewardCuePresented}
               />
             )}
-            {activeScreen === 'slimes' && <SlimesScreen selectedId={selectedSlimeId} onSelect={setSelectedSlimeId} onOpenBattle={() => setScreen('battle')} />}
-            {activeScreen === 'dispatch' && <DispatchScreen />}
-            {activeScreen === 'forge' && <ForgeScreen />}
+            {activeScreen === 'slimes' && (
+              <SlimesScreen
+                selectedId={selectedSlimeId}
+                onSelect={setSelectedSlimeId}
+                onOpenBattle={() => setScreen('battle')}
+                onOpenForge={() => setScreen('forge')}
+                entryMode={campEntry.mode}
+                entryRevision={campEntry.revision}
+              />
+            )}
+            {activeScreen === 'dispatch' && (
+              <DispatchScreen
+                onOpenCampFormation={() => openCamp('formation')}
+                returnCue={dispatchReturnCues[0] ?? null}
+                onReturnCuePresented={(cueId) => {
+                  setDispatchReturnCues((current) => current.filter((cue) => cue.id !== cueId));
+                }}
+              />
+            )}
+            {activeScreen === 'forge' && <ForgeScreen onOpenSlime={(slimeId) => openCamp('equipment', slimeId)} />}
           </Suspense>
         </div>
 
@@ -367,8 +399,18 @@ export function AppShell() {
             attention={activeScreen !== 'battle' && (hasPendingBattleActivity || battleActivityReport !== null)}
             onClick={setScreen}
           />
-          <NavButton id="slimes" label="キャンプ" icon="camp" active={activeScreen === 'slimes'} attention={attention.has('slimes')} onClick={setScreen} />
-          <NavButton id="dispatch" label="派遣" icon="dispatch" active={activeScreen === 'dispatch'} attention={attention.has('dispatch')} onClick={setScreen} />
+          <NavButton
+            id="slimes"
+            label="キャンプ"
+            icon="camp"
+            active={activeScreen === 'slimes'}
+            attention={attention.has('slimes')}
+            onClick={(id) => {
+              setCampEntry((current) => ({ mode: 'none', revision: current.revision + 1 }));
+              setScreen(id);
+            }}
+          />
+          <NavButton id="dispatch" label="派遣" icon="dispatch" active={activeScreen === 'dispatch'} attention={attention.has('dispatch') || dispatchReturnCues.length > 0} onClick={setScreen} />
           <NavButton id="forge" label="鍛造" icon="forge" active={activeScreen === 'forge'} attention={attention.has('forge')} onClick={setScreen} />
           <button
             className={settingsOpen ? styles.navButton + ' ' + styles.navButtonActive : styles.navButton}
@@ -383,6 +425,21 @@ export function AppShell() {
         </nav>
       </section>
     </main>
+  );
+}
+
+function ScreenLoading({ screen }: { screen: ScreenId }) {
+  const labels: Record<ScreenId, string> = {
+    battle: '戦場へ移動中',
+    slimes: 'キャンプへ移動中',
+    dispatch: '遠征地図を開いています',
+    forge: '工房を開いています',
+  };
+  return (
+    <section className={`screen screen--active ${styles.screenLoading}`} aria-label={labels[screen]} aria-busy="true">
+      <SlimeMark className={styles.screenLoadingMark} />
+      <strong>{labels[screen]}</strong>
+    </section>
   );
 }
 

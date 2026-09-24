@@ -1,8 +1,8 @@
-
 import { readCurrency, type ProfileRepository, type StoredProfile } from 'idle-game-kit';
 import { describe, expect, it } from 'vitest';
-import { firstSlimeIdByType, ids, type SlimeMercenariesState } from '../domain';
+import { currentCombatEncounterIdentity, firstSlimeIdByType, ids, type SlimeMercenariesState } from '../domain';
 import { SlimeGameController } from './game-controller';
+import { battleActivityReportIsMeaningful, buildBattleActivityReport, isBattleActivityEvent } from './presentation-events';
 import { RUNTIME_SETTINGS_STORAGE_KEY } from './runtime-settings';
 
 class MemoryRepository implements ProfileRepository<SlimeMercenariesState> {
@@ -80,6 +80,99 @@ describe('SlimeGameController settings and save management', () => {
     expect(developmentRestored.gameData.roster.slimes[swordId]?.level).toBe(16);
     expect(repository.profiles.has('default')).toBe(true);
     expect(repository.profiles.has('default.development')).toBe(true);
+  });
+
+  it('defers live encounter resolution while Battle owns combat, then commits the rendered result exactly once', async () => {
+    const repository = new MemoryRepository();
+    const controller = new SlimeGameController('default', {
+      repository,
+      settingsStorage: storageFor('normal'),
+    });
+    await controller.initialize(1_000);
+    expect(controller.craftPlainSlime().accepted).toBe(true);
+    expect(controller.createJobSlime('sword').accepted).toBe(true);
+    const swordId = firstSlimeIdByType(controller.store.getSnapshot(), 'sword');
+    if (swordId === null) throw new Error('Sword setup failed.');
+    expect(controller.assignSlime(swordId, 0).accepted).toBe(true);
+
+    const identity = currentCombatEncounterIdentity(controller.store.getSnapshot());
+    if (identity === null) throw new Error('Encounter setup failed.');
+    controller.setLiveBattleActive(true);
+
+    const analyticalEvents = controller.advanceToWallClock(31_000);
+    expect(controller.liveBattleActive).toBe(true);
+    expect(analyticalEvents).toEqual([]);
+    expect(controller.store.getSnapshot().gameData.combat.currentWaveIndex).toBe(0);
+    expect(currentCombatEncounterIdentity(controller.store.getSnapshot())).toEqual(identity);
+
+    const first = controller.resolveLiveBattleEncounter(identity, 'victory');
+    expect(first.accepted).toBe(true);
+    expect(controller.store.getSnapshot().gameData.combat.currentWaveIndex).toBe(1);
+
+    const duplicate = controller.resolveLiveBattleEncounter(identity, 'victory');
+    expect(duplicate.accepted).toBe(false);
+    if (duplicate.accepted) throw new Error('Duplicate rendered result unexpectedly accepted.');
+    expect(duplicate.reason).toBe('stale-encounter');
+    expect(controller.store.getSnapshot().gameData.combat.currentWaveIndex).toBe(1);
+  });
+
+  it('emits meaningful live activity while Battle is not the active authority', async () => {
+    const controller = new SlimeGameController('default', {
+      repository: new MemoryRepository(),
+      settingsStorage: storageFor('normal'),
+    });
+    await controller.initialize(1_000);
+    expect(controller.craftPlainSlime().accepted).toBe(true);
+    expect(controller.createJobSlime('sword').accepted).toBe(true);
+    const swordId = firstSlimeIdByType(controller.store.getSnapshot(), 'sword');
+    if (swordId === null) throw new Error('Sword setup failed.');
+    expect(controller.assignSlime(swordId, 0).accepted).toBe(true);
+
+    const reports: ReturnType<typeof buildBattleActivityReport>[] = [];
+    const unsubscribe = controller.subscribeEvents((events, context) => {
+      if (context.source !== 'live' || context.elapsedSec <= 0) return;
+      reports.push(buildBattleActivityReport({
+        events: events.filter(isBattleActivityEvent),
+        elapsedSec: context.elapsedSec,
+        from: {
+          areaId: context.fromAreaId,
+          stageNumber: context.fromStage,
+          waveIndex: context.fromWaveIndex,
+        },
+        to: {
+          areaId: context.toAreaId,
+          stageNumber: context.toStage,
+          waveIndex: context.toWaveIndex,
+        },
+      }));
+    });
+
+    controller.setLiveBattleActive(false);
+    controller.advanceToWallClock(31_000);
+    unsubscribe();
+
+    expect(reports.length).toBeGreaterThan(0);
+    expect(reports.some(battleActivityReportIsMeaningful)).toBe(true);
+    expect(reports.some((report) => report.waveClearCount > 0 || report.stageClearCount > 0)).toBe(true);
+  });
+
+  it('uses analytical progression again for background time even if Battle was active before suspension', async () => {
+    const controller = new SlimeGameController('default', {
+      repository: new MemoryRepository(),
+      settingsStorage: storageFor('normal'),
+    });
+    await controller.initialize(1_000);
+    expect(controller.craftPlainSlime().accepted).toBe(true);
+    expect(controller.createJobSlime('sword').accepted).toBe(true);
+    const swordId = firstSlimeIdByType(controller.store.getSnapshot(), 'sword');
+    if (swordId === null) throw new Error('Sword setup failed.');
+    expect(controller.assignSlime(swordId, 0).accepted).toBe(true);
+
+    controller.setLiveBattleActive(true);
+    const events = controller.advanceToWallClock(31_000, { source: 'background' });
+
+    expect(events.some((event) => event.type === 'combatWaveCleared')).toBe(true);
+    expect(controller.store.getSnapshot().gameData.combat.currentWaveIndex).not.toBe(0);
   });
 
   it('exports the real resource ledger instead of the development sandbox floor', async () => {

@@ -1,5 +1,6 @@
 import { formatGameNumber, readCurrency, readToken, selectAttentionSummary } from 'idle-game-kit';
 import {
+  balance,
   dispatchContractDefinitions,
   equippedWeaponDefinition,
   equipmentForgeDefinition,
@@ -23,13 +24,15 @@ import {
   firstSlimeByType,
   ownedSlimes,
   sameTypeCount,
+  weaponDefinitionsByDefinitionId,
   type DispatchContractId,
   type JobSlimeId,
   type SlimeInstanceId,
   type SlimeMercenariesState,
   type SlimeMutationId,
+  type WeaponInstanceData,
 } from '../../domain';
-import { FUSION_ITEMS, getSlimePresentation, getSlimePresentationForRank } from '../../game/slimes';
+import { FUSION_ITEMS, getSlimeCodexPresentation, getSlimePresentation, getSlimePresentationForRank } from '../../game/slimes';
 
 const JOB_IDS = Object.keys(jobCreationDefinitions) as JobSlimeId[];
 const MUTATION_IDS = Object.keys(mutationDefinitions) as SlimeMutationId[];
@@ -52,6 +55,31 @@ export function selectCodexSummary(state: SlimeMercenariesState) {
     newSlimeFormCount: slimeForms.filter((entry) => entry.isNew).length,
     newWeaponCount: weapons.filter((entry) => entry.isNew).length,
     newCount: [...slimeForms, ...weapons].filter((entry) => entry.isNew).length,
+  } as const;
+}
+
+export function selectCodexCatalog(state: SlimeMercenariesState) {
+  const summary = selectCodexSummary(state);
+  const slimeForms = summary.slimeForms.flatMap((entry) => {
+    const presentation = getSlimeCodexPresentation(entry.id);
+    return presentation === null ? [] : [{ ...entry, ...presentation }];
+  });
+  const weapons = summary.weapons.flatMap((entry) => {
+    const weapon = weaponDefinitionsByDefinitionId[entry.id];
+    return weapon === undefined ? [] : [{
+      ...entry,
+      name: weapon.displayName,
+      family: weapon.family,
+      rarity: weapon.rarity,
+      multiplier: weapon.dpsMultiplier,
+    }];
+  });
+  return {
+    slimeForms,
+    weapons,
+    newSlimeFormCount: summary.newSlimeFormCount,
+    newWeaponCount: summary.newWeaponCount,
+    newCount: summary.newCount,
   } as const;
 }
 
@@ -164,6 +192,88 @@ export function selectSlimeMutationOptions(
       canMutate: preview.canMutate,
     } as const;
   });
+}
+
+export function selectForgeWeaponTarget(
+  state: SlimeMercenariesState,
+  weaponDefinitionId: string,
+) {
+  const definition = weaponDefinitionsByDefinitionId[weaponDefinitionId];
+  if (definition === undefined) return null;
+  const instance = Object.values(state.gameData.equipment.inventory)
+    .find((candidate) => candidate.definitionId === weaponDefinitionId);
+  if (instance === undefined) return null;
+
+  const equippedOwnerId = Object.entries(state.gameData.equipment.loadouts)
+    .find(([, loadout]) => loadout.equipped.weapon === instance.instanceId)?.[0] ?? null;
+  if (equippedOwnerId !== null) {
+    const owner = state.gameData.roster.slimes[equippedOwnerId];
+    if (owner !== undefined) {
+      return {
+        slimeId: owner.id,
+        slimeName: getSlimePresentation(owner).name,
+        equipped: true,
+      } as const;
+    }
+  }
+
+  const compatible = Object.values(state.gameData.roster.slimes)
+    .find((slime) => slime.typeId === definition.family);
+  if (compatible === undefined) return null;
+  return {
+    slimeId: compatible.id,
+    slimeName: getSlimePresentation(compatible).name,
+    equipped: false,
+  } as const;
+}
+
+export function selectSlimeWeaponOptions(
+  state: SlimeMercenariesState,
+  slimeId: SlimeInstanceId,
+) {
+  const slime = state.gameData.roster.slimes[slimeId];
+  if (slime === undefined || slime.typeId === 'mimic') {
+    return { current: null, options: [] } as const;
+  }
+
+  const currentInstanceId = state.gameData.equipment.loadouts[slimeId]?.equipped.weapon ?? null;
+  const ownerByInstanceId = new Map<string, SlimeInstanceId>();
+  for (const [ownerId, loadout] of Object.entries(state.gameData.equipment.loadouts)) {
+    const weaponInstanceId = loadout.equipped.weapon ?? null;
+    if (weaponInstanceId !== null) ownerByInstanceId.set(weaponInstanceId, ownerId);
+  }
+
+  const options = Object.values(state.gameData.equipment.inventory)
+    .flatMap((instance) => {
+      const definition = weaponDefinitionsByDefinitionId[instance.definitionId];
+      if (definition === undefined || definition.family !== slime.typeId) return [];
+      const refinementRank = (instance.data as WeaponInstanceData | undefined)?.refinementRank ?? 0;
+      const effectiveMultiplier = definition.dpsMultiplier
+        * (1 + refinementRank * balance.equipment.refinementDpsPerRank);
+      const ownerId = ownerByInstanceId.get(instance.instanceId) ?? null;
+      const owner = ownerId === null ? null : state.gameData.roster.slimes[ownerId] ?? null;
+      return [{
+        id: definition.id,
+        instanceId: instance.instanceId,
+        name: definition.displayName,
+        family: definition.family,
+        rarity: definition.rarity,
+        refinementRank,
+        effectiveMultiplier,
+        equipped: instance.instanceId === currentInstanceId,
+        equippedBySlimeId: ownerId,
+        equippedByName: owner === null ? null : getSlimePresentation(owner).name,
+      }] as const;
+    })
+    .sort((left, right) =>
+      Number(right.equipped) - Number(left.equipped)
+      || right.effectiveMultiplier - left.effectiveMultiplier
+      || left.name.localeCompare(right.name));
+
+  return {
+    current: options.find((option) => option.equipped) ?? null,
+    options,
+  } as const;
 }
 
 export function selectSlimeDetail(state: SlimeMercenariesState, slimeId: SlimeInstanceId) {

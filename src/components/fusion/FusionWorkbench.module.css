@@ -630,6 +630,8 @@
   z-index: 7;
   left: 50%;
   bottom: 24px;
+  width: calc(100% - 32px);
+  max-width: 320px;
   min-width: 168px;
   transform: translateX(-50%);
   opacity: 0;
@@ -652,7 +654,10 @@
 .stageResult strong {
   display: block;
   margin-top: 2px;
-  font-size: 18px;
+  overflow: hidden;
+  font-size: clamp(15px, 4.6vw, 18px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @keyframes runeSpin {

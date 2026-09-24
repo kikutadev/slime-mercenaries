@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { grantToken } from 'idle-game-kit';
 import {
   assignSlimeToFormation,
-  balance,
   craftPlainSlime,
   createInitialSlimeMercenariesState,
   createJobSlime,
@@ -99,12 +98,6 @@ describe('battle scene projection', () => {
     expect(after.visualKey).toBe(before.visualKey);
   });
 
-  it('projects a stable absolute wall-clock deadline for the current Domain boundary', () => {
-    const state = createSwordBattleState();
-    const model = selectBattleSceneModel(state);
-    expect(model.authoritativeResultDeadlineMs).toBe(state.lastWallClockMs + 6_000);
-  });
-
   it('projects the authored Clover Road encounter without leaking Mushroom Forest enemies', () => {
     const state = createSwordBattleState();
     const model = selectBattleSceneModel(state);
@@ -113,8 +106,6 @@ describe('battle scene projection', () => {
     expect(model.encounter?.displayName).toBe('ちびリーフ');
     expect(model.encounter?.enemies).toHaveLength(3);
     expect(model.encounter?.enemies.every((enemy) => enemy.id === 'leafling')).toBe(true);
-    expect(model.authoritativeResult).toBe('victory');
-    expect(model.authoritativeResultDeadlineMs).toBe(state.lastWallClockMs + 6_000);
   });
 
   it('changes enemy composition with stage and wave progression', () => {
@@ -157,7 +148,7 @@ describe('battle scene projection', () => {
     expect(model.encounter?.enemies[0]?.id).toBe('great-mushroom');
   });
 
-  it('keeps the final real boss visible after Dragon Crater reaches the world boundary', () => {
+  it('does not synthesize or respawn the final encounter after the world boundary', () => {
     const state = createSwordBattleState();
     const dragonProgress = withHighestStageClearedForArea(
       state.gameData.progression,
@@ -183,14 +174,10 @@ describe('battle scene projection', () => {
 
     const model = selectBattleSceneModel(boundaryState);
     expect(model.areaId).toBe('area.dragon-crater');
-    expect(model.encounter?.id).toBe('encounter.dragon-crater.05.boss');
-    expect(model.encounter?.boss).toBe(true);
-    expect(model.encounter?.enemies[0]?.id).toBe('star-eater-dragon');
-    expect(model.authoritativeResult).toBe('victory');
-    expect(model.authoritativeResultDeadlineMs).toBe(boundaryState.lastWallClockMs);
+    expect(model.encounter).toBeNull();
   });
 
-  it('projects an authored defeat for an underpowered normal frontier stage', () => {
+  it('projects the real encounter for an underpowered normal frontier stage without pre-deciding its result', () => {
     const state = createSwordBattleState();
     const frontierState = {
       ...state,
@@ -205,9 +192,6 @@ describe('battle scene projection', () => {
     };
     const model = selectBattleSceneModel(frontierState);
     expect(model.encounter?.id).toBe('encounter.clover-road.03.01');
-    expect(model.authoritativeResult).toBe('defeat');
-    expect(model.authoritativeResultDeadlineMs)
-      .toBe(frontierState.lastWallClockMs + balance.combat.frontier.defeatDurationSec * 1_000);
   });
 
   it('uses the stage-5 Clover gauntlet itself as the final Area 1 frontier', () => {
@@ -226,8 +210,5 @@ describe('battle scene projection', () => {
     const model = selectBattleSceneModel(frontierState);
     expect(model.encounter?.id).toBe('encounter.clover-road.05.01');
     expect(model.encounter?.boss).toBe(false);
-    expect(model.authoritativeResult).toBe('defeat');
-    expect(model.authoritativeResultDeadlineMs)
-      .toBe(frontierState.lastWallClockMs + balance.combat.frontier.defeatDurationSec * 1_000);
   });
 });

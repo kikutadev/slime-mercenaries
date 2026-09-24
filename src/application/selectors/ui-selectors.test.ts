@@ -1,17 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { applyRewards, grantToken } from 'idle-game-kit';
+import { addItemInstance, applyRewards, grantToken } from 'idle-game-kit';
 import {
   assignSlimeToFormation,
+  balance,
   craftPlainSlime,
   createInitialSlimeMercenariesState,
   createJobSlime,
   firstSlimeIdByType,
   grantMutationCatalyst,
   ids,
+  fusionSlimeCodexId,
+  markCodexDiscovery,
   markCodexEntriesViewed,
+  mutationSlimeCodexId,
   resolveCurrencyDefinition,
+  weaponDefinitions,
 } from '../../domain';
-import { selectCampUpgradeOpportunities, selectCreateSlimePanel, selectDispatchScreen, selectEarlyGameCue, selectNavigationAttention, selectSlimeDetail, selectSlimeMutationOptions } from './ui-selectors';
+import { selectCampUpgradeOpportunities, selectCodexCatalog, selectCreateSlimePanel, selectDispatchScreen, selectEarlyGameCue, selectForgeWeaponTarget, selectNavigationAttention, selectSlimeDetail, selectSlimeMutationOptions, selectSlimeWeaponOptions } from './ui-selectors';
 
 function createSwordState() {
   let state = createInitialSlimeMercenariesState(0, 11);
@@ -105,6 +110,113 @@ describe('UI selectors', () => {
     const viewed = markCodexEntriesViewed(ready, 'slime-form', Object.keys(ready.gameData.codex.slimeForms));
     if (!viewed.accepted) throw new Error('setup codex view failed');
     expect(selectNavigationAttention(viewed.state).has('slimes')).toBe(true);
+  });
+
+  it('projects only compatible owned weapons and exposes transfer ownership before equip', () => {
+    const first = createSwordState();
+    const stocked = {
+      ...first.state,
+      tokens: grantToken(
+        grantToken(
+          grantToken(first.state.tokens, ids.token.slimeGel, balance.plainSlime.craft.slimeGelCost),
+          ids.token.lifeWater,
+          balance.plainSlime.craft.lifeWaterCost,
+        ),
+        ids.token.trainingSword,
+        1,
+      ),
+    };
+    const crafted = craftPlainSlime(stocked);
+    if (!crafted.accepted) throw new Error('setup second plain failed');
+    const secondCreated = createJobSlime(crafted.state, 'sword');
+    if (!secondCreated.accepted) throw new Error('setup second sword failed');
+    const secondSwordId = Object.values(secondCreated.state.gameData.roster.slimes)
+      .find((slime) => slime.typeId === 'sword' && slime.id !== first.swordId)?.id;
+    if (secondSwordId === undefined) throw new Error('second sword missing');
+
+    let inventory = secondCreated.state.gameData.equipment.inventory;
+    for (const definition of [weaponDefinitions.bronzeSaber, weaponDefinitions.cloverBlade, weaponDefinitions.hunterBow]) {
+      const added = addItemInstance(inventory, {
+        instanceId: `test.${definition.id}`,
+        definitionId: definition.id,
+        quantity: 1,
+        data: { refinementRank: definition.id === weaponDefinitions.cloverBlade.id ? 2 : 0 },
+      });
+      if (!added.accepted) throw new Error('weapon setup failed');
+      inventory = added.inventory;
+    }
+    let state = {
+      ...secondCreated.state,
+      gameData: {
+        ...secondCreated.state.gameData,
+        equipment: { ...secondCreated.state.gameData.equipment, inventory },
+      },
+    };
+    const equipped = {
+      ...state.gameData.equipment.loadouts[first.swordId]!,
+      equipped: { weapon: `test.${weaponDefinitions.bronzeSaber.id}` },
+    };
+    state = {
+      ...state,
+      gameData: {
+        ...state.gameData,
+        equipment: {
+          ...state.gameData.equipment,
+          loadouts: { ...state.gameData.equipment.loadouts, [first.swordId]: equipped },
+        },
+      },
+    };
+
+    const view = selectSlimeWeaponOptions(state, secondSwordId);
+
+    expect(view.options.map((option) => option.id)).toEqual([
+      weaponDefinitions.cloverBlade.id,
+      weaponDefinitions.bronzeSaber.id,
+    ]);
+    expect(view.options.find((option) => option.id === weaponDefinitions.bronzeSaber.id)).toMatchObject({
+      equipped: false,
+      equippedBySlimeId: first.swordId,
+      equippedByName: '剣士スライム',
+    });
+    expect(view.options[0]?.effectiveMultiplier).toBeGreaterThan(view.options[1]!.effectiveMultiplier);
+
+    expect(selectForgeWeaponTarget(state, weaponDefinitions.bronzeSaber.id)).toEqual({
+      slimeId: first.swordId,
+      slimeName: '剣士スライム',
+      equipped: true,
+    });
+    expect(selectForgeWeaponTarget(state, weaponDefinitions.cloverBlade.id)).toMatchObject({
+      slimeId: first.swordId,
+      slimeName: '剣士スライム',
+      equipped: false,
+    });
+    expect(selectForgeWeaponTarget(state, weaponDefinitions.hunterBow.id)).toBeNull();
+    expect(selectForgeWeaponTarget(state, 'weapon.missing')).toBeNull();
+  });
+
+  it('projects discovered codex IDs into player-facing slime and weapon metadata', () => {
+    const setup = createSwordState();
+    let state = markCodexDiscovery(
+      setup.state,
+      'slime-form',
+      fusionSlimeCodexId('sword', 'blademaster'),
+    );
+    state = markCodexDiscovery(state, 'slime-form', mutationSlimeCodexId('golden'));
+    state = markCodexDiscovery(state, 'weapon', weaponDefinitions.starcleaver.id);
+
+    const catalog = selectCodexCatalog(state);
+
+    expect(catalog.slimeForms).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: '剣士スライム', tier: 1 }),
+      expect.objectContaining({ name: '剣聖スライム', tier: 3 }),
+      expect.objectContaining({ name: 'ゴールデンスライム', tier: null }),
+    ]));
+    expect(catalog.weapons).toContainEqual(expect.objectContaining({
+      id: weaponDefinitions.starcleaver.id,
+      name: '星断ちの大剣',
+      family: 'sword',
+      rarity: 'mythic',
+    }));
   });
 
   it('guides first-use progression from Plain creation into battle without storing tutorial state', () => {

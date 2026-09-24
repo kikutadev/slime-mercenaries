@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useGameController, useGameState } from '../../app/GameProvider';
 import { useManagedTimeouts } from '../../app/useManagedTimeouts';
 import { selectSlimeDetail } from '../../application/selectors/ui-selectors';
 import { isNormalJobSlimeId, jobCreationDefinitions, type SlimeInstanceId } from '../../domain';
 import { getSlimePresentation } from '../../game/slimes';
 import { getNextFusionSteps } from '../../game/fusion';
+import { getFusionCeremonyDurationSec } from '../../game/fusion-preview';
 import { getFusionIngredientPresentation, getFusionStepPresentation } from '../../game/fusion-presentation';
 import { FusionStage } from './FusionStage';
 import styles from './FusionWorkbench.module.css';
@@ -53,22 +54,9 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
   const [completedName, setCompletedName] = useState<string | null>(null);
   const [completedBehavior, setCompletedBehavior] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const fusionCommitLocked = useRef(false);
+  const duplicateConversionLocked = useRef(false);
   const { schedule, clear } = useManagedTimeouts();
-
-  useEffect(() => {
-    if (run === null) return undefined;
-    const preset = getFusionStepPresentation(run.stepId).ceremony;
-    const failSafeMs = preset === 'major-form'
-      ? 2600
-      : preset === 'major-behavior'
-        ? 2200
-        : 1900;
-    const timer = schedule(() => {
-      setCompleted(true);
-      setRun(null);
-    }, failSafeMs);
-    return () => clear(timer);
-  }, [clear, run, schedule]);
 
   const displayFromRank = progress === null
     ? 1
@@ -106,6 +94,17 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
     });
   }, [next, progress]);
 
+  useEffect(() => {
+    if (run === null || resultPresentation === null) return undefined;
+    const failSafeMs = Math.ceil(getFusionCeremonyDurationSec(resultPresentation) * 1000) + 450;
+    const timer = schedule(() => {
+      fusionCommitLocked.current = false;
+      setCompleted(true);
+      setRun(null);
+    }, failSafeMs);
+    return () => clear(timer);
+  }, [clear, resultPresentation, run, schedule]);
+
   if (detail === null || progress === null) return null;
 
   if (
@@ -133,9 +132,11 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
   const stepPresentation = getFusionStepPresentation(next.id);
 
   const beginFusion = () => {
-    if (!canFuse || run !== null) return;
+    if (!canFuse || run !== null || fusionCommitLocked.current) return;
+    fusionCommitLocked.current = true;
     const result = controller.fuseSlime(slimeId, next.id);
     if (!result.accepted) {
+      fusionCommitLocked.current = false;
       setNotice(rejectionLabel(result.reason));
       return;
     }
@@ -156,7 +157,7 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
   };
 
   return (
-    <div className={`${styles.workbench} ${run !== null ? styles.running : ''}`} aria-label="合成祭壇">
+    <div className={`${styles.workbench} ${run !== null ? styles.running : ''}`} aria-label="合成祭壇" aria-busy={run !== null}>
       <button className={styles.close} type="button" disabled={run !== null} onClick={onClose} aria-label="合成画面を閉じる">×</button>
 
       <div className={styles.header}>
@@ -191,6 +192,7 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
           currentPresentation={currentPresentation}
           resultPresentation={resultPresentation}
           onFusionComplete={() => {
+            fusionCommitLocked.current = false;
             setCompleted(true);
             setRun(null);
           }}
@@ -213,6 +215,8 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
                     key={choice.id}
                     type="button"
                     className={choice.id === next.id ? styles.selected : ''}
+                    aria-pressed={choice.id === next.id}
+                    disabled={run !== null}
                     onClick={() => setSelectedStepId(choice.id)}
                   >
                     <strong>{choice.resultName}</strong>
@@ -264,10 +268,13 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
                     type="button"
                     key={candidate.id}
                     onClick={() => {
+                      if (duplicateConversionLocked.current) return;
+                      duplicateConversionLocked.current = true;
                       const result = controller.convertDuplicateToFusionCore(candidate.id);
                       setNotice(result.accepted
                         ? `${candidatePresentation.name} #${candidate.serial} を合成の核に変換しました`
                         : rejectionLabel(result.reason));
+                      schedule(() => { duplicateConversionLocked.current = false; }, 260);
                     }}
                   >
                     <span>余剰個体 · Lv.{candidate.level}</span>
@@ -285,6 +292,7 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
           <button
             className={`${styles.trigger} ${canFuse ? styles.ready : ''}`}
             type="button"
+            aria-busy={run !== null}
             disabled={!canFuse || run !== null}
             onClick={beginFusion}
           >

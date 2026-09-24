@@ -6,20 +6,21 @@ describe('battle reward visuals', () => {
     const waveCue: BattleRewardCue = {
       id: 'wave',
       importance: 'normal',
-      target: { kind: 'wave', stageNumber: 3, waveIndex: 1 },
+      target: { kind: 'wave', areaId: 'area.clover-road', stageNumber: 3, waveIndex: 1 },
       items: [],
     };
     const bossCue: BattleRewardCue = {
       id: 'boss',
       importance: 'boss',
-      target: { kind: 'boss', stageNumber: 5 },
+      target: { kind: 'boss', areaId: 'area.clover-road', stageNumber: 5 },
       items: [],
     };
 
-    expect(battleRewardCueMatchesEncounter(waveCue, 3, 1, false)).toBe(true);
-    expect(battleRewardCueMatchesEncounter(waveCue, 3, 2, false)).toBe(false);
-    expect(battleRewardCueMatchesEncounter(bossCue, 5, 3, true)).toBe(true);
-    expect(battleRewardCueMatchesEncounter(bossCue, 5, 3, false)).toBe(false);
+    expect(battleRewardCueMatchesEncounter(waveCue, 'area.clover-road', 3, 1, false)).toBe(true);
+    expect(battleRewardCueMatchesEncounter(waveCue, 'area.clover-road', 3, 2, false)).toBe(false);
+    expect(battleRewardCueMatchesEncounter(waveCue, 'area.mushroom-forest', 3, 1, false)).toBe(false);
+    expect(battleRewardCueMatchesEncounter(bossCue, 'area.clover-road', 5, 3, true)).toBe(true);
+    expect(battleRewardCueMatchesEncounter(bossCue, 'area.clover-road', 5, 3, false)).toBe(false);
   });
 
   it('uses a coin presentation for Gold and caps particle density', () => {

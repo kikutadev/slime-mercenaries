@@ -176,7 +176,7 @@ last enemy defeat
 
 No result modal for normal waves.
 
-The authored `0.8–1.5 seconds` is the visible handoff into marching, not a second authoritative wave timer. If the product/domain combat has not advanced yet, the party may keep marching in place with looping roadside travel until the authoritative encounter changes.
+The authored `0.8–1.5 seconds` is the visible handoff into marching, not a second combat timer. While Battle is visible, the rendered encounter result is reported to Domain; survivors may keep marching in place while the validated Domain transition and next encounter assets are prepared.
 
 ### 8.1 Encounter staging
 
@@ -208,7 +208,7 @@ Visual victory flow:
 
 ```text
 final visible enemy defeat
--> domain reward event arrives
+-> matching authoritative reward event is released to presentation (or used if it already arrived)
 -> typed Gold/material loot motes converge on the party
 -> exact reward receipt appears
 -> survivors compact into the forward march formation
@@ -224,12 +224,13 @@ Rules:
 - the old encounter must not respawn after a visual victory while waiting for the domain
 - `combatWaveCleared`, `bossDefeated`, and first-clear `stageCleared` events carry `grantedRewards` describing what was actually granted
 - battle reward visuals are derived only from that authoritative payload; presentation must not infer Gold/material amounts from balance tables
+- a live battle reward cue is queued by encounter and is not displayed or marked presented until the matching visible encounter has actually reached victory
 - Gold uses coin particles; known materials use stable orb/shard visual families; particle counts are capped independently from reward amount
 - the battle receipt shows exact quantities (for example `G +24 · スライムジェル +2`) and may aggregate multiple reward events emitted at the same authoritative boundary
 - while the Battle screen is active, the routine global `combat-reward` notice is suppressed to avoid duplicating the exact receipt; milestone/boss/retreat notices remain
 - Stage 1 / Wave 1 is the only cold-start formation; later waves and stages use the march formation as their approach origin
 - the previous march endpoint and the next encounter start x/z coordinates must match exactly for all six party slots
-- local visual defeat may still replay the same encounter because presentation HP is not authoritative product state; this retry must not mutate domain progression
+- a rendered defeat is first accepted by Domain; only the resulting Domain state may trigger retreat or an explicit same-encounter retry (for example Stage 1)
 - transition presentation must not alter HP, damage, wave work, rewards, random drops, offline simulation, or target-selection rules
 
 Current Clover Road progression:
@@ -255,53 +256,54 @@ Battle reward presentation must use the same DomainEvent payload that granted th
 
 ### 8.3 Runtime architecture and ownership
 
-Rendered combat is deliberately split from authoritative combat progression.
+Live rendered combat and durable progression have one explicit handoff rather than two competing result authorities.
 
 ~~~text
+BattleRuntime.ts
+  -> live individual HP / targeting / attacks / rendered victory or defeat
+
+BattleScreen.tsx
+  -> reports one completed rendered encounter identity + result
+
 src/domain/combat.ts
-  -> authoritative encounter result / rewards / retreat / retry / stage-wave progression
+  -> validates that encounter identity, grants rewards, retreats/retries, advances wave/stage
+  -> remains the analytical resolver only when Battle is not active / background / offline
 
 src/application/selectors/battle-scene.ts
-  -> projects Domain state into one visual encounter and its absolute Domain deadline
+  -> projects the current durable encounter and roster; it does not pre-author victory/defeat
 
-battle-presentation-latch.ts
-  -> keeps an already-visible encounter on screen until its result is readable
-
-BattleRuntime.ts
-  -> orchestration only: initialize, phase handoff, authoritative boundary, result/reset, snapshot
+battle-presentation.ts
+  -> preserves observed live encounter ordering until each result presentation is readable
 
 battle-runtime/
-  scene-owner.ts          Three.js ownership and disposal
   clock.ts                presentation clock and hit-stop
   camera.ts               camera approach / victory / shake
-  asset-cache.ts          parsed GLTF template cache with per-runtime disposable clones
-  unit-factory.ts         GLB loading and runtime unit construction
   unit-presentation.ts    shared pose / targeting helpers
-  unit-visuals.ts         shadows, world HP and defeat eyes
+  unit-visuals.ts         individual ally/enemy HP, shadows, defeat eyes
   projectile-system.ts    arrows, bullets, magic, enemy projectiles and impact VFX
-  enemy-combat-system.ts  enemy movement, target contact and attack presentation
+  enemy-combat-system.ts  enemy movement, target contact and attacks
   ally-combat-system.ts   dispatches friendly behavior to one job-family controller
-  ally-*-combat.ts        Sword / Bow / Defense / Magic / Rogue / Gun presentation
-  authority.ts            visual-HP guard at Domain-authored result boundaries
-  snapshot.ts             presentation state projected to the React HUD
+  ally-*-combat.ts        Sword / Bow / Defense / Magic / Rogue / Gun combat presentation
+  outcome.ts              defeated-side animation completion guard only
+  snapshot.ts             runtime state projected to the React HUD
 ~~~
 
 Hard boundaries:
 
-- BattleRuntime must not award resources, choose the next encounter, retreat a stage, increment a wave, or decide first-clear progression.
-- presentation HP may drive hit/death animation but is not saved game HP and must not resolve the last unit ahead of a Domain-authored result.
-- job-family combat modules own animation choreography only; they may request presentation damage, projectiles, hit-stop, or camera shake through runtime services.
-- enemy combat follows the same rule: visual movement and attacks are allowed, progression mutation is not.
-- Three.js objects created for one encounter are owned by that runtime's BattleSceneOwner; a runtime may not remove or dispose objects owned by another encounter.
-- the React Canvas stays mounted across encounter changes. Runtime replacement, not WebGL-context replacement, is the normal wave/stage transition.
-- Domain progression may advance ahead of rendered combat. An encounter already on screen stays latched until its authored result presentation is readable, then presentation may jump directly to the latest Domain encounter rather than replaying stale intermediate state.
-- the final authored encounter is still presented before a content-boundary screen; a terminal boss must not disappear merely because Domain already reset its wave index after completion.
-- the Domain result deadline is projected as an absolute wall-clock deadline and sampled when the runtime is constructed. GLB loading, React scheduling, and visual hit-stop must not silently reset or extend that deadline.
-- approach choreography keeps its authored duration. If Domain has already advanced, presentation may lag briefly rather than compressing the character motion into an unreadable instant.
-- a completed result receives a short UI handoff hold before the next encounter replaces it, so defeat/victory state remains human-readable even when React batches several runtime snapshots.
-- parsed GLTF templates may be cached across encounters, but every runtime owns independent disposable geometry/material/texture clones so disposal cannot invalidate another encounter or the cache.
-- new jobs should extend the appropriate ally-*-combat.ts family rather than adding another large branch to BattleRuntime.
-- new generic VFX/lifecycle behavior belongs in a focused subsystem rather than accumulating in the orchestrator.
+- while the Battle screen is active, analytical wall-clock advancement may reduce analytical work/countdowns for handoff continuity but must not resolve the encounter, grant rewards, retreat, or advance wave/stage;
+- the live encounter resolves only when individual BattleRuntime units actually reach victory or defeat;
+- BattleRuntime never awards resources, chooses the next encounter, retreats a stage, increments a wave, or decides first-clear progression itself;
+- Domain accepts a live result only when its full encounter identity (Area / Stage / Wave / encounter ID) still matches; duplicate or stale results must be rejected;
+- after Domain accepts the rendered result, the completed runtime remains visible until the next Domain encounter is ready; it must never autonomously reset or respawn the old encounter;
+- Stage 1 defeat is a Domain-approved same-encounter retry rather than a fake retreat;
+- when Battle is not active, or the app is backgrounded/offline, analytical combat remains the progression path and may resolve encounters without rendering;
+- job-family and enemy combat modules own live attack choreography/damage only; durable economy/progression mutation remains in Domain;
+- Three.js objects created for one runtime remain owned by that runtime and disposal must not invalidate another encounter;
+- the React Canvas stays mounted across normal wave/stage transitions;
+- observed live encounters are queued in order and must not be silently coalesced away;
+- `contentBoundaryReached` must not synthesize, respawn, or reload the final enemy encounter;
+- parsed GLTF templates may be cached across encounters, but every runtime owns independent disposable clones;
+- new jobs should extend the appropriate ally combat family rather than enlarging BattleRuntime.
 
 ## 9. Bosses
 
@@ -371,7 +373,7 @@ On party defeat:
 
 - do not show a punitive game-over flow
 - keep defeated slimes visible long enough for the `べちゃっ + ×目` reaction to read
-- emit the defeat as an authoritative Domain result rather than a renderer-only state
+- report the completed rendered defeat to Domain, which validates the encounter and applies the durable retreat/retry transition
 - retreat one stage, preserving `highestStageCleared`
 - keep granting the existing Gold, material, chest, equipment, and Fusion economy while farming
 - after the authored farm-clear count, automatically return to the uncleared frontier and retry

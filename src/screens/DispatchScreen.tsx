@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useGameController, useGameState } from '../app/GameProvider';
 import { useManagedTimeouts } from '../app/useManagedTimeouts';
+import type { DispatchReturnCue } from '../application/presentation-events';
 import { selectDispatchScreen, selectGlobalHud } from '../application/selectors/ui-selectors';
 import { DispatchHomeIcon, DispatchLandmarkIcon } from '../components/DispatchLandmarkIcon';
 import { DispatchMapStage, type DispatchTraveler } from '../components/DispatchMapStage';
@@ -9,7 +10,17 @@ import { getSlimePresentation } from '../game/slimes';
 import type { DispatchContractId, SlimeInstanceId } from '../domain';
 import styles from './DispatchScreen.module.css';
 
-export function DispatchScreen() {
+const DISPATCH_DEPARTURE_CEREMONY_MS = 1_200;
+
+export function DispatchScreen({
+  onOpenCampFormation,
+  returnCue: pendingReturnCue,
+  onReturnCuePresented,
+}: {
+  onOpenCampFormation: () => void;
+  returnCue: DispatchReturnCue | null;
+  onReturnCuePresented: (cueId: string) => void;
+}) {
   const state = useGameState();
   const controller = useGameController();
   const view = selectDispatchScreen(state);
@@ -21,8 +32,9 @@ export function DispatchScreen() {
   const [departure, setDeparture] = useState<Readonly<{ contractId: DispatchContractId; key: number; label: string }> | null>(null);
   const [returnCue, setReturnCue] = useState<Readonly<{ key: number; label: string; reward: string }> | null>(null);
   const departureSerial = useRef(0);
+  const departureLockRef = useRef(false);
   const returnSerial = useRef(0);
-  const previousRunning = useRef<ReadonlyMap<DispatchContractId, Readonly<{ name: string; rewardLabel: string }>>>(new Map());
+  const activeReturnCueId = useRef<string | null>(null);
   const { schedule } = useManagedTimeouts();
 
   const contract = view.contracts.find((item) => item.id === selectedContract) ?? view.contracts[0]!;
@@ -39,25 +51,35 @@ export function DispatchScreen() {
   }, [contract.id, contract.status, contract.eligibleSlimes]);
 
   useEffect(() => {
-    const running = new Map(
-      view.contracts
-        .filter((item) => item.status === 'running')
-        .map((item) => [item.id, { name: item.name, rewardLabel: item.rewardLabel }] as const),
-    );
-    const completed = [...previousRunning.current.entries()].find(([contractId]) => !running.has(contractId));
-    previousRunning.current = running;
-    if (completed === undefined) return;
-    const [, previous] = completed;
+    if (pendingReturnCue === null || activeReturnCueId.current === pendingReturnCue.id) return;
+    const contractView = view.contracts.find((item) => item.id === pendingReturnCue.contractId);
+    if (contractView === undefined) return;
+    activeReturnCueId.current = pendingReturnCue.id;
+    const returningSlime = pendingReturnCue.slimeId === null
+      ? null
+      : state.gameData.roster.slimes[pendingReturnCue.slimeId] ?? null;
     const key = ++returnSerial.current;
-    setReturnCue({ key, label: previous.name, reward: previous.rewardLabel });
+    setReturnCue({
+      key,
+      label: returningSlime === null
+        ? contractView.name
+        : `${getSlimePresentation(returningSlime).name}が帰還`,
+      reward: contractView.rewardLabel,
+    });
     schedule(() => {
       setReturnCue((current) => current?.key === key ? null : current);
+      activeReturnCueId.current = null;
+      onReturnCuePresented(pendingReturnCue.id);
     }, 1280);
-  }, [schedule, view.contracts]);
+  }, [onReturnCuePresented, pendingReturnCue, schedule, state.gameData.roster.slimes, view.contracts]);
 
   const activeCount = view.contracts.filter((item) => item.status === 'running').length;
   const selectedPower = contract.eligibleSlimes.find((slime) => slime.id === selectedSlime)?.power ?? 0;
-  const canSend = selectedSlime !== null && selectedPower >= contract.requiredPower && contract.status !== 'running';
+  const selectedDeparture = departure?.contractId === contract.id;
+  const canSend = selectedSlime !== null
+    && selectedPower >= contract.requiredPower
+    && contract.status !== 'running'
+    && departure === null;
 
   const travelers = useMemo<readonly DispatchTraveler[]>(() => view.contracts.flatMap((item) => {
     if (item.status !== 'running' || item.slimeId === null || item.durationSec <= 0) return [];
@@ -106,6 +128,8 @@ export function DispatchScreen() {
               type="button"
               className={`${styles.node} ${selectedContract === item.id ? styles.selected : ''} ${item.status === 'running' ? styles.running : ''}`}
               style={{ left: `${meta.x}%`, top: `${meta.y}%` }}
+              aria-pressed={selectedContract === item.id}
+              disabled={departure !== null}
               onClick={() => setSelectedContract(item.id)}
             >
               <span className={styles.nodeMarker}><DispatchLandmarkIcon kind={meta.landmark} /></span>
@@ -118,13 +142,21 @@ export function DispatchScreen() {
         })}
       </div>
 
-      <div className={`${styles.console} ${departure !== null ? styles.consoleRetreat : ''}`}>
+      <div className={styles.console}>
         <div className={styles.consoleHead}>
           <div><span>{dispatchRoutePresentation[contract.id].subtitle}</span><strong>{contract.name}</strong></div>
           <div className={styles.reward}><span>報酬</span><strong>{contract.rewardLabel}</strong></div>
         </div>
 
-        {contract.status === 'running' ? (
+        {selectedDeparture ? (
+          <div className={styles.departurePanel} aria-busy="true">
+            <span>キャンプを出発</span>
+            <strong>{contract.name}へ移動中</strong>
+            <button className={styles.sendButton} type="button" aria-busy="true" disabled>
+              <strong>出発中…</strong>
+            </button>
+          </div>
+        ) : contract.status === 'running' ? (
           <RunningDispatch contract={contract} state={state} />
         ) : (
           <>
@@ -137,24 +169,37 @@ export function DispatchScreen() {
             {contract.eligibleSlimes.length > 0 ? (
               <div className={styles.crew}>
                 {contract.eligibleSlimes.map((slime) => (
-                  <button key={slime.id} type="button" className={selectedSlime === slime.id ? styles.selected : ''} onClick={() => setSelectedSlime(slime.id)}>
+                  <button
+                    key={slime.id}
+                    type="button"
+                    className={selectedSlime === slime.id ? styles.selected : ''}
+                    aria-pressed={selectedSlime === slime.id}
+                    disabled={departure !== null}
+                    onClick={() => setSelectedSlime(slime.id)}
+                  >
                     <img src={`${import.meta.env.BASE_URL}${slime.icon}`} alt="" />
                     <span><strong>{slime.name}</strong><small>戦力 {Math.floor(slime.power)}</small></span>
                   </button>
                 ))}
               </div>
             ) : (
-              <div className={styles.empty}>控えのスライムが必要です。キャンプで主力から外すと派遣できます。</div>
+              <div className={styles.empty}>
+                <span>控えのスライムが必要です。戦闘編成から1匹外すと派遣できます。</span>
+                <button type="button" onClick={onOpenCampFormation}>キャンプで編成を変更</button>
+              </div>
             )}
 
             <button
               className={styles.sendButton}
               type="button"
-              disabled={!canSend || departure !== null}
+              aria-busy={departure !== null}
+              disabled={!canSend}
               onClick={() => {
-                if (selectedSlime === null || departure !== null) return;
+                if (selectedSlime === null || departureLockRef.current) return;
+                departureLockRef.current = true;
                 const result = controller.startDispatch(contract.id, selectedSlime);
                 if (!result.accepted) {
+                  departureLockRef.current = false;
                   setNotice(rejectionLabel(result.reason));
                   return;
                 }
@@ -162,11 +207,12 @@ export function DispatchScreen() {
                 const key = ++departureSerial.current;
                 setDeparture({ contractId: contract.id, key, label: contract.name });
                 schedule(() => {
+                  departureLockRef.current = false;
                   setDeparture((current) => current?.key === key ? null : current);
-                }, 920);
+                }, DISPATCH_DEPARTURE_CEREMONY_MS);
               }}
             >
-              <strong>出発させる</strong>
+              <strong>{departure !== null ? '出発中…' : '出発させる'}</strong>
             </button>
           </>
         )}
