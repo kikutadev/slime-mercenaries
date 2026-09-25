@@ -3,12 +3,18 @@ import { Suspense, useEffect, useMemo, useRef, type MutableRefObject } from 'rea
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { getCampLifePose } from '../game/camp-life-motion';
+import {
+  campFormationFlagRotation,
+  campFusionAltarPose,
+  campNurseryBubblePose,
+  campTrainingDummyHit,
+} from '../game/camp-environment-reactions';
 import type { CampLifeResidentSpec } from '../game/camp-life-residents';
+import type { CampReaction } from '../game/camp-types';
 import { CampLifePopulation } from './CampLifePopulation';
-import type { CampSlimeReaction } from './CampSlimeStage';
 
 interface Props {
-  reaction: CampSlimeReaction;
+  reaction: CampReaction;
   reactionKey: number;
   fusionReady: boolean;
   residents: readonly CampLifeResidentSpec[];
@@ -62,46 +68,30 @@ function CampEnvironment({ reaction, reactionKey, fusionReady, residents, lifeOr
     timeRef.current = now;
     const elapsed = now - reactionStartedAt.current;
 
+    const fusionPose = campFusionAltarPose(now, fusionReady, reaction, elapsed);
     if (fusionRing !== undefined) {
-      const reactionPulse = reaction === 'fusion' && elapsed >= 0 && elapsed < 1.15
-        ? Math.sin((elapsed / 1.15) * Math.PI)
-        : 0;
-      fusionRing.rotation.y = now * (fusionReady ? 0.72 : 0.18) + reactionPulse * 0.55;
-      const pulse = fusionReady
-        ? 1 + Math.sin(now * 3.2) * 0.035 + reactionPulse * 0.06
-        : 1 + reactionPulse * 0.06;
-      fusionRing.scale.setScalar(pulse);
+      fusionRing.rotation.y = fusionPose.ringRotationY;
+      fusionRing.scale.setScalar(fusionPose.ringScale);
     }
     fusionCrystals.forEach((crystal, index) => {
-      const reactionPulse = reaction === 'fusion' && elapsed >= 0 && elapsed < 1.15
-        ? Math.sin((elapsed / 1.15) * Math.PI)
-        : 0;
-      const pulse = fusionReady
-        ? 1 + Math.sin(now * 3.4 + index * 1.2) * 0.10 + reactionPulse * 0.08
-        : 1 + reactionPulse * 0.08;
-      crystal.scale.setScalar(pulse);
+      crystal.scale.setScalar(fusionPose.crystalScale(index));
     });
 
     if (nurseryBubble !== undefined) {
-      nurseryBubble.position.y = 0.88 + Math.sin(now * 1.8) * 0.035;
-      nurseryBubble.scale.y = 1 + Math.sin(now * 2.2) * 0.035;
+      const bubblePose = campNurseryBubblePose(now);
+      nurseryBubble.position.y = bubblePose.y;
+      nurseryBubble.scale.y = bubblePose.scaleY;
     }
 
     if (formationFlag !== undefined) {
-      formationFlag.rotation.z = Math.sin(now * 1.6) * 0.025;
-      if (reaction === 'formation' && elapsed >= 0 && elapsed < 0.75) {
-        formationFlag.rotation.z += Math.sin(elapsed * Math.PI * 5) * (1 - elapsed / 0.75) * 0.16;
-      }
+      formationFlag.rotation.z = campFormationFlagRotation(now, reaction, elapsed);
     }
 
     if (dummyBody !== undefined && dummyTarget !== undefined && dummyArm !== undefined) {
-      const playerHit = reaction === 'level-up' && elapsed >= 0 && elapsed < 0.55
-        ? Math.sin(Math.min(1, elapsed / 0.28) * Math.PI) * (1 - Math.min(1, elapsed / 0.55))
-        : 0;
       const residentHit = residents[0] === undefined
         ? 0
         : getCampLifePose(lifeTime, 0, residents[0].presentation.id).practiceImpact;
-      const hit = Math.max(playerHit, residentHit);
+      const hit = campTrainingDummyHit(reaction, elapsed, residentHit);
       dummyBody.rotation.z = -hit * 0.20;
       dummyTarget.rotation.z = -hit * 0.20;
       dummyArm.rotation.z = -hit * 0.24;

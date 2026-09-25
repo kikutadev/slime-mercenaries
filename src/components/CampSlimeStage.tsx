@@ -3,10 +3,9 @@ import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { getCampIdleMotion } from '../game/camp-slime-motion';
+import type { CampReaction } from '../game/camp-types';
 import type { SlimePresentation } from '../game/slimes';
 import { applySlimeMutationVisuals, disposeSlimeMutationVisuals } from '../game/slime-mutation-visuals';
-
-export type CampSlimeReaction = 'idle' | 'level-up' | 'formation' | 'recruit' | 'fusion';
 
 type MorphMesh = THREE.Mesh & {
   morphTargetDictionary?: Record<string, number>;
@@ -20,7 +19,7 @@ interface ModelParts {
 
 interface CampResidentProps {
   presentation: SlimePresentation;
-  reaction: CampSlimeReaction;
+  reaction: CampReaction;
   reactionKey: number;
   reactionStrength: 1 | 2 | 3;
 }
@@ -190,7 +189,7 @@ function CampResident({
 
 interface CampSlimeStageProps {
   presentation: SlimePresentation;
-  reaction: CampSlimeReaction;
+  reaction: CampReaction;
   reactionKey: number;
   reactionStrength?: 1 | 2 | 3;
 }

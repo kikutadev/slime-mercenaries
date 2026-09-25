@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { applyCampLifeWorldReaction, getCampLifePose } from '../game/camp-life-motion';
 import type { CampLifeResidentSpec } from '../game/camp-life-residents';
+import type { CampReaction } from '../game/camp-types';
 import type { SlimePresentation } from '../game/slimes';
 import { applySlimeMutationVisuals, disposeSlimeMutationVisuals } from '../game/slime-mutation-visuals';
 
@@ -31,7 +32,7 @@ interface CampLifeResidentProps {
   resident: CampLifeResidentSpec;
   slotIndex: number;
   lifeOriginRef: MutableRefObject<number | null>;
-  reaction: 'idle' | 'level-up' | 'formation' | 'recruit' | 'fusion';
+  reaction: CampReaction;
   reactionStartedAtRef: MutableRefObject<number | null>;
 }
 
@@ -187,7 +188,7 @@ export function CampLifePopulation({
 }: {
   residents: readonly CampLifeResidentSpec[];
   lifeOriginRef: MutableRefObject<number | null>;
-  reaction: 'idle' | 'level-up' | 'formation' | 'recruit' | 'fusion';
+  reaction: CampReaction;
   reactionKey: number;
 }) {
   const latestTimeRef = useRef(0);

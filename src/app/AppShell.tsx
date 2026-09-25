@@ -19,7 +19,8 @@ import {
 } from '../application/presentation-events';
 import type { BattleRewardCue } from '../game/battle-reward';
 import { installBattleAudioUnlock } from '../game/battle-runtime/audio-system';
-import { SlimesScreen, type CampMode } from '../screens/SlimesScreen';
+import { SlimesScreen } from '../screens/SlimesScreen';
+import type { CampMode } from '../game/camp-types';
 import type { SlimeInstanceId } from '../domain';
 import { NavIcon, type NavIconKind } from '../components/navigation/NavIcon';
 import { SlimeMark } from '../components/SlimeMark';

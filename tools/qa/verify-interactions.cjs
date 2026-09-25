@@ -807,9 +807,8 @@ async function runCampLivingQa(browser) {
   const errors = observePage(page);
   await prepareValidation(page);
 
-  const stage = page.locator('.camp-environment-stage');
-  await stage.waitFor({ state: 'visible' });
-  await stage.locator('canvas').waitFor({ state: 'visible' });
+  const stageCanvas = page.locator('.camp-world .camp-environment-stage canvas').first();
+  await stageCanvas.waitFor({ state: 'visible' });
   const managementLauncher = page.getByRole('button', { name: /仲間・育成/ });
   await managementLauncher.waitFor({ state: 'visible' });
   if (await page.locator('#camp-command-panel').count() !== 0) {
