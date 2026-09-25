@@ -260,3 +260,21 @@ Browser / product verification:
 - `SettingsSheet.tsx`: cohesive settings/save-management surface, backed by runtime-settings/save-transfer tests.
 
 All planned system-hardening work is complete. Release hygiene remains: commit, push to main, deploy validation build, and public smoke.
+
+## Release completion — 2026-09-26
+
+- [x] implementation committed as `23f31fe refactor: harden game screen responsibilities`
+- [x] fast-forward pushed to `origin/main`: `1124954 -> 23f31fe`
+- [x] deployment build produced from the clean system-hardening worktree, not the dirty local main worktree
+- [x] Cloudflare deployment completed in **9.72s**
+- [x] Cloudflare Worker Version ID: `4fa61fca-a8ae-49b2-94dc-e6911d0078c7`
+- [x] public production entry serves `assets/main-CbcAR2gB.js`
+- [x] new Battle / Dispatch / Forge / Fusion chunks return HTTP 200
+- [x] public 390x844 smoke: **13.26s PASS**
+  - Camp validation roster setup visible
+  - Battle enters the live encounter without loading/reload fallback
+  - Forge 1x draw reaches reveal and auto-equip presentation
+  - zero game-origin console/page/network errors
+- [x] Cloudflare `/cdn-cgi/rum` 404 identified as platform RUM noise and excluded from the game-origin error gate
+
+System-hardening is now implemented, tested, merged, deployed, and publicly smoke-verified.
