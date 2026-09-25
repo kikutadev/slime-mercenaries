@@ -964,3 +964,11 @@ Visual acceptance:
 
 - ordinary Camp entry shows ambient residents distributed through the environment with no foreground Hero and no name plate
 - management remains available through the compact launcher
+
+### Production deployment — no automatic Hero
+
+- [x] source merged through `663b542 fix: stop auto focusing camp hero`
+- [x] Cloudflare Worker Version ID: `332d49c3-f20d-49cb-b71f-9e7d273fa546`
+- [x] public 390x844 QA: `.camp-slime-stage` count = 0 on ordinary Camp entry
+- [x] public 390x844 QA: management panel count = 0 on ordinary Camp entry
+- [x] public browser QA: zero game-origin page/network errors
