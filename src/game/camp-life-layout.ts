@@ -7,6 +7,9 @@ export type CampLifeStationId =
   | 'home-back-right'
   | 'training'
   | 'rest'
+  | 'weapon-rack'
+  | 'nursery'
+  | 'fusion-altar'
   | 'chat-left'
   | 'chat-right';
 
@@ -52,6 +55,24 @@ export const CAMP_LIFE_STATIONS: Readonly<Record<CampLifeStationId, CampLifeStat
     // In front of the tent rather than inside it so sleepy eyes remain readable.
     position: new THREE.Vector3(2.18, 0.02, -2.26),
     facingTarget: new THREE.Vector3(0.0, 0.48, 1.65),
+  },
+  'weapon-rack': {
+    id: 'weapon-rack',
+    // WeaponRackBar is authored at (-3.55, 0.85, 1.25); stay in the portrait-safe world.
+    position: new THREE.Vector3(-2.05, 0.02, -1.62),
+    facingTarget: new THREE.Vector3(-3.55, 0.85, 1.25),
+  },
+  nursery: {
+    id: 'nursery',
+    // NurserySlimeBubble is authored at (-2.55, 0.88, 1.55).
+    position: new THREE.Vector3(-2.12, 0.02, -1.10),
+    facingTarget: new THREE.Vector3(-2.55, 0.88, 1.55),
+  },
+  'fusion-altar': {
+    id: 'fusion-altar',
+    // FusionAltarRing is authored at (2.55, 0.53, -0.35).
+    position: new THREE.Vector3(1.92, 0.02, -1.32),
+    facingTarget: new THREE.Vector3(2.55, 0.53, -0.35),
   },
   'chat-left': {
     id: 'chat-left',

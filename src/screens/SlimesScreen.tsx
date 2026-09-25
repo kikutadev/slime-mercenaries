@@ -408,6 +408,10 @@ export function SlimesScreen({
           onClose={() => setMode('none')}
           onBattle={onOpenBattle}
           onRecruit={() => { setMode('none'); setCreateOpen(true); }}
+          onReturnToCamp={(resultName) => {
+            setMode('none');
+            triggerFeedback('fusion', '合成完了', `${resultName}の力に周囲が反応しています`, 3);
+          }}
         />
       </Suspense>
     );

@@ -2,7 +2,7 @@ import { useFrame, useLoader } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { getCampLifePose } from '../game/camp-life-motion';
+import { applyCampLifeWorldReaction, getCampLifePose } from '../game/camp-life-motion';
 import type { CampLifeResidentSpec } from '../game/camp-life-residents';
 import type { SlimePresentation } from '../game/slimes';
 import { applySlimeMutationVisuals, disposeSlimeMutationVisuals } from '../game/slime-mutation-visuals';
@@ -31,6 +31,8 @@ interface CampLifeResidentProps {
   resident: CampLifeResidentSpec;
   slotIndex: number;
   lifeOriginRef: MutableRefObject<number | null>;
+  reaction: 'idle' | 'level-up' | 'formation' | 'recruit' | 'fusion';
+  reactionStartedAtRef: MutableRefObject<number | null>;
 }
 
 const AMBIENT_SLIME_SCALE = 0.44;
@@ -71,7 +73,7 @@ function resetParts(parts: ResidentParts): void {
   parts.equipment?.quaternion.copy(parts.equipmentBaseQuaternion);
 }
 
-function AmbientResident({ resident, slotIndex, lifeOriginRef }: CampLifeResidentProps) {
+function AmbientResident({ resident, slotIndex, lifeOriginRef, reaction, reactionStartedAtRef }: CampLifeResidentProps) {
   const gltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}${resident.presentation.asset}`);
   const model = useMemo(() => {
     const clone = gltf.scene.clone(true);
@@ -123,7 +125,12 @@ function AmbientResident({ resident, slotIndex, lifeOriginRef }: CampLifeResiden
     const group = groupRef.current;
     if (group === null) return;
     if (lifeOriginRef.current === null) lifeOriginRef.current = clock.elapsedTime;
-    const pose = getCampLifePose(clock.elapsedTime - lifeOriginRef.current, slotIndex, resident.presentation.id);
+    const lifeTime = clock.elapsedTime - lifeOriginRef.current;
+    const basePose = getCampLifePose(lifeTime, slotIndex, resident.presentation.id);
+    const reactionElapsed = reactionStartedAtRef.current === null
+      ? -1
+      : clock.elapsedTime - reactionStartedAtRef.current;
+    const pose = applyCampLifeWorldReaction(basePose, reactionElapsed, slotIndex, reaction);
 
     resetParts(parts);
     group.position.set(pose.x, pose.y, pose.z);
@@ -174,10 +181,31 @@ function AmbientResident({ resident, slotIndex, lifeOriginRef }: CampLifeResiden
 
 export function CampLifePopulation({
   residents,
+  lifeOriginRef,
+  reaction,
+  reactionKey,
 }: {
   residents: readonly CampLifeResidentSpec[];
+  lifeOriginRef: MutableRefObject<number | null>;
+  reaction: 'idle' | 'level-up' | 'formation' | 'recruit' | 'fusion';
+  reactionKey: number;
 }) {
-  const lifeOriginRef = useRef<number | null>(null);
+  const latestTimeRef = useRef(0);
+  const reactionStartedAtRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (reaction === 'idle') {
+      reactionStartedAtRef.current = null;
+      return;
+    }
+    reactionStartedAtRef.current = latestTimeRef.current;
+  }, [reaction, reactionKey]);
+
+  useFrame(({ clock }) => {
+    latestTimeRef.current = clock.elapsedTime;
+    if (lifeOriginRef.current === null) lifeOriginRef.current = clock.elapsedTime;
+  });
+
   return (
     <group name="CampLifePopulation">
       {residents.slice(0, 4).map((resident, slotIndex) => (
@@ -186,6 +214,8 @@ export function CampLifePopulation({
           resident={resident}
           slotIndex={slotIndex}
           lifeOriginRef={lifeOriginRef}
+          reaction={reaction}
+          reactionStartedAtRef={reactionStartedAtRef}
         />
       ))}
     </group>

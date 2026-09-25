@@ -15,6 +15,7 @@ interface FusionWorkbenchProps {
   onClose: () => void;
   onBattle: () => void;
   onRecruit: () => void;
+  onReturnToCamp?: (resultName: string) => void;
 }
 
 type FusionRunRequirement = Readonly<{
@@ -35,7 +36,7 @@ type FusionRun = Readonly<{
   requirements: readonly FusionRunRequirement[];
 }>;
 
-export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: FusionWorkbenchProps) {
+export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit, onReturnToCamp }: FusionWorkbenchProps) {
   const state = useGameState();
   const controller = useGameController();
   const detail = selectSlimeDetail(state, slimeId);
@@ -306,7 +307,11 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit }: Fusio
           <strong>{completedName ?? resultPresentation.name}</strong>
           <div className={styles.unlockBadge}>新攻撃 · {completedBehavior ?? '新しい戦闘挙動'}</div>
           <div className={styles.resultActions}>
-            <button type="button" onClick={onClose}>キャンプで見る</button>
+            <button type="button" onClick={() => {
+              const name = completedName ?? resultPresentation.name;
+              if (onReturnToCamp !== undefined) onReturnToCamp(name);
+              else onClose();
+            }}>キャンプで見る</button>
             <button className={styles.primary} type="button" onClick={onBattle}>戦闘で試す</button>
           </div>
         </div>

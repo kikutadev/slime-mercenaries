@@ -836,3 +836,42 @@ Next slice:
 1. connect ambient residents to player actions (strengthen / recruit / formation / fusion look-at)
 2. add more facility routines after verifying the first three do not become repetitive
 3. add environment props such as a rest mat or campfire only if they materially improve the lived-in read
+
+## 22. Progress — reactive / rotating life slice
+
+Implemented:
+
+- [x] player strengthen reaction: ambient residents look toward the Hero and cheer/hop with staggered timing
+- [x] recruit reaction: ambient residents look toward the Nursery side and briefly react to the newcomer
+- [x] formation reaction: ambient residents acknowledge the Formation Flag direction
+- [x] fusion return reaction: `キャンプで見る` returns with Hero + ambient residents reacting toward the Fusion Altar
+- [x] Fusion Altar ring/crystals pulse during the Camp fusion-return reaction
+- [x] shared living-world clock drives resident practice and Training Dummy impact timing
+- [x] living roles rotate every 18 seconds; residents are not permanently assigned to training/sleep/chat
+- [x] role transitions occur after each routine has returned home, avoiding visible teleportation at phase boundaries
+- [x] Weapon Rack inspection routine
+- [x] Nursery inspection / small surprise routine
+- [x] Fusion Altar curiosity routine with extra Wand affinity
+- [x] six-phase living schedule distributes training/rest/chat/facility inspection across residents
+
+Verification:
+
+- camp-life focused tests now cover sleep, travel continuity, social turns, action reactions, role rotation, and facility phases
+- 390x844 strengthen-reaction burst capture: PASS
+- 390x844 15-second living-world capture after reaction integration: PASS
+- no console/page/network errors observed in either browser acceptance
+
+Remaining production work:
+
+1. long-window visual sampling of later facility phases (tests already cover deterministic phase routing)
+2. consider Campfire / rest mat only after evaluating the deployed living Camp; existing facilities now have actual use
+3. optional background-resident tap-to-select after living-world readability is stable
+
+### Verification checkpoint — reactive / rotating slice
+
+- full Vitest: 73 files / 450 tests PASS
+- TypeScript: PASS
+- validation-mode production build: PASS
+- `git diff --check`: PASS
+- 390x844 `camp-reactions` actual-speed QA: PASS
+- 390x844 `camp-living` 15-second actual-speed QA: PASS

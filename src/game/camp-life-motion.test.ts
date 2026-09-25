@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getCampLifePose } from './camp-life-motion';
+import { applyCampLifeWorldReaction, getCampLifePose } from './camp-life-motion';
 
 describe('camp living-world motion', () => {
   it('uses an authored training loop with visible travel and practice impact', () => {
@@ -47,6 +47,43 @@ describe('camp living-world motion', () => {
     expect(rightTalk.y).toBeGreaterThan(leftWait.y);
     expect(leftTalk.yaw).toBeGreaterThan(0);
     expect(rightTalk.yaw).toBeLessThan(0);
+  });
+
+  it('lets the living Camp react to player actions without replacing the resident routine', () => {
+    const base = getCampLifePose(0.5, 2, 'bow');
+    const cheer = applyCampLifeWorldReaction(base, 0.52, 2, 'level-up');
+    const recruitNotice = applyCampLifeWorldReaction(base, 0.62, 2, 'recruit');
+    const formationNod = applyCampLifeWorldReaction(base, 0.34, 2, 'formation');
+
+    expect(cheer.y).toBeGreaterThan(base.y + 0.03);
+    expect(cheer.eyeOpen).toBe(1);
+    expect(Math.abs(recruitNotice.yaw - base.yaw)).toBeGreaterThan(0.15);
+    expect(Math.abs(formationNod.lean - base.lean)).toBeGreaterThan(0.01);
+  });
+
+  it('rotates life roles between residents instead of pinning one slime to one activity forever', () => {
+    const phase0Slot0 = getCampLifePose(4.2, 0, 'sword');
+    const phase1Slot0 = getCampLifePose(18 + 4.2, 0, 'sword');
+    const phase1Slot2 = getCampLifePose(18 + 4.2, 2, 'bow');
+    const phase2Slot0 = getCampLifePose(36 + 6.0, 0, 'sword');
+
+    expect(phase0Slot0.activity).toBe('practice');
+    expect(phase1Slot0.activity).toBe('chat');
+    expect(phase1Slot2.activity).toBe('practice');
+    expect(phase2Slot0.activity).toBe('sleep');
+  });
+
+  it('uses the existing rack, nursery and altar as later living-world destinations', () => {
+    const rack = getCampLifePose(72 + 4.2, 0, 'sword');
+    const nursery = getCampLifePose(72 + 4.2, 1, 'shield');
+    const altar = getCampLifePose(72 + 4.2, 2, 'wand');
+    const laterRack = getCampLifePose(90 + 4.2, 1, 'shield');
+
+    expect(rack.activity).toBe('inspect-rack');
+    expect(nursery.activity).toBe('inspect-nursery');
+    expect(altar.activity).toBe('inspect-altar');
+    expect(altar.bodyStretch).toBeGreaterThan(0);
+    expect(laterRack.activity).toBe('inspect-rack');
   });
 
   it('moves continuously between authored points instead of teleporting', () => {

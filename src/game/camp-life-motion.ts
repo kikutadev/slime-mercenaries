@@ -10,7 +10,10 @@ export type CampLifeActivity =
   | 'drowsy'
   | 'sleep'
   | 'wake'
-  | 'chat';
+  | 'chat'
+  | 'inspect-rack'
+  | 'inspect-nursery'
+  | 'inspect-altar';
 
 export interface CampLifePose {
   activity: CampLifeActivity;
@@ -30,9 +33,10 @@ export interface CampLifePose {
   practiceImpact: number;
 }
 
-const TRAINING_CYCLE_SEC = 13.8;
-const REST_CYCLE_SEC = 16.4;
-const CHAT_CYCLE_SEC = 14.8;
+const CAMP_LIFE_PHASE_SEC = 18;
+const TRAINING_CYCLE_SEC = CAMP_LIFE_PHASE_SEC;
+const REST_CYCLE_SEC = CAMP_LIFE_PHASE_SEC;
+const CHAT_CYCLE_SEC = CAMP_LIFE_PHASE_SEC;
 
 function mod(value: number, divisor: number): number {
   return ((value % divisor) + divisor) % divisor;
@@ -104,11 +108,11 @@ function THREE_LERP(from: number, to: number, t: number): number {
   return from + (to - from) * t;
 }
 
-function trainingPose(timeSec: number, slimeId: SlimeId): CampLifePose {
+function trainingPose(timeSec: number, slimeId: SlimeId, slotIndex: number): CampLifePose {
   const t = mod(timeSec, TRAINING_CYCLE_SEC);
-  const home = campLifeHomeForSlot(0);
+  const home = campLifeHomeForSlot(slotIndex);
   const training = CAMP_LIFE_STATIONS.training;
-  let pose = basePose(0, timeSec);
+  let pose = basePose(slotIndex, timeSec);
 
   if (t < 1.35) return pose;
   if (t < 3.05) {
@@ -166,11 +170,11 @@ function trainingPose(timeSec: number, slimeId: SlimeId): CampLifePose {
   };
 }
 
-function restPose(timeSec: number): CampLifePose {
+function restPose(timeSec: number, slotIndex: number): CampLifePose {
   const t = mod(timeSec, REST_CYCLE_SEC);
-  const home = campLifeHomeForSlot(1);
+  const home = campLifeHomeForSlot(slotIndex);
   const rest = CAMP_LIFE_STATIONS.rest;
-  let pose = basePose(1, timeSec);
+  let pose = basePose(slotIndex, timeSec);
 
   if (t < 1.10) return pose;
   if (t < 2.85) {
@@ -262,10 +266,10 @@ function restPose(timeSec: number): CampLifePose {
   return pose;
 }
 
-function chatPose(timeSec: number, slotIndex: 2 | 3): CampLifePose {
+function chatPose(timeSec: number, slotIndex: number, pairSide: 'left' | 'right'): CampLifePose {
   const t = mod(timeSec, CHAT_CYCLE_SEC);
   const home = campLifeHomeForSlot(slotIndex);
-  const chat = slotIndex === 2 ? CAMP_LIFE_STATIONS['chat-left'] : CAMP_LIFE_STATIONS['chat-right'];
+  const chat = pairSide === 'left' ? CAMP_LIFE_STATIONS['chat-left'] : CAMP_LIFE_STATIONS['chat-right'];
   let pose = basePose(slotIndex, timeSec);
 
   if (t < 1.85) return pose;
@@ -274,7 +278,7 @@ function chatPose(timeSec: number, slotIndex: 2 | 3): CampLifePose {
   }
   if (t < 8.45) {
     const local = t - 3.55;
-    const myTurns = slotIndex === 2
+    const myTurns = pairSide === 'left'
       ? [pulse(local, 0.55, 0.55), pulse(local, 2.55, 0.55)]
       : [pulse(local, 1.35, 0.55), pulse(local, 3.25, 0.55)];
     const talk = Math.max(...myTurns);
@@ -282,14 +286,14 @@ function chatPose(timeSec: number, slotIndex: 2 | 3): CampLifePose {
     return {
       ...pose,
       activity: 'chat',
-      x: chat.position.x + (slotIndex === 2 ? 1 : -1) * talk * 0.035,
+      x: chat.position.x + (pairSide === 'left' ? 1 : -1) * talk * 0.035,
       y: chat.position.y + talk * 0.075 + shared * 0.035,
       z: chat.position.z,
       yaw: yawToward(chat.position, chat.facingTarget),
-      roll: (slotIndex === 2 ? -1 : 1) * talk * 0.035,
+      roll: (pairSide === 'left' ? -1 : 1) * talk * 0.035,
       bodySquash: 0.03 + talk * 0.055 + shared * 0.035,
       bodyStretch: talk * 0.075 + shared * 0.04,
-      lean: (slotIndex === 2 ? 1 : -1) * talk * 0.055,
+      lean: (pairSide === 'left' ? 1 : -1) * talk * 0.055,
       wobble: Math.sin(local * Math.PI * 2.2) * talk * 0.07 + shared * 0.06,
       eyeOpen: 1,
       mouthOpen: 1 + talk * 0.42,
@@ -303,9 +307,68 @@ function chatPose(timeSec: number, slotIndex: 2 | 3): CampLifePose {
   const lookBack = pulse(t, 10.55, 0.85);
   return {
     ...pose,
-    yaw: pose.yaw + (slotIndex === 2 ? 1 : -1) * lookBack * 0.18,
+    yaw: pose.yaw + (pairSide === 'left' ? 1 : -1) * lookBack * 0.18,
     wobble: pose.wobble + lookBack * 0.035,
   };
+}
+
+type InspectActivity = 'inspect-rack' | 'inspect-nursery' | 'inspect-altar';
+
+function inspectStationPose(
+  timeSec: number,
+  slotIndex: number,
+  slimeId: SlimeId,
+  stationId: 'weapon-rack' | 'nursery' | 'fusion-altar',
+  activity: InspectActivity,
+): CampLifePose {
+  const t = mod(timeSec, CAMP_LIFE_PHASE_SEC);
+  const home = campLifeHomeForSlot(slotIndex);
+  const station = CAMP_LIFE_STATIONS[stationId];
+  const pose = basePose(slotIndex, timeSec);
+
+  if (t < 1.35) return pose;
+  if (t < 3.10) {
+    return travel(pose, t, 1.35, 1.75, home.position.x, home.position.z, station.position.x, station.position.z);
+  }
+  if (t < 8.65) {
+    const local = t - 3.10;
+    const firstLook = pulse(local, 0.45, 0.90);
+    const secondLook = pulse(local, 2.05, 0.90);
+    const delight = pulse(local, 3.70, 0.72);
+    const curious = Math.max(firstLook, secondLook);
+    const isRack = activity === 'inspect-rack';
+    const isNursery = activity === 'inspect-nursery';
+    const isAltar = activity === 'inspect-altar';
+    const nurserySurprise = isNursery ? pulse(local, 2.78, 0.48) : 0;
+    const altarHum = isAltar ? 0.5 + Math.sin(local * 3.1) * 0.5 : 0;
+    const rackAdmire = isRack ? delight : 0;
+    const wandAffinity = isAltar && slimeId === 'wand' ? 1 : 0;
+
+    return {
+      ...pose,
+      activity,
+      x: station.position.x + nurserySurprise * 0.08,
+      y: station.position.y + delight * 0.05 + altarHum * wandAffinity * 0.012,
+      z: station.position.z + nurserySurprise * 0.10,
+      yaw: yawToward(station.position, station.facingTarget)
+        + Math.sin(local * 1.65) * curious * 0.08,
+      roll: (isRack ? -1 : 1) * curious * 0.025 + nurserySurprise * 0.035,
+      bodySquash: 0.03 + nurserySurprise * 0.08 + delight * 0.035,
+      bodyStretch: delight * 0.065 + wandAffinity * altarHum * 0.035,
+      lean: -curious * 0.055 + nurserySurprise * 0.10 - wandAffinity * altarHum * 0.025,
+      wobble: Math.sin(local * 2.4) * curious * 0.035 + delight * 0.055,
+      eyeOpen: 1,
+      mouthOpen: 1 + delight * (isNursery ? 0.25 : 0.12),
+      mouthWidth: 1 + delight * 0.08,
+      equipmentAngle: rackAdmire * 0.13 + wandAffinity * altarHum * 0.07,
+      practiceImpact: 0,
+    };
+  }
+  if (t < 10.45) {
+    return travel(pose, t, 8.65, 1.80, station.position.x, station.position.z, home.position.x, home.position.z);
+  }
+
+  return pose;
 }
 
 export function getCampLifePose(
@@ -313,14 +376,128 @@ export function getCampLifePose(
   slotIndex: number,
   slimeId: SlimeId,
 ): CampLifePose {
-  if (slotIndex === 0) return trainingPose(timeSec, slimeId);
-  if (slotIndex === 1) return restPose(timeSec);
-  if (slotIndex === 2 || slotIndex === 3) return chatPose(timeSec, slotIndex);
-  return basePose(slotIndex, timeSec);
+  const phase = Math.floor(Math.max(0, timeSec) / CAMP_LIFE_PHASE_SEC) % 6;
+  const phaseTime = mod(timeSec, CAMP_LIFE_PHASE_SEC);
+
+  if (phase === 0) {
+    if (slotIndex === 0) return trainingPose(phaseTime, slimeId, slotIndex);
+    if (slotIndex === 1) return restPose(phaseTime, slotIndex);
+    if (slotIndex === 2) return chatPose(phaseTime, slotIndex, 'left');
+    if (slotIndex === 3) return chatPose(phaseTime, slotIndex, 'right');
+  }
+  if (phase === 1) {
+    if (slotIndex === 0) return chatPose(phaseTime, slotIndex, 'left');
+    if (slotIndex === 1) return chatPose(phaseTime, slotIndex, 'right');
+    if (slotIndex === 2) return trainingPose(phaseTime, slimeId, slotIndex);
+    if (slotIndex === 3) return restPose(phaseTime, slotIndex);
+  }
+  if (phase === 2) {
+    if (slotIndex === 0) return restPose(phaseTime, slotIndex);
+    if (slotIndex === 1) return trainingPose(phaseTime, slimeId, slotIndex);
+    if (slotIndex === 2) return chatPose(phaseTime, slotIndex, 'left');
+    if (slotIndex === 3) return chatPose(phaseTime, slotIndex, 'right');
+  }
+  if (phase === 3) {
+    if (slotIndex === 0) return chatPose(phaseTime, slotIndex, 'left');
+    if (slotIndex === 1) return chatPose(phaseTime, slotIndex, 'right');
+    if (slotIndex === 2) return restPose(phaseTime, slotIndex);
+    if (slotIndex === 3) return trainingPose(phaseTime, slimeId, slotIndex);
+  }
+  if (phase === 4) {
+    if (slotIndex === 0) return inspectStationPose(phaseTime, slotIndex, slimeId, 'weapon-rack', 'inspect-rack');
+    if (slotIndex === 1) return inspectStationPose(phaseTime, slotIndex, slimeId, 'nursery', 'inspect-nursery');
+    if (slotIndex === 2) return inspectStationPose(phaseTime, slotIndex, slimeId, 'fusion-altar', 'inspect-altar');
+    if (slotIndex === 3) return restPose(phaseTime, slotIndex);
+  }
+  if (phase === 5) {
+    if (slotIndex === 0) return inspectStationPose(phaseTime, slotIndex, slimeId, 'fusion-altar', 'inspect-altar');
+    if (slotIndex === 1) return inspectStationPose(phaseTime, slotIndex, slimeId, 'weapon-rack', 'inspect-rack');
+    if (slotIndex === 2) return inspectStationPose(phaseTime, slotIndex, slimeId, 'nursery', 'inspect-nursery');
+    if (slotIndex === 3) return trainingPose(phaseTime, slimeId, slotIndex);
+  }
+  return basePose(slotIndex, phaseTime);
+}
+
+
+export type CampLifeWorldReaction = 'idle' | 'level-up' | 'formation' | 'recruit' | 'fusion';
+
+export function applyCampLifeWorldReaction(
+  pose: CampLifePose,
+  elapsedSec: number,
+  slotIndex: number,
+  reaction: CampLifeWorldReaction,
+): CampLifePose {
+  if (reaction === 'idle' || elapsedSec < 0) return pose;
+  const delayed = Math.max(0, elapsedSec - slotIndex * 0.055);
+
+  if (reaction === 'level-up' && delayed < 1.05) {
+    const u = clamp01(delayed / 1.05);
+    const cheer = Math.sin(u * Math.PI);
+    return {
+      ...pose,
+      y: pose.y + cheer * 0.085,
+      yaw: Math.atan2(-pose.x, 1.15 - pose.z),
+      roll: pose.roll + Math.sin(u * Math.PI * 3) * cheer * 0.035,
+      bodySquash: Math.max(pose.bodySquash, cheer * 0.065),
+      bodyStretch: Math.max(pose.bodyStretch, cheer * 0.085),
+      wobble: pose.wobble + Math.sin(u * Math.PI * 4) * cheer * 0.065,
+      eyeOpen: 1,
+    };
+  }
+
+  if (reaction === 'recruit' && delayed < 1.20) {
+    const u = clamp01(delayed / 1.20);
+    const notice = Math.sin(u * Math.PI);
+    const hop = pulse(delayed, 0.36, 0.52);
+    return {
+      ...pose,
+      y: pose.y + hop * 0.065,
+      yaw: Math.atan2(-2.55 - pose.x, 1.55 - pose.z),
+      roll: pose.roll + (slotIndex % 2 === 0 ? -1 : 1) * notice * 0.025,
+      bodyStretch: Math.max(pose.bodyStretch, hop * 0.065),
+      lean: pose.lean + notice * 0.035,
+      wobble: pose.wobble + Math.sin(u * Math.PI * 2) * notice * 0.035,
+      eyeOpen: 1,
+    };
+  }
+
+  if (reaction === 'fusion' && delayed < 1.15) {
+    const u = clamp01(delayed / 1.15);
+    const notice = Math.sin(u * Math.PI);
+    const tinyHop = pulse(delayed, 0.28, 0.48);
+    return {
+      ...pose,
+      y: pose.y + tinyHop * 0.055,
+      yaw: Math.atan2(2.55 - pose.x, -0.35 - pose.z),
+      roll: pose.roll + (slotIndex % 2 === 0 ? -1 : 1) * notice * 0.028,
+      bodySquash: Math.max(pose.bodySquash, tinyHop * 0.045),
+      bodyStretch: Math.max(pose.bodyStretch, tinyHop * 0.07),
+      lean: pose.lean - notice * 0.035,
+      wobble: pose.wobble + Math.sin(u * Math.PI * 3) * notice * 0.045,
+      eyeOpen: 1,
+    };
+  }
+
+  if (reaction === 'formation' && delayed < 0.90) {
+    const u = clamp01(delayed / 0.90);
+    const nod = Math.sin(u * Math.PI * 2) * (1 - u);
+    return {
+      ...pose,
+      yaw: Math.atan2(2.65 - pose.x, 1.55 - pose.z),
+      bodySquash: Math.max(pose.bodySquash, Math.max(0, nod) * 0.075),
+      bodyStretch: Math.max(pose.bodyStretch, Math.max(0, -nod) * 0.05),
+      lean: pose.lean - nod * 0.05,
+      wobble: pose.wobble + nod * 0.04,
+      eyeOpen: 1,
+    };
+  }
+
+  return pose;
 }
 
 export const CAMP_LIFE_CYCLE_DURATIONS = {
   training: TRAINING_CYCLE_SEC,
   rest: REST_CYCLE_SEC,
   chat: CHAT_CYCLE_SEC,
+  phase: CAMP_LIFE_PHASE_SEC,
 } as const;

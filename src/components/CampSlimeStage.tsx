@@ -6,7 +6,7 @@ import { getCampIdleMotion } from '../game/camp-slime-motion';
 import type { SlimePresentation } from '../game/slimes';
 import { applySlimeMutationVisuals, disposeSlimeMutationVisuals } from '../game/slime-mutation-visuals';
 
-export type CampSlimeReaction = 'idle' | 'level-up' | 'formation' | 'recruit';
+export type CampSlimeReaction = 'idle' | 'level-up' | 'formation' | 'recruit' | 'fusion';
 
 type MorphMesh = THREE.Mesh & {
   morphTargetDictionary?: Record<string, number>;
@@ -158,13 +158,27 @@ function CampResident({
       return;
     }
 
+    if (reaction === 'fusion' && elapsed >= 0 && elapsed < 1.16) {
+      resetBody(parts);
+      const u = elapsed / 1.16;
+      const lift = Math.sin(u * Math.PI) * 0.22;
+      const shimmer = Math.sin(u * Math.PI * 4) * (1 - u);
+      group.position.y = -0.50 + lift;
+      group.rotation.y = -0.24 + Math.sin(u * Math.PI) * 0.34;
+      setMorph(parts.body, 'Stretch', Math.max(0, Math.sin(u * Math.PI * 2)) * 0.16);
+      setMorph(parts.body, shimmer < 0 ? 'WobbleLeft' : 'WobbleRight', Math.abs(shimmer) * 0.10);
+      return;
+    }
+
     const completedReactionDuration = reaction === 'level-up'
       ? 1.12
       : reaction === 'formation'
         ? 0.78
         : reaction === 'recruit'
           ? 1.12
-          : 0;
+          : reaction === 'fusion'
+            ? 1.16
+            : 0;
     const idleTime = reaction === 'idle'
       ? Math.max(0, time - idleStartedAt.current)
       : Math.max(0, elapsed - completedReactionDuration);

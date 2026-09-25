@@ -1,5 +1,5 @@
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
-import { Suspense, useEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { getCampLifePose } from '../game/camp-life-motion';
@@ -14,7 +14,7 @@ interface Props {
   residents: readonly CampLifeResidentSpec[];
 }
 
-function CampEnvironment({ reaction, reactionKey, fusionReady, residents }: Props) {
+function CampEnvironment({ reaction, reactionKey, fusionReady, residents, lifeOriginRef }: Props & { lifeOriginRef: MutableRefObject<number | null> }) {
   const gltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}assets/environments/camp.glb`);
   const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
   const { camera, scene } = useThree();
@@ -57,16 +57,28 @@ function CampEnvironment({ reaction, reactionKey, fusionReady, residents }: Prop
 
   useFrame(({ clock }) => {
     const now = clock.elapsedTime;
+    if (lifeOriginRef.current === null) lifeOriginRef.current = now;
+    const lifeTime = now - lifeOriginRef.current;
     timeRef.current = now;
     const elapsed = now - reactionStartedAt.current;
 
     if (fusionRing !== undefined) {
-      fusionRing.rotation.y = now * (fusionReady ? 0.72 : 0.18);
-      const pulse = fusionReady ? 1 + Math.sin(now * 3.2) * 0.035 : 1;
+      const reactionPulse = reaction === 'fusion' && elapsed >= 0 && elapsed < 1.15
+        ? Math.sin((elapsed / 1.15) * Math.PI)
+        : 0;
+      fusionRing.rotation.y = now * (fusionReady ? 0.72 : 0.18) + reactionPulse * 0.55;
+      const pulse = fusionReady
+        ? 1 + Math.sin(now * 3.2) * 0.035 + reactionPulse * 0.06
+        : 1 + reactionPulse * 0.06;
       fusionRing.scale.setScalar(pulse);
     }
     fusionCrystals.forEach((crystal, index) => {
-      const pulse = fusionReady ? 1 + Math.sin(now * 3.4 + index * 1.2) * 0.10 : 1;
+      const reactionPulse = reaction === 'fusion' && elapsed >= 0 && elapsed < 1.15
+        ? Math.sin((elapsed / 1.15) * Math.PI)
+        : 0;
+      const pulse = fusionReady
+        ? 1 + Math.sin(now * 3.4 + index * 1.2) * 0.10 + reactionPulse * 0.08
+        : 1 + reactionPulse * 0.08;
       crystal.scale.setScalar(pulse);
     });
 
@@ -88,7 +100,7 @@ function CampEnvironment({ reaction, reactionKey, fusionReady, residents }: Prop
         : 0;
       const residentHit = residents[0] === undefined
         ? 0
-        : getCampLifePose(now, 0, residents[0].presentation.id).practiceImpact;
+        : getCampLifePose(lifeTime, 0, residents[0].presentation.id).practiceImpact;
       const hit = Math.max(playerHit, residentHit);
       dummyBody.rotation.z = -hit * 0.20;
       dummyTarget.rotation.z = -hit * 0.20;
@@ -101,6 +113,7 @@ function CampEnvironment({ reaction, reactionKey, fusionReady, residents }: Prop
 
 /** Full-screen authored Camp diorama behind the selected slime and interaction labels. */
 export function CampEnvironmentStage(props: Props) {
+  const lifeOriginRef = useRef<number | null>(null);
   return (
     <div className="camp-environment-stage" aria-hidden="true">
       <Canvas
@@ -112,9 +125,14 @@ export function CampEnvironmentStage(props: Props) {
         <hemisphereLight args={['#eaf8ff', '#6c9e55', 2.0]} />
         <directionalLight position={[-4, 8, 5]} intensity={3.2} color="#fff2cf" castShadow />
         <pointLight position={[2.6, 2.4, 0.4]} intensity={1.25} color="#8ff0c8" />
-        <CampEnvironment {...props} />
+        <CampEnvironment {...props} lifeOriginRef={lifeOriginRef} />
         <Suspense fallback={null}>
-          <CampLifePopulation residents={props.residents} />
+          <CampLifePopulation
+            residents={props.residents}
+            lifeOriginRef={lifeOriginRef}
+            reaction={props.reaction}
+            reactionKey={props.reactionKey}
+          />
         </Suspense>
       </Canvas>
     </div>
