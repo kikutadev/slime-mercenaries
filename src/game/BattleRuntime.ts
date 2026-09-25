@@ -1,12 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-import {
-  SLIME_MOTION_TIMING,
-  clamp01,
-  getAllyDefeatMotion,
-  type MorphMesh,
-} from './slime-motion';
+import { type MorphMesh } from './slime-motion';
 import {
   createGuardPulseVfx,
   createMageCastSigil,
@@ -38,8 +33,6 @@ import {
 } from './slime-motions/tier3/effects';
 import { resolveTimedMultiplier } from './combat-effects';
 import {
-  applyEnemyDefeatFacePose,
-  applyEnemySecondaryPose,
   buildEnemyDefeatEyes,
   captureEnemyRigRestPose,
   getEnemyMotionProfile,
@@ -69,6 +62,13 @@ import { BattleEffectsSystem } from './battle-runtime/effects-system';
 import { BattleAllyCombatSystem } from './battle-runtime/ally-combat-system';
 import { BattleEnemyCombatSystem } from './battle-runtime/enemy-combat-system';
 import {
+  beginAllyDefeat,
+  beginEnemyDefeat,
+  resetAllyForEncounter,
+  updateAllyDefeat,
+  updateEnemyDefeat,
+} from './battle-runtime/defeat-system';
+import {
   MELEE_BODY_GAP,
   SCALE,
   TARGET_HOME,
@@ -95,7 +95,6 @@ import {
   updateIdle,
 } from './battle-runtime/unit-presentation';
 import {
-  compensateAllyDefeatEyeScale,
   createAllyDefeatEyes,
   createShadow,
   createWorldHealthBar,
@@ -197,7 +196,7 @@ export class BattleRuntime {
     this.enemyCombat = new BattleEnemyCombatSystem({
       effects: this.effects,
       getLivingAllies: () => this.getLivingAllies(),
-      updateDefeat: (enemy, now) => this.updateEnemyDefeat(enemy, now),
+      updateDefeat: (enemy, now) => updateEnemyDefeat(enemy, now),
       applyDamage: (target, amount, source, sourcePosition) => {
         this.applyDamage(target, amount, source, sourcePosition);
       },
@@ -277,7 +276,7 @@ export class BattleRuntime {
     this.enemies.push(...loadedEnemies);
     this.allies.forEach((ally) => {
       if (recoverParty) {
-        this.resetAlly(ally);
+        resetAllyForEncounter(ally);
         if (this.continuationEntryPending) {
           const slot = getVictoryMarchSlot(ally.slotIndex);
           ally.approachOrigin.set(slot.x, 0.02, slot.z);
@@ -347,7 +346,7 @@ export class BattleRuntime {
       else if (this.phase === 'combat') this.updateCombat(frame.simulationNow);
       else if (this.phase === 'result') this.updateResult(frame.simulationNow);
 
-      this.allies.forEach((ally) => this.updateAllyDefeat(ally, frame.simulationNow));
+      this.allies.forEach((ally) => updateAllyDefeat(ally, frame.simulationNow));
       this.effects.update(frame.simulationNow);
       this.evaluateBattleOutcome(frame.simulationNow);
     }
@@ -749,86 +748,10 @@ export class BattleRuntime {
       }
     }
     if (target.hp <= 0) {
-      if (target.side === 'enemy') this.beginEnemyDefeat(target);
-      else this.beginAllyDefeat(target);
+      if (target.side === 'enemy') beginEnemyDefeat(target, this.simulationNow, (cue) => this.audio.play(cue));
+      else beginAllyDefeat(target, this.simulationNow, (cue) => this.audio.play(cue));
     }
     this.emitSnapshot(true);
-  }
-
-  private beginAllyDefeat(unit: AllyUnit): void {
-    if (!unit.alive) return;
-    unit.alive = false;
-    unit.state = 'defeat';
-    unit.defeatStartedAt = this.simulationNow;
-    resetBranchAccents(unit);
-    setAllyDefeatEyes(unit, true);
-    this.audio.play('ally-defeat');
-  }
-
-  private beginEnemyDefeat(enemy: EnemyUnit): void {
-    if (!enemy.alive) return;
-    enemy.alive = false;
-    enemy.state = 'defeat';
-    enemy.defeatStartedAt = this.simulationNow;
-    enemy.attackOrigin.copy(enemy.root.position);
-    enemy.attackStartedAt = -Infinity;
-    enemy.attackTarget = null;
-    if (enemy.attackTelegraph) enemy.attackTelegraph.visible = false;
-    setEnemyDefeatEyes(enemy.normalEyes, enemy.xEyes, true);
-    this.audio.play('enemy-defeat');
-  }
-
-  private updateAllyDefeat(unit: AllyUnit, now: number): void {
-    if (unit.state !== 'defeat') return;
-    const u = clamp01((now - unit.defeatStartedAt) / SLIME_MOTION_TIMING.allyDefeat);
-    const side = unit.slotIndex % 2 === 0 ? -1 : 1;
-    const pose = getAllyDefeatMotion(u, side);
-    unit.root.position.y = THREE.MathUtils.lerp(unit.root.position.y, 0.005, 0.18);
-    unit.root.rotation.z = pose.rootRotationZ;
-    unit.body.scale.set(
-      unit.bodyBaseScale.x * pose.bodyScaleX,
-      unit.bodyBaseScale.y * pose.bodyScaleY,
-      unit.bodyBaseScale.z * pose.bodyScaleZ,
-    );
-    if (unit.faceRoot) {
-      // The face is a sibling of Body in the GLB hierarchy, so explicitly follow the
-      // defeat squash or the mandatory × eyes would float above the flattened slime.
-      unit.faceRoot.scale.set(pose.bodyScaleX, pose.bodyScaleY, pose.bodyScaleZ);
-    }
-    compensateAllyDefeatEyeScale(unit, pose.bodyScaleX, pose.bodyScaleY, pose.bodyScaleZ);
-    setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
-    if (u >= 1) unit.state = 'dead';
-  }
-
-  private updateEnemyDefeat(enemy: EnemyUnit, now: number): void {
-    if (enemy.state !== 'defeat') return;
-    const u = clamp01((now - enemy.defeatStartedAt) / enemy.motionProfile.defeatDuration);
-    const side = enemy.index % 2 === 0 ? -1 : 1;
-    const pose = enemy.motionProfile.defeat(u, side);
-    enemy.root.rotation.z = pose.rotationZ;
-    enemy.root.position.x = enemy.attackOrigin.x + pose.lateralDrift;
-    enemy.root.position.z = enemy.attackOrigin.z - pose.backwardDrift;
-    enemy.root.position.y = pose.yOffset;
-    enemy.root.scale.setScalar(enemy.baseScale * pose.opacity);
-    enemy.bodyRoot.scale.set(
-      enemy.bodyBaseScale.x * pose.scaleX,
-      enemy.bodyBaseScale.y * pose.scaleY,
-      enemy.bodyBaseScale.z * pose.scaleZ,
-    );
-    applyEnemySecondaryPose(enemy.rigParts, enemy.rigRest, pose.secondary);
-    applyEnemyDefeatFacePose(
-      enemy.faceRoot,
-      enemy.bodyRoot,
-      enemy.faceBasePosition,
-      enemy.faceBaseScale,
-      pose,
-    );
-    enemy.shadow.material.opacity = 0.22 * pose.opacity;
-    if (u >= 1) {
-      enemy.root.visible = false;
-      enemy.shadow.visible = false;
-      enemy.state = 'dead';
-    }
   }
 
   private startBattle(now: number): void {
@@ -952,7 +875,7 @@ export class BattleRuntime {
 
   private updateResult(now: number): void {
     const elapsed = Math.max(0, now - this.phaseStartedAt);
-    this.enemies.forEach((enemy) => this.updateEnemyDefeat(enemy, now));
+    this.enemies.forEach((enemy) => updateEnemyDefeat(enemy, now));
     if (this.result === 'victory') {
       const presentationElapsed = getVictoryPresentationElapsed(elapsed, this.bossEncounter);
       const transition = getVictoryTransitionPose(presentationElapsed, 0);
@@ -964,35 +887,6 @@ export class BattleRuntime {
       if (ally.alive) updateIdle(ally, now, ally.slotIndex * 0.31);
     });
     // Hold the completed encounter until Domain accepts the result and supplies the next encounter.
-  }
-
-  private resetAlly(unit: AllyUnit): void {
-    unit.hp = unit.maxHp;
-    unit.alive = true;
-    unit.state = 'idle';
-    unit.defeatStartedAt = -Infinity;
-    unit.hitStartedAt = -Infinity;
-    unit.nextAttackAt = 0;
-    unit.attackStartedAt = -Infinity;
-    unit.attackTarget = null;
-    unit.hitsApplied = 0;
-    unit.shotApplied = false;
-    unit.root.visible = true;
-    unit.root.position.copy(unit.home);
-    unit.root.rotation.set(0, 0, 0);
-    unit.root.scale.setScalar(SCALE);
-    unit.body.scale.copy(unit.bodyBaseScale);
-    if (unit.faceRoot) {
-      unit.faceRoot.scale.set(1, 1, 1);
-      unit.faceRoot.position.copy(unit.faceBasePosition);
-    }
-    clearMorphs(unit);
-    setEquipmentSwing(unit, 0);
-    resetBranchAccents(unit);
-    setAllyDefeatEyes(unit, false);
-    unit.shadow.visible = true;
-    unit.shadow.material.opacity = 0.22;
-    unit.healthBar.visible = true;
   }
 
   private clearFlightVfx(): void {

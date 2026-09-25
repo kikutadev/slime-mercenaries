@@ -275,6 +275,39 @@ async function waitForCondition(check, timeoutMs = 5000, intervalMs = 100) {
   throw new Error('condition timed out');
 }
 
+async function runForgeQa(browser) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  page.setDefaultTimeout(9000);
+  const errors = observePage(page);
+  await prepareValidation(page);
+
+  const nav = page.locator('nav[aria-label="メインメニュー"]');
+  await nav.getByRole('button', { name: '鍛造' }).click();
+  const root = page.locator('section[aria-label="鍛造"]');
+  await root.waitFor({ state: 'visible' });
+
+  const single = root.getByRole('button', { name: /1回鍛造/ });
+  await single.waitFor({ state: 'visible' });
+  if (await single.isDisabled()) throw new Error('Forge single draw is disabled in validation mode');
+  await single.click();
+
+  const revealText = await page.waitForFunction(() => {
+    const root = document.querySelector('section[aria-label="鍛造"]');
+    if (!(root instanceof HTMLElement)) return null;
+    const text = root.innerText;
+    const reveal = root.querySelector('[class*="reveal"]');
+    if (!(reveal instanceof HTMLElement)) return null;
+    return text.includes('鍛造中…') ? null : reveal.innerText.trim();
+  }, undefined, { timeout: 2_500 }).then((handle) => handle.jsonValue());
+  if (!revealText) throw new Error('Forge reveal state missing');
+
+  await root.screenshot({ path: path.join(OUT_DIR, 'forge-reveal.png') });
+  if (errors.length > 0) throw new Error('Forge browser errors:\n' + errors.join('\n'));
+  await context.close();
+  return { revealText };
+}
+
 async function runDispatchQa(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 667 } });
   const page = await context.newPage();
@@ -286,7 +319,7 @@ async function runDispatchQa(browser) {
   const nav = page.locator('nav[aria-label="メインメニュー"]');
   await nav.getByRole('button', { name: '派遣' }).click();
 
-  const send = page.getByRole('button', { name: '出発させる' });
+  const send = page.getByRole('button', { name: 'このスライムを派遣' });
   await send.waitFor({ state: 'visible' });
   if (await send.isDisabled()) throw new Error('Dispatch send is disabled after reserve fixture');
 
@@ -346,7 +379,7 @@ async function runDispatchQa(browser) {
     const cue = document.querySelector('[class*="returnCue"]');
     if (!(cue instanceof HTMLElement)) return null;
     const cueText = cue.innerText.trim();
-    return cueText.includes('帰還') && cueText.includes('獲得') ? { cueText } : null;
+    return cueText.includes('帰還') && cueText.includes('×') ? { cueText } : null;
   }, undefined, { timeout: 2_000 }).then((handle) => handle.jsonValue());
   if (!returnFrame) throw new Error('Dispatch return frame missing');
   await dispatchRoot.screenshot({ path: path.join(OUT_DIR, 'dispatch-short-return.png') });
@@ -968,6 +1001,7 @@ async function runBattleReportQa(browser) {
     });
 
     const fusion = shouldRun('fusion') ? await runFusionQa(browser) : null;
+    const forge = shouldRun('forge') ? await runForgeQa(browser) : null;
     const dispatch = shouldRun('dispatch') ? await runDispatchQa(browser) : null;
     const finalBattleAcceptance = shouldRun('battle-final') ? await runBattleFinalAcceptanceQa(browser) : null;
     const battleWatch = shouldRun('battle-watch') ? await runBattleWatchQa(browser) : null;
@@ -982,6 +1016,7 @@ async function runBattleReportQa(browser) {
       elapsedMs: Date.now() - startedAt,
       browser: findHeadlessShell(),
       fusion,
+      forge,
       dispatch,
       finalBattleAcceptance,
       battleWatch,

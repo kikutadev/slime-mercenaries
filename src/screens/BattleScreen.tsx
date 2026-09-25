@@ -1,24 +1,15 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect } from 'react';
 import { BattleCanvas } from '../components/BattleCanvas';
-import { useGameController, useGameState } from '../app/GameProvider';
-import { canStartQueuedBattleScene, enqueueBattleSceneModel } from '../application/battle-presentation';
+import { useGameState } from '../app/GameProvider';
 import { validationToolsVisible } from '../application/validation-mode';
-import { selectBattleSceneModel, type BattleSceneModel } from '../application/selectors/battle-scene';
+import { selectBattleSceneModel } from '../application/selectors/battle-scene';
 import { selectFormation, selectGlobalHud } from '../application/selectors/ui-selectors';
-import type { BattleSnapshot } from '../game/BattleRuntime';
-import { currentCombatEncounterIdentity, resolveAreaDefinition, type SlimeInstanceId } from '../domain';
-import { battleRewardCueMatchesEncounter, type BattleRewardCue } from '../game/battle-reward';
+import { resolveAreaDefinition, type SlimeInstanceId } from '../domain';
+import type { BattleRewardCue } from '../game/battle-reward';
 import styles from './BattleScreen.module.css';
+import { battleStatusText, clampBattleRatio, visibleBattleRewardCue } from './battle/battle-screen-view';
+import { useBattlePresentation } from './battle/useBattlePresentation';
 
-const INITIAL_BATTLE: BattleSnapshot = {
-  phase: 'loading',
-  label: '出撃準備中',
-  result: null,
-  enemyAlive: 0,
-  presentationReady: false,
-  enemies: {},
-  allies: {},
-};
 
 export function BattleScreen({
   onOpenSlime,
@@ -30,154 +21,28 @@ export function BattleScreen({
   onRewardCuePresented: (cueId: string) => void;
 }) {
   const state = useGameState();
-  const controller = useGameController();
+  const authoritativeSceneModel = selectBattleSceneModel(state);
+  const {
+    controller,
+    sceneModel,
+    pendingSceneModel,
+    battle,
+    stageArrival,
+    restartRevision,
+    handleSnapshot,
+    handleEncounterReady,
+    handleEncounterRestarted,
+    clearStageArrival,
+  } = useBattlePresentation(authoritativeSceneModel);
   const validationMode = controller.validationMode;
   const showValidationTools = validationMode && validationToolsVisible();
-  const authoritativeSceneModel = selectBattleSceneModel(state);
-  const [sceneModel, setSceneModel] = useState(authoritativeSceneModel);
-  const [pendingSceneModel, setPendingSceneModel] = useState<BattleSceneModel | null>(null);
-  const [queuedSceneModels, setQueuedSceneModels] = useState<readonly BattleSceneModel[]>([]);
-  const [battle, setBattle] = useState<BattleSnapshot>(INITIAL_BATTLE);
-  const [stageArrival, setStageArrival] = useState<string | null>(null);
-  const [restartRevision, setRestartRevision] = useState(0);
-  const presentedSceneModelRef = useRef(sceneModel);
-  const pendingSceneModelRef = useRef<BattleSceneModel | null>(pendingSceneModel);
-  const queuedSceneModelsRef = useRef<readonly BattleSceneModel[]>(queuedSceneModels);
-  const previousStageRef = useRef({ areaId: sceneModel.areaId, stageNumber: sceneModel.stageNumber });
-  const reportedResultKeysRef = useRef(new Set<string>());
   const hud = selectGlobalHud(state);
   const formation = selectFormation(state);
   const sceneAreaLabel = resolveAreaDefinition(sceneModel.areaId)?.displayName ?? sceneModel.areaId;
 
-  presentedSceneModelRef.current = sceneModel;
-  pendingSceneModelRef.current = pendingSceneModel;
-  queuedSceneModelsRef.current = queuedSceneModels;
-
-  useLayoutEffect(() => {
-    controller.setLiveBattleActive(true);
-    return () => controller.setLiveBattleActive(false);
-  }, [controller]);
-
-
-  useEffect(() => {
-    const incoming = authoritativeSceneModel;
-    const presented = presentedSceneModelRef.current;
-    const pending = pendingSceneModelRef.current;
-
-    if (incoming.encounterKey === presented.encounterKey) {
-      if (incoming.visualKey !== presented.visualKey) {
-        presentedSceneModelRef.current = incoming;
-        setSceneModel(incoming);
-      }
-      return;
-    }
-
-    if (pending !== null && incoming.encounterKey === pending.encounterKey) {
-      if (incoming.visualKey !== pending.visualKey) {
-        pendingSceneModelRef.current = incoming;
-        setPendingSceneModel(incoming);
-      }
-      return;
-    }
-
-    const nextQueue = enqueueBattleSceneModel(
-      presented,
-      pending,
-      queuedSceneModelsRef.current,
-      incoming,
-    );
-    if (nextQueue === queuedSceneModelsRef.current) return;
-    queuedSceneModelsRef.current = nextQueue;
-    setQueuedSceneModels(nextQueue);
-  }, [
-    authoritativeSceneModel.encounterKey,
-    authoritativeSceneModel.visualKey,
-    authoritativeSceneModel.encounter,
-  ]);
-
-  useEffect(() => {
-    const pending = pendingSceneModelRef.current;
-    const queue = queuedSceneModelsRef.current;
-    if (!canStartQueuedBattleScene(battle.presentationReady, pending, queue)) return;
-
-    const [next, ...rest] = queue;
-    if (next === undefined) return;
-    queuedSceneModelsRef.current = rest;
-    setQueuedSceneModels(rest);
-    pendingSceneModelRef.current = next;
-    setPendingSceneModel(next);
-  }, [battle.presentationReady, pendingSceneModel, queuedSceneModels.length]);
-
-  const handleSnapshot = useCallback((snapshot: BattleSnapshot) => {
-    setBattle(snapshot);
-    if (snapshot.result === null) return;
-
-    const presented = presentedSceneModelRef.current;
-    if (presented.encounter === null) return;
-    const resultKey = `${presented.encounterKey}:${snapshot.result}`;
-    if (reportedResultKeysRef.current.has(resultKey)) return;
-    reportedResultKeysRef.current.add(resultKey);
-
-    const identity = {
-      areaId: presented.areaId,
-      stageNumber: presented.stageNumber,
-      waveIndex: presented.waveIndex,
-      encounterId: presented.encounter.id,
-    };
-    const resolved = controller.resolveLiveBattleEncounter(identity, snapshot.result);
-    if (!resolved.accepted || snapshot.result !== 'defeat') return;
-
-    const nextIdentity = currentCombatEncounterIdentity(controller.store.getSnapshot());
-    if (nextIdentity !== null
-      && nextIdentity.areaId === identity.areaId
-      && nextIdentity.stageNumber === identity.stageNumber
-      && nextIdentity.waveIndex === identity.waveIndex
-      && nextIdentity.encounterId === identity.encounterId) {
-      setRestartRevision((current) => current + 1);
-    }
-  }, [controller]);
-
-  const handleEncounterReady = useCallback((readyModel: BattleSceneModel) => {
-    const pending = pendingSceneModelRef.current;
-    if (pending === null
-      || pending.encounterKey !== readyModel.encounterKey
-      || pending.visualKey !== readyModel.visualKey) {
-      return;
-    }
-
-    presentedSceneModelRef.current = readyModel;
-    pendingSceneModelRef.current = null;
-    setSceneModel(readyModel);
-    setPendingSceneModel(null);
-  }, []);
-
-  const handleEncounterRestarted = useCallback((readyModel: BattleSceneModel) => {
-    reportedResultKeysRef.current.delete(`${readyModel.encounterKey}:victory`);
-    reportedResultKeysRef.current.delete(`${readyModel.encounterKey}:defeat`);
-  }, []);
-
-
-  useEffect(() => {
-    const previous = previousStageRef.current;
-    previousStageRef.current = { areaId: sceneModel.areaId, stageNumber: sceneModel.stageNumber };
-    const advanced = sceneModel.areaId !== previous.areaId || sceneModel.stageNumber > previous.stageNumber;
-    if (!advanced) return;
-    setStageArrival(`${sceneModel.areaId}:${sceneModel.stageNumber}`);
-  }, [sceneModel.areaId, sceneModel.stageNumber]);
-
   const hasBattleSlime = sceneModel.allies.length > 0;
   const hasEncounter = sceneModel.encounter !== null;
-  const matchingRewardCue = rewardCues.find((cue) =>
-    battleRewardCueMatchesEncounter(
-      cue,
-      sceneModel.areaId,
-      sceneModel.stageNumber,
-      sceneModel.waveIndex,
-      sceneModel.encounter?.boss ?? false,
-    )) ?? null;
-  const visibleRewardCue = matchingRewardCue !== null && battle.result === 'victory'
-    ? matchingRewardCue
-    : null;
+  const visibleRewardCue = visibleBattleRewardCue(rewardCues, battle.result, sceneModel);
 
   useEffect(() => {
     if (visibleRewardCue === null) return;
@@ -187,27 +52,14 @@ export function BattleScreen({
     .sort(([, left], [, right]) => left.index - right.index);
   const activeCount = sceneModel.allies.length;
 
-  const battleStatus = useMemo(() => {
-    if (battle.result === 'defeat') return '敗北 · 戦線を立て直します';
-    if (battle.result === 'victory') {
-      return sceneModel.shouldCelebrateVictory ? 'ステージクリア' : '敵部隊を突破 · 次のウェーブへ';
-    }
-    if (!hasEncounter && state.gameData.combat.contentBoundaryReached) return '次の戦闘を準備中';
-    if (state.gameData.combat.retryFarmClearsRemaining > 0) {
-      return `再編成中 · ステージ${sceneModel.stageNumber} · 再出撃まであと${state.gameData.combat.retryFarmClearsRemaining}周`;
-    }
-    if (activeCount === 0) return '傭兵を編成すると自動戦闘が始まります';
-    return battle.label;
-  }, [
-    activeCount,
-    battle.label,
-    battle.result,
+  const battleStatus = battleStatusText({
+    battle,
     hasEncounter,
-    sceneModel.shouldCelebrateVictory,
-    sceneModel.stageNumber,
-    state.gameData.combat.contentBoundaryReached,
-    state.gameData.combat.retryFarmClearsRemaining,
-  ]);
+    contentBoundaryReached: state.gameData.combat.contentBoundaryReached,
+    retryFarmClearsRemaining: state.gameData.combat.retryFarmClearsRemaining,
+    activeCount,
+    sceneModel,
+  });
 
   return (
     <section className={`screen screen--active ${styles.root}`} aria-label="戦闘">
@@ -234,7 +86,7 @@ export function BattleScreen({
           key={stageArrival}
           className={styles.stageArrival}
           aria-hidden="true"
-          onAnimationEnd={() => setStageArrival((current) => current === stageArrival ? null : current)}
+          onAnimationEnd={() => clearStageArrival(stageArrival)}
         >
           <i />
         </div>
@@ -252,7 +104,7 @@ export function BattleScreen({
           <div><strong>{sceneModel.encounter?.displayName ?? '敵部隊'}</strong><span>{sceneModel.encounter?.boss ? 'BOSS' : `残り${battle.enemyAlive}体`}</span></div>
           <div className={styles.enemyHpSegments} aria-label="敵ごとの体力">
             {enemySnapshots.map(([enemyInstanceId, enemy]) => {
-              const hpRatio = enemy.maxHp > 0 ? enemy.hp / enemy.maxHp : 0;
+              const hpRatio = clampBattleRatio(enemy.hp, enemy.maxHp);
               return (
                 <div
                   className={[styles.hpTrack, styles.enemyHpSegment, enemy.alive ? '' : styles.enemyHpDepleted].filter(Boolean).join(' ')}
@@ -261,7 +113,7 @@ export function BattleScreen({
                 >
                   <div
                     className={styles.hpFill}
-                    style={{ transform: `scaleX(${Math.max(0, Math.min(1, hpRatio))})` }}
+                    style={{ transform: `scaleX(${hpRatio})` }}
                   />
                 </div>
               );
@@ -323,11 +175,11 @@ export function BattleScreen({
           const runtimeAlly = battle.allies[slot.slimeId];
           const hpRatio = runtimeAlly === undefined
             ? 1
-            : runtimeAlly.hp / Math.max(1, runtimeAlly.maxHp);
+            : clampBattleRatio(runtimeAlly.hp, runtimeAlly.maxHp);
           return (
             <button className={styles.partyDot} type="button" key={slot.slotIndex} onClick={() => onOpenSlime(slot.slimeId!)}>
               <img src={`${import.meta.env.BASE_URL}${slot.icon}`} alt={slot.name ?? ''} />
-              <span className={styles.partyHp}><i style={{ transform: `scaleX(${Math.max(0, Math.min(1, hpRatio))})` }} /></span>
+              <span className={styles.partyHp}><i style={{ transform: `scaleX(${hpRatio})` }} /></span>
             </button>
           );
         })}

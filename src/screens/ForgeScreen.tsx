@@ -1,11 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
-import { useGameController, useGameState } from '../app/GameProvider';
-import { useManagedTimeouts } from '../app/useManagedTimeouts';
+import { useGameState } from '../app/GameProvider';
 import { selectForgeScreen, selectForgeWeaponTarget } from '../application/selectors/ui-selectors';
-import { ForgeStage, type ForgeVisualPhase } from '../components/ForgeStage';
+import { ForgeStage } from '../components/ForgeStage';
 import { ForgeKeyIcon, WeaponFamilyIcon } from '../components/WeaponFamilyIcon';
 import {
-  equipmentForgeDefinition,
   weaponDefinitions,
   weaponDefinitionsByDefinitionId,
   type SlimeInstanceId,
@@ -13,89 +10,26 @@ import {
 } from '../domain';
 import { getForgeWeaponPresentation } from '../game/forge-presentation';
 import styles from './ForgeScreen.module.css';
+import { forgeRarityLabel } from './forge/forge-result';
+import { useForgeSequence } from './forge/useForgeSequence';
 
-interface ForgeResultView {
-  weaponDefinitionId: string;
-  duplicate: boolean;
-  rarity: string;
-}
-
-type ForgePhase = ForgeVisualPhase;
 
 export function ForgeScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInstanceId) => void }) {
   const state = useGameState();
-  const controller = useGameController();
+  const {
+    controller,
+    results,
+    phase,
+    sequenceKey,
+    notice,
+    setNotice,
+    resultTargetSlimeId,
+    resultEquipLabel,
+    bestResult,
+    draw,
+  } = useForgeSequence();
   const view = selectForgeScreen(state);
   const validationMode = controller.validationMode;
-  const [results, setResults] = useState<readonly ForgeResultView[]>([]);
-  const [phase, setPhase] = useState<ForgePhase>('idle');
-  const [sequenceKey, setSequenceKey] = useState(0);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [resultTargetSlimeId, setResultTargetSlimeId] = useState<SlimeInstanceId | null>(null);
-  const [resultEquipLabel, setResultEquipLabel] = useState<string | null>(null);
-  const forgeLockRef = useRef(false);
-  const impactTimer = useRef<number | null>(null);
-  const revealTimer = useRef<number | null>(null);
-  const { schedule, clear } = useManagedTimeouts();
-
-  const bestResult = useMemo(
-    () => [...results].sort((left, right) => rarityRank(right.rarity) - rarityRank(left.rarity))[0] ?? null,
-    [results],
-  );
-
-  const draw = (count: 1 | 10) => {
-    if (forgeLockRef.current || (phase !== 'idle' && phase !== 'reveal')) return;
-    forgeLockRef.current = true;
-    const result = controller.forge(count);
-    if (!result.accepted) {
-      forgeLockRef.current = false;
-      setNotice(result.reason === 'insufficient-token' ? '鍛造キーが足りません' : `鍛造できません: ${result.reason}`);
-      return;
-    }
-
-    const nextResults = result.events.flatMap((event) => {
-      if (event.type !== 'gachaDrawn' || event.payload === undefined) return [];
-      const entryId = typeof event.payload.entryId === 'string' ? event.payload.entryId : null;
-      const duplicate = event.payload.duplicate === true;
-      if (entryId === null) return [];
-      const entry = equipmentForgeDefinition.pool.find((candidate) => candidate.id === entryId);
-      if (entry === undefined) return [];
-      const weapon = weaponDefinitionsByDefinitionId[entry.reward.weaponDefinitionId];
-      if (weapon === undefined) return [];
-      return [{ weaponDefinitionId: weapon.id, duplicate, rarity: weapon.rarity } satisfies ForgeResultView];
-    });
-
-    clear(impactTimer.current);
-    clear(revealTimer.current);
-    setNotice(null);
-    setResults(nextResults);
-    const strongestResult = [...nextResults].sort((left, right) => rarityRank(right.rarity) - rarityRank(left.rarity))[0] ?? null;
-    const strongestTarget = strongestResult === null
-      ? null
-      : selectForgeWeaponTarget(result.state, strongestResult.weaponDefinitionId);
-    const strongestEquipLabel = strongestResult === null || strongestResult.duplicate || strongestTarget?.equipped !== true
-      ? null
-      : `${strongestTarget.slimeName}が装備`;
-    setResultTargetSlimeId(strongestTarget?.slimeId ?? null);
-    setResultEquipLabel(strongestEquipLabel);
-    setSequenceKey((current) => current + 1);
-    setPhase('charging');
-
-    impactTimer.current = schedule(() => setPhase('impact'), 360);
-    revealTimer.current = schedule(() => {
-      forgeLockRef.current = false;
-      setPhase('reveal');
-      const best = [...nextResults].sort((left, right) => rarityRank(right.rarity) - rarityRank(left.rarity))[0];
-      if (best !== undefined) {
-        const weapon = weaponDefinitionsByDefinitionId[best.weaponDefinitionId];
-        setNotice(best.duplicate
-          ? `${weapon.displayName} · 精錬 +1`
-          : strongestEquipLabel === null
-            ? `${weapon.displayName} を獲得`
-            : `${weapon.displayName} を獲得 · ${strongestEquipLabel}`);
-      }
-    }, 760);
-  };
 
   const ownedWeapons = Object.values(weaponDefinitions).flatMap((weapon) => {
     const runtime = view.inventory.find((item) => item.definitionId === weapon.id);
@@ -127,7 +61,7 @@ export function ForgeScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInsta
 
         {phase === 'reveal' && bestWeapon !== null && (
           <div className={`${styles.reveal} ${forgeRarityClass(bestWeapon.rarity)} `}>
-            <span>{rarityLabel(bestWeapon.rarity)}</span>
+            <span>{forgeRarityLabel(bestWeapon.rarity)}</span>
             <strong>{bestWeapon.displayName}</strong>
             <small>{bestResult?.duplicate ? '精錬 +1' : resultEquipLabel ?? '新武器'}</small>
           </div>
@@ -217,7 +151,7 @@ export function ForgeScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInsta
                     }}
                     aria-label={`${weapon.displayName}の装備を見る`}
                   >
-                    <span className={`${styles.weaponRarity} ${forgeRarityClass(weapon.rarity)}`}>{rarityLabel(weapon.rarity)}</span>
+                    <span className={`${styles.weaponRarity} ${forgeRarityClass(weapon.rarity)}`}>{forgeRarityLabel(weapon.rarity)}</span>
                     <span>
                       <strong>{weapon.displayName}</strong>
                       <small>
@@ -244,21 +178,5 @@ function forgeRarityClass(rarity: string): string {
     case 'mythic': return styles.rarityMythic;
     case 'rare': return styles.rarityRare;
     default: return styles.rarityCommon;
-  }
-}
-
-function rarityRank(rarity: string): number {
-  switch (rarity) {
-    case 'mythic': return 3;
-    case 'rare': return 2;
-    default: return 1;
-  }
-}
-
-function rarityLabel(rarity: string): string {
-  switch (rarity) {
-    case 'mythic': return '神話';
-    case 'rare': return '希少';
-    default: return '一般';
   }
 }
