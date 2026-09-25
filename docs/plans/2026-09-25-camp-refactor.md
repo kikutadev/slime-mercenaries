@@ -1,6 +1,6 @@
 # 2026-09-25 — Camp Refactoring
 
-Status: Active
+Status: Completed
 Scope: Camp architecture / behavior-preserving structural refactor
 Baseline: `origin/main` at `127ad5e`
 
@@ -375,3 +375,16 @@ After:
 - [x] resident practice and Training Dummy remain clock-synchronized
 
 The remaining work is release hygiene only: commit, merge/push, deploy accepted validation build, and public smoke.
+
+## Production rollout
+
+- [x] implementation commit: `d0a366f refactor: separate camp world responsibilities`
+- [x] merged/pushed to `origin/main`
+- [x] validation build deployed to `games.kikuta.dev`
+- [x] Cloudflare Worker Version ID: `d2274971-8e80-4c86-be8b-8ea0464c7a93`
+- [x] public 390x844 initial Camp: Hero=0 / management panel=0
+- [x] public management open: Hero=1 / management panel=1
+- [x] public `キャンプを見る`: Hero=0 / management panel=0
+- [x] public smoke: zero game-origin page/network errors
+
+Refactor is complete in source and production.
