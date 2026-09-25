@@ -875,3 +875,16 @@ Remaining production work:
 - `git diff --check`: PASS
 - 390x844 `camp-reactions` actual-speed QA: PASS
 - 390x844 `camp-living` 15-second actual-speed QA: PASS
+
+## 23. Production deployment — 2026-09-25
+
+- [x] living Camp source merged to `origin/main` through `9038c9f`
+- [x] validation-mode production bundle deployed through `games.kikuta.dev`
+- [x] Cloudflare Worker Version ID: `bf10bbe7-ed7b-4cc9-a889-122133fa0d3b`
+- [x] deployed Camp bundle: `CampEnvironmentStage-lkeTpOcp.js`
+- [x] 390x844 public Camp smoke shows multiple real roster residents around the selected Hero
+- [x] public sleep frame shows narrowed sleepy eyes + softly lowered body, not defeat flattening / × eyes
+- [x] public strengthen flow shows Hero result plus ambient residents reacting in the same Camp world
+- [x] public browser QA observed zero game-origin console/page/network errors
+
+The first two living-world slices are production-complete. Future work should deepen long-session variety rather than returning to single-Hero idle polish.
