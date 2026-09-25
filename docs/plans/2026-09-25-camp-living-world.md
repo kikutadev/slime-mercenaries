@@ -927,3 +927,13 @@ Acceptance:
 - visual review: opened management sheet remains one tap closable via `キャンプを見る`
 
 Note: the legacy Tier3 fusion browser QA reaches the Fusion workbench after opening the new management launcher, but currently times out on an existing fusion-choice expectation (`剣聖スライム`). This is tracked as a separate QA-data expectation issue, not a Camp panel regression.
+
+### Production deployment — Camp-first management UI
+
+- [x] source merged through `4e03342 feat: prioritize camp view over management ui`
+- [x] deployed to `games.kikuta.dev`
+- [x] Cloudflare Worker Version ID: `8194f2b5-66a2-4a93-901e-7843a9a00cd0`
+- [x] public 390x844: initial management panel absent, compact launcher visible
+- [x] public 390x844: launcher opens roster / strengthen / fusion / formation surface
+- [x] public 390x844: `キャンプを見る` closes the management surface and restores the full living Camp
+- [x] public browser QA: zero game-origin page/network errors
