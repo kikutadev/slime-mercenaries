@@ -21,6 +21,7 @@ import type { NurseryCeremony } from '../components/NurseryCeremonyStage';
 import { CodexSheet } from '../components/CodexSheet';
 import { NurseryPanel } from '../components/NurseryPanel';
 import { sameTypeCount, slimeInstanceIdForSerial, type JobSlimeId, type SlimeInstanceId, type SlimeMutationId } from '../domain';
+import { selectCampLifeResidents } from '../game/camp-life-residents';
 import { getSlimePresentation } from '../game/slimes';
 import styles from './SlimesScreen.module.css';
 
@@ -83,6 +84,7 @@ export function SlimesScreen({
     ? selectedId
     : ownedIds[0] ?? null;
   const detail = selected === null ? null : selectSlimeDetail(state, selected);
+  const campLifeResidents = selectCampLifeResidents(state, selected, 4);
   const weaponView = selected === null ? { current: null, options: [] } : selectSlimeWeaponOptions(state, selected);
   const formation = selectFormation(state);
   const createPanel = selectCreateSlimePanel(state);
@@ -434,7 +436,7 @@ export function SlimesScreen({
       {detail === null || selected === null ? (
         <div className="camp-empty-world">
           <Suspense fallback={<div className="camp-environment-stage" aria-hidden="true" />}>
-            <CampEnvironmentStage reaction="idle" reactionKey={0} fusionReady={false} />
+            <CampEnvironmentStage reaction="idle" reactionKey={0} fusionReady={false} residents={[]} />
           </Suspense>
           <button type="button" onClick={() => setCreateOpen(true)}>
             <span aria-hidden="true"><CampStationIcon kind="nursery" /></span>
@@ -450,6 +452,7 @@ export function SlimesScreen({
                 reaction={feedback.reaction}
                 reactionKey={feedback.key}
                 fusionReady={detail.fusionOptions.some((option) => option.canFuse)}
+                residents={campLifeResidents}
               />
             </Suspense>
             <CampStrengthenEffect ceremony={strengthenCeremony} />

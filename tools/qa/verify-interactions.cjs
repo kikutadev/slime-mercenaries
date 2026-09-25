@@ -767,6 +767,31 @@ async function runBattleWatchQa(browser) {
   return { frames, enemyHud, status };
 }
 
+async function runCampLivingQa(browser) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  page.setDefaultTimeout(9000);
+  const errors = observePage(page);
+  await prepareValidation(page);
+
+  const stage = page.locator('.camp-environment-stage');
+  await stage.waitFor({ state: 'visible' });
+  await stage.locator('canvas').waitFor({ state: 'visible' });
+  await page.waitForTimeout(450);
+
+  const frames = [];
+  for (let index = 0; index <= 15; index += 1) {
+    if (index > 0) await page.waitForTimeout(1000);
+    const framePath = path.join(OUT_DIR, `camp-living-${String(index).padStart(2, '0')}.png`);
+    await page.screenshot({ path: framePath });
+    frames.push(framePath);
+  }
+
+  if (errors.length > 0) throw new Error('Camp living-world browser errors:\n' + errors.join('\n'));
+  await context.close();
+  return { frames };
+}
+
 async function runCampMotionQa(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
@@ -908,6 +933,7 @@ async function runBattleReportQa(browser) {
     const battleWatch = shouldRun('battle-watch') ? await runBattleWatchQa(browser) : null;
     const tier3BattleWatch = shouldRun('tier3-watch') ? await runTier3BattleWatchQa(browser) : null;
     const tier3FamilyWatch = shouldRun('tier3-family-watch') ? await runTier3FamilyWatchQa(browser) : null;
+    const campLiving = ONLY.has('camp-living') ? await runCampLivingQa(browser) : null;
     const campMotion = ONLY.has('camp-motion') ? await runCampMotionQa(browser) : null;
     const soundSettings = shouldRun('sound') ? await runSoundSettingsQa(browser) : null;
     const battleReport = shouldRun('battle') ? await runBattleReportQa(browser) : null;
@@ -920,6 +946,7 @@ async function runBattleReportQa(browser) {
       battleWatch,
       tier3BattleWatch,
       tier3FamilyWatch,
+      campLiving,
       campMotion,
       soundSettings,
       battleReport,

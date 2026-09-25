@@ -1,16 +1,20 @@
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { getCampLifePose } from '../game/camp-life-motion';
+import type { CampLifeResidentSpec } from '../game/camp-life-residents';
+import { CampLifePopulation } from './CampLifePopulation';
 import type { CampSlimeReaction } from './CampSlimeStage';
 
 interface Props {
   reaction: CampSlimeReaction;
   reactionKey: number;
   fusionReady: boolean;
+  residents: readonly CampLifeResidentSpec[];
 }
 
-function CampEnvironment({ reaction, reactionKey, fusionReady }: Props) {
+function CampEnvironment({ reaction, reactionKey, fusionReady, residents }: Props) {
   const gltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}assets/environments/camp.glb`);
   const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
   const { camera, scene } = useThree();
@@ -79,9 +83,13 @@ function CampEnvironment({ reaction, reactionKey, fusionReady }: Props) {
     }
 
     if (dummyBody !== undefined && dummyTarget !== undefined && dummyArm !== undefined) {
-      const hit = reaction === 'level-up' && elapsed >= 0 && elapsed < 0.55
+      const playerHit = reaction === 'level-up' && elapsed >= 0 && elapsed < 0.55
         ? Math.sin(Math.min(1, elapsed / 0.28) * Math.PI) * (1 - Math.min(1, elapsed / 0.55))
         : 0;
+      const residentHit = residents[0] === undefined
+        ? 0
+        : getCampLifePose(now, 0, residents[0].presentation.id).practiceImpact;
+      const hit = Math.max(playerHit, residentHit);
       dummyBody.rotation.z = -hit * 0.20;
       dummyTarget.rotation.z = -hit * 0.20;
       dummyArm.rotation.z = -hit * 0.24;
@@ -105,6 +113,9 @@ export function CampEnvironmentStage(props: Props) {
         <directionalLight position={[-4, 8, 5]} intensity={3.2} color="#fff2cf" castShadow />
         <pointLight position={[2.6, 2.4, 0.4]} intensity={1.25} color="#8ff0c8" />
         <CampEnvironment {...props} />
+        <Suspense fallback={null}>
+          <CampLifePopulation residents={props.residents} />
+        </Suspense>
       </Canvas>
     </div>
   );

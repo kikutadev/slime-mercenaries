@@ -1,6 +1,6 @@
 # 2026-09-25 — Camp Living World
 
-Status: Planned
+Status: Active
 Scope: Camp world / ambient residents / life animation / social motion
 Baseline: `origin/main` at `9c9abc7`
 
@@ -278,6 +278,18 @@ Camp用の短いmotion primitiveを作る。
 - face each other
 - A bounce -> B bounce -> both wobble
 - 完全同期loopにしない
+
+### Yawn / drowsy / sleep
+
+`camp-yawn` / `camp-drowsy` / `camp-sleep`
+
+- 休憩場所へ移動してから眠気が来る
+- yawnでは目を細め、既存Mouthを縦に開いて「あくび」が読める
+- drowsyでは徐々にbodyが低くなり、目がとろーんと閉じていく
+- sleepは敗北ほど潰さない。通常bodyを保ったまま少しだけ低く・柔らかくする
+- ×目は絶対に使わない
+- slow breatheと時々のdream twitchを残し、「倒れている」ではなく「寝ている」と読ませる
+- 数秒後にstretchして起き、hopで生活へ戻る
 
 ### Rest
 
@@ -772,3 +784,55 @@ Weapon Rack
 ```
 
 を追加する。
+
+## 20. User-requested sleep contract — 2026-09-25
+
+追加要件として「あくび」「寝る」「とろーんとした可愛さ」を明示的なacceptanceへ加える。
+
+- [ ] yawnがMouth/eyes/bodyの3要素で読める
+- [ ] drowsyは通常idleから徐々に眠くなる
+- [ ] sleepはdefeat silhouetteほどflattenしない
+- [ ] sleep中もslow breathingがあり、生存感がある
+- [ ] wake/stretch後に自力で生活loopへ戻る
+- [ ] 390x844 actual-speed captureで、説明文なしに「寝ている」と判断できる
+
+## 21. Progress — first living-world slice
+
+Implemented:
+
+- [x] real roster instances rendered as ambient Camp residents
+- [x] selected Hero excluded from ambient population
+- [x] dispatched slime excluded from Camp population
+- [x] stable serial ordering with a four-resident mobile cap
+- [x] authored Camp life stations / safe portrait positions
+- [x] hop locomotion between home and activity points
+- [x] Training Dummy routine with compact job-sensitive practice motion
+- [x] Training Dummy physically reacts to ambient practice impacts
+- [x] two-resident social conversation with alternating bounce turns
+- [x] rest routine: travel -> yawn -> drowsy -> sleep -> wake/stretch -> return
+- [x] shared Camp-life clock origin so pair/social timing is deterministic
+- [x] resident assets load behind a local Suspense boundary so changing Hero does not blank the whole Camp environment
+- [x] dedicated 15-second `camp-living` actual-speed browser acceptance
+
+Sleep / yawn acceptance:
+
+- [x] yawn narrows the eyes and opens a dedicated oval mouth; actual 390x844 render is readable
+- [x] drowsy transition progressively lowers the body and closes the eyes
+- [x] sleep keeps the normal slime silhouette with only a soft squash/roll; it is visibly less flattened than defeat
+- [x] sleep keeps slow breathing / dream twitch rather than becoming static
+- [x] wake stretch restores full eyes/body before the slime hops back into the living loop
+- [x] no defeat × eyes are used in Camp sleep
+
+Verification:
+
+- camp-life motion tests: PASS
+- camp resident selection / dispatch exclusion tests: PASS
+- TypeScript: PASS
+- `git diff --check`: PASS
+- 390x844 15-second Camp living-world browser QA: PASS, no console/page/network errors
+
+Next slice:
+
+1. connect ambient residents to player actions (strengthen / recruit / formation / fusion look-at)
+2. add more facility routines after verifying the first three do not become repetitive
+3. add environment props such as a rest mat or campfire only if they materially improve the lived-in read
