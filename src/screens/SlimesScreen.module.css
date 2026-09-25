@@ -168,6 +168,51 @@
 .root :global(.camp-slime-stage) { top: 34%; width: 270px; height: 248px; }
 .root :global(.camp-slime-name) { bottom: 3px; }
 
+.root :global(.camp-command-launcher) {
+  position: absolute;
+  z-index: 38;
+  left: 50%;
+  bottom: 12px;
+  min-height: var(--touch-target-min);
+  display: grid;
+  grid-template-columns: auto auto auto;
+  align-items: center;
+  gap: 7px;
+  transform: translateX(-50%);
+  padding: 7px 12px 7px 14px;
+  border: 1px solid rgba(255,255,255,.82);
+  border-radius: 999px;
+  background: rgba(244,250,238,.86);
+  box-shadow: 0 10px 28px rgba(29,61,45,.18);
+  color: #315f3d;
+  backdrop-filter: blur(14px);
+}
+.root :global(.camp-command-launcher > span) {
+  color: rgba(49,95,61,.60);
+  font-size: var(--font-size-caption);
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+.root :global(.camp-command-launcher > strong) {
+  font-size: 11px;
+  white-space: nowrap;
+}
+.root :global(.camp-command-launcher > em) {
+  min-width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(61,125,74,.12);
+  color: #397749;
+  font-size: var(--font-size-caption);
+  font-style: normal;
+  font-weight: 900;
+}
+.root :global(.camp-command-launcher:active) {
+  transform: translateX(-50%) scale(.97);
+}
+
 .root :global(.camp-command-panel) {
   position: absolute;
   z-index: 36;
@@ -186,6 +231,46 @@
   backdrop-filter: blur(18px);
 }
 .root :global(.camp-command-panel::-webkit-scrollbar) { display: none; }
+
+.root :global(.camp-command-panel__header) {
+  position: sticky;
+  z-index: 2;
+  top: -10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: -10px -10px 8px;
+  padding: 8px 10px 7px;
+  border-bottom: 1px solid rgba(50,91,57,.08);
+  background: rgba(244,250,238,.96);
+  backdrop-filter: blur(18px);
+}
+.root :global(.camp-command-panel__header::before) {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  width: 34px;
+  height: 3px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(46,83,53,.16);
+}
+.root :global(.camp-command-panel__header > strong) {
+  padding-top: 4px;
+  font-size: 11px;
+}
+.root :global(.camp-command-panel__header > button) {
+  min-height: var(--touch-target-min);
+  padding: 0 12px;
+  border: 1px solid rgba(53,104,65,.12);
+  border-radius: 12px;
+  background: rgba(255,255,255,.72);
+  color: #356d43;
+  font-size: var(--font-size-caption);
+  font-weight: 900;
+}
 
 .root :global(.camp-roster-block) { min-width: 0; }
 .root :global(.camp-roster-title) {

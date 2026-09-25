@@ -888,3 +888,42 @@ Remaining production work:
 - [x] public browser QA observed zero game-origin console/page/network errors
 
 The first two living-world slices are production-complete. Future work should deepen long-session variety rather than returning to single-Hero idle polish.
+
+## 24. Camp-first UI priority — 2026-09-25
+
+Problem found during living-world review:
+
+- the Camp management UI (roster / strengthen / fusion / formation / equipment) occupied almost half the phone screen on first entry
+- this hid the living-world work itself, so the product hierarchy was backwards
+
+Implemented:
+
+- [x] normal Camp entry starts in observation mode with the management panel unmounted
+- [x] only a compact bottom `管理 / 仲間・育成` launcher remains over the world
+- [x] launcher opens the existing management surface as a bottom sheet
+- [x] sheet has a persistent `キャンプを見る` action to return to observation mode
+- [x] closing the sheet resets inline management mode to `none`
+- [x] explicit external Camp entry modes (for example direct strengthen/fusion intents) still open the management surface automatically
+- [x] returning from Fusion with `キャンプで見る` closes management UI so the world reaction is visible
+- [x] 390x844 living-world QA asserts that the management panel is absent on initial entry
+- [x] existing strengthen QA now opens the management launcher before interacting
+- [x] existing fusion QA now opens the management launcher before roster/fusion interaction
+
+Acceptance:
+
+- on ordinary Camp entry, the living Camp is the dominant content
+- roster/formation controls no longer cover the lower half of the Camp by default
+- management remains one tap away and preserves production touch targets
+
+### Verification checkpoint — Camp-first management UI
+
+- full Vitest: 73 files / 450 tests PASS
+- TypeScript: PASS
+- validation-mode production build: PASS
+- `git diff --check`: PASS
+- 390x844 `camp-living` initial-entry assertion: management panel absent, launcher visible
+- 390x844 `camp-reactions`: management launcher -> strengthen flow PASS
+- visual review: Camp terrain/residents remain visible to the bottom of the screen with only a compact management launcher
+- visual review: opened management sheet remains one tap closable via `キャンプを見る`
+
+Note: the legacy Tier3 fusion browser QA reaches the Fusion workbench after opening the new management launcher, but currently times out on an existing fusion-choice expectation (`剣聖スライム`). This is tracked as a separate QA-data expectation issue, not a Camp panel regression.

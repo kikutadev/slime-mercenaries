@@ -182,6 +182,7 @@ async function runFusionQa(browser) {
     await patchTier3Profile(page, item);
     await page.goto(APP_URL, { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: 'キャンプ' }).click();
+    await page.getByRole('button', { name: /仲間・育成/ }).click();
     const roster = page.getByRole('button', { name: new RegExp('^' + item.priorName + ' Lv\\.40') }).first();
     await roster.waitFor({ state: 'visible' });
     await roster.click();
@@ -774,6 +775,7 @@ async function runCampReactionQa(browser) {
   const errors = observePage(page);
   await prepareValidation(page);
 
+  await page.getByRole('button', { name: /仲間・育成/ }).click();
   await page.getByRole('button', { name: '強化', exact: true }).click();
   const reset = page.getByRole('button', { name: '初期形態へ戻す' });
   if (await reset.count()) {
@@ -808,6 +810,11 @@ async function runCampLivingQa(browser) {
   const stage = page.locator('.camp-environment-stage');
   await stage.waitFor({ state: 'visible' });
   await stage.locator('canvas').waitFor({ state: 'visible' });
+  const managementLauncher = page.getByRole('button', { name: /仲間・育成/ });
+  await managementLauncher.waitFor({ state: 'visible' });
+  if (await page.locator('#camp-command-panel').count() !== 0) {
+    throw new Error('Camp management panel must be collapsed on initial entry');
+  }
   await page.waitForTimeout(450);
 
   const frames = [];

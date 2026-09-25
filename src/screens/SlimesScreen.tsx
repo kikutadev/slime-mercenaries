@@ -106,6 +106,7 @@ export function SlimesScreen({
     option.eligible || option.fragments > 0 || option.catalysts > 0 || option.alreadyMutated) ?? false;
   const mutationReady = detail?.mutationOptions.some((option) => option.canMutate) ?? false;
   const [mode, setMode] = useState<CampMode>('none');
+  const [commandPanelOpen, setCommandPanelOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [codexOpen, setCodexOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -116,6 +117,7 @@ export function SlimesScreen({
 
   useEffect(() => {
     setMode(entryMode);
+    setCommandPanelOpen(entryMode !== 'none');
   }, [entryMode, entryRevision]);
   const nurseryCeremonyKey = useRef(0);
   const nurseryCommitLockRef = useRef(false);
@@ -410,6 +412,7 @@ export function SlimesScreen({
           onRecruit={() => { setMode('none'); setCreateOpen(true); }}
           onReturnToCamp={(resultName) => {
             setMode('none');
+            setCommandPanelOpen(false);
             triggerFeedback('fusion', '合成完了', `${resultName}の力に周囲が反応しています`, 3);
           }}
         />
@@ -484,7 +487,33 @@ export function SlimesScreen({
             </div>
           </div>
 
-          <div className={`camp-command-panel camp-command-panel--${mode}`} aria-busy={campInteractionBusy}>
+          {!commandPanelOpen ? (
+            <button
+              className="camp-command-launcher"
+              type="button"
+              aria-expanded="false"
+              aria-controls="camp-command-panel"
+              onClick={() => setCommandPanelOpen(true)}
+            >
+              <span>管理</span>
+              <strong>仲間・育成</strong>
+              <em>{ownedIds.length}</em>
+            </button>
+          ) : (
+          <div id="camp-command-panel" className={`camp-command-panel camp-command-panel--${mode}`} aria-busy={campInteractionBusy}>
+            <div className="camp-command-panel__header">
+              <strong>仲間と育成</strong>
+              <button
+                type="button"
+                disabled={campInteractionBusy}
+                onClick={() => {
+                  setMode('none');
+                  setCommandPanelOpen(false);
+                }}
+              >
+                キャンプを見る
+              </button>
+            </div>
             <div className="camp-roster-block">
               <div className="camp-roster-title">
                 <strong>仲間</strong>
@@ -787,6 +816,7 @@ export function SlimesScreen({
               </div>
             )}
           </div>
+          )}
         </>
       )}
 
