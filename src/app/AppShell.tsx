@@ -166,7 +166,6 @@ export function AppShell() {
   useEffect(() => {
     if (bootstrap.status !== 'ready' || screen !== null) return;
     const firstOwned = ownedIds[0] ?? null;
-    if (selectedSlimeId === null && firstOwned !== null) setSelectedSlimeId(firstOwned);
     setScreen(firstOwned !== null && state.gameData.roster.formationSlots.some((slot) => slot !== null) ? 'battle' : 'slimes');
   }, [bootstrap.status]); // Initial routing only; later state changes must not steal navigation.
 
@@ -216,7 +215,15 @@ export function AppShell() {
   }
 
   const openCamp = (mode: CampMode = 'none', slimeId: SlimeInstanceId | null = null) => {
-    if (slimeId !== null) setSelectedSlimeId(slimeId);
+    if (slimeId !== null) {
+      setSelectedSlimeId(slimeId);
+    } else if (mode === 'none') {
+      // Ordinary Camp entry is an observation surface. Do not nominate a Hero automatically.
+      setSelectedSlimeId(null);
+    } else if (selectedSlimeId === null) {
+      // Explicit management intents still need a concrete target.
+      setSelectedSlimeId(ownedIds[0] ?? null);
+    }
     setCampEntry((current) => ({ mode, revision: current.revision + 1 }));
     setScreen('slimes');
   };
@@ -411,6 +418,7 @@ export function AppShell() {
             active={activeScreen === 'slimes'}
             attention={attention.has('slimes')}
             onClick={(id) => {
+              setSelectedSlimeId(null);
               setCampEntry((current) => ({ mode: 'none', revision: current.revision + 1 }));
               setScreen(id);
             }}

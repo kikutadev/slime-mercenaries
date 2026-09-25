@@ -815,6 +815,9 @@ async function runCampLivingQa(browser) {
   if (await page.locator('#camp-command-panel').count() !== 0) {
     throw new Error('Camp management panel must be collapsed on initial entry');
   }
+  if (await page.locator('.camp-slime-stage').count() !== 0) {
+    throw new Error('Camp must not auto-focus a Hero slime on ordinary entry');
+  }
   await page.waitForTimeout(450);
 
   const frames = [];

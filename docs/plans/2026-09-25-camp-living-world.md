@@ -937,3 +937,30 @@ Note: the legacy Tier3 fusion browser QA reaches the Fusion workbench after open
 - [x] public 390x844: launcher opens roster / strengthen / fusion / formation surface
 - [x] public 390x844: `キャンプを見る` closes the management surface and restores the full living Camp
 - [x] public browser QA: zero game-origin page/network errors
+
+## 25. No automatic Hero on ordinary Camp entry
+
+Problem:
+
+- even after management UI was collapsed, AppShell and SlimesScreen both defaulted `selectedId` to the first owned slime
+- because the first validation-roster slime is Sword, Camp still opened with a large Sword Hero in the foreground
+- this contradicted the living-world priority: the first read was still a character detail screen, not a home
+
+Implemented:
+
+- [x] AppShell no longer auto-selects the first owned slime during bootstrap
+- [x] ordinary Camp navigation explicitly clears the selected slime
+- [x] SlimesScreen no longer falls back from `selectedId=null` to `ownedIds[0]`
+- [x] an owned roster with no selection renders the Camp world and ambient residents, not the empty/no-roster screen
+- [x] Camp Hero stage/name plate are absent until a slime is explicitly selected
+- [x] opening `仲間・育成` explicitly selects a management target if none is selected
+- [x] `キャンプを見る` closes management and clears selection, returning to world-only view
+- [x] explicit deep-links from Battle/Forge still select and show the requested slime
+- [x] management entry modes without a supplied target select a fallback only because the user explicitly requested management
+- [x] validation `全6職編成` no longer nominates Sword as the Hero
+- [x] 390x844 `camp-living` QA now fails if `.camp-slime-stage` exists on ordinary entry
+
+Visual acceptance:
+
+- ordinary Camp entry shows ambient residents distributed through the environment with no foreground Hero and no name plate
+- management remains available through the compact launcher

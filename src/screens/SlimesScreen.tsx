@@ -42,7 +42,7 @@ const FusionWorkbench = lazy(async () => {
 
 interface Props {
   selectedId: SlimeInstanceId | null;
-  onSelect: (id: SlimeInstanceId) => void;
+  onSelect: (id: SlimeInstanceId | null) => void;
   onOpenBattle: () => void;
   onOpenForge: () => void;
   entryMode: CampMode;
@@ -82,7 +82,7 @@ export function SlimesScreen({
   const ownedIds = selectOwnedSlimeIds(state);
   const selected = selectedId !== null && state.gameData.roster.slimes[selectedId] !== undefined
     ? selectedId
-    : ownedIds[0] ?? null;
+    : null;
   const detail = selected === null ? null : selectSlimeDetail(state, selected);
   const campLifeResidents = selectCampLifeResidents(state, selected, 4);
   const weaponView = selected === null ? { current: null, options: [] } : selectSlimeWeaponOptions(state, selected);
@@ -431,8 +431,6 @@ export function SlimesScreen({
             onClick={() => {
               const result = controller.validationPrepareRoster();
               if (!result.accepted) { setNotice(rejectionLabel(result.reason)); return; }
-              const first = result.state.gameData.roster.formationSlots[0];
-              if (first !== null) onSelect(first);
             }}
           >
             検証 · 全6職編成
@@ -440,7 +438,7 @@ export function SlimesScreen({
         )}
       </header>
 
-      {detail === null || selected === null ? (
+      {ownedIds.length === 0 ? (
         <div className="camp-empty-world">
           <Suspense fallback={<div className="camp-environment-stage" aria-hidden="true" />}>
             <CampEnvironmentStage reaction="idle" reactionKey={0} fusionReady={false} residents={[]} />
@@ -458,7 +456,7 @@ export function SlimesScreen({
               <CampEnvironmentStage
                 reaction={feedback.reaction}
                 reactionKey={feedback.key}
-                fusionReady={detail.fusionOptions.some((option) => option.canFuse)}
+                fusionReady={detail?.fusionOptions.some((option) => option.canFuse) ?? false}
                 residents={campLifeResidents}
               />
             </Suspense>
@@ -466,34 +464,39 @@ export function SlimesScreen({
             {feedback.reaction === 'recruit' && feedback.title !== '' && (
               <div className="camp-reward-ring" key={`ring-${feedback.key}`} aria-hidden="true" />
             )}
-            <div className="camp-slime-stage">
-              <Suspense fallback={<div className="camp-resident-stage" aria-hidden="true" />}>
-                <CampSlimeStage
-                  presentation={detail.presentation}
-                  reaction={feedback.reaction}
-                  reactionKey={feedback.key}
-                  reactionStrength={feedback.strength ?? 1}
-                />
-              </Suspense>
-              {feedback.title !== '' && (
-                <div className={`camp-action-feedback camp-action-feedback--${feedback.reaction}`} key={feedback.key}>
-                  <strong>{feedback.title}</strong>
-                  {feedback.detail !== undefined && <small>{feedback.detail}</small>}
+            {detail !== null && selected !== null && (
+              <div className="camp-slime-stage">
+                <Suspense fallback={<div className="camp-resident-stage" aria-hidden="true" />}>
+                  <CampSlimeStage
+                    presentation={detail.presentation}
+                    reaction={feedback.reaction}
+                    reactionKey={feedback.key}
+                    reactionStrength={feedback.strength ?? 1}
+                  />
+                </Suspense>
+                {feedback.title !== '' && (
+                  <div className={`camp-action-feedback camp-action-feedback--${feedback.reaction}`} key={feedback.key}>
+                    <strong>{feedback.title}</strong>
+                    {feedback.detail !== undefined && <small>{feedback.detail}</small>}
+                  </div>
+                )}
+                <div className="camp-slime-name">
+                  <span>{detail.role}</span><strong>{detail.name}</strong><small>Lv.{strengthenCeremony?.phase === 'charging' ? strengthenCeremony.fromLevel : detail.level} · 合成ランク {detail.fusionRank}</small>
                 </div>
-              )}
-              <div className="camp-slime-name">
-                <span>{detail.role}</span><strong>{detail.name}</strong><small>Lv.{strengthenCeremony?.phase === 'charging' ? strengthenCeremony.fromLevel : detail.level} · 合成ランク {detail.fusionRank}</small>
               </div>
-            </div>
+            )}
           </div>
 
-          {!commandPanelOpen ? (
+          {!commandPanelOpen || detail === null || selected === null ? (
             <button
               className="camp-command-launcher"
               type="button"
               aria-expanded="false"
               aria-controls="camp-command-panel"
-              onClick={() => setCommandPanelOpen(true)}
+              onClick={() => {
+                if (selected === null) onSelect(ownedIds[0] ?? null);
+                setCommandPanelOpen(true);
+              }}
             >
               <span>管理</span>
               <strong>仲間・育成</strong>
@@ -509,6 +512,7 @@ export function SlimesScreen({
                 onClick={() => {
                   setMode('none');
                   setCommandPanelOpen(false);
+                  onSelect(null);
                 }}
               >
                 キャンプを見る
