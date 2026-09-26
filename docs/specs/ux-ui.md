@@ -336,24 +336,18 @@ Primary action returns to Battle.
 
 ## 15. First-use teaching
 
-Tutorial principle:
+The canonical onboarding sequence, speech-bubble voice, state derivation, skip/replay rules, and visual acceptance are owned by [`tutorial-onboarding.md`](tutorial-onboarding.md).
 
-`short cue -> real action -> visible consequence`
+This document owns only the UI-level constraints:
 
-First sequence:
-
-1. Plain Slime attacks automatically
-2. first chest appears
-3. Rusty Sword appears
-4. player gives Sword to Plain Slime
-5. it becomes Sword Slime and immediately attacks differently
-6. player creates another Plain Slime and uses Sword Job Gear again; it resolves into Sword Slime Core
-7. at Lv.10, player uses the Sword Slime Core plus the authored recipe to fuse the owned Sword branch
-8. Greatsword fusion form appears with the same slime-body size, a large sword silhouette, and a fast half-turn horizontal sweep
-9. Bow is discovered
-10. later, an unused type receives the first simple dispatch tutorial
-
-Avoid modal tours.
+- tutorial principle is `short cue -> real action -> visible consequence`
+- avoid modal tours
+- tutorial cues do not mutate Domain state
+- Plain creation and Job Gear handoff use the real nursery presentation, not a fake persistent guide character
+- same-job recreation creates another persistent body; it is never automatically merged or converted into Fusion input
+- Fusion introduction happens only after the player has seen that duplicate bodies are real usable characters
+- first authored defeat must teach `defeat -> retreat -> farm -> retry` without GAME OVER
+- speech bubbles use short natural wording and body reaction; do not use forced sentence endings such as `〜ぷる`
 
 ## 16. Notifications and badges
 

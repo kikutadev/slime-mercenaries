@@ -1,7 +1,7 @@
 # Documentation Authority
 
 Status: Current
-Date: 2026-09-16
+Date: 2026-09-27
 
 このリポジトリでは、現在仕様と設計意図を以下へ分離する。履歴はGitに置き、完了済みplanやreviewを恒久文書として蓄積しない。
 
@@ -16,6 +16,7 @@ Date: 2026-09-16
 | [`specs/progression-economy.md`](specs/progression-economy.md) | Plain生成/ショップ、stage、宝箱、装備、抽選、派遣、offline、長期成長 |
 | [`specs/kit-integration.md`](specs/kit-integration.md) | idle-game-kitとのstate/API境界、共通化/ゲーム固有の責務分離 |
 | [`specs/ux-ui.md`](specs/ux-ui.md) | mobile portrait UI、navigation、主要interaction |
+| [`specs/tutorial-onboarding.md`](specs/tutorial-onboarding.md) | 初回10分の体験順、吹き出し、tutorial cue、skip/replay、acceptance |
 | [`specs/art-direction.md`](specs/art-direction.md) | visual identity、body-size invariant、animation、VFX、environment |
 | [`DEVELOPMENT.md`](DEVELOPMENT.md) | build/test、validation tools、UI acceptance の反復手順 |
 | [`specs/enemies/README.md`](specs/enemies/README.md) | Area 1以降の敵roster、シルエット、モーション、ステージ導入順 |

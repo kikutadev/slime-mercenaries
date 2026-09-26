@@ -172,6 +172,7 @@ export function SlimesScreen({
             residents={campLifeResidents}
             fusionReady={detail?.fusionOptions.some((option) => option.canFuse) ?? false}
             strengthenCeremony={strengthenCeremony}
+            speech={cue?.speakerSlimeId === selected ? cue.speech : undefined}
           />
 
           {!commandPanelOpen || detail === null || selected === null ? (
@@ -270,6 +271,7 @@ export function SlimesScreen({
         onPurchase={handlePurchasePlain}
         onCreateJob={handleCreateJob}
         onCaptureMimic={handleCaptureMimic}
+        tutorialSpeech={cue?.action === 'Create Job' ? cue.speech : undefined}
       />
 
     </section>

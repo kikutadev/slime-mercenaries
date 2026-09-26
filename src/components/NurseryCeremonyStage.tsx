@@ -128,7 +128,7 @@ function NurseryJobResult({ jobId }: { jobId: JobSlimeId }) {
   return <group ref={groupRef} visible={false}><primitive object={model} /></group>;
 }
 
-function NurseryResident({ ceremony }: { ceremony: NurseryCeremony | null }) {
+function NurseryResident({ ceremony, visibleWhenIdle }: { ceremony: NurseryCeremony | null; visibleWhenIdle: boolean }) {
   const gltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}assets/plain-slime.glb`);
   const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
   const groupRef = useRef<THREE.Group>(null);
@@ -160,12 +160,13 @@ function NurseryResident({ ceremony }: { ceremony: NurseryCeremony | null }) {
     const elapsed = time - startedAt.current;
     body?.morphTargetInfluences?.fill(0);
     body?.scale.copy(baseScale);
-    group.visible = true;
+    group.visible = ceremony !== null || visibleWhenIdle;
     group.position.set(0, -0.58, 0);
     group.rotation.set(0, -0.2 + Math.sin(time * 0.65) * 0.025, 0);
     group.scale.setScalar(0.58);
 
     if (ceremony === null) {
+      if (!visibleWhenIdle) return;
       const breathe = 0.5 + 0.5 * Math.sin(time * 2.2);
       setMorph(body, 'Squash', breathe * 0.035);
       setMorph(body, 'WobbleLeft', Math.max(0, Math.sin(time * 1.2)) * 0.035);
@@ -215,9 +216,13 @@ function NurseryResident({ ceremony }: { ceremony: NurseryCeremony | null }) {
 export function NurseryCeremonyStage({
   ceremony,
   stockLabel,
+  speech,
+  showResident,
 }: {
   ceremony: NurseryCeremony | null;
   stockLabel: string;
+  speech?: string;
+  showResident: boolean;
 }) {
   const kind = ceremony?.kind ?? 'idle';
   const status = ceremony?.kind === 'craft'
@@ -243,7 +248,7 @@ export function NurseryCeremonyStage({
             <ambientLight intensity={2.3} />
             <directionalLight position={[-3, 4.5, 4]} intensity={4.0} castShadow />
             <pointLight position={[2, 1.5, 2]} intensity={1.2} color="#89e8f4" />
-            <NurseryResident ceremony={ceremony} />
+            <NurseryResident ceremony={ceremony} visibleWhenIdle={showResident} />
             {ceremony?.kind === 'job' && ceremony.jobId !== undefined && (
               <NurseryJobResult jobId={ceremony.jobId} />
             )}
@@ -284,6 +289,12 @@ export function NurseryCeremonyStage({
           </div>
         )}
       </div>
+
+      {speech !== undefined && (
+        <div className="nursery-stage__speech" role="status" aria-live="polite">
+          {speech}
+        </div>
+      )}
 
       <div className="nursery-stage__caption" role="status" aria-live="polite">
         <span>{status}</span>

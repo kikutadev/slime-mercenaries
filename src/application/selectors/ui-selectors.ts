@@ -110,58 +110,101 @@ export function selectGlobalHud(state: SlimeMercenariesState) {
   } as const;
 }
 
-export function selectEarlyGameCue(state: SlimeMercenariesState) {
+export type EarlyGameCueAction = 'Create Slime' | 'Create Job' | 'Battle' | 'Fuse';
+
+export type EarlyGameCue = Readonly<{
+  id: string;
+  title: string;
+  body: string;
+  action: EarlyGameCueAction;
+  speech?: string;
+  speakerSlimeId?: SlimeInstanceId;
+}>;
+
+/**
+ * Derive the next onboarding cue from authoritative product state.
+ * No parallel tutorial progression is stored here; durable game state remains the source of truth.
+ */
+export function selectEarlyGameCue(state: SlimeMercenariesState): EarlyGameCue | null {
   const sword = firstSlimeByType(state, 'sword');
   const plainStock = readToken(state.tokens, ids.token.plainSlime);
+
   if (sword === null) {
     if (plainStock === 0) {
       return {
-        title: 'プレーンスライムを1匹作る',
-        body: '最初の素材は揃っています。育成所から素体を生成します。',
+        id: 'create-first-plain',
+        title: 'プレーンスライムを1匹生み出す',
+        body: '最初の素材は揃っています。生成槽で新しいスライムを生み出します。',
         action: 'Create Slime',
-      } as const;
+      };
     }
     return {
+      id: 'give-first-job',
       title: 'プレーンスライムに剣を渡す',
-      body: '訓練用の剣を渡すと、最初の剣士スライムが生まれます。',
+      body: '仕事道具を渡すと、スライムに最初の職業が生まれます。',
       action: 'Create Job',
-    } as const;
+      speech: 'これ、ぼくに？',
+    };
   }
+
+  if (state.gameData.combat.retryFarmClearsRemaining > 0) {
+    return {
+      id: 'retreat-farm-retry',
+      title: '一つ前で強くなって、もう一度挑む',
+      body: '負けても戦闘は止まりません。勝てる場所で稼ぎ、準備ができたら自動で最前線へ戻ります。',
+      action: 'Battle',
+      speech: 'まだ終わりじゃないみたい。',
+      speakerSlimeId: sword.id,
+    };
+  }
+
   if (sword.fusionRank >= 2) return null;
 
   const fusion = previewSlimeFusion(state, sword.id);
   if (fusion.canFuse) {
     return {
+      id: 'first-fusion-ready',
       title: '大剣士スライムへ合成',
-      body: '必要素材とLv.10を満たしました。攻撃が横薙ぎの範囲攻撃へ変わります。',
+      body: '体を大きくするのではなく、武器と攻撃方法が進化します。',
       action: 'Fuse',
-    } as const;
+      speech: 'もっと強くなれそう。',
+      speakerSlimeId: sword.id,
+    };
   }
 
   if (sameTypeCount(state, 'sword') < 2) {
     const duplicate = previewJobCreation(state, 'sword');
     if (duplicate.canCreate) {
       return {
+        id: 'create-second-sword',
         title: '剣士スライムをもう1匹作る',
-        body: '同じ職でも別個体として残ります。編成・派遣に使うか、あとで合成素材にするか選べます。',
+        body: '同じ職でも別の仲間として残ります。編成・派遣に使うか、あとで合成素材にするか選べます。',
         action: 'Create Job',
-      } as const;
+        speech: '同じ仕事の仲間も増やせるんだ。',
+      speakerSlimeId: sword.id,
+      };
     }
   }
 
   if (sword.level < 10) {
     return {
+      id: 'strengthen-first-sword',
       title: '戦闘でゴールドを集め、Lv.10へ強化',
-      body: 'ゴールドと合成素材は自動戦闘で集まります。キャンプでレベルを上げると、その強さが戦闘へ反映されます。',
+      body: 'ゴールドと合成素材は自動戦闘で集まります。強化した結果はそのまま戦闘へ戻ります。',
       action: 'Battle',
-    } as const;
+      speech: 'もう少し戦ってみたい。',
+      speakerSlimeId: sword.id,
+    };
   }
 
   return {
-    title: '合成素材を集める',
+    id: 'prepare-first-fusion',
+    title: '合成素材をそろえる',
     body: '余剰の同職スライムは控えとして残し、必要な時だけ合成の核へ変換できます。',
     action: 'Fuse',
-  } as const;
+    speech: '次は、どう強くなるんだろう。',
+    speakerSlimeId: sword.id,
+  };
 }
 
 export function selectOwnedSlimeIds(state: SlimeMercenariesState): readonly SlimeInstanceId[] {

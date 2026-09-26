@@ -31,6 +31,7 @@ interface CampWorldProps {
   residents: readonly CampLifeResidentSpec[];
   fusionReady: boolean;
   strengthenCeremony: StrengthenCeremony | null;
+  speech?: string;
 }
 
 /**
@@ -43,6 +44,7 @@ export function CampWorld({
   residents,
   fusionReady,
   strengthenCeremony,
+  speech,
 }: CampWorldProps) {
   return (
     <div className={`camp-world camp-world--${feedback.reaction}`}>
@@ -71,6 +73,12 @@ export function CampWorld({
               reactionStrength={feedback.strength ?? 1}
             />
           </Suspense>
+
+          {speech !== undefined && (
+            <div className="camp-tutorial-speech" role="status" aria-live="polite">
+              {speech}
+            </div>
+          )}
 
           {feedback.title !== '' && (
             <div

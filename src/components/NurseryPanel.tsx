@@ -24,6 +24,7 @@ interface NurseryPanelProps {
   onPurchase: () => void;
   onCreateJob: (jobId: JobSlimeId) => void;
   onCaptureMimic: () => void;
+  tutorialSpeech?: string;
 }
 
 export function NurseryPanel({
@@ -37,6 +38,7 @@ export function NurseryPanel({
   onPurchase,
   onCreateJob,
   onCaptureMimic,
+  tutorialSpeech,
 }: NurseryPanelProps) {
   if (!open) return null;
 
@@ -54,6 +56,8 @@ export function NurseryPanel({
           <NurseryCeremonyStage
             ceremony={ceremony}
             stockLabel={validationMode ? '∞' : String(ceremony?.beforeStock ?? panel.plainStock)}
+            speech={speechForCeremony(ceremony, tutorialSpeech)}
+            showResident={panel.plainStock > 0 || ceremony !== null}
           />
         </Suspense>
 
@@ -159,4 +163,10 @@ function resourceLabel(tokenId: string): string {
   if (tokenId === ids.token.slimeGel) return 'スライムジェル';
   if (tokenId === ids.token.lifeWater) return '生命の水';
   return tokenId;
+}
+function speechForCeremony(ceremony: NurseryCeremony | null, tutorialSpeech: string | undefined): string | undefined {
+  if (ceremony?.kind === 'craft') return '……ここ、どこ？';
+  if (ceremony?.kind === 'purchase') return 'ここでいいの？';
+  if (ceremony?.kind === 'job') return 'これ、ぼくに？';
+  return tutorialSpeech;
 }

@@ -1,7 +1,7 @@
 # Idle Game Kit Integration
 
 Status: Current implementation boundary
-Date: 2026-09-19
+Date: 2026-09-27
 
 ## 1. Goal
 
@@ -215,7 +215,7 @@ else:
 
 Duplicate creation never auto-merges. A separate product command may explicitly convert an eligible reserve duplicate into the family Slime Core; that conversion is product gameplay and should not be represented as a generic Kit gacha duplicate policy.
 
-Codex state is also product-owned. First discovery of a Tier-1 job, Promotion form, Rare Mutation form, or weapon definition records one durable Codex entry. `viewedAtSimTimeSec = null` is the NEW badge state. Fusion rank/form progression and repeated acquisition do not create additional Codex rows.
+Codex state is also product-owned. First discovery of a Tier-1 job, authored Fusion milestone form, Rare Mutation form, or weapon definition records one durable Codex entry. `viewedAtSimTimeSec = null` is the NEW badge state. Fusion rank/form progression and repeated acquisition do not create additional Codex rows.
 
 ### 4.4 Fuse Slime
 
@@ -345,7 +345,6 @@ The target architecture should allow a headless simulator policy to execute the 
 - craft/buy Plain Slime
 - create jobs
 - fuse
-- promote
 - equip/refine
 - start dispatch
 - progress/farm stage

@@ -826,3 +826,40 @@
 .root :global(.camp-inline-tool__heading > button) {
   width: var(--touch-target-min);
 }
+
+.root :global(.camp-tutorial-speech) {
+  position: absolute;
+  z-index: 14;
+  left: 50%;
+  top: 8px;
+  max-width: 190px;
+  transform: translateX(-50%);
+  padding: 9px 12px;
+  border: 1px solid rgba(51, 86, 62, .13);
+  border-radius: 16px;
+  background: rgba(255,255,255,.95);
+  color: #294c35;
+  box-shadow: 0 10px 26px rgba(38,73,49,.15);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.35;
+  text-align: center;
+  pointer-events: none;
+  animation: camp-tutorial-speech-in .28s cubic-bezier(.2,.8,.2,1) both;
+}
+.root :global(.camp-tutorial-speech::after) {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 13px;
+  height: 13px;
+  transform: translateX(-50%) rotate(45deg);
+  border-right: 1px solid rgba(51,86,62,.13);
+  border-bottom: 1px solid rgba(51,86,62,.13);
+  background: rgba(255,255,255,.95);
+}
+@keyframes camp-tutorial-speech-in {
+  from { opacity: 0; transform: translate(-50%, 6px) scale(.96); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}

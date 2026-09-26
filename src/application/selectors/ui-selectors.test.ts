@@ -260,9 +260,34 @@ describe('UI selectors', () => {
     expect(selectEarlyGameCue(initial)?.title).toContain('プレーンスライム');
     const crafted = craftPlainSlime(initial);
     if (!crafted.accepted) throw new Error('setup craft failed');
-    expect(selectEarlyGameCue(crafted.state)?.title).toContain('剣');
+    const jobCue = selectEarlyGameCue(crafted.state);
+    expect(jobCue?.title).toContain('剣');
+    expect(jobCue?.speech).toBe('これ、ぼくに？');
+    expect(jobCue?.speech).not.toContain('ぷる');
+
     const created = createJobSlime(crafted.state, 'sword');
     if (!created.accepted) throw new Error('setup sword failed');
-    expect(selectEarlyGameCue(created.state)?.action).toBe('Battle');
+    const battleCue = selectEarlyGameCue(created.state);
+    expect(battleCue?.action).toBe('Battle');
+    expect(battleCue?.speakerSlimeId).toBe(firstSlimeIdByType(created.state, 'sword'));
+    expect(battleCue?.speech).not.toContain('ぷる');
+  });
+
+  it('explains retreat farming as continuation rather than game over', () => {
+    const setup = createSwordState();
+    const retreating = {
+      ...setup.state,
+      gameData: {
+        ...setup.state.gameData,
+        combat: { ...setup.state.gameData.combat, retryFarmClearsRemaining: 2 },
+      },
+    };
+
+    expect(selectEarlyGameCue(retreating)).toMatchObject({
+      id: 'retreat-farm-retry',
+      action: 'Battle',
+      speech: 'まだ終わりじゃないみたい。',
+      speakerSlimeId: setup.swordId,
+    });
   });
 });

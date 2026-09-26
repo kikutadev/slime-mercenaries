@@ -1,7 +1,7 @@
 # Slime Mercenaries — Current Specification
 
 Status: Current
-Date: 2026-09-22
+Date: 2026-09-27
 
 ## 1. Product form
 
@@ -34,6 +34,7 @@ Detailed behavior is owned by:
 - battle -> [`specs/combat.md`](specs/combat.md)
 - progression / economy / loot / dispatch -> [`specs/progression-economy.md`](specs/progression-economy.md)
 - UX/UI -> [`specs/ux-ui.md`](specs/ux-ui.md)
+- tutorial / onboarding -> [`specs/tutorial-onboarding.md`](specs/tutorial-onboarding.md)
 - art -> [`specs/art-direction.md`](specs/art-direction.md)
 - enemy content -> [`specs/enemies/README.md`](specs/enemies/README.md)
 
