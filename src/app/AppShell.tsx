@@ -10,6 +10,7 @@ import type { SlimeInstanceId } from '../domain';
 import { NavIcon, type NavIconKind } from '../components/navigation/NavIcon';
 import { SlimeMark } from '../components/SlimeMark';
 import { SettingsSheet } from '../components/SettingsSheet';
+import { OnboardingGuideSheet } from '../components/OnboardingGuideSheet';
 import styles from './AppShell.module.css';
 import { battleActivityRewardLabel } from './app-report-view';
 import { BattleActivityPeek, BattleActivitySheet, OfflineReturnSheet } from './AppReportSheets';
@@ -37,8 +38,10 @@ export function AppShell() {
   const state = useGameState();
   const ownedIds = selectOwnedSlimeIds(state);
   const attention = selectNavigationAttention(state);
+  const hasCombatSlime = ownedIds.length > 0;
   const [screen, setScreen] = useState<ScreenId | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [selectedSlimeId, setSelectedSlimeId] = useState<SlimeInstanceId | null>(null);
   const [campEntry, setCampEntry] = useState<{ mode: CampMode; revision: number }>({ mode: 'none', revision: 0 });
   const [offlineDismissed, setOfflineDismissed] = useState(false);
@@ -200,7 +203,13 @@ export function AppShell() {
           </div>
         )}
 
-        {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
+        {settingsOpen && (
+          <SettingsSheet
+            onClose={() => setSettingsOpen(false)}
+            onOpenGuide={() => { setSettingsOpen(false); setGuideOpen(true); }}
+          />
+        )}
+        {guideOpen && <OnboardingGuideSheet onClose={() => setGuideOpen(false)} />}
 
         <nav className={styles.bottomNav} aria-label="メインメニュー">
           <NavButton
@@ -210,6 +219,7 @@ export function AppShell() {
             active={activeScreen === 'battle'}
             attention={activeScreen !== 'battle' && (hasPendingBattleActivity || battleActivityReport !== null)}
             onClick={setScreen}
+            disabled={!hasCombatSlime}
           />
           <NavButton
             id="slimes"
@@ -223,8 +233,8 @@ export function AppShell() {
               setScreen(id);
             }}
           />
-          <NavButton id="dispatch" label="派遣" icon="dispatch" active={activeScreen === 'dispatch'} attention={attention.has('dispatch') || dispatchReturnCues.length > 0} onClick={setScreen} />
-          <NavButton id="forge" label="鍛造" icon="forge" active={activeScreen === 'forge'} attention={attention.has('forge')} onClick={setScreen} />
+          <NavButton id="dispatch" label="派遣" icon="dispatch" active={activeScreen === 'dispatch'} attention={attention.has('dispatch') || dispatchReturnCues.length > 0} onClick={setScreen} disabled={!hasCombatSlime} />
+          <NavButton id="forge" label="鍛造" icon="forge" active={activeScreen === 'forge'} attention={attention.has('forge')} onClick={setScreen} disabled={!hasCombatSlime} />
           <button
             className={settingsOpen ? styles.navButton + ' ' + styles.navButtonActive : styles.navButton}
             type="button"
@@ -263,6 +273,7 @@ function NavButton({
   active,
   attention,
   onClick,
+  disabled = false,
 }: {
   id: ScreenId;
   label: string;
@@ -270,9 +281,10 @@ function NavButton({
   active: boolean;
   attention: boolean;
   onClick: (screen: ScreenId) => void;
+  disabled?: boolean;
 }) {
   return (
-    <button className={`${styles.navButton} ${active ? styles.navButtonActive : ''}`} type="button" onClick={() => onClick(id)}>
+    <button className={`${styles.navButton} ${active ? styles.navButtonActive : ''}`} type="button" disabled={disabled} onClick={() => onClick(id)}>
       <span className={styles.navIcon}><NavIcon kind={icon} /></span>
       <span>{label}</span>
       {attention && <span className={styles.navNotice} aria-label="実行できる項目があります" />}

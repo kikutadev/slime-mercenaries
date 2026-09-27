@@ -863,3 +863,84 @@
   from { opacity: 0; transform: translate(-50%, 6px) scale(.96); }
   to { opacity: 1; transform: translate(-50%, 0) scale(1); }
 }
+
+/* First-use onboarding must be visible without opening the management panel. */
+.root :global(.camp-empty-world__tutorial) {
+  position: absolute;
+  z-index: 4;
+  top: max(86px, 13%);
+  left: 18px;
+  right: 18px;
+  display: grid;
+  gap: 5px;
+  padding: 13px 15px;
+  border: 1px solid rgba(255,255,255,.82);
+  border-radius: 18px;
+  background: rgba(249,255,245,.92);
+  box-shadow: 0 12px 30px rgba(35,72,44,.16);
+  backdrop-filter: blur(14px);
+  color: #294c35;
+}
+.root :global(.camp-empty-world__tutorial > span),
+.root :global(.camp-onboarding-card > span) {
+  color: #4f8d5d;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .09em;
+}
+.root :global(.camp-empty-world__tutorial > strong) { font-size: 16px; line-height: 1.25; }
+.root :global(.camp-empty-world__tutorial > small) { color: rgba(41,76,53,.68); font-size: 11px; line-height: 1.45; font-weight: 750; }
+.root :global(.camp-empty-world > .camp-empty-world__primary) {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  bottom: max(92px, 13%);
+  width: min(310px, calc(100% - 36px));
+  min-height: 82px;
+  transform: translateX(-50%);
+}
+.root :global(.is-tutorial-target) {
+  box-shadow: 0 12px 32px rgba(42,79,47,.18), 0 0 0 0 rgba(255,215,94,.48);
+  animation: tutorial-target-pulse 1.8s ease-out infinite;
+}
+.root :global(.camp-onboarding-card) {
+  position: absolute;
+  z-index: 37;
+  left: 12px;
+  right: 12px;
+  bottom: 68px;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  gap: 3px 10px;
+  align-items: center;
+  padding: 11px 11px 11px 13px;
+  border: 1px solid rgba(255,255,255,.82);
+  border-radius: 18px;
+  background: rgba(249,255,245,.94);
+  box-shadow: 0 12px 34px rgba(32,68,42,.18);
+  backdrop-filter: blur(16px);
+  color: #294c35;
+}
+.root :global(.camp-onboarding-card > span),
+.root :global(.camp-onboarding-card > strong),
+.root :global(.camp-onboarding-card > small) { grid-column: 1; }
+.root :global(.camp-onboarding-card > strong) { font-size: 12px; line-height: 1.25; }
+.root :global(.camp-onboarding-card > small) { color: rgba(41,76,53,.62); font-size: 10px; line-height: 1.35; font-weight: 720; }
+.root :global(.camp-onboarding-card > button) {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  min-width: 72px;
+  min-height: var(--touch-target-min);
+  padding: 0 12px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(180deg,#6eaf66,#4d8d58);
+  color: white;
+  font-size: 11px;
+  font-weight: 950;
+  box-shadow: 0 7px 16px rgba(49,104,62,.22);
+}
+@keyframes tutorial-target-pulse {
+  0%, 100% { box-shadow: 0 12px 32px rgba(42,79,47,.18), 0 0 0 0 rgba(255,215,94,.36); }
+  55% { box-shadow: 0 12px 32px rgba(42,79,47,.18), 0 0 0 9px rgba(255,215,94,0); }
+}

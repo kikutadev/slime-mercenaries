@@ -255,9 +255,14 @@ describe('UI selectors', () => {
     }));
   });
 
-  it('guides first-use progression from Plain creation into battle without storing tutorial state', () => {
+  it('guides first-use progression from Plain creation into battle from authoritative milestones', () => {
     const initial = createInitialSlimeMercenariesState(0, 7);
     expect(selectEarlyGameCue(initial)?.title).toContain('プレーンスライム');
+    const virtualizedResources = {
+      ...initial,
+      tokens: grantToken(initial.tokens, ids.token.plainSlime, 1_000_000),
+    };
+    expect(selectEarlyGameCue(virtualizedResources)?.id).toBe('create-first-plain');
     const crafted = craftPlainSlime(initial);
     if (!crafted.accepted) throw new Error('setup craft failed');
     const jobCue = selectEarlyGameCue(crafted.state);

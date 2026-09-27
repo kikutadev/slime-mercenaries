@@ -3,7 +3,7 @@ import { BattleCanvas } from '../components/BattleCanvas';
 import { useGameState } from '../app/GameProvider';
 import { validationToolsVisible } from '../application/validation-mode';
 import { selectBattleSceneModel } from '../application/selectors/battle-scene';
-import { selectFormation, selectGlobalHud } from '../application/selectors/ui-selectors';
+import { selectEarlyGameCue, selectFormation, selectGlobalHud } from '../application/selectors/ui-selectors';
 import { resolveAreaDefinition, type SlimeInstanceId } from '../domain';
 import type { BattleRewardCue } from '../game/battle-reward';
 import styles from './BattleScreen.module.css';
@@ -38,6 +38,7 @@ export function BattleScreen({
   const showValidationTools = validationMode && validationToolsVisible();
   const hud = selectGlobalHud(state);
   const formation = selectFormation(state);
+  const tutorialCue = selectEarlyGameCue(state);
   const sceneAreaLabel = resolveAreaDefinition(sceneModel.areaId)?.displayName ?? sceneModel.areaId;
 
   const hasBattleSlime = sceneModel.allies.length > 0;
@@ -119,6 +120,14 @@ export function BattleScreen({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {tutorialCue?.action === 'Battle' && (
+        <div className={styles.tutorialCue} key={tutorialCue.id} role="status" aria-live="polite">
+          <span>はじめてガイド</span>
+          <strong>{tutorialCue.title}</strong>
+          <small>{tutorialCue.body}</small>
         </div>
       )}
 

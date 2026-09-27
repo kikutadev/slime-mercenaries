@@ -95,7 +95,7 @@ Example:
 
 ## 5. State model
 
-Do not introduce a parallel tutorial save-state machine for steps that can be derived from authoritative game state.
+Do not introduce a parallel tutorial step counter when the current step can be derived from authoritative game state.
 
 Primary cues should be derived from durable state such as:
 
@@ -107,7 +107,9 @@ Primary cues should be derived from durable state such as:
 - retreat farm state
 - Dispatch unlock / assignment state
 
-Explicit persisted tutorial state is allowed only when a cue cannot be reconstructed safely from product state, such as:
+A minimal authoritative milestone flag is allowed when resource counts cannot safely prove that the player performed the action. The production build can virtualize materials as `∞` in development mode, so Plain stock itself is not a reliable first-use signal. `onboarding.first-plain-created` is therefore written only by a successful Plain craft/purchase command and is used to keep the first two tutorial steps deterministic.
+
+Other persisted tutorial state is allowed only when a cue cannot be reconstructed safely from product state, such as:
 
 - player explicitly skipped onboarding
 - one-time optional teaching that must never reappear after dismissal
@@ -402,7 +404,7 @@ Avoid putting four equally bright navigation destinations in front of a player w
 
 - onboarding may be skipped from a secondary menu, never from a large first-screen confirmation modal
 - skip suppresses tutorial speech/callout presentation; it does not alter game state or grant rewards
-- Help/Codex may expose a concise replayable concept guide later
+- Settings exposes a concise replayable `はじめてガイド` for existing saves
 - replay does not recreate rewards or reset progression
 
 If skip persistence is implemented, it is the one explicit tutorial-specific persisted flag allowed by this specification.

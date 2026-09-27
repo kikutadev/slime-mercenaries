@@ -60,6 +60,7 @@ describe('Plain Slime economy', () => {
     if (!result.accepted) return;
 
     expect(readToken(result.state.tokens, ids.token.plainSlime)).toBe(preview.outputCount);
+    expect(result.state.progressionFlags[ids.progression.firstPlainCreated]).toBe(true);
     for (const requirement of preview.requirements) {
       expect(readToken(result.state.tokens, requirement.tokenId)).toBe(requirement.owned - requirement.required);
     }
@@ -98,6 +99,8 @@ describe('Plain Slime economy', () => {
 
     const purchased = buyPlainSlime(funded);
     expect(purchased.accepted).toBe(true);
+    if (!purchased.accepted) return;
+    expect(purchased.state.progressionFlags[ids.progression.firstPlainCreated]).toBe(true);
     if (!purchased.accepted) return;
 
     expect(readToken(purchased.state.tokens, ids.token.plainSlime)).toBeGreaterThan(0);

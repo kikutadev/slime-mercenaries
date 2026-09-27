@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { useGameController, useGameState } from '../app/GameProvider';
 import { validationToolsVisible } from '../application/validation-mode';
 import {
@@ -78,6 +78,28 @@ export function SlimesScreen({
   const mutationRelevant = detail?.mutationOptions.some((option) =>
     option.eligible || option.fragments > 0 || option.catalysts > 0 || option.alreadyMutated) ?? false;
   const mutationReady = detail?.mutationOptions.some((option) => option.canMutate) ?? false;
+
+  useEffect(() => {
+    if (cue?.speakerSlimeId === undefined || selected !== null) return;
+    if (state.gameData.roster.slimes[cue.speakerSlimeId] === undefined) return;
+    onSelect(cue.speakerSlimeId);
+  }, [cue?.id, cue?.speakerSlimeId, onSelect, selected, state.gameData.roster.slimes]);
+
+  const openCueAction = () => {
+    if (cue === null) return;
+    if (cue.speakerSlimeId !== undefined) onSelect(cue.speakerSlimeId);
+    if (cue.action === 'Battle') {
+      onOpenBattle();
+      return;
+    }
+    if (cue.action === 'Fuse') {
+      setCommandPanelOpen(true);
+      setMode('fusion');
+      return;
+    }
+    setCreateOpen(true);
+  };
+
   const {
     mode,
     setMode,
@@ -157,7 +179,7 @@ export function SlimesScreen({
       </header>
 
       {ownedIds.length === 0 ? (
-        <CampEmptyWorld onCreate={() => setCreateOpen(true)} />
+        <CampEmptyWorld title={cue?.title ?? '最初のスライムを生み出す'} body={cue?.body ?? '素材は揃っています。生成槽から始めます。'} onCreate={() => setCreateOpen(true)} />
       ) : (
         <>
           <CampWorld
@@ -174,6 +196,17 @@ export function SlimesScreen({
             strengthenCeremony={strengthenCeremony}
             speech={cue?.speakerSlimeId === selected ? cue.speech : undefined}
           />
+
+          {cue !== null && !createOpen && !commandPanelOpen && (
+            <div className="camp-onboarding-card" role="status" aria-live="polite">
+              <span>はじめてガイド</span>
+              <strong>{cue.title}</strong>
+              <small>{cue.body}</small>
+              <button type="button" onClick={openCueAction}>
+                {cue.action === 'Battle' ? '戦闘へ' : cue.action === 'Fuse' ? '合成を見る' : '生成槽へ'}
+              </button>
+            </div>
+          )}
 
           {!commandPanelOpen || detail === null || selected === null ? (
             <button
@@ -271,7 +304,7 @@ export function SlimesScreen({
         onPurchase={handlePurchasePlain}
         onCreateJob={handleCreateJob}
         onCaptureMimic={handleCaptureMimic}
-        tutorialSpeech={cue?.action === 'Create Job' ? cue.speech : undefined}
+        tutorialCue={cue}
       />
 
     </section>

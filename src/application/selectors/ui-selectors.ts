@@ -127,10 +127,10 @@ export type EarlyGameCue = Readonly<{
  */
 export function selectEarlyGameCue(state: SlimeMercenariesState): EarlyGameCue | null {
   const sword = firstSlimeByType(state, 'sword');
-  const plainStock = readToken(state.tokens, ids.token.plainSlime);
+  const firstPlainCreated = state.progressionFlags[ids.progression.firstPlainCreated] === true;
 
   if (sword === null) {
-    if (plainStock === 0) {
+    if (!firstPlainCreated) {
       return {
         id: 'create-first-plain',
         title: 'プレーンスライムを1匹生み出す',
@@ -172,6 +172,17 @@ export function selectEarlyGameCue(state: SlimeMercenariesState): EarlyGameCue |
     };
   }
 
+  if (sword.level < 10) {
+    return {
+      id: 'strengthen-first-sword',
+      title: 'まずは剣士スライムの戦い方を見る',
+      body: '戦闘は自動で進みます。剣を持ったことで、さっきまで何もできなかったスライムの動きが変わります。',
+      action: 'Battle',
+      speech: '剣だ。',
+      speakerSlimeId: sword.id,
+    };
+  }
+
   if (sameTypeCount(state, 'sword') < 2) {
     const duplicate = previewJobCreation(state, 'sword');
     if (duplicate.canCreate) {
@@ -181,20 +192,9 @@ export function selectEarlyGameCue(state: SlimeMercenariesState): EarlyGameCue |
         body: '同じ職でも別の仲間として残ります。編成・派遣に使うか、あとで合成素材にするか選べます。',
         action: 'Create Job',
         speech: '同じ仕事の仲間も増やせるんだ。',
-      speakerSlimeId: sword.id,
+        speakerSlimeId: sword.id,
       };
     }
-  }
-
-  if (sword.level < 10) {
-    return {
-      id: 'strengthen-first-sword',
-      title: '戦闘でゴールドを集め、Lv.10へ強化',
-      body: 'ゴールドと合成素材は自動戦闘で集まります。強化した結果はそのまま戦闘へ戻ります。',
-      action: 'Battle',
-      speech: 'もう少し戦ってみたい。',
-      speakerSlimeId: sword.id,
-    };
   }
 
   return {

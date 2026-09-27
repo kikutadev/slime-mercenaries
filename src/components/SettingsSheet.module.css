@@ -374,3 +374,11 @@
     min-height: 64px;
   }
 }
+.soundRow > em {
+  flex: 0 0 auto;
+  color: #5b8b65;
+  font-size: 24px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+}

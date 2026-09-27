@@ -507,3 +507,8 @@
     animation-duration: 1ms !important;
   }
 }
+.navButton:disabled {
+  opacity: .28;
+  cursor: default;
+  filter: saturate(.55);
+}

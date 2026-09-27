@@ -10,7 +10,7 @@ type PendingAction =
   | Readonly<{ kind: 'import'; filename: string; contents: string }>
   | null;
 
-export function SettingsSheet({ onClose }: { onClose: () => void }) {
+export function SettingsSheet({ onClose, onOpenGuide }: { onClose: () => void; onOpenGuide: () => void }) {
   const controller = useGameController();
   const [mode, setMode] = useState<EconomyMode>(controller.economyMode);
   const [soundEnabled, setSoundEnabled] = useState(controller.soundEnabled);
@@ -129,6 +129,24 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
           <div className={styles.modeNote}>
             通常モードと開発用モードは別々に保存されます。開発用モードの資源・育成・ステージ進行は通常モードへ反映されません。
           </div>
+        </section>
+
+        <section className={styles.section}>
+          <div className={styles.sectionHeading}>
+            <span>はじめてガイド</span>
+            <small>いつでも見直せます</small>
+          </div>
+          <button
+            className={styles.soundRow}
+            type="button"
+            onClick={onOpenGuide}
+          >
+            <span>
+              <strong>ゲームの遊び方を見る</strong>
+              <small>スライムを生み、仕事を与え、負けながら強くなる流れを確認します。</small>
+            </span>
+            <em aria-hidden="true">›</em>
+          </button>
         </section>
 
         <section className={styles.section}>

@@ -1,6 +1,6 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { BottomSheet } from 'idle-game-kit/react';
-import type { selectCreateSlimePanel } from '../application/selectors/ui-selectors';
+import type { EarlyGameCue, selectCreateSlimePanel } from '../application/selectors/ui-selectors';
 import { ids, type JobSlimeId } from '../domain';
 import { NurseryIcon } from './NurseryIcon';
 import type { NurseryCeremony } from './NurseryCeremonyStage';
@@ -24,7 +24,7 @@ interface NurseryPanelProps {
   onPurchase: () => void;
   onCreateJob: (jobId: JobSlimeId) => void;
   onCaptureMimic: () => void;
-  tutorialSpeech?: string;
+  tutorialCue: EarlyGameCue | null;
 }
 
 export function NurseryPanel({
@@ -38,8 +38,16 @@ export function NurseryPanel({
   onPurchase,
   onCreateJob,
   onCaptureMimic,
-  tutorialSpeech,
+  tutorialCue,
 }: NurseryPanelProps) {
+  const worldRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (ceremony === null) return;
+    const scrollContainer = worldRef.current?.parentElement;
+    scrollContainer?.scrollTo({ top: 0, behavior: 'auto' });
+  }, [ceremony?.key]);
+
   if (!open) return null;
 
   return (
@@ -51,17 +59,28 @@ export function NurseryPanel({
       headerClassName={styles.header}
       closeButtonClassName={styles.close}
     >
-      <div className="nursery-world">
+      <div className="nursery-world" ref={worldRef}>
         <Suspense fallback={<div className="nursery-stage nursery-stage--loading" aria-hidden="true" />}>
           <NurseryCeremonyStage
             ceremony={ceremony}
             stockLabel={validationMode ? '∞' : String(ceremony?.beforeStock ?? panel.plainStock)}
-            speech={speechForCeremony(ceremony, tutorialSpeech)}
+            speech={speechForCeremony(ceremony, tutorialCue)}
             showResident={panel.plainStock > 0 || ceremony !== null}
           />
         </Suspense>
 
-        <section className="nursery-craft-panel" aria-label="素材からプレーンスライムを生み出す">
+        {ceremony === null && tutorialCue !== null && (tutorialCue.action === 'Create Slime' || tutorialCue.action === 'Create Job') && (
+          <div className="nursery-tutorial-guide" role="status" aria-live="polite">
+            <span>{tutorialCue.action === 'Create Slime' ? 'STEP 1' : 'STEP 2'}</span>
+            <strong>{tutorialCue.title}</strong>
+            <small>{tutorialCue.body}</small>
+          </div>
+        )}
+
+        <section
+          className={`nursery-craft-panel ${tutorialCue?.action === 'Create Slime' ? 'is-tutorial-target' : ''}`}
+          aria-label="素材からプレーンスライムを生み出す"
+        >
           <div className="nursery-craft-panel__heading">
             <span><NurseryIcon kind="craft" /></span>
             <div>
@@ -100,7 +119,7 @@ export function NurseryPanel({
         <div className="nursery-jobs nursery-jobs--roles">
           {panel.jobs.map((job) => (
             <button
-              className="nursery-job-option"
+              className={`nursery-job-option ${tutorialCue?.action === 'Create Job' && job.id === 'sword' ? 'is-tutorial-target' : ''}`}
               key={job.id}
               type="button"
               disabled={busy || !job.canCreate}
@@ -164,9 +183,12 @@ function resourceLabel(tokenId: string): string {
   if (tokenId === ids.token.lifeWater) return '生命の水';
   return tokenId;
 }
-function speechForCeremony(ceremony: NurseryCeremony | null, tutorialSpeech: string | undefined): string | undefined {
+function speechForCeremony(ceremony: NurseryCeremony | null, tutorialCue: EarlyGameCue | null): string | undefined {
   if (ceremony?.kind === 'craft') return '……ここ、どこ？';
   if (ceremony?.kind === 'purchase') return 'ここでいいの？';
-  if (ceremony?.kind === 'job') return 'これ、ぼくに？';
-  return tutorialSpeech;
+  if (ceremony?.kind === 'job') {
+    return tutorialCue?.id === 'create-second-sword' ? '同じ仕事？' : 'これ、ぼくに？';
+  }
+  if (tutorialCue?.action === 'Create Job') return tutorialCue.speech;
+  return undefined;
 }

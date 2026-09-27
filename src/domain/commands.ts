@@ -92,6 +92,10 @@ export function craftPlainSlime(
   const nextState: SlimeMercenariesState = {
     ...state,
     tokens: grantToken(spent, ids.token.plainSlime, outputCount),
+    progressionFlags: {
+      ...state.progressionFlags,
+      [ids.progression.firstPlainCreated]: true,
+    },
   };
 
   return accept(nextState, [semanticEvent(nextState, 'plainSlimeCrafted', `${readToken(nextState.tokens, ids.token.plainSlime)}`, {
@@ -149,6 +153,10 @@ export function buyPlainSlime(
     ...state,
     currencies: spend.balances,
     tokens: grantToken(state.tokens, ids.token.plainSlime, preview.outputCount),
+    progressionFlags: {
+      ...state.progressionFlags,
+      [ids.progression.firstPlainCreated]: true,
+    },
     gameData: {
       ...state.gameData,
       economy: {

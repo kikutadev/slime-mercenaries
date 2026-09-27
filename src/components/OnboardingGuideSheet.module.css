@@ -1,0 +1,106 @@
+.backdrop {
+  position: absolute;
+  z-index: 80;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  background: rgb(18 39 31 / 28%);
+  backdrop-filter: blur(3px);
+}
+
+.sheet {
+  width: 100%;
+  max-height: min(78%, 620px);
+  overflow: hidden;
+  border-radius: 26px 26px 0 0;
+  background: #f7fbf2;
+  box-shadow: 0 -18px 50px rgb(19 48 35 / 18%);
+}
+
+.header {
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid rgb(54 96 65 / 8%);
+}
+
+.close { min-width: 44px; min-height: 44px; }
+
+.content {
+  display: grid;
+  gap: 12px;
+  padding: 8px 16px calc(18px + var(--safe-area-bottom));
+}
+
+.scene {
+  position: relative;
+  min-height: 160px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 20px;
+  background: linear-gradient(180deg,#bce8f4 0 46%,#c6e6ab 46% 100%);
+}
+
+.slime {
+  width: 94px;
+  height: 94px;
+  transform-origin: center bottom;
+  animation: guideWobble 2.2s ease-in-out infinite;
+}
+
+.speech {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  max-width: 164px;
+  padding: 8px 10px;
+  border: 1px solid rgb(52 88 62 / 12%);
+  border-radius: 15px;
+  background: rgb(255 255 255 / 95%);
+  color: #2e5438;
+  box-shadow: 0 8px 22px rgb(35 72 44 / 12%);
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.speech::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  bottom: -7px;
+  width: 12px;
+  height: 12px;
+  transform: rotate(45deg);
+  border-right: 1px solid rgb(52 88 62 / 12%);
+  border-bottom: 1px solid rgb(52 88 62 / 12%);
+  background: rgb(255 255 255 / 95%);
+}
+
+.copy { display: grid; gap: 5px; padding: 0 2px; }
+.copy > span { color: #5a9666; font-size: 10px; font-weight: 950; letter-spacing: .09em; }
+.copy > strong { color: #294c35; font-size: 17px; line-height: 1.25; }
+.copy > p { margin: 0; color: rgb(41 76 53 / 68%); font-size: 11px; font-weight: 720; line-height: 1.55; }
+
+.dots { display: flex; justify-content: center; gap: 6px; }
+.dots i { width: 6px; height: 6px; border-radius: 50%; background: rgb(63 112 72 / 18%); }
+.dots .dotActive { width: 18px; border-radius: 999px; background: #67a46d; }
+
+.actions { display: flex; justify-content: flex-end; gap: 8px; }
+.actions button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid rgb(62 107 70 / 12%);
+  border-radius: 14px;
+  background: #edf5e7;
+  color: #3a6a45;
+  font-size: 11px;
+  font-weight: 900;
+}
+.actions .primary { border: 0; background: linear-gradient(180deg,#6dad66,#4d8e58); color: #fff; }
+
+@keyframes guideWobble {
+  0%,100% { transform: translateY(0) scale(1,1); }
+  22% { transform: translateY(-5px) scale(.97,1.04); }
+  45% { transform: translateY(0) scale(1.05,.95); }
+  70% { transform: translateY(-2px) rotate(-2deg) scale(.99,1.02); }
+}

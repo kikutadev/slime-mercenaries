@@ -545,3 +545,31 @@
     animation-duration: 1ms !important;
   }
 }
+.tutorialCue {
+  position: absolute;
+  z-index: 24;
+  left: 14px;
+  right: 14px;
+  top: max(134px, calc(var(--safe-area-top) + 122px));
+  display: grid;
+  gap: 3px;
+  max-width: 330px;
+  margin: 0 auto;
+  padding: 9px 12px;
+  border: 1px solid rgb(255 255 255 / 72%);
+  border-radius: 15px;
+  background: rgb(247 255 241 / 92%);
+  color: #294c35;
+  box-shadow: 0 10px 28px rgb(30 67 45 / 16%);
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+  animation: tutorialCueLife 5.2s ease both;
+}
+.tutorialCue span { color: #589366; font-size: 10px; font-weight: 950; letter-spacing: .09em; }
+.tutorialCue strong { font-size: 12px; line-height: 1.2; }
+.tutorialCue small { color: rgb(41 76 53 / 64%); font-size: 10px; line-height: 1.35; font-weight: 720; }
+@keyframes tutorialCueLife {
+  0% { opacity: 0; transform: translateY(7px) scale(.98); }
+  8%, 82% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-4px) scale(.99); }
+}

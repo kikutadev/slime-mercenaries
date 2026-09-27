@@ -6,7 +6,15 @@ const CampEnvironmentStage = lazy(async () => {
   return { default: module.CampEnvironmentStage };
 });
 
-export function CampEmptyWorld({ onCreate }: { onCreate: () => void }) {
+export function CampEmptyWorld({
+  title,
+  body,
+  onCreate,
+}: {
+  title: string;
+  body: string;
+  onCreate: () => void;
+}) {
   return (
     <div className="camp-empty-world">
       <Suspense fallback={<div className="camp-environment-stage" aria-hidden="true" />}>
@@ -17,10 +25,17 @@ export function CampEmptyWorld({ onCreate }: { onCreate: () => void }) {
           residents={[]}
         />
       </Suspense>
-      <button type="button" onClick={onCreate}>
+
+      <div className="camp-empty-world__tutorial" role="status" aria-live="polite">
+        <span>はじめてガイド</span>
+        <strong>{title}</strong>
+        <small>{body}</small>
+      </div>
+
+      <button className="camp-empty-world__primary is-tutorial-target" type="button" onClick={onCreate}>
         <span aria-hidden="true"><CampStationIcon kind="nursery" /></span>
         <strong>最初のスライムを生み出す</strong>
-        <small>生成槽で仲間を迎える</small>
+        <small>素材はもう揃っています</small>
       </button>
     </div>
   );

@@ -35,6 +35,9 @@ export const ids = {
   gacha: {
     forge: 'gacha.equipment-forge',
   },
+  progression: {
+    firstPlainCreated: 'onboarding.first-plain-created',
+  },
   loadout: {
     sword: 'loadout.slime.sword',
     shield: 'loadout.slime.shield',
