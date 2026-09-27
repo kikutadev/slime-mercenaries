@@ -12,3 +12,5 @@ node_modules/
 __pycache__/
 *.py[cod]
 
+# Local scratch / generated QA artifacts
+.tmp/
