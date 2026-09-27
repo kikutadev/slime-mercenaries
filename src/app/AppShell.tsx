@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, useTransition } from 'react';
 import { usePresentationQueue } from 'idle-game-kit/react';
 import { useGameBootstrap, useGameState } from './GameProvider';
 import { selectNavigationAttention, selectOwnedSlimeIds } from '../application/selectors/ui-selectors';
@@ -16,20 +16,13 @@ import { battleActivityRewardLabel } from './app-report-view';
 import { BattleActivityPeek, BattleActivitySheet, OfflineReturnSheet } from './AppReportSheets';
 import { useAppPresentationEvents, type PresentationScreenId } from './useAppPresentationEvents';
 
-const BattleScreen = lazy(async () => {
-  const module = await import('../screens/BattleScreen');
-  return { default: module.BattleScreen };
-});
+const loadBattleScreen = () => import('../screens/BattleScreen');
+const loadDispatchScreen = () => import('../screens/DispatchScreen');
+const loadForgeScreen = () => import('../screens/ForgeScreen');
 
-const DispatchScreen = lazy(async () => {
-  const module = await import('../screens/DispatchScreen');
-  return { default: module.DispatchScreen };
-});
-
-const ForgeScreen = lazy(async () => {
-  const module = await import('../screens/ForgeScreen');
-  return { default: module.ForgeScreen };
-});
+const BattleScreen = lazy(async () => ({ default: (await loadBattleScreen()).BattleScreen }));
+const DispatchScreen = lazy(async () => ({ default: (await loadDispatchScreen()).DispatchScreen }));
+const ForgeScreen = lazy(async () => ({ default: (await loadForgeScreen()).ForgeScreen }));
 
 type ScreenId = PresentationScreenId;
 
@@ -45,6 +38,7 @@ export function AppShell() {
   const [selectedSlimeId, setSelectedSlimeId] = useState<SlimeInstanceId | null>(null);
   const [campEntry, setCampEntry] = useState<{ mode: CampMode; revision: number }>({ mode: 'none', revision: 0 });
   const [offlineDismissed, setOfflineDismissed] = useState(false);
+  const [, startScreenTransition] = useTransition();
   const presentation = usePresentationQueue(presentationNoticeDurationMs);
   const initialScreen: ScreenId = ownedIds.length > 0 && state.gameData.roster.formationSlots.some((slot) => slot !== null)
     ? 'battle'
@@ -53,6 +47,9 @@ export function AppShell() {
 
 
   useEffect(() => installBattleAudioUnlock(), []);
+  useEffect(() => {
+    void Promise.allSettled([loadBattleScreen(), loadDispatchScreen(), loadForgeScreen()]);
+  }, []);
 
   const {
     battleRewardCues,
@@ -113,6 +110,10 @@ export function AppShell() {
     );
   }
 
+  const navigateScreen = (next: ScreenId) => {
+    startScreenTransition(() => setScreen(next));
+  };
+
   const openCamp = (mode: CampMode = 'none', slimeId: SlimeInstanceId | null = null) => {
     if (slimeId !== null) {
       setSelectedSlimeId(slimeId);
@@ -124,14 +125,14 @@ export function AppShell() {
       setSelectedSlimeId(ownedIds[0] ?? null);
     }
     setCampEntry((current) => ({ mode, revision: current.revision + 1 }));
-    setScreen('slimes');
+    navigateScreen('slimes');
   };
   const openSlime = (slimeId: SlimeInstanceId) => openCamp('none', slimeId);
   return (
     <main className={styles.page}>
       <section className={styles.gameShell} aria-label="ゲーム画面">
         <div className={styles.appContent}>
-          <Suspense fallback={<ScreenLoading screen={activeScreen} />}>
+          <Suspense fallback={null}>
             {activeScreen === 'battle' && (
               <BattleScreen
                 onOpenSlime={openSlime}
@@ -143,8 +144,8 @@ export function AppShell() {
               <SlimesScreen
                 selectedId={selectedSlimeId}
                 onSelect={setSelectedSlimeId}
-                onOpenBattle={() => setScreen('battle')}
-                onOpenForge={() => setScreen('forge')}
+                onOpenBattle={() => navigateScreen('battle')}
+                onOpenForge={() => navigateScreen('forge')}
                 entryMode={campEntry.mode}
                 entryRevision={campEntry.revision}
               />
@@ -182,7 +183,7 @@ export function AppShell() {
             onClose={() => setOfflineDismissed(true)}
             onBattle={() => {
               setOfflineDismissed(true);
-              setScreen('battle');
+              navigateScreen('battle');
             }}
           />
         )}
@@ -218,7 +219,7 @@ export function AppShell() {
             icon="battle"
             active={activeScreen === 'battle'}
             attention={activeScreen !== 'battle' && (hasPendingBattleActivity || battleActivityReport !== null)}
-            onClick={setScreen}
+            onClick={navigateScreen}
             disabled={!hasCombatSlime}
           />
           <NavButton
@@ -230,11 +231,11 @@ export function AppShell() {
             onClick={(id) => {
               setSelectedSlimeId(null);
               setCampEntry((current) => ({ mode: 'none', revision: current.revision + 1 }));
-              setScreen(id);
+              navigateScreen(id);
             }}
           />
-          <NavButton id="dispatch" label="派遣" icon="dispatch" active={activeScreen === 'dispatch'} attention={attention.has('dispatch') || dispatchReturnCues.length > 0} onClick={setScreen} disabled={!hasCombatSlime} />
-          <NavButton id="forge" label="鍛造" icon="forge" active={activeScreen === 'forge'} attention={attention.has('forge')} onClick={setScreen} disabled={!hasCombatSlime} />
+          <NavButton id="dispatch" label="派遣" icon="dispatch" active={activeScreen === 'dispatch'} attention={attention.has('dispatch') || dispatchReturnCues.length > 0} onClick={navigateScreen} disabled={!hasCombatSlime} />
+          <NavButton id="forge" label="鍛造" icon="forge" active={activeScreen === 'forge'} attention={attention.has('forge')} onClick={navigateScreen} disabled={!hasCombatSlime} />
           <button
             className={settingsOpen ? styles.navButton + ' ' + styles.navButtonActive : styles.navButton}
             type="button"
@@ -248,21 +249,6 @@ export function AppShell() {
         </nav>
       </section>
     </main>
-  );
-}
-
-function ScreenLoading({ screen }: { screen: ScreenId }) {
-  const labels: Record<ScreenId, string> = {
-    battle: '戦場へ移動中',
-    slimes: 'キャンプへ移動中',
-    dispatch: '遠征地図を開いています',
-    forge: '工房を開いています',
-  };
-  return (
-    <section className={`screen screen--active ${styles.screenLoading}`} aria-label={labels[screen]} aria-busy="true">
-      <SlimeMark className={styles.screenLoadingMark} />
-      <strong>{labels[screen]}</strong>
-    </section>
   );
 }
 
