@@ -1,7 +1,13 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { BottomSheet } from 'idle-game-kit/react';
+import { useManagedTimeouts } from '../app/useManagedTimeouts';
 import { SlimeMark } from './SlimeMark';
 import styles from './OnboardingGuideSheet.module.css';
+
+const CampPlainTrialStage = lazy(async () => {
+  const module = await import('./CampPlainTrialStage');
+  return { default: module.CampPlainTrialStage };
+});
 
 const STEPS = [
   {
@@ -38,8 +44,23 @@ const STEPS = [
 
 export function OnboardingGuideSheet({ onClose }: { onClose: () => void }) {
   const [index, setIndex] = useState(0);
+  const [trialAttemptKey, setTrialAttemptKey] = useState(0);
+  const [trialRunning, setTrialRunning] = useState(false);
+  const [trialDone, setTrialDone] = useState(false);
+  const { schedule } = useManagedTimeouts();
   const step = STEPS[index]!;
   const last = index === STEPS.length - 1;
+
+  const runTrial = () => {
+    if (trialRunning) return;
+    setTrialRunning(true);
+    setTrialDone(false);
+    setTrialAttemptKey((current) => current + 1);
+    schedule(() => {
+      setTrialRunning(false);
+      setTrialDone(true);
+    }, 1900);
+  };
 
   return (
     <BottomSheet
@@ -51,10 +72,29 @@ export function OnboardingGuideSheet({ onClose }: { onClose: () => void }) {
       closeButtonClassName={styles.close}
     >
       <div className={styles.content}>
-        <div className={styles.scene} aria-hidden="true">
-          <SlimeMark className={styles.slime} />
-          <div className={styles.speech}>{step.speech}</div>
-        </div>
+        {index === 0 ? (
+          <div className={`${styles.scene} ${styles.trialScene}`}>
+            <Suspense fallback={<div className={styles.trialLoading} aria-hidden="true" />}>
+              <CampPlainTrialStage attemptKey={trialAttemptKey} completed={trialDone} />
+            </Suspense>
+            <div className={styles.trialHp} aria-label="木人の体力は100パーセントのまま">
+              <span>木人</span><i><b /></i><em>100%</em>
+            </div>
+            {trialRunning && <div className={styles.trialZero}>0</div>}
+            {trialDone ? (
+              <div className={styles.trialSpeech}>……効いてない。</div>
+            ) : (
+              <button className={styles.trialButton} type="button" disabled={trialRunning} onClick={runTrial}>
+                {trialRunning ? '体当たり中…' : '木人を叩いてみる'}
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className={styles.scene} aria-hidden="true">
+            <SlimeMark className={styles.slime} />
+            <div className={styles.speech}>{step.speech}</div>
+          </div>
+        )}
         <div className={styles.copy}>
           <span>{step.label}</span>
           <strong>{step.title}</strong>

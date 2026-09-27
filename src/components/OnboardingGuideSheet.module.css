@@ -104,3 +104,74 @@
   45% { transform: translateY(0) scale(1.05,.95); }
   70% { transform: translateY(-2px) rotate(-2deg) scale(.99,1.02); }
 }
+
+.trialScene { min-height: 210px; }
+.trialScene :global(.camp-plain-trial-stage),
+.trialLoading {
+  position: absolute;
+  inset: 0;
+}
+.trialScene :global(.camp-plain-trial-stage canvas) { width: 100% !important; height: 100% !important; }
+.trialHp {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  grid-template-columns: auto 58px auto;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgb(35 55 46 / 82%);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+}
+.trialHp i { height: 5px; overflow: hidden; border-radius: 999px; background: rgb(255 255 255 / 18%); }
+.trialHp b { display: block; width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg,#7edc75,#bce66f); }
+.trialHp em { font-style: normal; }
+.trialButton {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  min-height: 44px;
+  transform: translateX(-50%);
+  padding: 0 16px;
+  border: 1px solid rgb(255 255 255 / 78%);
+  border-radius: 999px;
+  background: rgb(249 255 245 / 92%);
+  color: #315d3d;
+  box-shadow: 0 8px 20px rgb(35 72 44 / 14%);
+  font-size: 11px;
+  font-weight: 950;
+}
+.trialButton:disabled { opacity: .72; }
+.trialZero {
+  position: absolute;
+  left: 69%;
+  top: 49%;
+  color: #fff;
+  font-size: 28px;
+  font-weight: 1000;
+  text-shadow: 0 2px 0 rgb(47 62 52 / 45%), 0 4px 14px rgb(31 51 41 / 28%);
+  animation: replayZero .82s ease-out .76s both;
+}
+.trialSpeech {
+  position: absolute;
+  left: 16%;
+  bottom: 18px;
+  padding: 8px 10px;
+  border: 1px solid rgb(52 88 62 / 12%);
+  border-radius: 14px;
+  background: rgb(255 255 255 / 95%);
+  color: #2e5438;
+  box-shadow: 0 8px 22px rgb(35 72 44 / 12%);
+  font-size: 11px;
+  font-weight: 900;
+}
+@keyframes replayZero {
+  0% { opacity: 0; transform: translateY(8px) scale(.7); }
+  12% { opacity: 1; transform: translateY(-4px) scale(1.18); }
+  72% { opacity: 1; transform: translateY(-15px) scale(1); }
+  100% { opacity: 0; transform: translateY(-24px) scale(.92); }
+}
