@@ -104,6 +104,23 @@ export function craftPlainSlime(
   })]);
 }
 
+/** Mark the first Plain Slime training-dummy attempt after the presentation has actually played. */
+export function completeFirstPlainTrial(
+  state: SlimeMercenariesState,
+): CommandResult<SlimeMercenariesState, never> {
+  if (state.progressionFlags[ids.progression.firstPlainTrialComplete] === true) {
+    return accept(state, []);
+  }
+  const nextState: SlimeMercenariesState = {
+    ...state,
+    progressionFlags: {
+      ...state.progressionFlags,
+      [ids.progression.firstPlainTrialComplete]: true,
+    },
+  };
+  return accept(nextState, [semanticEvent(nextState, 'firstPlainTrialCompleted', 'training-dummy')]);
+}
+
 /** Compute the exact current shop cost from the authored price curve and purchase history. */
 export function plainSlimePurchaseCost(
   state: SlimeMercenariesState,

@@ -37,6 +37,7 @@ export const ids = {
   },
   progression: {
     firstPlainCreated: 'onboarding.first-plain-created',
+    firstPlainTrialComplete: 'onboarding.first-plain-trial-complete',
   },
   loadout: {
     sword: 'loadout.slime.sword',

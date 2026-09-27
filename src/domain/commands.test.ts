@@ -10,6 +10,7 @@ import {
   buyPlainSlime,
   convertDuplicateToFusionCore,
   craftPlainSlime,
+  completeFirstPlainTrial,
   createJobSlime,
   fuseSlime,
   levelUpSlime,
@@ -61,6 +62,9 @@ describe('Plain Slime economy', () => {
 
     expect(readToken(result.state.tokens, ids.token.plainSlime)).toBe(preview.outputCount);
     expect(result.state.progressionFlags[ids.progression.firstPlainCreated]).toBe(true);
+    const tried = completeFirstPlainTrial(result.state);
+    expect(tried.accepted).toBe(true);
+    expect(tried.state.progressionFlags[ids.progression.firstPlainTrialComplete]).toBe(true);
     for (const requirement of preview.requirements) {
       expect(readToken(result.state.tokens, requirement.tokenId)).toBe(requirement.owned - requirement.required);
     }

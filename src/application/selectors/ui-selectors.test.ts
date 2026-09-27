@@ -4,6 +4,7 @@ import {
   assignSlimeToFormation,
   balance,
   craftPlainSlime,
+  completeFirstPlainTrial,
   createInitialSlimeMercenariesState,
   createJobSlime,
   firstSlimeIdByType,
@@ -265,12 +266,17 @@ describe('UI selectors', () => {
     expect(selectEarlyGameCue(virtualizedResources)?.id).toBe('create-first-plain');
     const crafted = craftPlainSlime(initial);
     if (!crafted.accepted) throw new Error('setup craft failed');
-    const jobCue = selectEarlyGameCue(crafted.state);
-    expect(jobCue?.title).toContain('剣');
+    const trialCue = selectEarlyGameCue(crafted.state);
+    expect(trialCue).toMatchObject({ id: 'try-first-plain', action: 'Try Plain' });
+
+    const tried = completeFirstPlainTrial(crafted.state);
+    if (!tried.accepted) throw new Error('setup plain trial failed');
+    const jobCue = selectEarlyGameCue(tried.state);
+    expect(jobCue?.title).toContain('何もできなかった');
     expect(jobCue?.speech).toBe('これ、ぼくに？');
     expect(jobCue?.speech).not.toContain('ぷる');
 
-    const created = createJobSlime(crafted.state, 'sword');
+    const created = createJobSlime(tried.state, 'sword');
     if (!created.accepted) throw new Error('setup sword failed');
     const battleCue = selectEarlyGameCue(created.state);
     expect(battleCue?.action).toBe('Battle');

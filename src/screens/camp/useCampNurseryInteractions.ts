@@ -5,6 +5,7 @@ import { useManagedTimeouts } from '../../app/useManagedTimeouts';
 import type { NurseryCeremony } from '../../components/NurseryCeremonyStage';
 import {
   sameTypeCount,
+  ids,
   slimeInstanceIdForSerial,
   type JobSlimeId,
   type SlimeInstanceId,
@@ -62,6 +63,7 @@ export function useCampNurseryInteractions({
     if (nurseryBusy || nurseryCommitLockRef.current) return;
     nurseryCommitLockRef.current = true;
     const beforeStock = createPanel.plainStock;
+    const isFirstPlain = state.progressionFlags[ids.progression.firstPlainCreated] !== true;
     const result = controller.craftPlainSlime(1);
 
     if (!result.accepted) {
@@ -71,7 +73,9 @@ export function useCampNurseryInteractions({
     }
 
     setNotice(null);
-    playNurseryCeremony({ kind: 'craft', beforeStock }, 1280);
+    playNurseryCeremony({ kind: 'craft', beforeStock }, 1280, () => {
+      if (isFirstPlain) setCreateOpen(false);
+    });
   };
 
   const handlePurchasePlain = () => {

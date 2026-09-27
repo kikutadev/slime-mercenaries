@@ -10,6 +10,7 @@ import {
   captureMimic,
   convertDuplicateToFusionCore,
   craftPlainSlime,
+  completeFirstPlainTrial,
   createJobSlime,
   equipWeapon,
   enterAreaStage,
@@ -306,6 +307,10 @@ export class SlimeGameController {
 
   buyPlainSlime(count = 1) {
     return this.execute((state) => buyPlainSlime(state, count));
+  }
+
+  completeFirstPlainTrial() {
+    return this.execute((state) => completeFirstPlainTrial(state));
   }
 
   createJobSlime(typeId: JobSlimeId) {

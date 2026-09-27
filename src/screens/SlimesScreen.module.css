@@ -944,3 +944,102 @@
   0%, 100% { box-shadow: 0 12px 32px rgba(42,79,47,.18), 0 0 0 0 rgba(255,215,94,.36); }
   55% { box-shadow: 0 12px 32px rgba(42,79,47,.18), 0 0 0 9px rgba(255,215,94,0); }
 }
+
+.root :global(.camp-plain-trial-stage) {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  top: 25%;
+  height: 330px;
+  pointer-events: none;
+}
+.root :global(.camp-plain-trial-stage canvas) {
+  width: 100% !important;
+  height: 100% !important;
+}
+.root :global(.camp-plain-trial-hp) {
+  position: absolute;
+  z-index: 6;
+  top: 31%;
+  left: 57%;
+  width: 122px;
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(34,54,45,.78);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(28,57,43,.16);
+  font-size: 10px;
+  font-weight: 900;
+  pointer-events: none;
+}
+.root :global(.camp-plain-trial-hp i) {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,.20);
+}
+.root :global(.camp-plain-trial-hp b) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg,#7edc75,#bce66f);
+}
+.root :global(.camp-plain-trial-hp em) {
+  font-size: 10px;
+  font-style: normal;
+}
+.root :global(.camp-plain-trial-zero) {
+  position: absolute;
+  z-index: 8;
+  left: 67%;
+  top: 47%;
+  color: #f4f6ef;
+  font-size: 28px;
+  font-weight: 1000;
+  text-shadow: 0 2px 0 rgba(47,62,52,.45), 0 4px 14px rgba(31,51,41,.28);
+  pointer-events: none;
+  animation: plain-zero-pop .82s ease-out .76s both;
+}
+.root :global(.camp-plain-trial-speech) {
+  position: absolute;
+  z-index: 8;
+  left: 18%;
+  top: 57%;
+  padding: 9px 12px;
+  border: 1px solid rgba(50,88,58,.13);
+  border-radius: 15px;
+  background: rgba(255,255,255,.96);
+  color: #294c35;
+  box-shadow: 0 9px 22px rgba(35,72,44,.14);
+  font-size: 11px;
+  font-weight: 900;
+  pointer-events: none;
+}
+.root :global(.camp-plain-trial-speech::after) {
+  content: "";
+  position: absolute;
+  right: 18px;
+  bottom: -6px;
+  width: 11px;
+  height: 11px;
+  transform: rotate(45deg);
+  border-right: 1px solid rgba(50,88,58,.13);
+  border-bottom: 1px solid rgba(50,88,58,.13);
+  background: rgba(255,255,255,.96);
+}
+.root :global(.camp-empty-world__primary--trial:disabled) {
+  opacity: .82;
+  cursor: default;
+}
+@keyframes plain-zero-pop {
+  0% { opacity: 0; transform: translateY(8px) scale(.7); }
+  12% { opacity: 1; transform: translateY(-4px) scale(1.18); }
+  72% { opacity: 1; transform: translateY(-15px) scale(1); }
+  100% { opacity: 0; transform: translateY(-24px) scale(.92); }
+}

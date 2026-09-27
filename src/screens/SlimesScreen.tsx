@@ -179,7 +179,13 @@ export function SlimesScreen({
       </header>
 
       {ownedIds.length === 0 ? (
-        <CampEmptyWorld title={cue?.title ?? '最初のスライムを生み出す'} body={cue?.body ?? '素材は揃っています。生成槽から始めます。'} onCreate={() => setCreateOpen(true)} />
+        <CampEmptyWorld
+          cueId={cue?.id ?? null}
+          title={cue?.title ?? '最初のスライムを生み出す'}
+          body={cue?.body ?? '素材は揃っています。生成槽から始めます。'}
+          onCreate={() => setCreateOpen(true)}
+          onPlainTrialComplete={() => controller.completeFirstPlainTrial()}
+        />
       ) : (
         <>
           <CampWorld

@@ -50,6 +50,9 @@ export function NurseryPanel({
 
   if (!open) return null;
 
+  const firstPlainGate = tutorialCue?.id === 'create-first-plain' || tutorialCue?.id === 'try-first-plain';
+  const firstJobGate = tutorialCue?.id === 'give-first-job';
+
   return (
     <BottomSheet
       title="仲間を増やす"
@@ -122,8 +125,8 @@ export function NurseryPanel({
               className={`nursery-job-option ${tutorialCue?.action === 'Create Job' && job.id === 'sword' ? 'is-tutorial-target' : ''}`}
               key={job.id}
               type="button"
-              disabled={busy || !job.canCreate}
-              aria-label={`${job.name}にする。 ${job.canCreate ? (job.isNew ? 'はじめての職業' : '仲間を増やす') : '素材不足'}`}
+              disabled={busy || !job.canCreate || firstPlainGate || (firstJobGate && job.id !== 'sword')}
+              aria-label={`${job.name}にする。 ${firstPlainGate ? 'まずプレーンスライムを試します' : firstJobGate && job.id !== 'sword' ? '最初は剣を渡します' : job.canCreate ? (job.isNew ? 'はじめての職業' : '仲間を増やす') : '素材不足'}`}
               onClick={() => onCreateJob(job.id)}
             >
               <img src={`${import.meta.env.BASE_URL}${job.icon}`} alt="" />

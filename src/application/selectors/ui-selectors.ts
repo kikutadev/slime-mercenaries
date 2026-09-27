@@ -110,7 +110,7 @@ export function selectGlobalHud(state: SlimeMercenariesState) {
   } as const;
 }
 
-export type EarlyGameCueAction = 'Create Slime' | 'Create Job' | 'Battle' | 'Fuse';
+export type EarlyGameCueAction = 'Create Slime' | 'Try Plain' | 'Create Job' | 'Battle' | 'Fuse';
 
 export type EarlyGameCue = Readonly<{
   id: string;
@@ -128,6 +128,7 @@ export type EarlyGameCue = Readonly<{
 export function selectEarlyGameCue(state: SlimeMercenariesState): EarlyGameCue | null {
   const sword = firstSlimeByType(state, 'sword');
   const firstPlainCreated = state.progressionFlags[ids.progression.firstPlainCreated] === true;
+  const firstPlainTrialComplete = state.progressionFlags[ids.progression.firstPlainTrialComplete] === true;
 
   if (sword === null) {
     if (!firstPlainCreated) {
@@ -138,10 +139,19 @@ export function selectEarlyGameCue(state: SlimeMercenariesState): EarlyGameCue |
         action: 'Create Slime',
       };
     }
+    if (!firstPlainTrialComplete) {
+      return {
+        id: 'try-first-plain',
+        title: 'このスライム、戦える？',
+        body: 'まずは目の前の木人を相手に、何ができるか見てみます。',
+        action: 'Try Plain',
+        speech: 'やってみる。',
+      };
+    }
     return {
       id: 'give-first-job',
-      title: 'プレーンスライムに剣を渡す',
-      body: '仕事道具を渡すと、スライムに最初の職業が生まれます。',
+      title: '何もできなかったスライムに剣を渡す',
+      body: '木人には傷ひとつつきませんでした。仕事道具を渡して、最初の職業を生み出します。',
       action: 'Create Job',
       speech: 'これ、ぼくに？',
     };
@@ -175,8 +185,8 @@ export function selectEarlyGameCue(state: SlimeMercenariesState): EarlyGameCue |
   if (sword.level < 10) {
     return {
       id: 'strengthen-first-sword',
-      title: 'まずは剣士スライムの戦い方を見る',
-      body: '戦闘は自動で進みます。剣を持ったことで、さっきまで何もできなかったスライムの動きが変わります。',
+      title: 'さっき何もできなかったスライムを戦わせる',
+      body: '木人には0ダメージでした。剣を持った今、同じスライムの動きがどう変わったか見ます。',
       action: 'Battle',
       speech: '剣だ。',
       speakerSlimeId: sword.id,

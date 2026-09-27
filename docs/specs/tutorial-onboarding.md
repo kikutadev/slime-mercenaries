@@ -17,7 +17,7 @@ Within the first 10 minutes, a new player should understand by doing that:
 6. Same-job slimes remain independent bodies until the player chooses otherwise.
 7. Reserve slimes can work through Dispatch.
 
-The player should not need to read a long rules page to explain the game back in those terms.
+The player should not need to read a long rules page to explain the game back in those terms. In particular, the claim that a job changes combat must be earned by first showing the Plain fail to damage a training target.
 
 ## 2. Teaching principle
 
@@ -189,7 +189,37 @@ Acceptance:
 - result is understood as a slime being made, not a counter increment
 - bubble and motion never obscure the emerging body
 
-### Step 2 — Give Sword Job Gear
+### Step 2 — Prove the Plain cannot fight yet
+
+After the first Plain is created, the nursery closes and the Camp becomes a tiny training scene.
+
+Presentation:
+
+1. the real Plain model faces a wooden training dummy
+2. the dummy shows a full 100% HP bar
+3. player taps `木人を叩いてみる`
+4. Plain gathers itself and body-checks the dummy
+5. impact shows `0`
+6. dummy HP does not move at all
+7. Plain rebounds and settles
+8. bubble: `……効いてない。`
+
+Only after that presentation has actually completed does the next action appear:
+
+`剣を渡す`
+
+System caption:
+
+`何もできなかったスライムに仕事を与える`
+
+Acceptance:
+
+- the player sees failure before any text claims that a job changes combat
+- first-job creation cannot be tapped before this attempt finishes, including in validation/development mode
+- reloading after the attempt does not replay it forever; completion is stored as an onboarding milestone
+- the comparison remains causal: same Plain fantasy -> tool -> job -> visible combat behavior
+
+### Step 3 — Give Sword Job Gear
 
 Action:
 
@@ -223,7 +253,7 @@ After ceremony:
 - if a formation slot is open, first discovery may be placed automatically
 - next primary route points to Battle
 
-### Step 3 — First combat difference
+### Step 4 — First combat difference
 
 Goal:
 
@@ -245,7 +275,7 @@ Acceptance:
 
 - a new player can identify which unit attacked without damage-number dependency
 
-### Step 4 — First Strengthen
+### Step 5 — First Strengthen
 
 When affordable, Camp surfaces Strengthen as the single contextual next action.
 
@@ -262,7 +292,7 @@ Bubble candidate after reveal:
 
 Do not explain coefficient math in onboarding.
 
-### Step 5 — Discover a second job
+### Step 6 — Discover a second job
 
 Use guaranteed/deterministic early Job Gear such as Bow.
 
@@ -276,7 +306,7 @@ Bubble during tool handoff may remain minimal:
 
 After battle preview, no long comparison screen is required. The actual attack range/projectile must communicate the distinction.
 
-### Step 6 — Create a duplicate job
+### Step 7 — Create a duplicate job
 
 Create a second Sword Slime through the same Plain + Sword Job Gear path.
 
@@ -296,7 +326,7 @@ System caption:
 
 Do not introduce Fusion conversion in the same instant if doing so makes the second body feel disposable.
 
-### Step 7 — First Fusion
+### Step 8 — First Fusion
 
 After the player has seen that duplicate bodies are real characters, introduce explicit reserve-body conversion / Fusion input.
 
@@ -327,7 +357,7 @@ System caption:
 
 `合成では体を大きくせず、武器と戦い方が進化します。`
 
-### Step 8 — First authored defeat
+### Step 9 — First authored defeat
 
 Goal:
 
@@ -356,7 +386,7 @@ System caption:
 
 Do not tell the player one mandatory build choice. Camp may surface executable Strengthen/Fusion opportunities without claiming one is the correct answer.
 
-### Step 9 — Retry and payoff
+### Step 10 — Retry and payoff
 
 After farm/strengthening, the game automatically returns to the uncleared frontier.
 
@@ -366,7 +396,7 @@ Before contact, optional short bubble:
 
 The ideal payoff is an actual clear, but balance remains authored Domain data; tutorial presentation must not fake a win.
 
-### Step 10 — First Dispatch
+### Step 11 — First Dispatch
 
 When there is at least one eligible reserve persistent slime:
 
