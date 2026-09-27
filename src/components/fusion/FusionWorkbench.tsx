@@ -28,12 +28,15 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit, onRetur
     selectedStepId,
     setSelectedStepId,
     sequenceKey,
+    phase,
     completed,
     completedName,
     completedBehavior,
     notice,
     setNotice,
     beginFusion,
+    enterReveal,
+    startAttackPreview,
     completeFusion,
     convertDuplicate,
   } = useFusionWorkbenchInteraction();
@@ -115,7 +118,7 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit, onRetur
 
       <div className={styles.header}>
         <span>合成ランク {displayFromRank} → {displayFromRank + 1}</span>
-        <strong>{run?.fromName ?? (completed ? completedName ?? detail.name : detail.name)}</strong>
+        <strong>{run !== null ? (phase === 'merge' ? run.fromName : completedName ?? resultPresentation.name) : (completed ? completedName ?? detail.name : detail.name)}</strong>
       </div>
 
       <div className={styles.stageArea}>
@@ -137,14 +140,15 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit, onRetur
           slimeId={progress.typeId}
           fusionRank={displayFromRank}
           fusionReady={!completed}
-          isFusing={run !== null && !completed}
+          sequencePhase={run === null ? (completed ? 'complete' : 'idle') : phase}
           sequenceKey={sequenceKey}
           fromRank={run?.fromRank ?? displayFromRank}
           toRank={run?.toRank ?? displayFromRank + 1}
           ceremony={stepPresentation.ceremony}
           currentPresentation={currentPresentation}
           resultPresentation={resultPresentation}
-          onFusionComplete={completeFusion}
+          onMergeComplete={enterReveal}
+          onAttackComplete={completeFusion}
         />
         {!completed && run === null && (
           <div className={styles.stageCaption}>
@@ -153,7 +157,41 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit, onRetur
         )}
       </div>
 
-      {!completed ? (
+      {run !== null ? (
+        <div className={styles.sequencePanel} role="status" aria-live="polite">
+          <div className={styles.sequenceSteps} aria-label="合成の進行">
+            <span className={phase === 'merge' ? styles.current : styles.done}>1 <b>合成</b></span>
+            <i />
+            <span className={phase === 'reveal' ? styles.current : phase === 'attack' ? styles.done : ''}>2 <b>新しい姿</b></span>
+            <i />
+            <span className={phase === 'attack' ? styles.current : ''}>3 <b>新しい攻撃</b></span>
+          </div>
+          {phase === 'merge' && (
+            <div className={styles.sequenceCopy}>
+              <span>合成中</span>
+              <strong>{run.fromName}の力と素材を重ねています</strong>
+              <small>素材が集まり、2体の力が中央へ寄ってから新しい姿が現れます。</small>
+            </div>
+          )}
+          {phase === 'reveal' && (
+            <div className={styles.sequenceCopy}>
+              <span>新しい姿</span>
+              <strong>{completedName ?? resultPresentation.name}</strong>
+              <small>{completedBehavior ?? stepPresentation.behaviorTitle}</small>
+              <button className={styles.previewAction} type="button" onClick={() => startAttackPreview(resultPresentation)}>
+                新しい攻撃を見る
+              </button>
+            </div>
+          )}
+          {phase === 'attack' && (
+            <div className={styles.sequenceCopy}>
+              <span>攻撃プレビュー</span>
+              <strong>{completedBehavior ?? stepPresentation.behaviorTitle}</strong>
+              <small>合成前と違う動きを、ここで最後まで確認します。</small>
+            </div>
+          )}
+        </div>
+      ) : !completed ? (
         <div className={styles.console}>
           {run === null && nextChoices.length > 1 && (
             <div className={styles.pathChoices} aria-label="合成先を選ぶ">

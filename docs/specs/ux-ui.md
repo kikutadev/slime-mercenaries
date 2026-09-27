@@ -224,10 +224,13 @@ First Sword fusion milestone:
 - fire a bright central flash at contact
 - replace both with Greatsword Slime
 - keep slime-body dimensions unchanged; communicate the upgrade through the greatsword silhouette and attack
-- immediately preview a fast half-turn horizontal greatsword sweep
+- hold on the resulting Greatsword Slime after the reveal; do not auto-advance while the player is still reading the new silhouette
+- expose an explicit `新しい攻撃を見る` action only after the new form is stable
+- after the player chooses it, preview the fast half-turn horizontal greatsword sweep to completion
+- only then show the final `合成完了` actions (`キャンプで見る` / `戦闘で試す`)
 - in battle, the sweep damages every living enemy inside its area rather than only the selected target
 
-Later ordinary fusion steps may use a shorter jelly compression + weapon/VFX pulse. Fusion presentation should remain shorter than a NEW job reveal.
+The ceremony must make its current beat legible: `合成 -> 新しい姿 -> 新しい攻撃`. The result hold is user-controlled; do not use a fixed timer to force the player from the new-form reveal into the attack preview. Later ordinary fusion steps may use simpler VFX, but they keep the same readable beat separation.
 
 ## 9. Advanced Fusion UI
 

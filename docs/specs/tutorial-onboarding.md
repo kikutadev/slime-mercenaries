@@ -343,7 +343,9 @@ Fusion ceremony:
 - two same-body-size Sword visuals may be used as the fantasy presentation
 - center pull + flash
 - resulting Greatsword form keeps slime body dimensions stable
-- immediate attack preview demonstrates the new horizontal sweep
+- stop on the new form long enough for the player to read it; this hold does not auto-advance
+- show `新しい攻撃を見る` and wait for the player to choose it
+- attack preview then demonstrates the new horizontal sweep to completion before the final result actions appear
 
 Bubble candidate before Fusion:
 
