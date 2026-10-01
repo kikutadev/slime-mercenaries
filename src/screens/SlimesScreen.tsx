@@ -210,28 +210,30 @@ export function SlimesScreen({
         />
       ) : (
         <>
-          <CampWorld
-            feedback={campFeedback}
-            hero={createOpen || cue?.id === 'try-first-sword' || detail === null || selectedTemperament === null || !focusSelectedInCamp ? null : {
-              presentation: detail.presentation,
-              role: detail.role,
-              name: detail.name,
-              level: detail.level,
-              fusionRank: detail.fusionRank,
-              temperament: selectedTemperament,
-            }}
-            residents={createOpen ? [] : campLifeResidents}
-            fusionReady={detail?.fusionOptions.some((option) => option.canFuse) ?? false}
-            strengthenCeremony={strengthenCeremony}
-            speech={cue?.id === 'try-first-sword'
-              ? undefined
-              : cue?.speakerSlimeId === selected
-                ? cue.speech
-                : selectedTemperament !== null && cue === null && !commandPanelOpen
-                  ? campTemperamentTapLine(selectedTemperament)
-                  : undefined}
-            onResidentSelect={cue === null && !commandPanelOpen ? onSelect : undefined}
-          />
+          {!commandPanelOpen && (
+            <CampWorld
+              feedback={campFeedback}
+              hero={createOpen || cue?.id === 'try-first-sword' || detail === null || selectedTemperament === null || !focusSelectedInCamp ? null : {
+                presentation: detail.presentation,
+                role: detail.role,
+                name: detail.name,
+                level: detail.level,
+                fusionRank: detail.fusionRank,
+                temperament: selectedTemperament,
+              }}
+              residents={createOpen ? [] : campLifeResidents}
+              fusionReady={detail?.fusionOptions.some((option) => option.canFuse) ?? false}
+              strengthenCeremony={strengthenCeremony}
+              speech={cue?.id === 'try-first-sword'
+                ? undefined
+                : cue?.speakerSlimeId === selected
+                  ? cue.speech
+                  : selectedTemperament !== null && cue === null
+                    ? campTemperamentTapLine(selectedTemperament)
+                    : undefined}
+              onResidentSelect={cue === null ? onSelect : undefined}
+            />
+          )}
 
           {cue?.id === 'try-first-sword' && !createOpen && !commandPanelOpen && (
             <Suspense fallback={null}>

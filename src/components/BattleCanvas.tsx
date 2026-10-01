@@ -9,6 +9,7 @@ import {
   type BattleSnapshot,
 } from '../game/BattleRuntime';
 import type { BattleRewardCue } from '../game/battle-reward';
+import { shouldRecoverPartyForEncounter } from '../game/battle-encounter-transition';
 import { CAMERA_BASE_POSITION } from '../game/battle-runtime/layout';
 
 interface BattleCanvasProps {
@@ -43,11 +44,17 @@ function enemyConfigs(model: BattleSceneModel): readonly BattleRuntimeEnemyConfi
   })) ?? [];
 }
 
-function encounterUpdate(model: BattleSceneModel): BattleRuntimeEncounterUpdate {
+function encounterUpdate(
+  model: BattleSceneModel,
+  previous: BattleSceneModel,
+  forcePartyRecovery = false,
+): BattleRuntimeEncounterUpdate {
+  const recoverParty = shouldRecoverPartyForEncounter(previous, model, forcePartyRecovery);
   return {
     areaId: model.areaId,
     stageNumber: model.stageNumber,
     waveIndex: model.waveIndex,
+    recoverParty,
     enemies: enemyConfigs(model),
   };
 }
@@ -157,7 +164,7 @@ function BattleRuntimeScene({
         return;
       }
 
-      await runtime.updateEncounter(encounterUpdate(desiredModel));
+      await runtime.updateEncounter(encounterUpdate(desiredModel, modelRef.current));
       if (runtimeRef.current !== runtime) return;
 
       const pendingAfterLoad = pendingModelRef.current;
@@ -184,7 +191,7 @@ function BattleRuntimeScene({
     const desiredModel = modelRef.current;
     void ready.then(async () => {
       if (runtimeRef.current !== runtime) return;
-      await runtime.updateEncounter(encounterUpdate(desiredModel));
+      await runtime.updateEncounter(encounterUpdate(desiredModel, desiredModel, true));
       if (runtimeRef.current !== runtime) return;
       appliedRestartRevisionRef.current = restartRevision;
       encounterRestartedRef.current(desiredModel);

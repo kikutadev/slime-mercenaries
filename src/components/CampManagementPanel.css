@@ -1,92 +1,69 @@
-/* Phase E: management stays subordinate to the Camp and selected slime. */
+/* Camp management is a dedicated task surface, not a short bottom sheet. */
 .camp-command-panel {
-  max-height: min(39%, 304px);
-  padding: 8px;
-  border-radius: 22px;
+  top: 54px;
+  bottom: 8px;
+  max-height: none;
+  padding: 12px;
+  border-radius: 24px;
+  background: rgba(244, 250, 238, .98);
 }
+
 .camp-command-panel__header {
-  top: -8px;
-  margin: -8px -8px 6px;
-  padding: 9px 9px 7px;
-  min-height: 52px;
+  top: -12px;
+  margin: -12px -12px 12px;
+  padding: 14px 12px 10px;
+  min-height: 62px;
 }
-.camp-command-panel__header::before {
-  width: 30px;
-}
-.camp-command-panel__identity {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  column-gap: 7px;
-  align-items: baseline;
-}
-.camp-command-panel__identity > span {
-  grid-row: 1 / span 2;
-  align-self: center;
-  padding: 3px 6px;
-  border-radius: 999px;
-  background: rgba(57,119,70,.09);
-  color: rgba(49,95,61,.72);
+
+.camp-command-panel__header::before { display: none; }
+.camp-command-panel__header > div { min-width: 0; }
+.camp-command-panel__header > div > span,
+.camp-command-panel__header > div > strong { display: block; }
+.camp-command-panel__header > div > span {
+  color: rgba(49, 95, 61, .60);
   font-size: 10px;
   font-weight: 900;
+  letter-spacing: .06em;
 }
-.camp-command-panel__identity > strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-}
-.camp-command-panel__identity > small {
-  color: rgba(24,50,72,.52);
-  font-size: 10px;
-  font-weight: 800;
+.camp-command-panel__header > div > strong {
+  margin-top: 2px;
+  color: #294c35;
+  font-size: 17px;
+  line-height: 1.15;
 }
 .camp-command-panel__header > button {
   min-height: var(--touch-target-min);
-  padding: 0 10px;
+  padding: 0 12px;
 }
+
 .camp-roster-block {
   position: relative;
-  padding-right: 100px;
+  padding-right: 0;
 }
 .camp-roster-toolbar {
-  position: absolute;
-  z-index: 2;
-  right: 0;
-  top: 0;
-  width: 94px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
+  gap: 7px;
+  margin: 0 0 9px;
 }
 .camp-roster-toolbar > button {
   position: relative;
-  min-width: 0;
-  min-height: 54px;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 2px;
-  padding: 3px;
-  border: 1px solid rgba(58,103,67,.11);
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid rgba(58, 103, 67, .11);
   border-radius: 13px;
-  background: rgba(255,255,255,.62);
+  background: rgba(255, 255, 255, .72);
   color: #386c45;
 }
-.camp-roster-toolbar > button > svg {
-  width: 19px;
-  height: 19px;
-}
-.camp-roster-toolbar > button > span {
-  font-size: 17px;
-  line-height: 1;
-}
-.camp-roster-toolbar > button > strong {
-  font-size: 10px;
-}
+.camp-roster-toolbar > button > svg { width: 20px; height: 20px; }
+.camp-roster-toolbar > button > span { font-size: 18px; line-height: 1; }
+.camp-roster-toolbar > button > strong { font-size: 11px; }
 .camp-roster-toolbar > button.is-new {
-  border-color: rgba(218,168,54,.38);
+  border-color: rgba(218, 168, 54, .38);
   background: #fff7d9;
   color: #80601c;
 }
@@ -94,8 +71,8 @@
   position: absolute;
   top: -4px;
   right: -4px;
-  min-width: 17px;
-  height: 17px;
+  min-width: 18px;
+  height: 18px;
   display: grid;
   place-items: center;
   padding: 0 4px;
@@ -107,48 +84,94 @@
   font-style: normal;
   font-weight: 900;
 }
+
 .camp-roster {
-  min-height: 56px;
-  padding-bottom: 3px;
+  min-height: 78px;
+  gap: 7px;
+  padding: 2px 1px 6px;
 }
 .camp-roster button {
-  flex-basis: 56px;
-  width: 56px;
-  height: 56px;
-  grid-template-rows: 31px auto;
-  padding: 3px;
-  border-radius: 13px;
+  flex-basis: 72px;
+  width: 72px;
+  height: 76px;
+  grid-template-rows: 42px auto auto;
+  padding: 5px;
+  border-radius: 15px;
 }
-.camp-roster img {
-  width: 31px;
-  height: 31px;
-}
-.camp-roster button > strong {
-  font-size: 10px;
-}
+.camp-roster img { width: 42px; height: 42px; }
+.camp-roster button > strong { font-size: 11px; }
 .camp-roster button > small {
-  display: none;
+  display: block;
+  color: rgba(24, 50, 72, .48);
+  font-size: 10px;
+  font-weight: 800;
 }
-.camp-primary-actions {
-  margin-top: 6px;
+
+.camp-selected-summary {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 11px;
+  align-items: center;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(55, 104, 65, .12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .76);
 }
+.camp-selected-summary > img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+.camp-selected-summary > div { min-width: 0; }
+.camp-selected-summary span,
+.camp-selected-summary strong,
+.camp-selected-summary small { display: block; }
+.camp-selected-summary span {
+  color: rgba(49, 95, 61, .60);
+  font-size: 10px;
+  font-weight: 900;
+}
+.camp-selected-summary strong {
+  margin-top: 2px;
+  overflow: hidden;
+  color: #294c35;
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.camp-selected-summary small {
+  margin-top: 3px;
+  color: rgba(24, 50, 72, .56);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.camp-next-action {
+  min-height: 60px !important;
+  margin-top: 9px !important;
+  padding: 10px 13px !important;
+  border: 0 !important;
+  border-radius: 17px !important;
+  background: linear-gradient(180deg, #66ad63, #478b53) !important;
+  box-shadow: 0 10px 22px rgba(49, 104, 62, .24) !important;
+}
+.camp-next-action > span { color: rgba(255, 255, 255, .72) !important; }
+.camp-next-action > strong { font-size: 13px !important; }
+.camp-next-action > em { color: #fff !important; }
+
+.camp-primary-actions { margin-top: 10px; }
 .camp-primary-action {
-  min-height: 54px;
-  gap: 2px;
+  min-height: 60px;
+  gap: 3px;
+  background: rgba(255, 255, 255, .66);
 }
 .camp-primary-action > span {
-  width: 25px;
-  height: 25px;
+  width: 27px;
+  height: 27px;
   border-radius: 9px;
 }
-.camp-equipment-entry {
-  margin-top: 6px;
-  padding-top: 6px;
-  padding-bottom: 6px;
-}
-.camp-command-panel--formation .camp-roster-block {
-  padding-right: 0;
-}
-.camp-command-panel--formation .camp-roster-toolbar {
-  display: none;
-}
+.camp-equipment-entry { margin-top: 8px; }
+
+.camp-command-panel--formation .camp-roster-toolbar { display: none; }
+.camp-command-panel--formation .camp-selected-summary { display: none; }

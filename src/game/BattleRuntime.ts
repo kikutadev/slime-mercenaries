@@ -259,10 +259,9 @@ export class BattleRuntime {
     this.clearProjectiles();
     this.enemies.splice(0).forEach((enemy) => this.disposeEnemy(enemy));
 
-    const recoverParty = previousResult === 'defeat'
-      || update.areaId !== previousAreaId
-      || update.stageNumber !== previousStageNumber
-      || update.waveIndex <= previousWaveIndex;
+    // Stage/restart recovery is an explicit presentation contract. Wave-to-wave transitions
+    // intentionally preserve damage and defeated members until the stage is completed.
+    const recoverParty = update.recoverParty || previousResult === 'defeat';
 
     this.areaId = update.areaId;
     this.stageNumber = update.stageNumber;

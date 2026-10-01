@@ -793,3 +793,35 @@
   0%, 100% { box-shadow: 0 0 0 0 rgba(243,200,90,.32); }
   55% { box-shadow: 0 0 0 8px rgba(243,200,90,0); }
 }
+
+
+/* Creation/job assignment is a focused task; use the phone height instead of a short sheet. */
+@media (max-width: 600px) {
+  .backdrop {
+    align-items: stretch;
+    padding: 8px;
+  }
+  .sheet {
+    width: 100%;
+    height: calc(100dvh - 16px);
+    max-height: none;
+    border-radius: 24px;
+  }
+  .sheet :global(.nursery-stage) {
+    min-height: 230px;
+  }
+  .sheet :global(.nursery-stage__scene) {
+    height: 192px;
+  }
+  .sheet :global(.nursery-craft-trigger) {
+    min-height: 72px;
+  }
+  .sheet :global(.nursery-jobs--roles .nursery-job-option) {
+    min-height: 88px;
+  }
+  .sheet :global(.nursery-job-option.is-tutorial-target) {
+    border-color: rgba(62,132,74,.58);
+    background: #e8f4df;
+    box-shadow: 0 8px 20px rgba(49,104,62,.16);
+  }
+}

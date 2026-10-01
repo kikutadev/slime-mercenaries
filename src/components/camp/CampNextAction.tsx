@@ -19,7 +19,6 @@ export function CampNextAction({
 
   if (
     mode === 'none'
-    && retryFarmClearsRemaining > 0
     && primaryUpgrade !== null
     && primaryUpgradeName !== null
   ) {
@@ -38,7 +37,7 @@ export function CampNextAction({
           );
         }}
       >
-        <span>再出撃準備</span>
+        <span>{retryFarmClearsRemaining > 0 ? '再出撃準備' : 'おすすめ'}</span>
         <strong>{primaryUpgradeName} · {primaryUpgrade.label}</strong>
         <em>›</em>
       </button>
@@ -62,20 +61,30 @@ export function CampNextAction({
     );
   }
 
-  if (mode !== 'none' || cue === null) return null;
+  if (mode !== 'none') return null;
+
+  if (cue !== null) {
+    return (
+      <button
+        className="camp-next-action"
+        type="button"
+        onClick={() => {
+          if (cue.action === 'Battle') actions.openBattle();
+          else if (cue.action === 'Fuse') actions.setMode('fusion');
+          else actions.openCreate();
+        }}
+      >
+        <span>次にやること</span>
+        <strong>{cue.title}</strong>
+        <em>›</em>
+      </button>
+    );
+  }
 
   return (
-    <button
-      className="camp-next-action"
-      type="button"
-      onClick={() => {
-        if (cue.action === 'Battle') actions.openBattle();
-        else if (cue.action === 'Fuse') actions.setMode('fusion');
-        else actions.openCreate();
-      }}
-    >
+    <button className="camp-next-action" type="button" onClick={actions.openBattle}>
       <span>次にやること</span>
-      <strong>{cue.title}</strong>
+      <strong>戦闘へ戻る</strong>
       <em>›</em>
     </button>
   );

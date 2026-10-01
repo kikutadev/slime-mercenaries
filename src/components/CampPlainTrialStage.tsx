@@ -25,7 +25,7 @@ function PlainActor({ attemptKey, completed }: { attemptKey: number; completed: 
     const baseX = -0.72;
     const baseY = -0.58;
     node.position.set(baseX, baseY, 0);
-    node.rotation.set(0, -0.18, 0);
+    node.rotation.set(0, Math.PI / 2, 0);
     node.scale.setScalar(0.62);
 
     if (attemptKey > 0 && elapsed >= 0 && elapsed < 1.72) {

@@ -1132,3 +1132,38 @@
   72% { opacity:1; transform:translateY(-16px) scale(1); }
   100% { opacity:0; transform:translateY(-28px) scale(.9); }
 }
+
+
+/* 2026-10-02: one obvious CTA during first-play actions. */
+.root :global(.camp-empty-world > .camp-empty-world__primary),
+.root :global(.camp-sword-trial__action) {
+  border: 0;
+  background: linear-gradient(180deg,#66ad63,#478b53);
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(49,104,62,.26);
+}
+.root :global(.camp-empty-world > .camp-empty-world__primary small),
+.root :global(.camp-sword-trial__action small) {
+  color: rgba(255,255,255,.76);
+}
+.root :global(.camp-empty-world > .camp-empty-world__primary strong),
+.root :global(.camp-sword-trial__action strong) {
+  font-size: 14px;
+}
+
+
+/* Management replaces the Camp world while open; it is not a compact bottom sheet. */
+.root :global(.camp-command-panel) {
+  top: 54px;
+  bottom: 8px;
+  max-height: none;
+}
+.root :global(.camp-primary-actions)::before {
+  content: "その他の育成";
+  grid-column: 1 / -1;
+  color: rgba(49,95,61,.58);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .05em;
+  text-align: left;
+}

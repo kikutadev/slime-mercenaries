@@ -253,5 +253,7 @@ export type BattleRuntimeEncounterUpdate = Readonly<{
   areaId: string;
   stageNumber: number;
   waveIndex: number;
+  /** Full recovery is explicit at stage/restart boundaries; wave transitions preserve damage. */
+  recoverParty: boolean;
   enemies: readonly BattleRuntimeEnemyConfig[];
 }>;

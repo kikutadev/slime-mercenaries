@@ -81,6 +81,7 @@ describe('BattleRuntime scene lifecycle', () => {
       areaId: 'area.clover-road',
       stageNumber: 1,
       waveIndex: 0,
+      recoverParty: true,
       enemies: [],
     });
     expect(snapshots.at(-1)?.phase).not.toBe('result');

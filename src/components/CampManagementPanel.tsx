@@ -31,17 +31,26 @@ export function CampManagementPanel({
       aria-busy={busy}
     >
       <div className="camp-command-panel__header">
-        <div className="camp-command-panel__identity">
-          <span>選択中</span>
-          <strong>{detail.name}</strong>
-          <small>{detail.role} · Lv.{detail.level}</small>
+        <div>
+          <span>キャンプ管理</span>
+          <strong>仲間・育成</strong>
         </div>
         <button type="button" disabled={busy} onClick={actions.closeManagement}>
-          キャンプへ
+          キャンプへ戻る
         </button>
       </div>
 
       {(mode === 'none' || mode === 'formation') && <CampRosterStrip model={model} actions={actions} />}
+      {mode === 'none' && (
+        <section className="camp-selected-summary" aria-label="選択中のスライム">
+          <img src={`${import.meta.env.BASE_URL}${detail.icon}`} alt="" />
+          <div>
+            <span>選択中</span>
+            <strong>{detail.name}</strong>
+            <small>{detail.role} · Lv.{detail.level} · 合成ランク {detail.fusionRank}</small>
+          </div>
+        </section>
+      )}
       {mode === 'none' && <CampNextAction model={model} actions={actions} />}
       <CampPrimaryActions model={model} actions={actions} />
       {mode === 'none' && <CampEquipmentEntry model={model} actions={actions} />}
