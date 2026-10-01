@@ -128,6 +128,7 @@
   width: 100% !important;
   height: 100% !important;
 }
+.root :global(.camp-environment-stage--interactive) { pointer-events: auto; }
 .root :global(.camp-station-icon) {
   width: 21px;
   height: 21px;
@@ -430,7 +431,7 @@
 
 .root :global(.camp-primary-actions) {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0,1fr));
+  grid-template-columns: repeat(3, minmax(0,1fr));
   gap: 6px;
   margin-top: 8px;
 }
@@ -894,10 +895,15 @@
   position: absolute;
   z-index: 5;
   left: 50%;
-  bottom: max(92px, 13%);
-  width: min(310px, calc(100% - 36px));
-  min-height: 82px;
+  bottom: max(98px, 13%);
+  width: min(278px, calc(100% - 52px));
+  min-height: 68px;
   transform: translateX(-50%);
+  padding: 10px 18px;
+  border-radius: 18px;
+}
+.root :global(.camp-empty-world > .camp-empty-world__primary > span) {
+  font-size: 20px;
 }
 .root :global(.is-tutorial-target) {
   box-shadow: 0 12px 32px rgba(42,79,47,.18), 0 0 0 0 rgba(255,215,94,.48);
@@ -1033,13 +1039,96 @@
   border-bottom: 1px solid rgba(50,88,58,.13);
   background: rgba(255,255,255,.96);
 }
+
+.root :global(.camp-empty-world--attempting .camp-empty-world__tutorial) {
+  opacity: .22;
+  transform: translateY(-6px) scale(.985);
+  transition: opacity .18s ease, transform .18s ease;
+}
+.root :global(.camp-empty-world--attempting > .camp-empty-world__primary) {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(8px);
+  transition: opacity .16s ease, transform .16s ease;
+}
 .root :global(.camp-empty-world__primary--trial:disabled) {
   opacity: .82;
   cursor: default;
+}
+.root :global(.camp-empty-world--attempting > .camp-empty-world__primary--trial:disabled) {
+  opacity: 0;
 }
 @keyframes plain-zero-pop {
   0% { opacity: 0; transform: translateY(8px) scale(.7); }
   12% { opacity: 1; transform: translateY(-4px) scale(1.18); }
   72% { opacity: 1; transform: translateY(-15px) scale(1); }
   100% { opacity: 0; transform: translateY(-24px) scale(.92); }
+}
+
+
+/* First Sword comparison: same Camp target, materially stronger consequence. */
+.root :global(.camp-sword-trial) {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  pointer-events: none;
+}
+.root :global(.camp-sword-trial__stage) {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 25%;
+  height: 330px;
+}
+.root :global(.camp-sword-trial__stage canvas) { width: 100% !important; height: 100% !important; }
+.root :global(.camp-sword-trial__hp) {
+  position: absolute;
+  z-index: 3;
+  top: 31%;
+  left: 57%;
+  width: 122px;
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(34,54,45,.82);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(28,57,43,.16);
+  font-size: 10px;
+  font-weight: 900;
+}
+.root :global(.camp-sword-trial__hp i) { height: 5px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.20); }
+.root :global(.camp-sword-trial__hp b) { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#7edc75,#bce66f); transition:width .18s ease .58s; }
+.root :global(.camp-sword-trial__hp em) { font-size:10px; font-style:normal; }
+.root :global(.camp-sword-trial__damage) {
+  position:absolute; z-index:4; left:67%; top:47%; color:#fff8ca; font-size:30px; font-weight:1000;
+  text-shadow:0 2px 0 rgba(89,65,29,.52),0 5px 18px rgba(91,58,21,.30);
+  animation:sword-damage-pop .78s cubic-bezier(.15,.8,.25,1) .56s both;
+}
+.root :global(.camp-sword-trial__speech) {
+  position:absolute; z-index:4; left:17%; top:55%; padding:9px 12px; border:1px solid rgba(50,88,58,.13); border-radius:15px;
+  background:rgba(255,255,255,.96); color:#294c35; box-shadow:0 9px 22px rgba(35,72,44,.14); font-size:11px; font-weight:900;
+}
+.root :global(.camp-sword-trial__action) {
+  position:absolute; z-index:5; pointer-events:auto; left:50%; bottom:max(92px,13%); width:min(286px,calc(100% - 48px)); min-height:72px;
+  transform:translateX(-50%); display:grid; place-items:center; gap:3px; padding:13px 20px; border:1px solid rgba(255,255,255,.78); border-radius:20px;
+  background:rgba(250,255,246,.90); color:#294c35; box-shadow:0 14px 34px rgba(42,79,47,.16);
+}
+.root :global(.camp-sword-trial__action strong) { font-size:13px; }
+.root :global(.camp-sword-trial__action small) { color:rgba(24,50,72,.52); font-size:10px; font-weight:800; }
+.root :global(.camp-sword-trial--attempting .camp-sword-trial__action) { opacity:0; transform:translateX(-50%) translateY(8px); pointer-events:none; transition:opacity .14s ease, transform .14s ease; }
+.root :global(.camp-onboarding-card--character) {
+  left:50%; right:auto; width:min(332px,calc(100% - 24px)); transform:translateX(-50%);
+  grid-template-columns:minmax(0,1fr) auto; padding:9px 9px 9px 12px; border-radius:17px;
+}
+.root :global(.camp-onboarding-card--character > span) { display:none; }
+.root :global(.camp-onboarding-card--character > small) { display:none; }
+.root :global(.camp-onboarding-card--character > strong) { font-size:11px; }
+@keyframes sword-damage-pop {
+  0% { opacity:0; transform:translateY(7px) scale(.65) rotate(-5deg); }
+  18% { opacity:1; transform:translateY(-4px) scale(1.25) rotate(2deg); }
+  72% { opacity:1; transform:translateY(-16px) scale(1); }
+  100% { opacity:0; transform:translateY(-28px) scale(.9); }
 }

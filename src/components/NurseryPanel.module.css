@@ -86,10 +86,7 @@
 .sheet.busy :global(.nursery-shop-action),
 .sheet.busy :global(.nursery-job-title),
 .sheet.busy :global(.nursery-jobs) {
-  opacity: .08;
-  transform: translateY(12px);
-  filter: blur(1px);
-  pointer-events: none;
+  display: none;
 }
 
 .sheet.busy :global(.nursery-stage) {
@@ -309,7 +306,7 @@
   text-align: center;
   box-shadow: 0 9px 24px rgba(30,69,54,.18);
   opacity: 0;
-  animation: nursery-result-rise .78s cubic-bezier(.2,.8,.25,1) .56s both;
+  animation: nursery-result-rise .72s cubic-bezier(.2,.8,.25,1) 1.30s both;
 }
 .sheet :global(.nursery-stage__result strong),
 .sheet :global(.nursery-stage__result span) {
@@ -733,6 +730,22 @@
   animation: nursery-speech-in .24s cubic-bezier(.2,.8,.2,1) .12s forwards;
 }
 .sheet :global(.nursery-stage--craft .nursery-stage__speech) { animation-delay: .48s; }
+.sheet :global(.nursery-stage__speech--handoff) {
+  animation: nursery-handoff-speech 1.05s ease both !important;
+}
+.sheet :global(.nursery-stage__speech--sword-result) {
+  opacity: 0;
+  animation: nursery-sword-result-speech .28s cubic-bezier(.2,.8,.2,1) 1.06s forwards !important;
+}
+@keyframes nursery-handoff-speech {
+  0% { opacity: 0; transform: translateY(5px) scale(.95); }
+  16%, 68% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-4px) scale(.98); }
+}
+@keyframes nursery-sword-result-speech {
+  from { opacity: 0; transform: translateY(5px) scale(.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 @keyframes nursery-speech-in {
   from { opacity: 0; transform: translateY(5px) scale(.95); }
   to { opacity: 1; transform: translateY(0) scale(1); }

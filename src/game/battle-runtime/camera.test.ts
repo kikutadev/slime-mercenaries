@@ -4,6 +4,7 @@ import { BattleCameraController } from './camera';
 import {
   BOSS_CAMERA_BASE_POSITION,
   CAMERA_BASE_POSITION,
+  FIRST_SLIME_SHOWCASE_CAMERA_POSITION,
 } from './layout';
 
 describe('BattleCameraController framing', () => {
@@ -21,6 +22,18 @@ describe('BattleCameraController framing', () => {
       approachPresentationElapsed: null,
     });
     expect(camera.position.toArray()).toEqual(CAMERA_BASE_POSITION.toArray());
+
+    controller.setFirstSlimeShowcase(true);
+    controller.update({
+      rawNow: 10,
+      simulationNow: 10,
+      phase: 'combat',
+      phaseStartedAt: 0,
+      result: null,
+      bossEncounter: false,
+      approachPresentationElapsed: null,
+    });
+    expect(camera.position.toArray()).toEqual(FIRST_SLIME_SHOWCASE_CAMERA_POSITION.toArray());
 
     controller.update({
       rawNow: 10,

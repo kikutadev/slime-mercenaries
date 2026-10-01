@@ -110,7 +110,7 @@ export function selectGlobalHud(state: SlimeMercenariesState) {
   } as const;
 }
 
-export type EarlyGameCueAction = 'Create Slime' | 'Try Plain' | 'Create Job' | 'Battle' | 'Fuse';
+export type EarlyGameCueAction = 'Create Slime' | 'Try Plain' | 'Create Job' | 'Try Sword' | 'Battle' | 'Fuse';
 
 export type EarlyGameCue = Readonly<{
   id: string;
@@ -129,6 +129,8 @@ export function selectEarlyGameCue(state: SlimeMercenariesState): EarlyGameCue |
   const sword = firstSlimeByType(state, 'sword');
   const firstPlainCreated = state.progressionFlags[ids.progression.firstPlainCreated] === true;
   const firstPlainTrialComplete = state.progressionFlags[ids.progression.firstPlainTrialComplete] === true;
+  const firstSwordTrialComplete = state.progressionFlags[ids.progression.firstSwordTrialComplete] === true;
+  const firstBattleShowcaseComplete = state.progressionFlags[ids.progression.firstBattleShowcaseComplete] === true;
 
   if (sword === null) {
     if (!firstPlainCreated) {
@@ -168,6 +170,17 @@ export function selectEarlyGameCue(state: SlimeMercenariesState): EarlyGameCue |
     };
   }
 
+  if (!firstSwordTrialComplete) {
+    return {
+      id: 'try-first-sword',
+      title: '今度は、剣で。',
+      body: 'さっき弾かれた木人に、もう一度だけ挑みます。',
+      action: 'Try Sword',
+      speech: '今度は。',
+      speakerSlimeId: sword.id,
+    };
+  }
+
   if (sword.fusionRank >= 2) return null;
 
   const fusion = previewSlimeFusion(state, sword.id);
@@ -182,7 +195,7 @@ export function selectEarlyGameCue(state: SlimeMercenariesState): EarlyGameCue |
     };
   }
 
-  if (sword.level < 10) {
+  if (!firstBattleShowcaseComplete && sword.level < 10) {
     return {
       id: 'strengthen-first-sword',
       title: 'さっき何もできなかったスライムを戦わせる',
@@ -192,6 +205,8 @@ export function selectEarlyGameCue(state: SlimeMercenariesState): EarlyGameCue |
       speakerSlimeId: sword.id,
     };
   }
+
+  if (sword.level < 10) return null;
 
   if (sameTypeCount(state, 'sword') < 2) {
     const duplicate = previewJobCreation(state, 'sword');

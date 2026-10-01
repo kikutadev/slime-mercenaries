@@ -34,9 +34,10 @@ interface CampLifeResidentProps {
   lifeOriginRef: MutableRefObject<number | null>;
   reaction: CampReaction;
   reactionStartedAtRef: MutableRefObject<number | null>;
+  onSelect?: (instanceId: CampLifeResidentSpec['instanceId']) => void;
 }
 
-const AMBIENT_SLIME_SCALE = 0.44;
+const AMBIENT_SLIME_SCALE = 0.49;
 
 function setMorph(body: MorphMesh | null, name: string, value: number): void {
   if (!body?.morphTargetDictionary || !body.morphTargetInfluences) return;
@@ -74,7 +75,7 @@ function resetParts(parts: ResidentParts): void {
   parts.equipment?.quaternion.copy(parts.equipmentBaseQuaternion);
 }
 
-function AmbientResident({ resident, slotIndex, lifeOriginRef, reaction, reactionStartedAtRef }: CampLifeResidentProps) {
+function AmbientResident({ resident, slotIndex, lifeOriginRef, reaction, reactionStartedAtRef, onSelect }: CampLifeResidentProps) {
   const gltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}${resident.presentation.asset}`);
   const model = useMemo(() => {
     const clone = gltf.scene.clone(true);
@@ -127,7 +128,12 @@ function AmbientResident({ resident, slotIndex, lifeOriginRef, reaction, reactio
     if (group === null) return;
     if (lifeOriginRef.current === null) lifeOriginRef.current = clock.elapsedTime;
     const lifeTime = clock.elapsedTime - lifeOriginRef.current;
-    const basePose = getCampLifePose(lifeTime, slotIndex, resident.presentation.id);
+    const basePose = getCampLifePose(
+      lifeTime + resident.routineOffsetSec,
+      slotIndex,
+      resident.presentation.id,
+      resident.temperament,
+    );
     const reactionElapsed = reactionStartedAtRef.current === null
       ? -1
       : clock.elapsedTime - reactionStartedAtRef.current;
@@ -174,7 +180,14 @@ function AmbientResident({ resident, slotIndex, lifeOriginRef, reaction, reactio
   });
 
   return (
-    <group ref={groupRef} name={`CampLifeResident:${resident.instanceId}`}>
+    <group
+      ref={groupRef}
+      name={`CampLifeResident:${resident.instanceId}`}
+      onClick={onSelect === undefined ? undefined : (event) => {
+        event.stopPropagation();
+        onSelect(resident.instanceId);
+      }}
+    >
       <primitive object={model} />
     </group>
   );
@@ -185,11 +198,13 @@ export function CampLifePopulation({
   lifeOriginRef,
   reaction,
   reactionKey,
+  onResidentSelect,
 }: {
   residents: readonly CampLifeResidentSpec[];
   lifeOriginRef: MutableRefObject<number | null>;
   reaction: CampReaction;
   reactionKey: number;
+  onResidentSelect?: (instanceId: CampLifeResidentSpec['instanceId']) => void;
 }) {
   const latestTimeRef = useRef(0);
   const reactionStartedAtRef = useRef<number | null>(null);
@@ -217,6 +232,7 @@ export function CampLifePopulation({
           lifeOriginRef={lifeOriginRef}
           reaction={reaction}
           reactionStartedAtRef={reactionStartedAtRef}
+          onSelect={onResidentSelect}
         />
       ))}
     </group>

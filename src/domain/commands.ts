@@ -121,6 +121,40 @@ export function completeFirstPlainTrial(
   return accept(nextState, [semanticEvent(nextState, 'firstPlainTrialCompleted', 'training-dummy')]);
 }
 
+/** Mark the first Sword Slime training-dummy success after its presentation has completed. */
+export function completeFirstSwordTrial(
+  state: SlimeMercenariesState,
+): CommandResult<SlimeMercenariesState, never> {
+  if (state.progressionFlags[ids.progression.firstSwordTrialComplete] === true) {
+    return accept(state, []);
+  }
+  const nextState: SlimeMercenariesState = {
+    ...state,
+    progressionFlags: {
+      ...state.progressionFlags,
+      [ids.progression.firstSwordTrialComplete]: true,
+    },
+  };
+  return accept(nextState, [semanticEvent(nextState, 'firstSwordTrialCompleted', 'training-dummy')]);
+}
+
+/** Mark the first real battle showcase after the player has actually seen combat progress. */
+export function completeFirstBattleShowcase(
+  state: SlimeMercenariesState,
+): CommandResult<SlimeMercenariesState, never> {
+  if (state.progressionFlags[ids.progression.firstBattleShowcaseComplete] === true) {
+    return accept(state, []);
+  }
+  const nextState: SlimeMercenariesState = {
+    ...state,
+    progressionFlags: {
+      ...state.progressionFlags,
+      [ids.progression.firstBattleShowcaseComplete]: true,
+    },
+  };
+  return accept(nextState, [semanticEvent(nextState, 'firstBattleShowcaseCompleted', 'battle')]);
+}
+
 /** Compute the exact current shop cost from the authored price curve and purchase history. */
 export function plainSlimePurchaseCost(
   state: SlimeMercenariesState,

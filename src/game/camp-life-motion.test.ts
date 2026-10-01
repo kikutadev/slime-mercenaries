@@ -99,4 +99,17 @@ describe('camp living-world motion', () => {
 
     expect(maxStep).toBeLessThan(0.08);
   });
+  it('makes persistent temperament readable across a short Camp observation window', () => {
+    const times = [4, 12, 22, 31, 40];
+    const eager = times.map((time) => getCampLifePose(time, 0, 'sword', 'eager'));
+    const sleepy = times.map((time) => getCampLifePose(time, 1, 'shield', 'sleepy'));
+    const social = times.map((time) => getCampLifePose(time, 2, 'bow', 'social'));
+    const curious = times.map((time) => getCampLifePose(time, 3, 'wand', 'curious'));
+
+    expect(eager.filter((pose) => pose.activity === 'practice' || pose.activity === 'inspect-rack').length).toBeGreaterThanOrEqual(3);
+    expect(sleepy.filter((pose) => ['yawn', 'drowsy', 'sleep', 'wake'].includes(pose.activity)).length).toBeGreaterThanOrEqual(2);
+    expect(social.filter((pose) => pose.activity === 'chat' || pose.activity === 'inspect-nursery').length).toBeGreaterThanOrEqual(3);
+    expect(curious.filter((pose) => pose.activity.startsWith('inspect-')).length).toBeGreaterThanOrEqual(3);
+  });
+
 });

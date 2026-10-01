@@ -55,16 +55,6 @@ export function CampPrimaryActions({
         <strong>編成</strong>
       </button>
 
-      <button
-        className="camp-primary-action"
-        type="button"
-        aria-haspopup="dialog"
-        disabled={busy}
-        onClick={actions.openCreate}
-      >
-        <span><CampStationIcon kind="nursery" /></span>
-        <strong>仲間</strong>
-      </button>
     </div>
   );
 }

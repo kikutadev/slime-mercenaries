@@ -5,6 +5,8 @@ import {
   balance,
   craftPlainSlime,
   completeFirstPlainTrial,
+  completeFirstSwordTrial,
+  completeFirstBattleShowcase,
   createInitialSlimeMercenariesState,
   createJobSlime,
   firstSlimeIdByType,
@@ -278,9 +280,15 @@ describe('UI selectors', () => {
 
     const created = createJobSlime(tried.state, 'sword');
     if (!created.accepted) throw new Error('setup sword failed');
-    const battleCue = selectEarlyGameCue(created.state);
+    const swordTrialCue = selectEarlyGameCue(created.state);
+    expect(swordTrialCue).toMatchObject({ id: 'try-first-sword', action: 'Try Sword' });
+    expect(swordTrialCue?.speakerSlimeId).toBe(firstSlimeIdByType(created.state, 'sword'));
+
+    const swordTried = completeFirstSwordTrial(created.state);
+    if (!swordTried.accepted) throw new Error('setup sword trial failed');
+    const battleCue = selectEarlyGameCue(swordTried.state);
     expect(battleCue?.action).toBe('Battle');
-    expect(battleCue?.speakerSlimeId).toBe(firstSlimeIdByType(created.state, 'sword'));
+    expect(battleCue?.speakerSlimeId).toBe(firstSlimeIdByType(swordTried.state, 'sword'));
     expect(battleCue?.speech).not.toContain('ぷる');
   });
 

@@ -46,20 +46,20 @@ export const CAMP_LIFE_STATIONS: Readonly<Record<CampLifeStationId, CampLifeStat
   },
   training: {
     id: 'training',
-    // The actual dummy lives at x=-2.65. This spot keeps the resident visible on portrait screens.
-    position: new THREE.Vector3(-1.98, 0.02, -1.02),
+    // The actual dummy lives at x=-2.65. Keep practice on the rug edge so the Camp center stays lively.
+    position: new THREE.Vector3(-1.46, 0.02, -0.82),
     facingTarget: new THREE.Vector3(-2.65, 0.88, -0.15),
   },
   rest: {
     id: 'rest',
-    // In front of the tent rather than inside it so sleepy eyes remain readable.
-    position: new THREE.Vector3(2.18, 0.02, -2.26),
+    // On the front edge of the communal rug so a sleepy resident is readable at phone scale.
+    position: new THREE.Vector3(1.35, 0.02, 0.68),
     facingTarget: new THREE.Vector3(0.0, 0.48, 1.65),
   },
   'weapon-rack': {
     id: 'weapon-rack',
     // WeaponRackBar is authored at (-3.55, 0.85, 1.25); stay in the portrait-safe world.
-    position: new THREE.Vector3(-2.05, 0.02, -1.62),
+    position: new THREE.Vector3(-2.52, 0.02, -1.78),
     facingTarget: new THREE.Vector3(-3.55, 0.85, 1.25),
   },
   nursery: {
@@ -76,13 +76,13 @@ export const CAMP_LIFE_STATIONS: Readonly<Record<CampLifeStationId, CampLifeStat
   },
   'chat-left': {
     id: 'chat-left',
-    position: new THREE.Vector3(-0.86, 0.02, -2.34),
-    facingTarget: new THREE.Vector3(0.86, 0.45, -2.34),
+    position: new THREE.Vector3(-0.32, 0.02, 0.42),
+    facingTarget: new THREE.Vector3(0.32, 0.45, 0.42),
   },
   'chat-right': {
     id: 'chat-right',
-    position: new THREE.Vector3(0.86, 0.02, -2.34),
-    facingTarget: new THREE.Vector3(-0.86, 0.45, -2.34),
+    position: new THREE.Vector3(0.32, 0.02, 0.42),
+    facingTarget: new THREE.Vector3(-0.32, 0.45, 0.42),
   },
 };
 

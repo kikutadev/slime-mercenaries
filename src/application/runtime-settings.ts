@@ -1,5 +1,3 @@
-import { PUBLIC_VALIDATION_MODE } from './validation-mode';
-
 export type EconomyMode = 'normal' | 'development';
 
 export type SlimeRuntimeSettings = Readonly<{
@@ -11,9 +9,8 @@ export const RUNTIME_SETTINGS_STORAGE_KEY = 'slime-mercenaries.runtime-settings.
 
 export function defaultRuntimeSettings(): SlimeRuntimeSettings {
   return {
-    // Keep the currently published validation build convenient for existing QA sessions.
-    // A production build defaults new browsers to the real economy.
-    economyMode: PUBLIC_VALIDATION_MODE ? 'development' : 'normal',
+    // First play must always exercise the real product economy. Development mode is opt-in.
+    economyMode: 'normal',
     soundEnabled: true,
   };
 }

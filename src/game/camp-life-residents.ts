@@ -1,9 +1,16 @@
 import type { SlimeInstanceId, SlimeMercenariesState } from '../domain';
 import { getSlimePresentation, type SlimePresentation } from './slimes';
+import {
+  campRoutineOffsetSec,
+  campTemperamentForInstance,
+  type CampTemperament,
+} from './camp-temperament';
 
 export interface CampLifeResidentSpec {
   instanceId: SlimeInstanceId;
   presentation: SlimePresentation;
+  temperament: CampTemperament;
+  routineOffsetSec: number;
 }
 
 /**
@@ -23,5 +30,7 @@ export function selectCampLifeResidents(
     .map((slime) => ({
       instanceId: slime.id,
       presentation: getSlimePresentation(slime),
+      temperament: campTemperamentForInstance(slime.id),
+      routineOffsetSec: campRoutineOffsetSec(slime.id),
     }));
 }

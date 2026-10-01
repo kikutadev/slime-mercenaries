@@ -169,6 +169,7 @@ export class BattleRuntime {
     this.scene = options.scene;
     this.camera = options.camera;
     this.cameraController = new BattleCameraController(this.camera);
+    this.cameraController.setFirstSlimeShowcase(options.firstSlimeShowcase ?? false);
     this.audio = new BattleAudioSystem({ isEnabled: options.isSoundEnabled ?? (() => true) });
     this.effects = new BattleEffectsSystem({
       camera: this.camera,
@@ -895,6 +896,10 @@ export class BattleRuntime {
       if (enemy.attackTelegraph) enemy.attackTelegraph.visible = false;
     });
     this.allyCombat.resetTransientVfx();
+  }
+
+  setFirstSlimeShowcase(enabled: boolean): void {
+    this.cameraController.setFirstSlimeShowcase(enabled);
   }
 
   private clearProjectiles(): void {

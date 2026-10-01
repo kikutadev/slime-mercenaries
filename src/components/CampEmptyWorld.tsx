@@ -1,26 +1,24 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { CampStationIcon } from './CampStationIcon';
 
+const campEnvironmentStagePromise = import('./CampEnvironmentStage');
 const CampEnvironmentStage = lazy(async () => {
-  const module = await import('./CampEnvironmentStage');
+  const module = await campEnvironmentStagePromise;
   return { default: module.CampEnvironmentStage };
 });
 
+const campPlainTrialStagePromise = import('./CampPlainTrialStage');
 const CampPlainTrialStage = lazy(async () => {
-  const module = await import('./CampPlainTrialStage');
+  const module = await campPlainTrialStagePromise;
   return { default: module.CampPlainTrialStage };
 });
 
 export function CampEmptyWorld({
   cueId,
-  title,
-  body,
   onCreate,
   onPlainTrialComplete,
 }: {
   cueId: string | null;
-  title: string;
-  body: string;
   onCreate: () => void;
   onPlainTrialComplete: () => void;
 }) {
@@ -45,8 +43,8 @@ export function CampEmptyWorld({
   };
 
   return (
-    <div className={`camp-empty-world ${trialReady ? 'camp-empty-world--plain-trial' : ''}`}>
-      <Suspense fallback={<div className="camp-environment-stage" aria-hidden="true" />}>
+    <div className={`camp-empty-world ${trialReady ? 'camp-empty-world--plain-trial' : ''} ${attempting ? 'camp-empty-world--attempting' : ''}`}>
+      <Suspense fallback={null}>
         <CampEnvironmentStage
           reaction="idle"
           reactionKey={0}
@@ -56,16 +54,11 @@ export function CampEmptyWorld({
       </Suspense>
 
       {trialReady && (
-        <Suspense fallback={<div className="camp-plain-trial-stage" aria-hidden="true" />}>
+        <Suspense fallback={null}>
           <CampPlainTrialStage attemptKey={attemptKey} completed={completed} />
         </Suspense>
       )}
 
-      <div className="camp-empty-world__tutorial" role="status" aria-live="polite">
-        <span>はじめてガイド</span>
-        <strong>{title}</strong>
-        <small>{body}</small>
-      </div>
 
       {trialReady && (
         <div className="camp-plain-trial-hp" aria-label="木人の体力は減っていません">

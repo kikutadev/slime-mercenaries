@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import type { CampFeedback } from '../game/camp-types';
 import type { CampLifeResidentSpec } from '../game/camp-life-residents';
 import type { SlimePresentation } from '../game/slimes';
+import type { CampTemperament } from '../game/camp-temperament';
 import {
   CampStrengthenEffect,
   type StrengthenCeremony,
@@ -23,6 +24,7 @@ export interface CampWorldHero {
   name: string;
   level: number;
   fusionRank: number;
+  temperament: CampTemperament;
 }
 
 interface CampWorldProps {
@@ -32,6 +34,7 @@ interface CampWorldProps {
   fusionReady: boolean;
   strengthenCeremony: StrengthenCeremony | null;
   speech?: string;
+  onResidentSelect?: (instanceId: CampLifeResidentSpec['instanceId']) => void;
 }
 
 /**
@@ -45,6 +48,7 @@ export function CampWorld({
   fusionReady,
   strengthenCeremony,
   speech,
+  onResidentSelect,
 }: CampWorldProps) {
   return (
     <div className={`camp-world camp-world--${feedback.reaction}`}>
@@ -54,6 +58,7 @@ export function CampWorld({
           reactionKey={feedback.key}
           fusionReady={fusionReady}
           residents={residents}
+          onResidentSelect={onResidentSelect}
         />
       </Suspense>
 
@@ -71,6 +76,7 @@ export function CampWorld({
               reaction={feedback.reaction}
               reactionKey={feedback.key}
               reactionStrength={feedback.strength ?? 1}
+              temperament={hero.temperament}
             />
           </Suspense>
 

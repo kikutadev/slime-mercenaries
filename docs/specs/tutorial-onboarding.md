@@ -251,7 +251,27 @@ After ceremony:
 
 - resulting Sword Slime is selected
 - if a formation slot is open, first discovery may be placed automatically
-- next primary route points to Battle
+- before Battle, the same Camp training dummy is used once more to prove the change in behavior
+
+### Step 3.5 — Prove the Sword changed the same slime
+
+Before sending the player to the battlefield, reuse the same training composition as the Plain failure.
+
+Presentation:
+
+1. Sword Slime faces the same wooden dummy
+2. dummy begins at 100% HP
+3. one player action starts the authored step-in slash
+4. the sword trail / contact is readable
+5. the dummy visibly reacts and its HP decreases
+6. Sword Slime settles and gives a short reaction such as `さっきと違う。`
+7. only then does Battle become the visually dominant continuation
+
+Acceptance:
+
+- with instructional paragraph text hidden, the reviewer can still explain that the job changed how the same slime fights
+- the Plain and Sword comparisons use the same target/composition so the difference does not depend on memory of a different scene
+- the successful Sword hit is not faked by text-only feedback; the dummy reaction and HP change are visible
 
 ### Step 4 — First combat difference
 

@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+useLoader.preload(GLTFLoader, `${import.meta.env.BASE_URL}assets/plain-slime.glb`);
+
 function PlainActor({ attemptKey, completed }: { attemptKey: number; completed: boolean }) {
   const gltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}assets/plain-slime.glb`);
   const model = useMemo(() => gltf.scene.clone(true), [gltf.scene]);

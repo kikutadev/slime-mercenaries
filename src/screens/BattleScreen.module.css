@@ -545,6 +545,45 @@
     animation-duration: 1ms !important;
   }
 }
+.firstSlimeSpeech {
+  position: absolute;
+  z-index: 23;
+  left: 18px;
+  top: max(150px, calc(var(--safe-area-top) + 138px));
+  max-width: 132px;
+  padding: 8px 11px;
+  border: 1px solid rgb(255 255 255 / 76%);
+  border-radius: 15px;
+  background: rgb(248 255 244 / 94%);
+  color: #294c35;
+  box-shadow: 0 8px 22px rgb(30 67 45 / 14%);
+  backdrop-filter: blur(9px);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.25;
+  pointer-events: none;
+  animation: firstSlimeSpeechLife 3.4s ease both;
+}
+
+.firstSlimeSpeech::after {
+  content: "";
+  position: absolute;
+  left: 28px;
+  bottom: -6px;
+  width: 11px;
+  height: 11px;
+  transform: rotate(45deg);
+  border-right: 1px solid rgb(255 255 255 / 76%);
+  border-bottom: 1px solid rgb(255 255 255 / 76%);
+  background: rgb(248 255 244 / 94%);
+}
+
+@keyframes firstSlimeSpeechLife {
+  0% { opacity: 0; transform: translateY(5px) scale(.96); }
+  10%, 76% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-4px) scale(.98); }
+}
+
 .tutorialCue {
   position: absolute;
   z-index: 24;

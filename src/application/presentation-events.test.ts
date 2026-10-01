@@ -113,14 +113,13 @@ describe('presentation event policy', () => {
     expect(notice?.body).toBe('G +24 · スライムジェル +2');
   });
 
-  it('prioritizes new job discoveries over routine battle rewards', () => {
+  it('does not duplicate the Nursery job reveal with a global discovery toast', () => {
     const notices = toPresentationNotices([
       event('combatWaveCleared', { randomDrops: [] }),
       event('slimeJobDiscovered', { jobId: 'sword' }),
     ]);
-    expect(notices).toHaveLength(2);
-    expect(notices[1]?.title).toContain('剣士スライム');
-    expect(notices[1]?.presentationPriority).toBeGreaterThan(notices[0]?.presentationPriority ?? 0);
+    expect(notices).toHaveLength(1);
+    expect(notices[0]?.title).not.toContain('剣士スライム');
   });
 
   it('coalesces stage-like progress through a stable presentation key', () => {

@@ -20,21 +20,27 @@ export function CampRosterStrip({
 
   return (
     <div className="camp-roster-block">
-      <div className="camp-roster-title">
-        <strong>仲間</strong>
-        <div className="camp-roster-meta">
-          <span>{ownedIds.length}匹</span>
-          <button
-            type="button"
-            className={codexNewCount > 0 ? 'is-new' : ''}
-            disabled={busy}
-            onClick={actions.openCodex}
-            aria-haspopup="dialog"
-          >
-            図鑑
-            {codexNewCount > 0 && <em>{codexNewCount}</em>}
-          </button>
-        </div>
+      <div className="camp-roster-toolbar">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={actions.openCreate}
+          aria-label="仲間を増やす"
+        >
+          <CampStationIcon kind="nursery" />
+          <strong>追加</strong>
+        </button>
+        <button
+          type="button"
+          className={codexNewCount > 0 ? 'is-new' : ''}
+          disabled={busy}
+          onClick={actions.openCodex}
+          aria-haspopup="dialog"
+        >
+          <span aria-hidden="true">▦</span>
+          <strong>図鑑</strong>
+          {codexNewCount > 0 && <em>{codexNewCount}</em>}
+        </button>
       </div>
 
       <div className="camp-roster" aria-label="仲間のスライム">
@@ -64,17 +70,6 @@ export function CampRosterStrip({
             </button>
           );
         })}
-
-        <button
-          className="camp-roster__add"
-          type="button"
-          disabled={busy}
-          onClick={actions.openCreate}
-          aria-label="仲間を増やす"
-        >
-          <span aria-hidden="true"><CampStationIcon kind="nursery" /></span>
-          <strong>追加</strong>
-        </button>
       </div>
     </div>
   );

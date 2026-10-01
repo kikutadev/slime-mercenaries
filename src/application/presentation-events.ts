@@ -214,14 +214,9 @@ export function toPresentationNotices(events: readonly DomainEvent[]): readonly 
           ...notice(event, '最前線へ再出撃', `ステージ ${numberPayload(event, 'stageNumber') ?? ''} に再挑戦`, 'milestone', 58, 'frontier-state'),
           presentationPreemption: 'resume-current' as const,
         }];
-      case 'slimeJobDiscovered': {
-        const jobId = stringPayload(event, 'jobId') as JobSlimeId | null;
-        const name = jobId === null ? '新しいスライム' : jobCreationDefinitions[jobId]?.displayName ?? '新しいスライム';
-        return [{
-          ...notice(event, `新発見 · ${name}`, '新しい職業を発見しました', 'milestone', 90),
-          presentationPreemption: 'resume-current' as const,
-        }];
-      }
+      case 'slimeJobDiscovered':
+        // Nursery owns the discovery reveal. A simultaneous global toast spoils and obscures it.
+        return [];
       case 'slimeFusionCoreCreated': {
         const jobId = stringPayload(event, 'jobId') as JobSlimeId | null;
         const name = jobId === null ? 'スライム' : jobCreationDefinitions[jobId]?.displayName ?? 'スライム';

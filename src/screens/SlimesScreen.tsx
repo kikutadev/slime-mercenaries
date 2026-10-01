@@ -19,11 +19,17 @@ import { CodexSheet } from '../components/CodexSheet';
 import { NurseryPanel } from '../components/NurseryPanel';
 import type { SlimeInstanceId } from '../domain';
 import { selectCampLifeResidents } from '../game/camp-life-residents';
+import { campTemperamentForInstance, type CampTemperament } from '../game/camp-temperament';
 import type { CampMode } from '../game/camp-types';
 import { getSlimePresentation } from '../game/slimes';
 import styles from './SlimesScreen.module.css';
 import { campRejectionLabel } from './camp/rejection-label';
 import { useCampInteractions } from './camp/useCampInteractions';
+
+const CampSwordTrialStage = lazy(async () => {
+  const module = await import('../components/CampSwordTrialStage');
+  return { default: module.CampSwordTrialStage };
+});
 
 const FusionWorkbench = lazy(async () => {
   const module = await import('../components/fusion/FusionWorkbench');
@@ -57,7 +63,7 @@ export function SlimesScreen({
     ? selectedId
     : null;
   const detail = selected === null ? null : selectSlimeDetail(state, selected);
-  const campLifeResidents = selectCampLifeResidents(state, selected, 4);
+  const selectedTemperament = selected === null ? null : campTemperamentForInstance(selected);
   const weaponView = selected === null ? { current: null, options: [] } : selectSlimeWeaponOptions(state, selected);
   const formation = selectFormation(state);
   const createPanel = selectCreateSlimePanel(state);
@@ -142,6 +148,18 @@ export function SlimesScreen({
     onSelect,
   });
 
+  const focusSelectedInCamp = selected !== null
+    || commandPanelOpen
+    || cue?.id === 'strengthen-first-sword'
+    || feedback.title !== ''
+    || strengthenCeremony !== null;
+  const campLifeResidents = selectCampLifeResidents(
+    state,
+    focusSelectedInCamp ? selected : null,
+    4,
+  );
+
+
   if (mode === 'fusion' && selected !== null) {
     return (
       <Suspense fallback={<div className={styles.fusionLoading} aria-label="合成画面を読み込み中" />}>
@@ -180,9 +198,7 @@ export function SlimesScreen({
 
       {ownedIds.length === 0 ? (
         <CampEmptyWorld
-          cueId={cue?.id ?? null}
-          title={cue?.title ?? '最初のスライムを生み出す'}
-          body={cue?.body ?? '素材は揃っています。生成槽から始めます。'}
+          cueId={createOpen && nurseryCeremony?.kind === 'craft' ? 'create-first-plain' : cue?.id ?? null}
           onCreate={() => setCreateOpen(true)}
           onPlainTrialComplete={() => controller.completeFirstPlainTrial()}
         />
@@ -190,21 +206,35 @@ export function SlimesScreen({
         <>
           <CampWorld
             feedback={feedback}
-            hero={detail === null ? null : {
+            hero={createOpen || cue?.id === 'try-first-sword' || detail === null || selectedTemperament === null || !focusSelectedInCamp ? null : {
               presentation: detail.presentation,
               role: detail.role,
               name: detail.name,
               level: detail.level,
               fusionRank: detail.fusionRank,
+              temperament: selectedTemperament,
             }}
-            residents={campLifeResidents}
+            residents={createOpen ? [] : campLifeResidents}
             fusionReady={detail?.fusionOptions.some((option) => option.canFuse) ?? false}
             strengthenCeremony={strengthenCeremony}
-            speech={cue?.speakerSlimeId === selected ? cue.speech : undefined}
+            speech={cue?.id === 'try-first-sword'
+              ? undefined
+              : cue?.speakerSlimeId === selected
+                ? cue.speech
+                : selectedTemperament !== null && cue === null && !commandPanelOpen
+                  ? campTemperamentTapLine(selectedTemperament)
+                  : undefined}
+            onResidentSelect={cue === null && !commandPanelOpen ? onSelect : undefined}
           />
 
-          {cue !== null && !createOpen && !commandPanelOpen && (
-            <div className="camp-onboarding-card" role="status" aria-live="polite">
+          {cue?.id === 'try-first-sword' && !createOpen && !commandPanelOpen && (
+            <Suspense fallback={null}>
+              <CampSwordTrialStage onComplete={() => controller.completeFirstSwordTrial()} />
+            </Suspense>
+          )}
+
+          {cue !== null && cue.id !== 'try-first-sword' && !createOpen && !commandPanelOpen && (
+            <div className={`camp-onboarding-card ${cue.action === 'Battle' ? 'camp-onboarding-card--character' : ''}`} role="status" aria-live="polite">
               <span>はじめてガイド</span>
               <strong>{cue.title}</strong>
               <small>{cue.body}</small>
@@ -315,4 +345,13 @@ export function SlimesScreen({
 
     </section>
   );
+}
+
+function campTemperamentTapLine(temperament: CampTemperament): string {
+  switch (temperament) {
+    case 'eager': return 'もう一回、やる。';
+    case 'sleepy': return '……ちょっと、ねむい。';
+    case 'social': return 'いた。';
+    case 'curious': return 'あれ、なに？';
+  }
 }

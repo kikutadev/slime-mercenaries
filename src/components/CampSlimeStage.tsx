@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { getCampIdleMotion } from '../game/camp-slime-motion';
 import type { CampReaction } from '../game/camp-types';
+import type { CampTemperament } from '../game/camp-temperament';
 import type { SlimePresentation } from '../game/slimes';
 import { applySlimeMutationVisuals, disposeSlimeMutationVisuals } from '../game/slime-mutation-visuals';
 
@@ -12,9 +13,15 @@ type MorphMesh = THREE.Mesh & {
   morphTargetInfluences?: number[];
 };
 
+interface FacePart {
+  object: THREE.Object3D;
+  baseScale: THREE.Vector3;
+}
+
 interface ModelParts {
   body: MorphMesh | null;
   bodyBaseScale: THREE.Vector3;
+  eyes: readonly FacePart[];
 }
 
 interface CampResidentProps {
@@ -22,6 +29,7 @@ interface CampResidentProps {
   reaction: CampReaction;
   reactionKey: number;
   reactionStrength: 1 | 2 | 3;
+  temperament: CampTemperament | null;
 }
 
 const MODEL_SCALE = 0.54;
@@ -36,17 +44,31 @@ function setMorph(body: MorphMesh | null, name: string, value: number) {
 function resetBody(parts: ModelParts) {
   parts.body?.morphTargetInfluences?.fill(0);
   parts.body?.scale.copy(parts.bodyBaseScale);
+  for (const eye of parts.eyes) eye.object.scale.copy(eye.baseScale);
 }
 
-function animateIdle(parts: ModelParts, time: number, presentation: SlimePresentation, group: THREE.Group) {
+function animateIdle(
+  parts: ModelParts,
+  time: number,
+  presentation: SlimePresentation,
+  group: THREE.Group,
+  temperament: CampTemperament | null,
+) {
   resetBody(parts);
-  const pose = getCampIdleMotion(time, presentation.id);
+  const pose = getCampIdleMotion(time, presentation.id, temperament);
   group.position.set(pose.offsetX, -0.50 + pose.offsetY, 0);
   group.rotation.set(pose.pitch, -0.24 + pose.yawOffset, pose.roll);
   setMorph(parts.body, 'Squash', pose.squash);
   setMorph(parts.body, 'Stretch', pose.stretch);
   setMorph(parts.body, pose.lean < 0 ? 'LeanLeft' : 'LeanRight', Math.abs(pose.lean));
   setMorph(parts.body, pose.wobble < 0 ? 'WobbleLeft' : 'WobbleRight', Math.abs(pose.wobble));
+  for (const eye of parts.eyes) {
+    eye.object.scale.set(
+      eye.baseScale.x,
+      eye.baseScale.y * THREE.MathUtils.clamp(pose.eyeOpen, 0.12, 1),
+      eye.baseScale.z,
+    );
+  }
 }
 
 function CampResident({
@@ -54,6 +76,7 @@ function CampResident({
   reaction,
   reactionKey,
   reactionStrength,
+  temperament,
 }: CampResidentProps) {
   const gltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}${presentation.asset}`);
   const model = useMemo(() => {
@@ -63,9 +86,14 @@ function CampResident({
   }, [gltf.scene, presentation.mutationId]);
   const parts = useMemo<ModelParts>(() => {
     const body = model.getObjectByName('Body') as MorphMesh | null;
+    const eyes = ['Eye_L', 'Eye_R']
+      .map((name) => model.getObjectByName(name))
+      .filter((object): object is THREE.Object3D => object !== undefined)
+      .map((object) => ({ object, baseScale: object.scale.clone() }));
     return {
       body,
       bodyBaseScale: body?.scale.clone() ?? new THREE.Vector3(1, 1, 1),
+      eyes,
     };
   }, [model]);
   const groupRef = useRef<THREE.Group>(null);
@@ -181,7 +209,7 @@ function CampResident({
     const idleTime = reaction === 'idle'
       ? Math.max(0, time - idleStartedAt.current)
       : Math.max(0, elapsed - completedReactionDuration);
-    animateIdle(parts, idleTime, presentation, group);
+    animateIdle(parts, idleTime, presentation, group, temperament);
   });
 
   return <group ref={groupRef}><primitive object={model} /></group>;
@@ -192,6 +220,7 @@ interface CampSlimeStageProps {
   reaction: CampReaction;
   reactionKey: number;
   reactionStrength?: 1 | 2 | 3;
+  temperament?: CampTemperament | null;
 }
 
 /** Camp-only character stage. Fusion choreography deliberately lives elsewhere. */
@@ -200,6 +229,7 @@ export function CampSlimeStage({
   reaction,
   reactionKey,
   reactionStrength = 1,
+  temperament = null,
 }: CampSlimeStageProps) {
   return (
     <div className={`camp-resident-stage camp-resident-stage--${reaction}`} aria-label={`${presentation.name}のキャンプ表示`}>
@@ -217,6 +247,7 @@ export function CampSlimeStage({
           reaction={reaction}
           reactionKey={reactionKey}
           reactionStrength={reactionStrength}
+          temperament={temperament}
         />
       </Canvas>
     </div>

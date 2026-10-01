@@ -43,12 +43,21 @@ export function BattleScreen({
 
   const hasBattleSlime = sceneModel.allies.length > 0;
   const hasEncounter = sceneModel.encounter !== null;
+  const firstBattleShowcase = tutorialCue?.id === 'strengthen-first-sword'
+    && sceneModel.stageNumber === 1
+    && sceneModel.allies.length === 1;
   const visibleRewardCue = visibleBattleRewardCue(rewardCues, battle.result, sceneModel);
 
   useEffect(() => {
     if (visibleRewardCue === null) return;
     onRewardCuePresented(visibleRewardCue.id);
   }, [onRewardCuePresented, visibleRewardCue?.id]);
+
+  useEffect(() => {
+    if (tutorialCue?.id !== 'strengthen-first-sword') return;
+    if (sceneModel.waveIndex === 0 && battle.result === null) return;
+    controller.completeFirstBattleShowcase();
+  }, [battle.result, controller, sceneModel.waveIndex, tutorialCue?.id]);
   const enemySnapshots = Object.entries(battle.enemies)
     .sort(([, left], [, right]) => left.index - right.index);
   const activeCount = sceneModel.allies.length;
@@ -64,6 +73,9 @@ export function BattleScreen({
 
   return (
     <section className={`screen screen--active ${styles.root}`} aria-label="戦闘">
+      {hasBattleSlime && hasEncounter && !battle.presentationReady && (
+        <div className={styles.emptyVisual} aria-hidden="true"><div className={styles.emptyRoad} /></div>
+      )}
       {hasBattleSlime && hasEncounter ? (
         <BattleCanvas
           model={sceneModel}
@@ -74,6 +86,7 @@ export function BattleScreen({
           onEncounterRestarted={handleEncounterRestarted}
           rewardCue={visibleRewardCue}
           isSoundEnabled={() => controller.soundEnabled}
+          firstSlimeShowcase={firstBattleShowcase}
         />
       ) : (
         <div className={styles.emptyVisual} aria-hidden="true">
@@ -123,7 +136,13 @@ export function BattleScreen({
         </div>
       )}
 
-      {tutorialCue?.action === 'Battle' && (
+      {tutorialCue?.action === 'Battle' && firstBattleShowcase && (
+        <div className={styles.firstSlimeSpeech} key={tutorialCue.id} role="status" aria-live="polite">
+          さっきと違う。
+        </div>
+      )}
+
+      {tutorialCue?.action === 'Battle' && !firstBattleShowcase && (
         <div className={styles.tutorialCue} key={tutorialCue.id} role="status" aria-live="polite">
           <span>はじめてガイド</span>
           <strong>{tutorialCue.title}</strong>

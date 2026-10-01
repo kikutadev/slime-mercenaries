@@ -1,5 +1,6 @@
 import { clamp01, easeInOutCubic } from './slime-motion';
 import type { SlimeId } from './slimes';
+import type { CampTemperament } from './camp-temperament';
 
 export interface CampIdleMotionPose {
   offsetX: number;
@@ -11,6 +12,7 @@ export interface CampIdleMotionPose {
   stretch: number;
   lean: number;
   wobble: number;
+  eyeOpen: number;
 }
 
 const CAMP_IDLE_CYCLE_SEC = 9.2;
@@ -56,7 +58,11 @@ function smoothWindow(time: number, enterStart: number, enterDuration: number, e
  * The slime should therefore look alive without looping a conspicuous canned animation:
  * breathe -> notice something -> two small hops -> look around -> hop home -> happy bounce.
  */
-export function getCampIdleMotion(timeSec: number, slimeId: SlimeId): CampIdleMotionPose {
+export function getCampIdleMotion(
+  timeSec: number,
+  slimeId: SlimeId,
+  temperament: CampTemperament | null = null,
+): CampIdleMotionPose {
   const cycle = ((timeSec % CAMP_IDLE_CYCLE_SEC) + CAMP_IDLE_CYCLE_SEC) % CAMP_IDLE_CYCLE_SEC;
   const energy = CAMP_IDLE_ENERGY[slimeId] ?? 1;
   const direction = CAMP_IDLE_DIRECTION[slimeId] ?? 1;
@@ -107,7 +113,7 @@ export function getCampIdleMotion(timeSec: number, slimeId: SlimeId): CampIdleMo
     + landingWobble * 0.14 * energy
     + Math.sin(segment(cycle, 7.86, 0.72) * Math.PI * 3) * (1 - segment(cycle, 7.86, 0.72)) * 0.11 * energy;
 
-  return {
+  const pose: CampIdleMotionPose = {
     offsetX,
     offsetY,
     yawOffset,
@@ -117,6 +123,56 @@ export function getCampIdleMotion(timeSec: number, slimeId: SlimeId): CampIdleMo
     stretch: 0.018 * (1 - breathe) + hop * 0.13 + happyHop * 0.11,
     lean,
     wobble,
+    eyeOpen: 1,
+  };
+
+  if (temperament === null) return pose;
+
+  if (temperament === 'eager') {
+    const bounce = Math.max(0, Math.sin(timeSec * 3.2));
+    return {
+      ...pose,
+      offsetY: pose.offsetY + bounce * 0.045,
+      stretch: pose.stretch + bounce * 0.07,
+      lean: pose.lean - bounce * 0.05,
+      wobble: pose.wobble + Math.sin(timeSec * 4.1) * 0.035,
+    };
+  }
+
+  if (temperament === 'sleepy') {
+    const drowse = 0.5 + Math.sin(timeSec * 0.72) * 0.5;
+    return {
+      ...pose,
+      offsetY: pose.offsetY - 0.032 + drowse * 0.008,
+      yawOffset: pose.yawOffset * 0.42,
+      roll: pose.roll * 0.45 - 0.035 - drowse * 0.018,
+      squash: pose.squash + 0.075 + drowse * 0.035,
+      stretch: pose.stretch * 0.38,
+      lean: pose.lean * 0.35 - 0.035,
+      wobble: pose.wobble * 0.40,
+      eyeOpen: 0.22 + drowse * 0.12,
+    };
+  }
+
+  if (temperament === 'social') {
+    const greet = Math.sin(timeSec * 1.75);
+    return {
+      ...pose,
+      offsetX: pose.offsetX + greet * 0.035,
+      offsetY: pose.offsetY + Math.max(0, greet) * 0.025,
+      yawOffset: pose.yawOffset + greet * 0.085,
+      lean: pose.lean + greet * 0.055,
+      wobble: pose.wobble + Math.sin(timeSec * 2.7) * 0.03,
+    };
+  }
+
+  const look = Math.sin(timeSec * 1.35);
+  return {
+    ...pose,
+    yawOffset: pose.yawOffset + look * 0.18,
+    pitch: pose.pitch + Math.sin(timeSec * 1.8) * 0.025,
+    stretch: pose.stretch + Math.max(0, look) * 0.04,
+    lean: pose.lean + Math.sin(timeSec * 1.55) * 0.07,
   };
 }
 

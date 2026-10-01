@@ -1,3 +1,4 @@
+import './CampManagementPanel.css';
 import { CampFormationBoard } from './CampFormationBoard';
 import { CampEquipmentEntry, CampEquipmentPanel } from './camp/CampEquipmentPanel';
 import type { CampManagementActions, CampManagementModel } from './camp/CampManagementTypes';
@@ -30,17 +31,21 @@ export function CampManagementPanel({
       aria-busy={busy}
     >
       <div className="camp-command-panel__header">
-        <strong>仲間と育成</strong>
+        <div className="camp-command-panel__identity">
+          <span>選択中</span>
+          <strong>{detail.name}</strong>
+          <small>{detail.role} · Lv.{detail.level}</small>
+        </div>
         <button type="button" disabled={busy} onClick={actions.closeManagement}>
-          キャンプを見る
+          キャンプへ
         </button>
       </div>
 
-      <CampRosterStrip model={model} actions={actions} />
-      <CampNextAction model={model} actions={actions} />
+      {(mode === 'none' || mode === 'formation') && <CampRosterStrip model={model} actions={actions} />}
+      {mode === 'none' && <CampNextAction model={model} actions={actions} />}
       <CampPrimaryActions model={model} actions={actions} />
-      <CampEquipmentEntry model={model} actions={actions} />
-      <CampMutationEntry model={model} actions={actions} />
+      {mode === 'none' && <CampEquipmentEntry model={model} actions={actions} />}
+      {mode === 'none' && <CampMutationEntry model={model} actions={actions} />}
       <CampEquipmentPanel model={model} actions={actions} />
       <CampMutationPanel model={model} actions={actions} />
       <CampTrainPanel model={model} actions={actions} />

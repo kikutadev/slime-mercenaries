@@ -3,6 +3,8 @@ import {
   BOSS_CAMERA_BASE_POSITION,
   CAMERA_BASE_POSITION,
   CAMERA_LOOK_AT,
+  FIRST_SLIME_SHOWCASE_CAMERA_POSITION,
+  FIRST_SLIME_SHOWCASE_LOOK_AT,
   allyHome,
   allyOpeningAttackDelay,
   meleeCombatAnchor,
@@ -13,6 +15,12 @@ describe('battle presentation layout', () => {
     const normalDistance = CAMERA_BASE_POSITION.distanceTo(CAMERA_LOOK_AT);
     const bossDistance = BOSS_CAMERA_BASE_POSITION.distanceTo(CAMERA_LOOK_AT);
     expect(normalDistance).toBeLessThan(bossDistance);
+  });
+
+  it('frames the first solo Sword battle closer than normal combat', () => {
+    const showcaseDistance = FIRST_SLIME_SHOWCASE_CAMERA_POSITION.distanceTo(FIRST_SLIME_SHOWCASE_LOOK_AT);
+    const normalDistance = CAMERA_BASE_POSITION.distanceTo(CAMERA_LOOK_AT);
+    expect(showcaseDistance).toBeLessThan(normalDistance);
   });
 
   it('keeps melee presentation anchors separated for a six-slime party', () => {

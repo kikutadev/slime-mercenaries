@@ -13,11 +13,14 @@ import type { CampLifeResidentSpec } from '../game/camp-life-residents';
 import type { CampReaction } from '../game/camp-types';
 import { CampLifePopulation } from './CampLifePopulation';
 
+useLoader.preload(GLTFLoader, `${import.meta.env.BASE_URL}assets/environments/camp.glb`);
+
 interface Props {
   reaction: CampReaction;
   reactionKey: number;
   fusionReady: boolean;
   residents: readonly CampLifeResidentSpec[];
+  onResidentSelect?: (instanceId: CampLifeResidentSpec['instanceId']) => void;
 }
 
 function CampEnvironment({ reaction, reactionKey, fusionReady, residents, lifeOriginRef }: Props & { lifeOriginRef: MutableRefObject<number | null> }) {
@@ -46,7 +49,7 @@ function CampEnvironment({ reaction, reactionKey, fusionReady, residents, lifeOr
       camera.near = 0.1;
       camera.far = 50;
       camera.updateProjectionMatrix();
-      camera.lookAt(0, 0.55, 0.35);
+      camera.lookAt(0, -0.55, 0.35);
     }
     model.traverse((object) => {
       if (object instanceof THREE.Mesh) {
@@ -88,9 +91,15 @@ function CampEnvironment({ reaction, reactionKey, fusionReady, residents, lifeOr
     }
 
     if (dummyBody !== undefined && dummyTarget !== undefined && dummyArm !== undefined) {
-      const residentHit = residents[0] === undefined
-        ? 0
-        : getCampLifePose(lifeTime, 0, residents[0].presentation.id).practiceImpact;
+      const residentHit = residents.reduce((maxHit, resident, slotIndex) => {
+        const pose = getCampLifePose(
+          lifeTime + resident.routineOffsetSec,
+          slotIndex,
+          resident.presentation.id,
+          resident.temperament,
+        );
+        return Math.max(maxHit, pose.practiceImpact);
+      }, 0);
       const hit = campTrainingDummyHit(reaction, elapsed, residentHit);
       dummyBody.rotation.z = -hit * 0.20;
       dummyTarget.rotation.z = -hit * 0.20;
@@ -105,7 +114,7 @@ function CampEnvironment({ reaction, reactionKey, fusionReady, residents, lifeOr
 export function CampEnvironmentStage(props: Props) {
   const lifeOriginRef = useRef<number | null>(null);
   return (
-    <div className="camp-environment-stage" aria-hidden="true">
+    <div className={`camp-environment-stage ${props.onResidentSelect === undefined ? '' : 'camp-environment-stage--interactive'}`} aria-hidden="true">
       <Canvas
         camera={{ fov: 42, near: 0.1, far: 50, position: [0, 6.8, 12.2] }}
         dpr={[1, 2]}
@@ -122,6 +131,7 @@ export function CampEnvironmentStage(props: Props) {
             lifeOriginRef={lifeOriginRef}
             reaction={props.reaction}
             reactionKey={props.reactionKey}
+            onResidentSelect={props.onResidentSelect}
           />
         </Suspense>
       </Canvas>

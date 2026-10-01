@@ -73,7 +73,7 @@ export function useCampNurseryInteractions({
     }
 
     setNotice(null);
-    playNurseryCeremony({ kind: 'craft', beforeStock }, 1280, () => {
+    playNurseryCeremony({ kind: 'craft', beforeStock }, 2400, () => {
       if (isFirstPlain) setCreateOpen(false);
     });
   };
@@ -164,14 +164,16 @@ export function useCampNurseryInteractions({
       beforeStock: createPanel.plainStock,
       jobName: name,
       jobId,
-    }, 1380, () => {
+    }, 2600, () => {
       onSelect(createdId);
       setCreateOpen(false);
-      triggerFeedback(
-        'recruit',
-        `${name}が仲間になった！`,
-        wasDiscovered ? '同じ職業の仲間が増えました' : '出撃編成に自動で加わりました',
-      );
+      if (wasDiscovered) {
+        triggerFeedback(
+          'recruit',
+          `${name}が仲間になった！`,
+          '同じ職業の仲間が増えました',
+        );
+      }
     });
   };
 

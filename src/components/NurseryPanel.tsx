@@ -6,8 +6,9 @@ import { NurseryIcon } from './NurseryIcon';
 import type { NurseryCeremony } from './NurseryCeremonyStage';
 import styles from './NurseryPanel.module.css';
 
+const nurseryCeremonyStagePromise = import('./NurseryCeremonyStage');
 const NurseryCeremonyStage = lazy(async () => {
-  const module = await import('./NurseryCeremonyStage');
+  const module = await nurseryCeremonyStagePromise;
   return { default: module.NurseryCeremonyStage };
 });
 
@@ -52,10 +53,13 @@ export function NurseryPanel({
 
   const firstPlainGate = tutorialCue?.id === 'create-first-plain' || tutorialCue?.id === 'try-first-plain';
   const firstJobGate = tutorialCue?.id === 'give-first-job';
+  const duplicateSwordGate = tutorialCue?.id === 'create-second-sword';
+  const firstSwordReveal = ceremony?.kind === 'job' && ceremony.jobId === 'sword' && tutorialCue?.id === 'try-first-sword';
+  const focusedSwordJob = firstJobGate || duplicateSwordGate || (busy && ceremony?.kind === 'job' && ceremony.jobId === 'sword');
 
   return (
     <BottomSheet
-      title="仲間を増やす"
+      title={ceremony?.kind === 'job' && ceremony.jobId === 'sword' ? "剣を渡す" : ceremony?.kind === 'job' ? "仕事を与える" : firstPlainGate ? "最初のスライム" : firstJobGate ? "剣を渡す" : duplicateSwordGate ? "同じ職の仲間を増やす" : "仲間を増やす"}
       onClose={onClose}
       backdropClassName={styles.backdrop}
       sheetClassName={`${styles.sheet} ${busy ? styles.busy : ''}`}
@@ -63,24 +67,18 @@ export function NurseryPanel({
       closeButtonClassName={styles.close}
     >
       <div className="nursery-world" ref={worldRef}>
-        <Suspense fallback={<div className="nursery-stage nursery-stage--loading" aria-hidden="true" />}>
+        <Suspense fallback={<div className="nursery-stage" aria-hidden="true" />}>
           <NurseryCeremonyStage
             ceremony={ceremony}
             stockLabel={validationMode ? '∞' : String(ceremony?.beforeStock ?? panel.plainStock)}
             speech={speechForCeremony(ceremony, tutorialCue)}
-            showResident={panel.plainStock > 0 || ceremony !== null}
+            showResident={firstPlainGate ? ceremony !== null : panel.plainStock > 0 || ceremony !== null}
+            firstPlain={firstPlainGate}
+            firstSwordReveal={firstSwordReveal}
           />
         </Suspense>
 
-        {ceremony === null && tutorialCue !== null && (tutorialCue.action === 'Create Slime' || tutorialCue.action === 'Create Job') && (
-          <div className="nursery-tutorial-guide" role="status" aria-live="polite">
-            <span>{tutorialCue.action === 'Create Slime' ? 'STEP 1' : 'STEP 2'}</span>
-            <strong>{tutorialCue.title}</strong>
-            <small>{tutorialCue.body}</small>
-          </div>
-        )}
-
-        <section
+        {!focusedSwordJob && <section
           className={`nursery-craft-panel ${tutorialCue?.action === 'Create Slime' ? 'is-tutorial-target' : ''}`}
           aria-label="素材からプレーンスライムを生み出す"
         >
@@ -113,20 +111,20 @@ export function NurseryPanel({
             <strong>{busy && ceremony?.kind === 'craft' ? '生まれています…' : '生み出す'}</strong>
             <small>プレーン +1</small>
           </button>
-        </section>
+        </section>}
 
-        <div className="nursery-job-title nursery-job-title--roles">
-          <span>職業を与える</span>
-          <strong>6つの道具から選ぶ</strong>
+        {!firstPlainGate && <><div className="nursery-job-title nursery-job-title--roles">
+          <span>{firstJobGate ? '最初の仕事道具' : duplicateSwordGate ? '同じ仕事の仲間' : '職業を与える'}</span>
+          <strong>{focusedSwordJob ? '剣を渡す' : '6つの道具から選ぶ'}</strong>
         </div>
         <div className="nursery-jobs nursery-jobs--roles">
-          {panel.jobs.map((job) => (
+          {panel.jobs.filter((job) => !focusedSwordJob || job.id === 'sword').map((job) => (
             <button
               className={`nursery-job-option ${tutorialCue?.action === 'Create Job' && job.id === 'sword' ? 'is-tutorial-target' : ''}`}
               key={job.id}
               type="button"
-              disabled={busy || !job.canCreate || firstPlainGate || (firstJobGate && job.id !== 'sword')}
-              aria-label={`${job.name}にする。 ${firstPlainGate ? 'まずプレーンスライムを試します' : firstJobGate && job.id !== 'sword' ? '最初は剣を渡します' : job.canCreate ? (job.isNew ? 'はじめての職業' : '仲間を増やす') : '素材不足'}`}
+              disabled={busy || !job.canCreate || firstPlainGate || (focusedSwordJob && job.id !== 'sword')}
+              aria-label={`${job.name}にする。 ${firstPlainGate ? 'まずプレーンスライムを試します' : focusedSwordJob && job.id !== 'sword' ? '剣士スライムを作ります' : job.canCreate ? (job.isNew ? 'はじめての職業' : '仲間を増やす') : '素材不足'}`}
               onClick={() => onCreateJob(job.id)}
             >
               <img src={`${import.meta.env.BASE_URL}${job.icon}`} alt="" />
@@ -137,9 +135,9 @@ export function NurseryPanel({
               <em>{job.canCreate ? '選ぶ' : '不足'}</em>
             </button>
           ))}
-        </div>
+        </div></>}
 
-        <button
+        {!firstPlainGate && !focusedSwordJob && <button
           className="nursery-shop-action"
           type="button"
           disabled={busy || !panel.purchase.canAfford}
@@ -151,9 +149,9 @@ export function NurseryPanel({
             <small>Goldですぐにプレーンを追加</small>
           </div>
           <em>{validationMode ? '∞' : panel.purchase.cost} G</em>
-        </button>
+        </button>}
 
-        {(panel.mimic.hearts > 0 || panel.mimic.alreadyOwned) && (
+        {!firstPlainGate && !focusedSwordJob && (panel.mimic.hearts > 0 || panel.mimic.alreadyOwned) && (
           <>
             <div className="nursery-job-title">
               <span>特殊な仲間</span>

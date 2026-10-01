@@ -194,7 +194,7 @@ export function AppShell() {
 
         {presentation.current !== null && (
           <div
-            className={`${styles.eventNotice} ${styles[presentation.current.tone]}`}
+            className={`${styles.eventNotice} ${styles[presentation.current.tone]} ${activeScreen === 'battle' ? '' : styles.eventNoticeCompact}`}
             role="status"
             aria-live="polite"
           >

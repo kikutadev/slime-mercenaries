@@ -52,6 +52,8 @@ export const TARGET_HOME = ENEMY_FORMATION_POSITIONS['front-center'];
  */
 export const CAMERA_BASE_POSITION = new THREE.Vector3(2.5, 4.9, 8.0);
 export const CAMERA_LOOK_AT = new THREE.Vector3(0, 0.36, -0.72);
+export const FIRST_SLIME_SHOWCASE_CAMERA_POSITION = new THREE.Vector3(1.58, 3.35, 5.42);
+export const FIRST_SLIME_SHOWCASE_LOOK_AT = new THREE.Vector3(-0.04, 0.30, -0.82);
 export const BOSS_CAMERA_BASE_POSITION = new THREE.Vector3(2.8, 5.35, 8.9);
 export const BOSS_CAMERA_LOOK_AT = new THREE.Vector3(0, 0.38, -1.05);
 

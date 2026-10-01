@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   RUNTIME_SETTINGS_STORAGE_KEY,
+  defaultRuntimeSettings,
   readRuntimeSettings,
   writeRuntimeSettings,
 } from './runtime-settings';
@@ -13,6 +14,10 @@ class MemoryStorage implements Pick<Storage, 'getItem' | 'setItem'> {
 }
 
 describe('runtime settings', () => {
+  it('starts fresh players in normal mode', () => {
+    expect(defaultRuntimeSettings()).toEqual({ economyMode: 'normal', soundEnabled: true });
+  });
+
   it('persists explicit economy mode independently from game save data', () => {
     const storage = new MemoryStorage();
     writeRuntimeSettings({ economyMode: 'normal', soundEnabled: true }, storage);

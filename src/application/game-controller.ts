@@ -11,6 +11,8 @@ import {
   convertDuplicateToFusionCore,
   craftPlainSlime,
   completeFirstPlainTrial,
+  completeFirstSwordTrial,
+  completeFirstBattleShowcase,
   createJobSlime,
   equipWeapon,
   enterAreaStage,
@@ -311,6 +313,14 @@ export class SlimeGameController {
 
   completeFirstPlainTrial() {
     return this.execute((state) => completeFirstPlainTrial(state));
+  }
+
+  completeFirstSwordTrial() {
+    return this.execute((state) => completeFirstSwordTrial(state));
+  }
+
+  completeFirstBattleShowcase() {
+    return this.execute((state) => completeFirstBattleShowcase(state));
   }
 
   createJobSlime(typeId: JobSlimeId) {

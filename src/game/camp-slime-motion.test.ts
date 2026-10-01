@@ -35,4 +35,14 @@ describe('camp slime idle motion', () => {
     expect(Math.abs(dagger.offsetX)).toBeGreaterThan(Math.abs(shield.offsetX));
     expect(CAMP_IDLE_MOTION_CYCLE_SEC).toBeGreaterThan(8);
   });
+  it('keeps the selected resident personality visible after the player taps into focus', () => {
+    const eager = getCampIdleMotion(4.2, 'sword', 'eager');
+    const sleepy = getCampIdleMotion(4.2, 'sword', 'sleepy');
+    const curious = getCampIdleMotion(4.2, 'sword', 'curious');
+
+    expect(eager.offsetY).toBeGreaterThan(sleepy.offsetY);
+    expect(sleepy.squash).toBeGreaterThan(eager.squash);
+    expect(Math.abs(curious.yawOffset - sleepy.yawOffset)).toBeGreaterThan(0.05);
+  });
+
 });

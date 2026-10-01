@@ -20,6 +20,7 @@ interface BattleCanvasProps {
   onEncounterRestarted: (model: BattleSceneModel) => void;
   rewardCue: BattleRewardCue | null;
   isSoundEnabled: () => boolean;
+  firstSlimeShowcase?: boolean;
 }
 
 function enemyConfigs(model: BattleSceneModel): readonly BattleRuntimeEnemyConfig[] {
@@ -60,6 +61,7 @@ function BattleRuntimeScene({
   onEncounterRestarted,
   rewardCue,
   isSoundEnabled,
+  firstSlimeShowcase = false,
 }: BattleCanvasProps) {
   const { scene, camera, gl } = useThree();
   const runtimeRef = useRef<BattleRuntime | null>(null);
@@ -109,6 +111,7 @@ function BattleRuntimeScene({
       })),
       enemies: enemyConfigs(initialModel),
       onSnapshot: (snapshot) => snapshotRef.current(snapshot),
+      firstSlimeShowcase,
       isSoundEnabled,
     });
 
@@ -193,6 +196,10 @@ function BattleRuntimeScene({
 
 
   useEffect(() => {
+    runtimeRef.current?.setFirstSlimeShowcase(firstSlimeShowcase);
+  }, [firstSlimeShowcase]);
+
+  useEffect(() => {
     if (rewardCue === null) return;
     runtimeRef.current?.presentRewardCue(rewardCue);
   }, [rewardCue?.id]);
@@ -216,7 +223,7 @@ export function BattleCanvas(props: BattleCanvasProps) {
         position: [CAMERA_BASE_POSITION.x, CAMERA_BASE_POSITION.y, CAMERA_BASE_POSITION.z],
       }}
       dpr={[1, 2]}
-      gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+      gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       shadows
     >
       <BattleRuntimeScene {...props} />

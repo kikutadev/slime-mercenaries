@@ -16,6 +16,9 @@ export type NurseryCeremony = Readonly<{
   jobId?: JobSlimeId;
 }>;
 
+useLoader.preload(GLTFLoader, `${import.meta.env.BASE_URL}assets/plain-slime.glb`);
+useLoader.preload(GLTFLoader, `${import.meta.env.BASE_URL}${SLIMES.sword.asset}`);
+
 type MorphMesh = THREE.Mesh & {
   morphTargetDictionary?: Record<string, number>;
   morphTargetInfluences?: number[];
@@ -96,8 +99,10 @@ function NurseryJobResult({ jobId }: { jobId: JobSlimeId }) {
     const beat = Math.sin(identityU * Math.PI);
     switch (jobId) {
       case 'sword':
-        group.rotation.y = -0.2 + beat * 0.44;
-        setMorph(body, 'Stretch', beat * 0.14);
+        group.position.y = -0.58 + beat * 0.22;
+        group.rotation.y = -0.2 + beat * 0.56;
+        group.rotation.z = -beat * 0.08;
+        setMorph(body, 'Stretch', beat * 0.20);
         break;
       case 'shield':
         group.scale.set(0.58 * (1 + beat * 0.08), 0.58 * (1 - beat * 0.10), 0.58);
@@ -218,15 +223,19 @@ export function NurseryCeremonyStage({
   stockLabel,
   speech,
   showResident,
+  firstPlain = false,
+  firstSwordReveal = false,
 }: {
   ceremony: NurseryCeremony | null;
   stockLabel: string;
   speech?: string;
   showResident: boolean;
+  firstPlain?: boolean;
+  firstSwordReveal?: boolean;
 }) {
   const kind = ceremony?.kind ?? 'idle';
   const status = ceremony?.kind === 'craft'
-    ? '素材がひとつの命になります'
+    ? firstPlain ? 'はじめての仲間が生まれます' : '素材がひとつの命になります'
     : ceremony?.kind === 'purchase'
       ? '新しい仲間がキャンプへ到着'
       : ceremony?.kind === 'job'
@@ -270,35 +279,40 @@ export function NurseryCeremonyStage({
         {ceremony?.kind === 'job' && ceremony.jobId !== undefined && (
           <div className="nursery-stage__job-tool"><NurseryJobGearIcon jobId={ceremony.jobId} /></div>
         )}
-        {ceremony !== null && (
+        {ceremony !== null && !(firstPlain && ceremony.kind === 'craft') && !firstSwordReveal && (
           <div className="nursery-stage__result">
             <strong>
               {ceremony.kind === 'job'
                 ? ceremony.jobName
                 : ceremony.kind === 'purchase'
                   ? 'プレーンスライムが到着'
-                  : 'プレーンスライム +1'}
+                  : firstPlain ? 'プレーンスライム' : 'プレーンスライム +1'}
             </strong>
             <span>
               {ceremony.kind === 'job'
                 ? '仲間になりました'
                 : ceremony.kind === 'purchase'
                   ? 'キャンプへ仲間入り'
-                  : '生成槽から誕生'}
+                  : firstPlain ? 'はじめまして' : '生成槽から誕生'}
             </span>
           </div>
         )}
       </div>
 
       {speech !== undefined && (
-        <div className="nursery-stage__speech" role="status" aria-live="polite">
+        <div className={`nursery-stage__speech ${firstSwordReveal ? 'nursery-stage__speech--handoff' : ''}`} role="status" aria-live="polite">
           {speech}
+        </div>
+      )}
+      {firstSwordReveal && (
+        <div className="nursery-stage__speech nursery-stage__speech--sword-result" role="status" aria-live="polite">
+          剣だ。
         </div>
       )}
 
       <div className="nursery-stage__caption" role="status" aria-live="polite">
         <span>{status}</span>
-        <strong>{stockLabel}</strong>
+        {!firstPlain && <strong>{stockLabel}</strong>}
       </div>
     </div>
   );

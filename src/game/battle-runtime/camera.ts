@@ -7,6 +7,8 @@ import {
   BOSS_CAMERA_LOOK_AT,
   CAMERA_BASE_POSITION,
   CAMERA_LOOK_AT,
+  FIRST_SLIME_SHOWCASE_CAMERA_POSITION,
+  FIRST_SLIME_SHOWCASE_LOOK_AT,
 } from './layout';
 import type { BattleSnapshot } from './types';
 
@@ -21,15 +23,20 @@ export interface BattleCameraFrame {
 }
 
 export class BattleCameraController {
+  private firstSlimeShowcase = false;
   private shakeStartedAt = -Infinity;
   private shakeEndsAt = -Infinity;
   private shakeAmplitude = 0;
 
   constructor(private readonly camera: THREE.PerspectiveCamera) {}
 
+  setFirstSlimeShowcase(enabled: boolean): void {
+    this.firstSlimeShowcase = enabled;
+  }
+
   reset(): void {
-    this.camera.position.copy(CAMERA_BASE_POSITION);
-    this.camera.lookAt(CAMERA_LOOK_AT);
+    this.camera.position.copy(this.firstSlimeShowcase ? FIRST_SLIME_SHOWCASE_CAMERA_POSITION : CAMERA_BASE_POSITION);
+    this.camera.lookAt(this.firstSlimeShowcase ? FIRST_SLIME_SHOWCASE_LOOK_AT : CAMERA_LOOK_AT);
     this.shakeStartedAt = -Infinity;
     this.shakeEndsAt = -Infinity;
     this.shakeAmplitude = 0;
@@ -44,10 +51,14 @@ export class BattleCameraController {
   update(frame: BattleCameraFrame): void {
     const basePosition = frame.bossEncounter
       ? BOSS_CAMERA_BASE_POSITION
-      : CAMERA_BASE_POSITION;
+      : this.firstSlimeShowcase
+        ? FIRST_SLIME_SHOWCASE_CAMERA_POSITION
+        : CAMERA_BASE_POSITION;
     const lookAt = frame.bossEncounter
       ? BOSS_CAMERA_LOOK_AT
-      : CAMERA_LOOK_AT;
+      : this.firstSlimeShowcase
+        ? FIRST_SLIME_SHOWCASE_LOOK_AT
+        : CAMERA_LOOK_AT;
 
     this.camera.position.copy(basePosition);
     if (frame.phase === 'approach') {

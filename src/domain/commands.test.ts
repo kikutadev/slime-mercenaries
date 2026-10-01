@@ -11,6 +11,8 @@ import {
   convertDuplicateToFusionCore,
   craftPlainSlime,
   completeFirstPlainTrial,
+  completeFirstSwordTrial,
+  completeFirstBattleShowcase,
   createJobSlime,
   fuseSlime,
   levelUpSlime,
@@ -65,6 +67,12 @@ describe('Plain Slime economy', () => {
     const tried = completeFirstPlainTrial(result.state);
     expect(tried.accepted).toBe(true);
     expect(tried.state.progressionFlags[ids.progression.firstPlainTrialComplete]).toBe(true);
+    const swordTried = completeFirstSwordTrial(tried.state);
+    expect(swordTried.accepted).toBe(true);
+    expect(swordTried.state.progressionFlags[ids.progression.firstSwordTrialComplete]).toBe(true);
+    const battleSeen = completeFirstBattleShowcase(swordTried.state);
+    expect(battleSeen.accepted).toBe(true);
+    expect(battleSeen.state.progressionFlags[ids.progression.firstBattleShowcaseComplete]).toBe(true);
     for (const requirement of preview.requirements) {
       expect(readToken(result.state.tokens, requirement.tokenId)).toBe(requirement.owned - requirement.required);
     }
