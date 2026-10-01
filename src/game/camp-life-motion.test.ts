@@ -49,6 +49,20 @@ describe('camp living-world motion', () => {
     expect(rightTalk.yaw).toBeLessThan(0);
   });
 
+  it('shows a tired but recoverable retreat pose without reusing battle defeat flattening', () => {
+    const base = getCampLifePose(0.5, 0, 'sword');
+    const tired = applyCampLifeWorldReaction(base, 0.45, 0, 'retreat');
+    const recovering = applyCampLifeWorldReaction(base, 2.45, 0, 'retreat');
+    const settled = applyCampLifeWorldReaction(base, 3.1, 0, 'retreat');
+
+    expect(tired.eyeOpen).toBeLessThan(0.6);
+    expect(tired.bodySquash).toBeGreaterThan(0.07);
+    expect(tired.bodySquash).toBeLessThan(0.14);
+    expect(tired.y).toBeLessThan(base.y);
+    expect(recovering.eyeOpen).toBeGreaterThan(tired.eyeOpen);
+    expect(settled).toEqual(base);
+  });
+
   it('lets the living Camp react to player actions without replacing the resident routine', () => {
     const base = getCampLifePose(0.5, 2, 'bow');
     const cheer = applyCampLifeWorldReaction(base, 0.52, 2, 'level-up');

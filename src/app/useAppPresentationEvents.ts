@@ -28,6 +28,7 @@ export function useAppPresentationEvents({
   const [battleReportOpen, setBattleReportOpen] = useState(false);
   const [hasPendingBattleActivity, setHasPendingBattleActivity] = useState(false);
   const [dispatchReturnCues, setDispatchReturnCues] = useState<readonly DispatchReturnCue[]>([]);
+  const [latestLiveDefeatId, setLatestLiveDefeatId] = useState<string | null>(null);
 
   const battleRewardCueTimersRef = useRef(new Map<string, number>());
   const pendingBattleActivityRef = useRef<BattleActivityReport | null>(null);
@@ -39,6 +40,10 @@ export function useAppPresentationEvents({
 
   useEffect(() => controller.subscribeEvents((events, context) => {
     const activeScreenNow = activeScreenRef.current;
+    if (activeScreenNow === 'battle' && context.source !== 'offline') {
+      const liveDefeat = [...events].reverse().find((event) => event.type === 'partyDefeated');
+      if (liveDefeat !== undefined) setLatestLiveDefeatId(liveDefeat.id);
+    }
     const dispatchCues = toDispatchReturnCues(events);
 
     if (dispatchCues.length > 0) {
@@ -158,6 +163,7 @@ export function useAppPresentationEvents({
     setBattleReportOpen,
     hasPendingBattleActivity,
     dispatchReturnCues,
+    latestLiveDefeatId,
     handleBattleRewardCuePresented,
     dismissDispatchReturnCue,
     confirmBattleActivityReport,

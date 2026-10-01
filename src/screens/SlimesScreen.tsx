@@ -43,6 +43,7 @@ interface Props {
   onOpenForge: () => void;
   entryMode: CampMode;
   entryRevision: number;
+  defeatRecoveryActive: boolean;
 }
 
 export function SlimesScreen({
@@ -52,6 +53,7 @@ export function SlimesScreen({
   onOpenForge,
   entryMode,
   entryRevision,
+  defeatRecoveryActive,
 }: Props) {
   const state = useGameState();
   const controller = useGameController();
@@ -158,6 +160,10 @@ export function SlimesScreen({
     focusSelectedInCamp ? selected : null,
     6,
   );
+  const campFeedback = feedback.reaction === 'idle'
+    && (defeatRecoveryActive || state.gameData.combat.retryFarmClearsRemaining > 0)
+    ? { ...feedback, reaction: 'retreat' as const }
+    : feedback;
 
 
   if (mode === 'fusion' && selected !== null) {
@@ -205,7 +211,7 @@ export function SlimesScreen({
       ) : (
         <>
           <CampWorld
-            feedback={feedback}
+            feedback={campFeedback}
             hero={createOpen || cue?.id === 'try-first-sword' || detail === null || selectedTemperament === null || !focusSelectedInCamp ? null : {
               presentation: detail.presentation,
               role: detail.role,

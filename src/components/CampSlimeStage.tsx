@@ -197,6 +197,27 @@ function CampResident({
       return;
     }
 
+    if (reaction === 'retreat' && elapsed >= 0 && elapsed < 2.85) {
+      resetBody(parts);
+      const u = elapsed / 2.85;
+      const exhausted = 1 - u;
+      const recoverHopU = Math.max(0, Math.min(1, (elapsed - 2.02) / 0.58));
+      const recoverHop = recoverHopU > 0 && recoverHopU < 1 ? Math.sin(recoverHopU * Math.PI) : 0;
+      group.position.y = -0.50 - exhausted * 0.06 + recoverHop * 0.07;
+      group.rotation.z = -0.055 * exhausted + Math.sin(elapsed * 2.9) * exhausted * 0.018;
+      setMorph(parts.body, 'Squash', 0.12 * exhausted);
+      setMorph(parts.body, 'Stretch', 0.08 * recoverHop);
+      setMorph(parts.body, 'WobbleLeft', Math.abs(Math.sin(elapsed * 2.6)) * exhausted * 0.08);
+      for (const eye of parts.eyes) {
+        eye.object.scale.set(
+          eye.baseScale.x,
+          eye.baseScale.y * (0.34 + u * 0.66),
+          eye.baseScale.z,
+        );
+      }
+      return;
+    }
+
     const completedReactionDuration = reaction === 'level-up'
       ? 1.12
       : reaction === 'formation'
@@ -205,7 +226,9 @@ function CampResident({
           ? 1.12
           : reaction === 'fusion'
             ? 1.16
-            : 0;
+            : reaction === 'retreat'
+              ? 2.85
+              : 0;
     const idleTime = reaction === 'idle'
       ? Math.max(0, time - idleStartedAt.current)
       : Math.max(0, elapsed - completedReactionDuration);

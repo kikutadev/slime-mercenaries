@@ -11,7 +11,8 @@ export type CampReaction =
   | 'level-up'
   | 'formation'
   | 'recruit'
-  | 'fusion';
+  | 'fusion'
+  | 'retreat';
 
 export interface CampFeedback {
   key: number;

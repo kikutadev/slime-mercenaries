@@ -38,6 +38,7 @@ export function AppShell() {
   const [selectedSlimeId, setSelectedSlimeId] = useState<SlimeInstanceId | null>(null);
   const [campEntry, setCampEntry] = useState<{ mode: CampMode; revision: number }>({ mode: 'none', revision: 0 });
   const [offlineDismissed, setOfflineDismissed] = useState(false);
+  const [handledCampDefeatId, setHandledCampDefeatId] = useState<string | null>(null);
   const [, startScreenTransition] = useTransition();
   const presentation = usePresentationQueue(presentationNoticeDurationMs);
   const initialScreen: ScreenId = ownedIds.length > 0 && state.gameData.roster.formationSlots.some((slot) => slot !== null)
@@ -58,6 +59,7 @@ export function AppShell() {
     setBattleReportOpen,
     hasPendingBattleActivity,
     dispatchReturnCues,
+    latestLiveDefeatId,
     handleBattleRewardCuePresented,
     dismissDispatchReturnCue,
     confirmBattleActivityReport,
@@ -65,6 +67,17 @@ export function AppShell() {
     activeScreen,
     enqueueNotices: presentation.enqueue,
   });
+
+  const campDefeatRecoveryActive = latestLiveDefeatId !== null
+    && latestLiveDefeatId !== handledCampDefeatId;
+
+  useEffect(() => {
+    if (activeScreen !== 'slimes' || !campDefeatRecoveryActive || latestLiveDefeatId === null) return;
+    const timeoutId = window.setTimeout(() => {
+      setHandledCampDefeatId(latestLiveDefeatId);
+    }, 3_400);
+    return () => window.clearTimeout(timeoutId);
+  }, [activeScreen, campDefeatRecoveryActive, latestLiveDefeatId]);
 
   useEffect(() => {
     if (bootstrap.status !== 'ready' || screen !== null) return;
@@ -148,6 +161,7 @@ export function AppShell() {
                 onOpenForge={() => navigateScreen('forge')}
                 entryMode={campEntry.mode}
                 entryRevision={campEntry.revision}
+                defeatRecoveryActive={campDefeatRecoveryActive}
               />
             )}
             {activeScreen === 'dispatch' && (
@@ -192,7 +206,9 @@ export function AppShell() {
           <div className={styles.saveWarning}>セーブに失敗しました。接続を確認してください。</div>
         )}
 
-        {presentation.current !== null && (
+        {presentation.current !== null
+          && !(activeScreen === 'slimes' && presentation.current.presentationCoalescingKey === 'frontier-state')
+          && (
           <div
             className={`${styles.eventNotice} ${styles[presentation.current.tone]} ${activeScreen === 'battle' ? '' : styles.eventNoticeCompact}`}
             role="status"

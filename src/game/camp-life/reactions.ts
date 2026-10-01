@@ -74,5 +74,24 @@ export function applyCampLifeWorldReaction(
     };
   }
 
+  if (reaction === 'retreat' && delayed < 2.85) {
+    const u = clamp01(delayed / 2.85);
+    const exhausted = 1 - u;
+    const recoverHop = pulse(delayed, 2.02, 0.58);
+    const side = slotIndex % 2 === 0 ? -1 : 1;
+    return {
+      ...pose,
+      y: pose.y - exhausted * 0.026 + recoverHop * 0.045,
+      roll: pose.roll + side * exhausted * 0.045,
+      bodySquash: Math.max(pose.bodySquash, exhausted * 0.105),
+      bodyStretch: Math.max(pose.bodyStretch, recoverHop * 0.075),
+      lean: pose.lean + side * exhausted * 0.045,
+      wobble: pose.wobble + Math.sin(delayed * 3.1 + slotIndex) * exhausted * 0.045,
+      eyeOpen: 0.34 + u * 0.66,
+      mouthOpen: 0.88 + u * 0.12,
+      mouthWidth: 1.05 - u * 0.05,
+    };
+  }
+
   return pose;
 }
