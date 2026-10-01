@@ -20,7 +20,7 @@ export interface CampLifeResidentSpec {
 export function selectCampLifeResidents(
   state: SlimeMercenariesState,
   selectedId: SlimeInstanceId | null,
-  limit = 4,
+  limit = 6,
 ): readonly CampLifeResidentSpec[] {
   if (!Number.isSafeInteger(limit) || limit <= 0) return [];
   return Object.values(state.gameData.roster.slimes)

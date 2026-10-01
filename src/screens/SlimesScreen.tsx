@@ -156,7 +156,7 @@ export function SlimesScreen({
   const campLifeResidents = selectCampLifeResidents(
     state,
     focusSelectedInCamp ? selected : null,
-    4,
+    6,
   );
 
 

@@ -35,9 +35,19 @@ interface CampLifeResidentProps {
   reaction: CampReaction;
   reactionStartedAtRef: MutableRefObject<number | null>;
   onSelect?: (instanceId: CampLifeResidentSpec['instanceId']) => void;
+  crowded: boolean;
 }
 
 const AMBIENT_SLIME_SCALE = 0.49;
+const CROWDED_AMBIENT_SLIME_SCALE = 0.43;
+const CROWDED_SLOT_OFFSETS = [
+  [-0.26, -0.10],
+  [0.00, -0.18],
+  [0.26, -0.10],
+  [-0.26, 0.16],
+  [0.00, 0.22],
+  [0.26, 0.16],
+] as const;
 
 function setMorph(body: MorphMesh | null, name: string, value: number): void {
   if (!body?.morphTargetDictionary || !body.morphTargetInfluences) return;
@@ -75,7 +85,7 @@ function resetParts(parts: ResidentParts): void {
   parts.equipment?.quaternion.copy(parts.equipmentBaseQuaternion);
 }
 
-function AmbientResident({ resident, slotIndex, lifeOriginRef, reaction, reactionStartedAtRef, onSelect }: CampLifeResidentProps) {
+function AmbientResident({ resident, slotIndex, lifeOriginRef, reaction, reactionStartedAtRef, onSelect, crowded }: CampLifeResidentProps) {
   const gltf = useLoader(GLTFLoader, `${import.meta.env.BASE_URL}${resident.presentation.asset}`);
   const model = useMemo(() => {
     const clone = gltf.scene.clone(true);
@@ -140,9 +150,10 @@ function AmbientResident({ resident, slotIndex, lifeOriginRef, reaction, reactio
     const pose = applyCampLifeWorldReaction(basePose, reactionElapsed, slotIndex, reaction);
 
     resetParts(parts);
-    group.position.set(pose.x, pose.y, pose.z);
+    const crowdedOffset = crowded ? CROWDED_SLOT_OFFSETS[slotIndex] ?? [0, 0] : [0, 0];
+    group.position.set(pose.x + crowdedOffset[0], pose.y, pose.z + crowdedOffset[1]);
     group.rotation.set(0, pose.yaw, pose.roll);
-    group.scale.setScalar(AMBIENT_SLIME_SCALE);
+    group.scale.setScalar(crowded ? CROWDED_AMBIENT_SLIME_SCALE : AMBIENT_SLIME_SCALE);
 
     setMorph(parts.body, 'Squash', pose.bodySquash);
     setMorph(parts.body, 'Stretch', pose.bodyStretch);
@@ -222,9 +233,12 @@ export function CampLifePopulation({
     if (lifeOriginRef.current === null) lifeOriginRef.current = clock.elapsedTime;
   });
 
+  const visibleResidents = residents.slice(0, 6);
+  const crowded = visibleResidents.length >= 5;
+
   return (
     <group name="CampLifePopulation">
-      {residents.slice(0, 4).map((resident, slotIndex) => (
+      {visibleResidents.map((resident, slotIndex) => (
         <AmbientResident
           key={resident.instanceId}
           resident={resident}
@@ -233,6 +247,7 @@ export function CampLifePopulation({
           reaction={reaction}
           reactionStartedAtRef={reactionStartedAtRef}
           onSelect={onResidentSelect}
+          crowded={crowded}
         />
       ))}
     </group>

@@ -5,6 +5,8 @@ export type CampLifeStationId =
   | 'home-right'
   | 'home-back-left'
   | 'home-back-right'
+  | 'home-front-left'
+  | 'home-front-right'
   | 'training'
   | 'rest'
   | 'weapon-rack'
@@ -26,23 +28,33 @@ export interface CampLifeStation {
 export const CAMP_LIFE_STATIONS: Readonly<Record<CampLifeStationId, CampLifeStation>> = {
   'home-left': {
     id: 'home-left',
-    position: new THREE.Vector3(-1.92, 0.02, -1.30),
+    position: new THREE.Vector3(-1.42, 0.02, -1.18),
     facingTarget: new THREE.Vector3(0, 0.45, 1.8),
   },
   'home-right': {
     id: 'home-right',
-    position: new THREE.Vector3(2.08, 0.02, -2.05),
+    position: new THREE.Vector3(0.00, 0.02, -1.56),
     facingTarget: new THREE.Vector3(0, 0.45, 1.8),
   },
   'home-back-left': {
     id: 'home-back-left',
-    position: new THREE.Vector3(-0.72, 0.02, -2.52),
+    position: new THREE.Vector3(1.42, 0.02, -1.18),
     facingTarget: new THREE.Vector3(0, 0.45, 0.55),
   },
   'home-back-right': {
     id: 'home-back-right',
-    position: new THREE.Vector3(0.72, 0.02, -2.50),
+    position: new THREE.Vector3(-1.16, 0.02, 0.40),
     facingTarget: new THREE.Vector3(0, 0.45, 0.55),
+  },
+  'home-front-left': {
+    id: 'home-front-left',
+    position: new THREE.Vector3(0.00, 0.02, 0.68),
+    facingTarget: new THREE.Vector3(0, 0.45, -0.55),
+  },
+  'home-front-right': {
+    id: 'home-front-right',
+    position: new THREE.Vector3(1.16, 0.02, 0.40),
+    facingTarget: new THREE.Vector3(0, 0.45, -0.55),
   },
   training: {
     id: 'training',
@@ -91,6 +103,8 @@ export const CAMP_LIFE_HOME_BY_SLOT = [
   CAMP_LIFE_STATIONS['home-right'],
   CAMP_LIFE_STATIONS['home-back-left'],
   CAMP_LIFE_STATIONS['home-back-right'],
+  CAMP_LIFE_STATIONS['home-front-left'],
+  CAMP_LIFE_STATIONS['home-front-right'],
 ] as const;
 
 export function campLifeHomeForSlot(slotIndex: number): CampLifeStation {

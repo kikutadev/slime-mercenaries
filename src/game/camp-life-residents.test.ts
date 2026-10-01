@@ -27,6 +27,16 @@ describe('camp life resident selection', () => {
     expect(new Set(residents.map((resident) => resident.instanceId)).size).toBe(residents.length);
   });
 
+
+  it('can project the full six-slime validation roster into Camp life', () => {
+    const prepared = prepareValidationRoster(createInitialSlimeMercenariesState(0, 33));
+    if (!prepared.accepted) throw new Error('validation roster setup failed');
+
+    const residents = selectCampLifeResidents(prepared.state, null);
+    expect(residents).toHaveLength(6);
+    expect(new Set(residents.map((resident) => resident.instanceId)).size).toBe(6);
+  });
+
   it('keeps serial ordering stable so movement roles do not reshuffle frame-to-frame', () => {
     const prepared = prepareValidationRoster(createInitialSlimeMercenariesState(0, 32));
     if (!prepared.accepted) throw new Error('validation roster setup failed');
