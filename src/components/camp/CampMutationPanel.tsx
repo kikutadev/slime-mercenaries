@@ -49,13 +49,6 @@ export function CampMutationPanel({
           <strong>レア変異</strong>
           <small>職業はそのまま。特殊な性質だけを重ねます</small>
         </div>
-        <button
-          type="button"
-          onClick={() => actions.setMode('none')}
-          aria-label="レア変異を閉じる"
-        >
-          ×
-        </button>
       </div>
 
       <div className="camp-mutation-options">

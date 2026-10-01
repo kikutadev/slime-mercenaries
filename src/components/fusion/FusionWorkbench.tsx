@@ -96,11 +96,11 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit, onRetur
   ) {
     return (
       <div className={styles.workbench}>
-        <button className={styles.close} type="button" onClick={onClose}>×</button>
+        <button className={styles.close} type="button" onClick={onClose} aria-label="仲間・育成メニューへ戻る">‹ 仲間・育成</button>
         <div className={styles.completePanel}>
           <span>合成</span>
           <strong>現在の合成段階は上限です</strong>
-          <button type="button" onClick={onClose}>キャンプへ戻る</button>
+          <button type="button" onClick={onClose}>仲間・育成へ戻る</button>
         </div>
       </div>
     );
@@ -114,7 +114,7 @@ export function FusionWorkbench({ slimeId, onClose, onBattle, onRecruit, onRetur
 
   return (
     <div className={`${styles.workbench} ${run !== null ? styles.running : ''}`} aria-label="合成祭壇" aria-busy={run !== null}>
-      <button className={styles.close} type="button" disabled={run !== null} onClick={onClose} aria-label="合成画面を閉じる">×</button>
+      <button className={styles.close} type="button" disabled={run !== null} onClick={onClose} aria-label="仲間・育成メニューへ戻る">‹ 仲間・育成</button>
 
       <div className={styles.header}>
         <span>合成ランク {displayFromRank} → {displayFromRank + 1}</span>

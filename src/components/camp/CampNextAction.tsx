@@ -84,7 +84,7 @@ export function CampNextAction({
   return (
     <button className="camp-next-action" type="button" onClick={actions.openBattle}>
       <span>次にやること</span>
-      <strong>戦闘へ戻る</strong>
+      <strong>戦闘へ</strong>
       <em>›</em>
     </button>
   );

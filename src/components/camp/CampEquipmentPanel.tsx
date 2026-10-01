@@ -53,13 +53,6 @@ export function CampEquipmentPanel({
               : `現在: ${weaponView.current.name}`}
           </small>
         </div>
-        <button
-          type="button"
-          onClick={() => actions.setMode('none')}
-          aria-label="装備を閉じる"
-        >
-          ×
-        </button>
       </div>
 
       {weaponView.options.length === 0 ? (

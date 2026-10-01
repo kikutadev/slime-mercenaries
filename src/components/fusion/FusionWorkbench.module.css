@@ -26,13 +26,16 @@
   z-index: 90;
   top: max(13px, var(--safe-area-top));
   right: 14px;
-  width: var(--touch-target-min);
+  min-width: 104px;
   height: var(--touch-target-min);
+  padding: 0 12px;
   border: 1px solid rgb(255 255 255 / 14%);
-  border-radius: 50%;
+  border-radius: 999px;
   background: rgb(255 255 255 / 8%);
   color: #fff;
-  font-size: 20px;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
   backdrop-filter: blur(10px);
 }
 

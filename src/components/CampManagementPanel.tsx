@@ -7,6 +7,7 @@ import { CampNextAction } from './camp/CampNextAction';
 import { CampPrimaryActions } from './camp/CampPrimaryActions';
 import { CampRosterStrip } from './camp/CampRosterStrip';
 import { CampTrainPanel } from './camp/CampTrainPanel';
+import { campManagementNavigation } from '../game/camp-management-navigation';
 
 export function CampManagementPanel({
   model,
@@ -23,6 +24,7 @@ export function CampManagementPanel({
     formationCeremony,
     formationBusy,
   } = model;
+  const navigation = campManagementNavigation(mode);
 
   return (
     <div
@@ -32,11 +34,16 @@ export function CampManagementPanel({
     >
       <div className="camp-command-panel__header">
         <div>
-          <span>キャンプ管理</span>
-          <strong>仲間・育成</strong>
+          <span>{navigation.eyebrow}</span>
+          <strong>{navigation.title}</strong>
         </div>
-        <button type="button" disabled={busy} onClick={actions.closeManagement}>
-          キャンプへ戻る
+        <button
+          type="button"
+          disabled={busy}
+          aria-label={navigation.backToMenu ? '仲間・育成メニューへ戻る' : 'キャンプへ戻る'}
+          onClick={navigation.backToMenu ? () => actions.setMode('none') : actions.closeManagement}
+        >
+          {navigation.backLabel}
         </button>
       </div>
 
@@ -52,7 +59,7 @@ export function CampManagementPanel({
         </section>
       )}
       {mode === 'none' && <CampNextAction model={model} actions={actions} />}
-      <CampPrimaryActions model={model} actions={actions} />
+      {mode === 'none' && <CampPrimaryActions model={model} actions={actions} />}
       {mode === 'none' && <CampEquipmentEntry model={model} actions={actions} />}
       {mode === 'none' && <CampMutationEntry model={model} actions={actions} />}
       <CampEquipmentPanel model={model} actions={actions} />

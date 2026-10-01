@@ -30,14 +30,6 @@ export function CampTrainPanel({
               : detail.level}
           </small>
         </div>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => actions.setMode('none')}
-          aria-label="強化を閉じる"
-        >
-          ×
-        </button>
       </div>
 
       <div className={`camp-level-buttons ${strengthenBusy ? 'is-busy' : ''}`}>

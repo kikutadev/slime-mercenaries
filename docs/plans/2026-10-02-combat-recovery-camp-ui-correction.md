@@ -71,3 +71,35 @@ Status: Implemented and locally accepted
 - Plain and Sword dummy attacks visually face the dummy rather than the camera.
 - Camp management is a full-height task surface with no focused 3D hero above it.
 - One filled recommended CTA is shown above secondary Camp build actions.
+
+## Navigation hierarchy correction — 2026-10-02
+
+Observed regression: Camp management had a real hierarchy (`Camp -> 仲間・育成 -> 強化/合成/編成/装備/変異`) but the dominant header action always said `キャンプへ戻る`. This skipped the management root and made the back destination depend on which close control the player happened to tap.
+
+Contract:
+- management root -> `キャンプへ戻る`
+- train / formation / equipment / mutation / fusion -> `‹ 仲間・育成`
+- child completion/back never skips directly to Camp unless the CTA explicitly names Camp (for example fusion result `キャンプで見る`)
+- child pages do not keep sibling management buttons visible; choosing another action happens after returning to the management root
+- generic management CTA says `戦闘へ`, not `戦闘へ戻る`, because the player may have entered from Camp rather than Battle
+
+QA:
+- [x] navigation contract unit test covers every `CampMode`
+- [x] 390x844 sequence: root -> train -> root -> formation -> root -> equipment -> root -> fusion -> root -> Camp
+- [x] browser/page/network game-origin errors: 0
+
+## Navigation hierarchy correction — 2026-10-02
+
+Observed regression: Camp management had a real hierarchy (`Camp -> 仲間・育成 -> 強化/合成/編成/装備/変異`) but the dominant header action always said `キャンプへ戻る`. This skipped the management root and made the back destination depend on which close control the player happened to tap.
+
+Contract:
+- management root -> `キャンプへ戻る`
+- train / formation / equipment / mutation / fusion -> `‹ 仲間・育成`
+- child completion/back never skips directly to Camp unless the CTA explicitly names Camp (for example fusion result `キャンプで見る`)
+- child pages do not keep sibling management buttons visible; choosing another action happens after returning to the management root
+- generic management CTA says `戦闘へ`, not `戦闘へ戻る`, because the player may have entered from Camp rather than Battle
+
+QA:
+- [x] navigation contract unit test covers every `CampMode`
+- [x] 390x844 sequence: root -> train -> root -> formation -> root -> equipment -> root -> fusion -> root -> Camp
+- [x] browser/page/network game-origin errors: 0
