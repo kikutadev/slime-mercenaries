@@ -1,7 +1,7 @@
 # Combat VFX concurrency and Tier 3 legibility
 
 Date: 2026-10-13
-Status: Implemented; local acceptance PASS, release pending
+Status: Implemented; deployed and production accepted
 
 ## User-visible problem
 
@@ -33,3 +33,11 @@ After layout and late-stage combat framing were corrected, simultaneous skills w
 - 390×844 staged late-boss capture (Clover + Frost + Ember + Moonlit + Dragon): PASS, 12.80s.
 - Fresh normal mode 390×844 first-play browser acceptance: PASS, 15 screenshots / 7 assertions, 35.22s, zero game-origin errors. 430×932: PASS, 15 screenshots / 7 assertions, 35.23s, zero game-origin errors.
 - Full Vitest: 86 files / 504 cases PASS in 5.48s. TypeScript PASS 3.87s, UI contract PASS 0.37s, production build PASS 2.87s, initial bundle guard PASS 0.38s, 135.9KiB gzip / 160KiB budget.
+
+## Published release
+
+- Game commit `56b5c09` pushed to `origin/main`; Cloudflare Workers release version `bf604aa4-d1ed-4609-adf3-f6e25d614cb9` deployed to `https://games.kikuta.dev/slime-mercenaries/`.
+- Live custom domain served new main script `main-A6QR12HK.js` and BattleScreen `BattleScreen-Cdmcn7qY.js` (HTTP 200).
+- Production normal first-play CFT 390×844: 15 snapshots, seven assertions PASS, errors 0, 37.14s.
+- Production development-only QA fixture (disposable automation browser): six Tier 3 branches, Clover stage 5 and Dragon Crater boss: 2 scenes / 16 frames each PASS, 19.73s; six same-family Sword/Greatsword slimes: 18 frames PASS, 11.21s.
+- No gameplay-simulation, HP, player size, persistence or damage values altered; only runtime rendering and VFX proportions.
