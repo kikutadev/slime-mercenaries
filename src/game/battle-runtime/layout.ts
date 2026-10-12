@@ -21,12 +21,12 @@ const ALLY_HOME_POSITIONS = [
  * the same target retain distinct silhouettes instead of collapsing into one blue mass.
  */
 const MELEE_COMBAT_POSITIONS = [
-  new THREE.Vector3(-0.72, 0.02, -0.56),
-  new THREE.Vector3(0, 0.02, -0.68),
-  new THREE.Vector3(0.72, 0.02, -0.56),
-  new THREE.Vector3(-0.94, 0.02, -0.12),
-  new THREE.Vector3(0, 0.02, -0.22),
-  new THREE.Vector3(0.94, 0.02, -0.12),
+  new THREE.Vector3(-0.57, 0.02, -0.56),
+  new THREE.Vector3(0.09, 0.02, -0.68),
+  new THREE.Vector3(0.75, 0.02, -0.56),
+  new THREE.Vector3(-0.60, 0.02, -0.08),
+  new THREE.Vector3(0.11, 0.02, -0.19),
+  new THREE.Vector3(0.83, 0.02, -0.08),
 ] as const;
 
 /**

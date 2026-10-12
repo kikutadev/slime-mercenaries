@@ -477,7 +477,7 @@ export function createBlademasterSignatureVfx(): THREE.Group {
   }
 
   const cut = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.12, 0.070),
+    new THREE.PlaneGeometry(1.42, 0.082),
     new THREE.MeshBasicMaterial({
       color: '#ecfdff',
       transparent: true,
@@ -492,7 +492,7 @@ export function createBlademasterSignatureVfx(): THREE.Group {
   group.add(cut);
 
   const echo = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.72, 0.032),
+    new THREE.PlaneGeometry(1.08, 0.038),
     new THREE.MeshBasicMaterial({
       color: '#5aaeff',
       transparent: true,

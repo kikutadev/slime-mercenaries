@@ -96,7 +96,7 @@ describe('Archmage production motion', () => {
     expect(end.impactDominance).toBe(0);
   });
 
-  it('creates a giant target circle, vertical meteor rig, and screen-dominant impact surfaces', () => {
+  it('creates a bounded grand circle, vertical meteor rig, and readable impact surfaces', () => {
     const group = createArchmageSignatureVfx();
     const caster = new THREE.Vector3(-0.4, 0.1, 0.2);
     const target = new THREE.Vector3(0.8, 0, -0.25);
@@ -107,7 +107,8 @@ describe('Archmage production motion', () => {
     const grandCircle = group.getObjectByName(TIER3_MAGIC_VFX_NODES.archmage.grandCircle) as THREE.Group;
     expect(group.visible).toBe(true);
     expect(grandCircle.visible).toBe(true);
-    expect(grandCircle.scale.x).toBeGreaterThan(1.8);
+    expect(grandCircle.scale.x).toBeGreaterThan(1.5);
+    expect(grandCircle.scale.x).toBeLessThan(1.8);
     expect(grandCircle.position.x).toBeCloseTo(target.x, 6);
 
     const descent = getArchmageAttackMotion(0.57);
@@ -125,9 +126,12 @@ describe('Archmage production motion', () => {
     expect(flash.visible).toBe(true);
     expect(wave.visible).toBe(true);
     expect(halo.visible).toBe(true);
-    expect(flash.scale.x).toBeGreaterThan(2.8);
-    expect(wave.scale.x).toBeGreaterThan(4.0);
-    expect(halo.scale.x).toBeGreaterThan(3.4);
+    expect(flash.scale.x).toBeGreaterThan(2.2);
+    expect(flash.scale.x).toBeLessThan(2.8);
+    expect(wave.scale.x).toBeGreaterThan(2.6);
+    expect(wave.scale.x).toBeLessThan(3.3);
+    expect(halo.scale.x).toBeGreaterThan(2.4);
+    expect(halo.scale.x).toBeLessThan(3.0);
   });
 });
 

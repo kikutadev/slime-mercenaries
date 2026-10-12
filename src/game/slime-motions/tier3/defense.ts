@@ -497,7 +497,7 @@ export function applyPaladinSignatureVfx(
     outer.visible = barrierVisible;
     outer.position.copy(casterPosition);
     outer.position.y += 0.018;
-    outer.scale.setScalar(0.72 + easeOutCubic(pose.barrierProgress) * 1.62);
+    outer.scale.setScalar(0.72 + easeOutCubic(pose.barrierProgress) * 0.88);
     outer.material.opacity = pose.sanctuaryPulse * 0.76;
   }
 

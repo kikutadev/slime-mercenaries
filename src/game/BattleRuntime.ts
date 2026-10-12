@@ -1,3 +1,4 @@
+import { hitImpactPresentation } from './battle-runtime/hit-impact-presentation';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
@@ -737,8 +738,8 @@ export class BattleRuntime {
     target.hitStartedAt = this.simulationNow;
     this.tempVector.copy(target.root.position);
     this.tempVector.y += target.side === 'enemy' ? 0.28 : 0.22;
-    const impactSize = target.side === 'enemy' ? (source === 'melee' ? 0.082 : 0.11) : 0.09;
-    this.effects.createImpact(this.tempVector, target.side === 'enemy' ? '#fff0a0' : '#ffb4a8', impactSize);
+    const impact = hitImpactPresentation(target.side, source, effectiveAmount);
+    this.effects.createImpact(this.tempVector, impact.color, impact.size, impact.duration);
     this.startCameraShake(0.12, target.side === 'enemy' ? 0.025 : 0.017);
     if (target.side === 'enemy') this.audio.play(source === 'melee' ? 'melee-hit' : 'projectile-hit');
     else this.audio.play('ally-hit');

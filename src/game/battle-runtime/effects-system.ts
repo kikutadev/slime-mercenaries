@@ -85,8 +85,11 @@ export class BattleEffectsSystem {
     });
     materials.push(ringMaterial);
     group.add(new THREE.Mesh(new THREE.RingGeometry(size * 0.52, size, 24), ringMaterial));
-    for (let i = 0; i < 7; i += 1) {
-      const angle = (i / 7) * Math.PI * 2 + 0.22;
+    // Routine hits remain brief and do not cover faces; heavy blows earn a
+    // distinct starburst instead of simply scaling every particle up.
+    const sparkCount = size >= 0.15 ? 7 : 4;
+    for (let i = 0; i < sparkCount; i += 1) {
+      const angle = (i / sparkCount) * Math.PI * 2 + 0.22;
       const material = ringMaterial.clone();
       materials.push(material);
       const spark = new THREE.Mesh(new THREE.PlaneGeometry(size * 0.12, size * 0.78), material);

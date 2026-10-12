@@ -237,6 +237,7 @@ describe('tier3 defense signature VFX contracts', () => {
     expect(materialOpacity(barrier)).toBeGreaterThan(0.05);
     expect(sanctuary?.visible).toBe(true);
     expect(materialOpacity(sanctuary)).toBeGreaterThan(0.3);
+    expect(sanctuary?.scale.x).toBeLessThan(1.65);
 
     applyPaladinSignatureVfx(group, getPaladinAttackMotion(1), cameraQuaternion, caster, shield);
     expect(group.visible).toBe(false);

@@ -42,25 +42,31 @@ export class SwordCombatFamily {
   private readonly tempVector = new THREE.Vector3();
   private readonly tempVector2 = new THREE.Vector3();
   private readonly tempVector3 = new THREE.Vector3();
-  private slashArc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null = null;
-  private spinArc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial> | null = null;
+  private readonly slashArcs: Array<THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial>> = [];
+  private readonly spinArcs: Array<THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial>> = [];
 
   constructor(private readonly deps: BattleAllyCombatDependencies) {}
 
   initializePresentationVfx(): void {
-    if (this.slashArc === null) {
-      this.slashArc = createSwordSlashArc();
-      this.deps.addSceneObject(this.slashArc);
-    }
-    if (this.spinArc === null) {
-      this.spinArc = createGreatswordSpinArc();
-      this.deps.addSceneObject(this.spinArc);
+    // Six battle positions require independently owned slash effects. A global
+    // shared arc was overwritten or hidden by the next fighter every frame.
+    for (let slot = 0; slot < 6; slot += 1) {
+      if (this.slashArcs[slot] === undefined) {
+        const arc = createSwordSlashArc();
+        this.slashArcs[slot] = arc;
+        this.deps.addSceneObject(arc);
+      }
+      if (this.spinArcs[slot] === undefined) {
+        const arc = createGreatswordSpinArc();
+        this.spinArcs[slot] = arc;
+        this.deps.addSceneObject(arc);
+      }
     }
   }
 
   resetTransientVfx(): void {
-    this.resetSlash();
-    this.resetSpinArc();
+    for (const arc of this.slashArcs) this.hideArc(arc);
+    for (const arc of this.spinArcs) this.hideArc(arc);
   }
 
   updateSword(now: number, sword: AllyUnit): void {
@@ -78,8 +84,8 @@ export class SwordCombatFamily {
         sword.hitsApplied = 0;
         sword.root.position.copy(sword.combatAnchor);
         setEquipmentSwing(sword, 0);
-        this.resetSlash();
-        this.resetSpinArc();
+        this.resetSlash(sword.slotIndex);
+        this.resetSpinArc(sword.slotIndex);
       }
     }
 
@@ -98,7 +104,8 @@ export class SwordCombatFamily {
       updateIdle(sword, now, 0.2 + sword.slotIndex * 0.23);
       const target = findNearest(sword, this.deps.getLivingEnemies());
       if (target) facePoint(sword, target.root.position);
-      this.resetSpinArc();
+      this.resetSlash(sword.slotIndex);
+      this.resetSpinArc(sword.slotIndex);
       return;
     }
 
@@ -129,14 +136,15 @@ export class SwordCombatFamily {
     if (pose.releaseProgress >= 0 && sword.weaponTip) {
       sword.weaponTip.getWorldPosition(this.tempVector3);
       const slashVfx = getSwordSlashVfxPose(pose.releaseProgress);
-      if (this.slashArc) {
-        this.slashArc.visible = slashVfx.visible;
-        this.slashArc.position.copy(this.tempVector3);
-        this.slashArc.position.y += 0.012;
-        this.slashArc.quaternion.copy(this.deps.camera.quaternion);
-        this.slashArc.rotation.z = slashVfx.rotationZ;
-        this.slashArc.scale.set(slashVfx.scaleX, slashVfx.scaleY, 1);
-        this.slashArc.material.opacity = slashVfx.opacity;
+      const slashArc = this.slashArcs[sword.slotIndex];
+      if (slashArc) {
+        slashArc.visible = slashVfx.visible;
+        slashArc.position.copy(this.tempVector3);
+        slashArc.position.y += 0.012;
+        slashArc.quaternion.copy(this.deps.camera.quaternion);
+        slashArc.rotation.z = slashVfx.rotationZ;
+        slashArc.scale.set(slashVfx.scaleX, slashVfx.scaleY, 1);
+        slashArc.material.opacity = slashVfx.opacity;
       }
 
       if (pose.releaseProgress >= SLIME_MOTION_THRESHOLDS.swordHitReleaseProgress && sword.hitsApplied === 0 && target.alive) {
@@ -144,7 +152,7 @@ export class SwordCombatFamily {
         this.deps.applyDamage(target, 2, 'melee', sword.root.position);
       }
     } else {
-      this.resetSlash();
+      this.resetSlash(sword.slotIndex);
     }
 
     if (u >= 1 || !target.alive) this.finishSwordAttack(now, sword, target);
@@ -158,7 +166,7 @@ export class SwordCombatFamily {
       fighter.hitsApplied = 0;
       fighter.root.position.copy(fighter.combatAnchor);
       setEquipmentSwing(fighter, 0);
-      this.resetSlash();
+      this.resetSlash(fighter.slotIndex);
     }
     if (fighter.attackStartedAt === -Infinity && now >= fighter.nextAttackAt) {
       const target = findNearest(fighter, this.deps.getLivingEnemies());
@@ -173,7 +181,7 @@ export class SwordCombatFamily {
       updateIdle(fighter, now, 0.32 + fighter.slotIndex * 0.21);
       const target = findNearest(fighter, this.deps.getLivingEnemies());
       if (target) facePoint(fighter, target.root.position);
-      this.resetSlash();
+      this.resetSlash(fighter.slotIndex);
       return;
     }
 
@@ -204,14 +212,15 @@ export class SwordCombatFamily {
     if (pose.releaseProgress >= 0 && fighter.weaponTip) {
       fighter.weaponTip.getWorldPosition(this.tempVector3);
       const slashVfx = getSwordSlashVfxPose(pose.releaseProgress);
-      if (this.slashArc) {
-        this.slashArc.visible = slashVfx.visible;
-        this.slashArc.position.copy(this.tempVector3);
-        this.slashArc.position.y += 0.012;
-        this.slashArc.quaternion.copy(this.deps.camera.quaternion);
-        this.slashArc.rotation.z = pose.slashDirection > 0 ? slashVfx.rotationZ : (-slashVfx.rotationZ - 0.28);
-        this.slashArc.scale.set(slashVfx.scaleX, slashVfx.scaleY, 1);
-        this.slashArc.material.opacity = slashVfx.opacity;
+      const slashArc = this.slashArcs[fighter.slotIndex];
+      if (slashArc) {
+        slashArc.visible = slashVfx.visible;
+        slashArc.position.copy(this.tempVector3);
+        slashArc.position.y += 0.012;
+        slashArc.quaternion.copy(this.deps.camera.quaternion);
+        slashArc.rotation.z = pose.slashDirection > 0 ? slashVfx.rotationZ : (-slashVfx.rotationZ - 0.28);
+        slashArc.scale.set(slashVfx.scaleX, slashVfx.scaleY, 1);
+        slashArc.material.opacity = slashVfx.opacity;
       }
       if (
         pose.releaseProgress >= SLIME_MOTION_THRESHOLDS.fighterHitReleaseProgress
@@ -222,7 +231,7 @@ export class SwordCombatFamily {
         this.deps.applyDamage(target, pose.comboHit === 0 ? 1 : 2, 'melee', fighter.root.position);
       }
     } else {
-      this.resetSlash();
+      this.resetSlash(fighter.slotIndex);
     }
 
     if (u >= 1 || !target.alive) {
@@ -231,7 +240,7 @@ export class SwordCombatFamily {
       fighter.hitsApplied = 0;
       fighter.root.position.copy(fighter.combatAnchor);
       setEquipmentSwing(fighter, 0);
-      this.resetSlash();
+      this.resetSlash(fighter.slotIndex);
       fighter.nextAttackAt = now + 0.46;
     }
   }
@@ -362,17 +371,18 @@ export class SwordCombatFamily {
     applyUnitDeformation(sword, pose.deformation.squash, pose.deformation.stretch, pose.deformation.lean, pose.deformation.wobble, pose.deformation.jump);
     setEquipmentSwing(sword, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
 
-    if (this.spinArc) {
+    const spinArc = this.spinArcs[sword.slotIndex];
+    if (spinArc) {
       const spinVfx = getGreatswordSpinVfxPose(pose, fusionRank);
-      this.spinArc.visible = spinVfx.visible;
+      spinArc.visible = spinVfx.visible;
       this.tempVector.copy(target.root.position).sub(sword.root.position).setY(0);
       if (this.tempVector.lengthSq() > 0.0001) this.tempVector.normalize();
-      this.spinArc.position.copy(sword.root.position).addScaledVector(this.tempVector, 0.28);
-      this.spinArc.position.y = 0.30;
-      this.spinArc.quaternion.copy(this.deps.camera.quaternion);
-      this.spinArc.rotation.z = spinVfx.rotationZ;
-      this.spinArc.scale.set(spinVfx.scaleX, spinVfx.scaleY, 1);
-      this.spinArc.material.opacity = spinVfx.opacity;
+      spinArc.position.copy(sword.root.position).addScaledVector(this.tempVector, 0.28);
+      spinArc.position.y = 0.30;
+      spinArc.quaternion.copy(this.deps.camera.quaternion);
+      spinArc.rotation.z = spinVfx.rotationZ;
+      spinArc.scale.set(spinVfx.scaleX, spinVfx.scaleY, 1);
+      spinArc.material.opacity = spinVfx.opacity;
     }
 
     if (pose.slashU >= SLIME_MOTION_THRESHOLDS.greatswordHitSlashU && sword.hitsApplied === 0) {
@@ -405,22 +415,23 @@ export class SwordCombatFamily {
     sword.root.position.copy(sword.combatAnchor);
     facePoint(sword, target.root.position);
     setEquipmentSwing(sword, 0);
-    this.resetSlash();
-    this.resetSpinArc();
+    this.resetSlash(sword.slotIndex);
+    this.resetSpinArc(sword.slotIndex);
     sword.nextAttackAt = Math.max(sword.nextAttackAt, now + 0.24);
   }
 
-  private resetSlash(): void {
-    if (!this.slashArc) return;
-    this.slashArc.visible = false;
-    this.slashArc.material.opacity = 0;
+  private hideArc(arc: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial>): void {
+    arc.visible = false;
+    arc.material.opacity = 0;
   }
 
-  private resetSpinArc(): void {
-    if (!this.spinArc) return;
-    this.spinArc.visible = false;
-    this.spinArc.material.opacity = 0;
+  private resetSlash(slotIndex: number): void {
+    const arc = this.slashArcs[slotIndex];
+    if (arc !== undefined) this.hideArc(arc);
   }
 
-
+  private resetSpinArc(slotIndex: number): void {
+    const arc = this.spinArcs[slotIndex];
+    if (arc !== undefined) this.hideArc(arc);
+  }
 }

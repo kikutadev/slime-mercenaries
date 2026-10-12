@@ -531,8 +531,8 @@ export function applyArchmageSignatureVfx(
     circle.position.copy(target);
     circle.position.y = 0.018;
     circle.rotation.y = pose.runeCharge * 0.70;
-    circle.scale.setScalar(0.72 + pose.grandCircle * 1.72);
-    materialOpacity(circle, Math.min(0.92, pose.grandCircle * 0.78 + pose.impactPulse * 0.18));
+    circle.scale.setScalar(0.70 + pose.grandCircle * 1.07);
+    materialOpacity(circle, Math.min(0.68, pose.grandCircle * 0.57 + pose.impactPulse * 0.11));
   }
 
   const meteorRig = group.getObjectByName(TIER3_MAGIC_VFX_NODES.archmage.meteorRig) as THREE.Group | undefined;
@@ -559,8 +559,8 @@ export function applyArchmageSignatureVfx(
     impactFlash.visible = pose.impactDominance > 0.02;
     impactFlash.position.copy(target);
     impactFlash.position.y += 0.26;
-    impactFlash.scale.setScalar(0.75 + pose.impactDominance * 3.25);
-    impactFlash.material.opacity = pose.impactDominance * 0.76;
+    impactFlash.scale.setScalar(0.75 + pose.impactDominance * 1.95);
+    impactFlash.material.opacity = pose.impactDominance * 0.42;
   }
 
   const impactWave = group.getObjectByName(TIER3_MAGIC_VFX_NODES.archmage.impactWave) as THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial> | undefined;
@@ -568,8 +568,8 @@ export function applyArchmageSignatureVfx(
     impactWave.visible = pose.impactPulse > 0.02;
     impactWave.position.copy(target);
     impactWave.position.y = 0.022;
-    impactWave.scale.setScalar(0.85 + pose.impactPulse * 4.10);
-    impactWave.material.opacity = pose.impactPulse * 0.92;
+    impactWave.scale.setScalar(0.80 + pose.impactPulse * 2.45);
+    impactWave.material.opacity = pose.impactPulse * 0.67;
   }
 
   const impactHalo = group.getObjectByName('ArchmageImpactHalo') as THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial> | undefined;
@@ -578,8 +578,8 @@ export function applyArchmageSignatureVfx(
     impactHalo.position.copy(target);
     impactHalo.position.y += 0.30;
     impactHalo.quaternion.copy(cameraQuaternion);
-    impactHalo.scale.setScalar(0.95 + pose.impactDominance * 3.50);
-    impactHalo.material.opacity = pose.impactDominance * 0.90;
+    impactHalo.scale.setScalar(0.85 + pose.impactDominance * 2.10);
+    impactHalo.material.opacity = pose.impactDominance * 0.55;
   }
 }
 

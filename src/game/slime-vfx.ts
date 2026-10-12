@@ -234,7 +234,9 @@ export function createGreatswordSpinArc(): THREE.Mesh<THREE.TorusGeometry, THREE
     depthTest: false,
     blending: THREE.AdditiveBlending,
   });
-  const arc = new THREE.Mesh(new THREE.TorusGeometry(0.70, 0.020, 8, 64), material);
+  // An open sweeping crescent reads as a blade swing. A full 360° circle was
+  // enclosing multiple fighters and hiding enemy silhouettes in six-unit combat.
+  const arc = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.026, 8, 48, Math.PI * 1.15), material);
   arc.visible = false;
   arc.rotation.x = Math.PI / 2;
   arc.renderOrder = 5;

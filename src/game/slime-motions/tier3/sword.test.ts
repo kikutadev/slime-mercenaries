@@ -116,6 +116,9 @@ describe('tier3 sword production motions', () => {
     const group = createBlademasterSignatureVfx();
     expect(group.getObjectByName('BlademasterDelayedCut')).toBeTruthy();
     expect(group.getObjectByName('BlademasterCutEcho')).toBeTruthy();
+    const delayedCut = group.getObjectByName('BlademasterDelayedCut') as THREE.Mesh<THREE.PlaneGeometry>;
+    expect(delayedCut.geometry.parameters.width).toBeGreaterThan(1);
+    expect(delayedCut.geometry.parameters.width).toBeLessThan(1.5);
     expect(
       group.children.filter((child) => child.name.startsWith('BlademasterDashStreak')),
     ).toHaveLength(TIER3_SWORD_RUNTIME_CUES.blademaster.afterimageCount);
