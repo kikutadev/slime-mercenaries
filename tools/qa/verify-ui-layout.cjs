@@ -8,6 +8,15 @@ const OUT = path.resolve(`.tmp/ui-overhaul-acceptance-${viewportWidth}x${viewpor
 const BASE = process.env.BASE_URL || 'http://127.0.0.1:4244/slime-mercenaries/';
 const delay = (page, milliseconds) => page.waitForTimeout(milliseconds);
 
+/** Ignore only Cloudflare's unrelated RUM endpoint; game asset failures still fail QA. */
+function isExternalTelemetry(url) {
+  try {
+    return new URL(url).pathname === '/cdn-cgi/rum';
+  } catch {
+    return false;
+  }
+}
+
 /** Capture the actual mobile viewport after a deliberate player interaction. */
 async function shot(page, basename) {
   await page.screenshot({ path: path.join(OUT, `${basename}.png`), fullPage: false });
@@ -26,7 +35,21 @@ async function run() {
   const errors = [];
   page.setDefaultTimeout(15000);
   page.on('pageerror', (error) => errors.push(`pageerror: ${error}`));
-  page.on('console', (message) => { if (message.type() === 'error') errors.push(`console: ${message.text()}`); });
+  page.on('response', (response) => {
+    if (response.status() >= 400 && !isExternalTelemetry(response.url())) {
+      errors.push(`HTTP ${response.status()}: ${response.url()}`);
+    }
+  });
+  page.on('requestfailed', (request) => {
+    if (!isExternalTelemetry(request.url())) {
+      errors.push(`request failed: ${request.url()} (${request.failure()?.errorText ?? 'unknown'})`);
+    }
+  });
+  page.on('console', (message) => {
+    if (message.type() === 'error' && !isExternalTelemetry(message.location().url)) {
+      errors.push(`console: ${message.text()} (${message.location().url})`);
+    }
+  });
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await delay(page, 450);
   await shot(page, '00-camp-empty');

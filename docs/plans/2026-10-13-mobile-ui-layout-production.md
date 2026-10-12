@@ -1,6 +1,6 @@
 # Mobile UI layout production correction
 
-Status: Implemented; locally accepted on 2026-10-13
+Status: Implemented; deployed and production-accepted on 2026-10-13
 Date: 2026-10-13
 
 ## Player problem
@@ -38,3 +38,12 @@ Combat occupied too little of the portrait canvas. Camp management was a stretch
 - TypeScript: PASS, **4.19s** final measurement. UI contract: PASS, **0.37s**.
 - Vite production build: PASS, **2.85s**. Bundle guard: PASS, **0.41s**, initial gzip **135.9 KiB** (budget 160 KiB).
 - No GitHub Actions used.
+
+## Public release
+
+- Game source `dd23f3c` pushed to `origin/main`.
+- Published through game portal using `GAMES_ONLY=slime-mercenaries` (no unrelated game build), Cloudflare Workers version `f5add81d-445d-45ba-8137-e6c7b50e045f`.
+- Published page serves `assets/main-D9mhL3dq.js` and `assets/main-DTYIoRNa.css` (HTTP 200).
+- On the public host, Cloudflare's `/cdn-cgi/rum` may return HTTP 404 independent of the game; the browser QA ignores that single host telemetry path but fails all game HTTP/request/JavaScript errors.
+
+- **Public browser acceptance PASS** at **390×844 (35.97s)** and **430×932 (35.89s)**: 15 captures and seven behavior assertions each, with zero game-origin errors. All checks were run against the actual custom domain.
