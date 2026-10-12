@@ -5,7 +5,6 @@ import { selectForgeWeaponTarget } from '../../application/selectors/ui-selector
 import type { ForgeVisualPhase } from '../../components/ForgeStage';
 import type { SlimeInstanceId } from '../../domain';
 import {
-  forgeResultNotice,
   parseForgeDrawEvents,
   strongestForgeResult,
   type ForgeResultView,
@@ -66,9 +65,8 @@ export function useForgeSequence() {
     revealTimer.current = schedule(() => {
       forgeLockRef.current = false;
       setPhase('reveal');
-      if (strongestResult !== null) {
-        setNotice(forgeResultNotice(strongestResult, strongestEquipLabel));
-      }
+      // The result panel already presents the outcome. Do not obscure it with
+      // an identical notice; notices are reserved for rejected actions.
     }, 760);
   };
 

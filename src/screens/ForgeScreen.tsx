@@ -55,7 +55,7 @@ export function ForgeScreen({ onOpenSlime, onOpenBattle }: {
         </div>
       </header>
 
-      <div className={styles.room}>
+      <div className={`${styles.room} ${phase === 'charging' || phase === 'impact' ? styles.roomExpanded : ''} ${phase === 'reveal' && results.length > 1 ? styles.roomBatchResult : ''}`}>
         <Suspense fallback={null}>
           <ForgeStage
             phase={phase}
@@ -66,7 +66,7 @@ export function ForgeScreen({ onOpenSlime, onOpenBattle }: {
         </Suspense>
 
         {phase === 'reveal' && bestWeapon !== null && (
-          <div className={`${styles.reveal} ${forgeRarityClass(bestWeapon.rarity)} `}>
+          <div className={`${styles.reveal} ${forgeRarityClass(bestWeapon.rarity)} `} role="status" aria-live="polite">
             <span>{forgeRarityLabel(bestWeapon.rarity)}</span>
             <strong>{bestWeapon.displayName}</strong>
             <small>{bestResult?.duplicate ? '精錬 +1' : resultEquipLabel ?? '新武器'}</small>
@@ -129,16 +129,23 @@ export function ForgeScreen({ onOpenSlime, onOpenBattle }: {
         )}
 
         {phase === 'reveal' && results.length > 1 && (
-          <div className={styles.resultRack} aria-label="10回鍛造の結果">
-            {results.map((result, index) => {
-              const weapon = weaponDefinitionsByDefinitionId[result.weaponDefinitionId];
-              return (
-                <div className={forgeRarityClass(weapon.rarity)} key={`${result.weaponDefinitionId}-${index}`}>
-                  <WeaponFamilyIcon family={weapon.family} />
-                  <small>{result.duplicate ? '+1' : '新規'}</small>
-                </div>
-              );
-            })}
+          <div className={styles.resultResults}>
+            <div className={styles.resultResultsHeader}>
+              <strong>今回の鍛造結果 · {results.length}本</strong>
+              <small>左右に動かして確認</small>
+            </div>
+            <div className={styles.resultRack} role="list" aria-label="10回鍛造の結果">
+              {results.map((result, index) => {
+                const weapon = weaponDefinitionsByDefinitionId[result.weaponDefinitionId];
+                return (
+                  <div className={`${styles.resultItem} ${forgeRarityClass(weapon.rarity)}`} key={`${result.weaponDefinitionId}-${index}`} role="listitem">
+                    <span className={styles.resultItemIcon}><WeaponFamilyIcon family={weapon.family} /></span>
+                    <strong title={weapon.displayName}>{weapon.displayName}</strong>
+                    <small>{forgeRarityLabel(result.rarity)} · {result.duplicate ? '精錬 +1' : '新規獲得'}</small>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

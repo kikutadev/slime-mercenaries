@@ -34,7 +34,7 @@ async function writeLocation(page, areaId, stage, wave) {
     });
     const profile = await new Promise((resolve, reject) => {
       const tx = db.transaction('profiles', 'readonly');
-      const request = tx.objectStore('profiles').get('default');
+      const request = tx.objectStore('profiles').get('default.development');
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -81,7 +81,7 @@ async function writeLocation(page, areaId, stage, wave) {
     profile.savedAtMs = Date.now();
     await new Promise((resolve, reject) => {
       const tx = db.transaction('profiles', 'readwrite');
-      tx.objectStore('profiles').put(profile, 'default');
+      tx.objectStore('profiles').put(profile, 'default.development');
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -96,10 +96,10 @@ async function writeLocation(page, areaId, stage, wave) {
 
   const browser = await chromium.launch({
     headless: true,
-    executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    executablePath: process.env.CFT_BIN || path.join(process.env.HOME, 'Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing'),
     args: ['--enable-unsafe-swiftshader', '--disable-background-networking', '--disable-sync', '--no-first-run'],
   });
-  const page = await browser.newPage({ viewport: { width: 520, height: 900 }, deviceScaleFactor: 1 });
+  const page = await browser.newPage({ viewport: { width: Number(process.env.WORLD_BATTLE_QA_WIDTH || 390), height: Number(process.env.WORLD_BATTLE_QA_HEIGHT || 844) }, deviceScaleFactor: 1 });
   page.setDefaultTimeout(20000);
 
   const errors = [];
@@ -110,6 +110,7 @@ async function writeLocation(page, areaId, stage, wave) {
     }
   });
 
+  await page.addInitScript(() => localStorage.setItem('slime-mercenaries.runtime-settings.v1', JSON.stringify({ economyMode: 'development', soundEnabled: false })));
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(500);
   await page.getByRole('button', { name: 'キャンプ' }).click();

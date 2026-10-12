@@ -61,6 +61,7 @@ export function updateWorldHealthBar(
   }
   unit.healthBar.visible = unit.root.visible
     && (unit.alive || unit.state === 'defeat')
+    && (ratio < 0.999 || unit.state === 'defeat')
     && !(phase === 'result' && result === 'victory');
   const standingOffset = unit.side === 'enemy'
     ? unit.scaleClass === 'boss'

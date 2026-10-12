@@ -268,6 +268,13 @@ export class BattleRuntime {
     this.waveIndex = update.waveIndex;
     this.enemyConfigs = update.enemies;
     this.bossEncounter = update.enemies.some((enemy) => enemy.scaleClass === 'boss');
+    // Recalculate presentation-only anchors at every wave transition; a runtime
+    // can reach a boss without recreating the existing six ally units.
+    this.allies.forEach((ally) => {
+      if (isMeleeBehavior(ally)) {
+        ally.combatAnchor.copy(meleeCombatAnchor(ally.slotIndex, this.bossEncounter));
+      }
+    });
     this.continuationEntryPending = shouldUseMarchEntry(update.stageNumber, update.waveIndex);
     if (preparedEnvironment !== null) this.applyEnvironment(preparedEnvironment);
     else this.environmentWave?.(update.waveIndex);
@@ -562,7 +569,7 @@ export class BattleRuntime {
   private async loadUnit(config: BattleRuntimeAllyConfig): Promise<AllyUnit> {
     const home = allyHome(config.slotIndex);
     const combatAnchor = config.formationRole === 'front'
-      ? meleeCombatAnchor(config.slotIndex)
+      ? meleeCombatAnchor(config.slotIndex, this.bossEncounter)
       : home.clone();
     const marchSlot = getVictoryMarchSlot(config.slotIndex);
     const approachOrigin = this.continuationEntryPending

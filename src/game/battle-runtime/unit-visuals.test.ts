@@ -41,6 +41,23 @@ describe('battle unit visual helpers', () => {
     expect(healthBar.quaternion.equals(camera.quaternion)).toBe(true);
   });
 
+  it('hides full-health world bars and shows each unit bar after damage', () => {
+    const root = new THREE.Group();
+    root.visible = true;
+    const bar = createWorldHealthBar('enemy');
+    const unit = { side: 'enemy', scaleClass: 'normal', root, healthBar: bar,
+      hp: 10, maxHp: 10, alive: true, state: 'idle' } as unknown as EnemyUnit;
+    const camera = new THREE.PerspectiveCamera();
+
+    updateWorldHealthBar(unit, camera, 'combat', null);
+    expect(bar.visible).toBe(false);
+    unit.hp = 9;
+    updateWorldHealthBar(unit, camera, 'combat', null);
+    expect(bar.visible).toBe(true);
+    updateWorldHealthBar(unit, camera, 'result', 'victory');
+    expect(bar.visible).toBe(false);
+  });
+
   it('tracks a world-space health bar independently for each enemy unit', () => {
     const root = new THREE.Group();
     root.visible = true;

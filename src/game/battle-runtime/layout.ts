@@ -29,6 +29,19 @@ const MELEE_COMBAT_POSITIONS = [
   new THREE.Vector3(0.94, 0.02, -0.12),
 ] as const;
 
+/**
+ * Boss encounters reserve the central depth lane for the boss silhouette.
+ * This is a visual formation only, not a new combat slot or targeting rule.
+ */
+const BOSS_MELEE_COMBAT_POSITIONS = [
+  new THREE.Vector3(-0.64, 0.02, -0.20),
+  new THREE.Vector3(-0.10, 0.02, -0.24),
+  new THREE.Vector3(0.70, 0.02, -0.16),
+  new THREE.Vector3(-0.63, 0.02, 0.28),
+  new THREE.Vector3(0.12, 0.02, 0.32),
+  new THREE.Vector3(0.92, 0.02, 0.30),
+] as const;
+
 const ENEMY_FORMATION_POSITIONS: Readonly<Record<EnemyFormationSlot, THREE.Vector3>> = {
   'front-left': new THREE.Vector3(-0.68, 0, -1.26),
   'front-center': new THREE.Vector3(0, 0, -1.38),
@@ -71,8 +84,9 @@ export function allyHome(slotIndex: number): THREE.Vector3 {
   return (ALLY_HOME_POSITIONS[slotIndex] ?? ALLY_HOME_POSITIONS[ALLY_HOME_POSITIONS.length - 1]!).clone();
 }
 
-export function meleeCombatAnchor(slotIndex: number): THREE.Vector3 {
-  return (MELEE_COMBAT_POSITIONS[slotIndex] ?? MELEE_COMBAT_POSITIONS[MELEE_COMBAT_POSITIONS.length - 1]!).clone();
+export function meleeCombatAnchor(slotIndex: number, bossEncounter = false): THREE.Vector3 {
+  const positions = bossEncounter ? BOSS_MELEE_COMBAT_POSITIONS : MELEE_COMBAT_POSITIONS;
+  return (positions[slotIndex] ?? positions[positions.length - 1]!).clone();
 }
 
 export function enemyHome(formationSlot: EnemyFormationSlot): THREE.Vector3 {

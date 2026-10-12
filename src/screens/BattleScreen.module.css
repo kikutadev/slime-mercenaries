@@ -612,3 +612,22 @@
   8%, 82% { opacity: 1; transform: translateY(0) scale(1); }
   100% { opacity: 0; transform: translateY(-4px) scale(.99); }
 }
+
+/* Legibility is independent of the authored stage palette (lava, castle, crater). */
+.topbar :global(.eyebrow) {
+  max-width: calc(100vw - 112px);
+  padding: 7px 10px;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 10px;
+  background: rgb(19 44 47 / 72%);
+  color: #fffaf0;
+  font-size: 11px;
+  letter-spacing: .025em;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 18%);
+  backdrop-filter: blur(8px);
+}
+.enemy.boss {
+  border: 1px solid rgb(255 211 132 / 88%);
+  box-shadow: 0 10px 26px rgb(65 43 36 / 25%), 0 0 0 3px rgb(244 199 105 / 12%);
+}
+.enemy.boss .hpTrack { height: 7px; }

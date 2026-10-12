@@ -590,3 +590,19 @@
   18%, 78% { opacity: 1; transform: translate(-50%, 0) scale(1); }
   100% { opacity: 0; transform: translate(-50%, 6px) scale(.98); }
 }
+
+/* One next action, not a small detour beside an unusable disabled send button. */
+.empty {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+}
+.empty > span { font-size: 12px; }
+.empty > button {
+  width: 100%;
+  min-height: 50px;
+  background: linear-gradient(180deg, #4e9d5e, #377b47);
+  color: #fff;
+  font-size: 13px;
+  border: 0;
+}

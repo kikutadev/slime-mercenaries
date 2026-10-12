@@ -36,6 +36,18 @@ describe('battle presentation layout', () => {
     expect(minimumDistance).toBeGreaterThanOrEqual(0.44);
   });
 
+  it('fans the party around a boss while retaining distinct front and back slots', () => {
+    const boss = Array.from({ length: 6 }, (_, i) => meleeCombatAnchor(i, true));
+    const normal = Array.from({ length: 6 }, (_, i) => meleeCombatAnchor(i));
+    expect(boss[0]!.z).toBeGreaterThan(normal[0]!.z);
+    expect(boss[5]!.z).toBeGreaterThan(normal[5]!.z);
+    for (let left = 0; left < boss.length; left += 1) {
+      for (let right = left + 1; right < boss.length; right += 1) {
+        expect(boss[left]!.distanceTo(boss[right]!)).toBeGreaterThan(0.44);
+      }
+    }
+  });
+
   it('stages the first six-job attack instead of firing every presentation cue together', () => {
     const delays = [
       allyOpeningAttackDelay(0, true),

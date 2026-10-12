@@ -101,7 +101,8 @@ async function run() {
   await delay(page, 250);
   await shot(page, '11-dispatch-early');
   assert(await page.getByRole('heading', {name:'派遣'}).isVisible(), 'Dispatch must expose its heading before the 3D map finishes');
-  assert(await page.getByRole('button', {name:'キャンプで編成を変更'}).count() === 1, 'Dispatch needs a usable empty-roster exit');
+  assert(await page.getByRole('button', {name:'編成を変更する ›'}).count() === 1, 'Dispatch needs a usable empty-roster exit');
+  assert(await page.getByRole('button', {name:'派遣するスライムを選ぶ'}).count() === 0, 'No duplicate disabled send button in the empty state');
   await delay(page, 2000);
   await shot(page, '12-dispatch');
   await nav('鍛造').click();

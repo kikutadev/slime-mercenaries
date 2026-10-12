@@ -170,22 +170,24 @@ export function DispatchScreen({
               </div>
             ) : (
               <div className={styles.empty}>
-                <span>控えのスライムが必要です。戦闘編成から1匹外すと派遣できます。</span>
+                <span>戦闘編成から仲間を控えに移すと、派遣できます。</span>
                 <button type="button" onClick={onOpenCampFormation}>
-                  キャンプで編成を変更
+                  編成を変更する ›
                 </button>
               </div>
             )}
 
-            <button
-              className={styles.sendButton}
-              type="button"
-              aria-busy={departure !== null}
-              disabled={!canSend}
-              onClick={startSelectedDispatch}
-            >
-              <strong>{departure !== null ? '出発中…' : dispatchSendButtonLabel(selectedCandidate)}</strong>
-            </button>
+            {contract.candidates.length > 0 && (
+              <button
+                className={styles.sendButton}
+                type="button"
+                aria-busy={departure !== null}
+                disabled={!canSend}
+                onClick={startSelectedDispatch}
+              >
+                <strong>{departure !== null ? '出発中…' : dispatchSendButtonLabel(selectedCandidate)}</strong>
+              </button>
+            )}
           </>
         )}
       </div>
