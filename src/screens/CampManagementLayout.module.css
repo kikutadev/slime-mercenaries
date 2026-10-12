@@ -1,0 +1,275 @@
+/* Task screens own the phone canvas; they are not oversized bottom sheets. */
+.root.root :global(.camp-command-panel) {
+  inset: 0 0 0;
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 0 18px 22px;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(180deg, #eff7e8 0%, #f5f9ef 50%, #e7f2dc 100%);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.root.root :global(.camp-command-panel__header) {
+  flex: 0 0 auto;
+  top: 0;
+  min-height: 100px;
+  margin: 0 -18px 13px;
+  padding: 38px 18px 12px;
+  border-bottom: 1px solid rgba(54, 104, 68, .13);
+  background: rgba(239, 247, 232, .97);
+  backdrop-filter: blur(12px);
+}
+.root.root :global(.camp-command-panel__header > div > span) {
+  font-size: 11px;
+}
+.root.root :global(.camp-command-panel__header > div > strong) {
+  font-size: 24px;
+}
+.root.root :global(.camp-command-panel__header > button) {
+  font-size: 12px;
+}
+.root.root :global(.camp-roster-toolbar) {
+  order: 2;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 14px;
+}
+.root.root :global(.camp-roster-block) {
+  display: flex;
+  flex-direction: column;
+}
+.root.root :global(.camp-roster) {
+  order: 1;
+  min-height: 100px;
+  padding: 6px 2px 10px;
+}
+.root.root :global(.camp-roster button) {
+  width: 82px;
+  flex: 0 0 82px;
+  min-height: 90px;
+  padding: 7px 5px;
+  border-radius: 17px;
+}
+.root.root :global(.camp-roster img) { width: 46px; height: 46px; }
+.root.root :global(.camp-roster button > strong) { font-size: 12px; }
+.root.root :global(.camp-roster button > small) { font-size: 11px; }
+.root.root :global(.camp-roster-toolbar > button) { min-height: 52px; }
+.root.root :global(.camp-roster-toolbar > button > strong) { font-size: 12px; }
+.root.root :global(.camp-selected-summary) {
+  min-height: 66px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  margin-top: 7px;
+  padding: 10px 14px;
+  border-radius: 15px;
+}
+.root.root :global(.camp-selected-summary > small) {
+  margin: 0;
+  font-size: 11px;
+  text-align: right;
+}
+.root.root :global(.camp-selected-summary strong) { font-size: 15px; }
+.root.root :global(.camp-next-action) {
+  min-height: 64px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  gap: 2px 8px;
+  padding: 10px 16px;
+}
+.root.root :global(.camp-next-action > span) { grid-column: 1; font-size: 11px; }
+.root.root :global(.camp-next-action > strong) {
+  grid-column: 1;
+  min-height: 0;
+  font-size: 14px;
+  white-space: normal;
+  line-height: 1.3;
+}
+.root.root :global(.camp-next-action > em) { grid-column: 2; grid-row: 1 / 3; }
+.root.root :global(.camp-primary-actions) { gap: 10px; margin-top: 14px; }
+.root.root :global(.camp-primary-action) { min-height: 88px; }
+.root.root :global(.camp-primary-action > span) { width: 33px; height: 33px; }
+.root.root :global(.camp-primary-action strong) { font-size: 13px; }
+.root.root :global(.camp-equipment-entry) { min-height: 65px; margin-top: 12px; }
+.root.root :global(.camp-equipment-entry strong) { font-size: 13px; }
+.root.root :global(.camp-command-panel--train .camp-inline-tool),
+.root.root :global(.camp-command-panel--equipment .camp-inline-tool) {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.root.root :global(.camp-train-stage) {
+  min-height: 300px;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 12px 20px;
+  color: #284f37;
+}
+.root.root :global(.camp-train-stage__portrait) {
+  width: 192px;
+  height: 176px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 69%, rgba(88, 153, 100, .19), transparent 66%);
+}
+.root.root :global(.camp-train-stage__portrait img) {
+  width: 156px;
+  height: 156px;
+  object-fit: contain;
+  filter: drop-shadow(0 13px 13px rgba(44, 108, 79, .16));
+}
+.root.root :global(.camp-train-stage > strong) { font-size: 19px; }
+.root.root :global(.camp-train-stage > span) { margin-top: 3px; font-size: 12px; color: #61826b; }
+.root.root :global(.camp-train-stage__level) {
+  width: 100%;
+  max-width: 260px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 22px;
+  padding: 10px 20px;
+  border: 1px solid rgba(72, 124, 79, .16);
+  border-radius: 16px;
+  background: #fff;
+}
+.root.root :global(.camp-train-stage__level small) { color: #719078; font-size: 12px; font-weight: 800; }
+.root.root :global(.camp-train-stage__level strong) { color: #2d7446; font-size: 22px; }
+.root.root :global(.camp-train-actions-heading) {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 16px 0 3px;
+}
+.root.root :global(.camp-train-actions-heading strong) { font-size: 17px; color: #294f36; }
+.root.root :global(.camp-train-actions-heading span) { font-size: 12px; color: #718e77; }
+.root.root :global(.camp-level-buttons) { gap: 10px; margin: 8px 0 12px; }
+.root.root :global(.camp-level-buttons button) {
+  min-height: 92px;
+  padding: 10px 5px;
+  background: #fff;
+}
+.root.root :global(.camp-level-buttons button:not(:disabled)) {
+  background: #e1f2da;
+  border-color: rgba(56, 122, 67, .28);
+  box-shadow: 0 5px 12px rgba(46, 102, 57, .10);
+}
+.root.root :global(.camp-level-buttons span) { font-size: 17px; }
+.root.root :global(.camp-level-buttons strong) { font-size: 12px; }
+.root.root :global(.camp-level-buttons em) { font-size: 12px; }
+.root.root :global(.camp-equipment-stage) {
+  flex: 1 0 220px;
+  min-height: 270px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 20px;
+  text-align: center;
+}
+.root.root :global(.camp-equipment-stage img) {
+  width: 164px;
+  height: 164px;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 12px rgba(32, 88, 74, .17));
+}
+.root.root :global(.camp-equipment-stage span),
+.root.root :global(.camp-equipment-stage strong),
+.root.root :global(.camp-equipment-stage small) { display: block; }
+.root.root :global(.camp-equipment-stage span) { color: #648473; font-size: 12px; }
+.root.root :global(.camp-equipment-stage strong) { margin-top: 5px; color: #305b42; font-size: 20px; }
+.root.root :global(.camp-equipment-stage small) { margin-top: 5px; color: #7b9283; font-size: 12px; }
+.root.root :global(.camp-equipment-heading) { margin: 8px 0 4px; font-size: 17px; color: #294f36; }
+.root.root :global(.camp-equipment-empty) {
+  min-height: 84px;
+  gap: 12px;
+  margin: 8px 0 16px;
+  padding: 14px;
+  background: #fff;
+}
+.root.root :global(.camp-equipment-empty span) { font-size: 12px; }
+.root.root :global(.camp-equipment-empty button) { padding: 0 18px; font-size: 13px; }
+.root.root :global(.camp-weapon-strip) { margin: 8px 0 16px; }
+.root.root :global(.camp-command-panel--formation .camp-inline-tool) {
+  flex: 1;
+  margin-top: 14px;
+  padding-top: 0;
+  border: 0;
+}
+.root.root :global(.camp-command-panel--formation .camp-roster-toolbar) { display: none; }
+.root.root :global(.camp-command-panel--formation .camp-roster) { min-height: 100px; }
+.root.root :global(.camp-command-panel--formation .camp-formation-board) { gap: 18px; }
+.root.root :global(.camp-command-panel--formation .camp-formation-board__grid) {
+  grid-template-rows: repeat(2, minmax(110px, 1fr));
+  gap: 10px;
+}
+.root.root :global(.camp-command-panel--formation .camp-formation-board__field) { padding-top: 28px; }
+.root.root :global(.camp-command-panel--formation .camp-formation-board__field::before) { height: 112px; top: 28px; }
+.root.root :global(.camp-command-panel--formation .camp-formation-board__field.is-recommend-back::before) { top: 150px; }
+.root.root :global(.camp-command-panel--formation .camp-formation-board__row-label--front) { top: 70px; }
+.root.root :global(.camp-command-panel--formation .camp-formation-board__row-label--back) { top: 198px; }
+.root.root :global(.camp-command-panel--formation .camp-formation-slot) {
+  grid-template-columns: 1fr;
+  grid-template-rows: 64px auto;
+  justify-items: center;
+  padding: 8px 4px;
+}
+.root.root :global(.camp-command-panel--formation .camp-formation-slot__body),
+.root.root :global(.camp-command-panel--formation .camp-formation-slot__body img) { width: 58px; height: 58px; }
+.root.root :global(.camp-command-panel--formation .camp-formation-slot > strong) { font-size: 12px; }
+.root.root :global(.camp-command-panel--formation .camp-formation-board__summary) { padding: 12px; }
+.root.root :global(.camp-command-panel--formation .camp-formation-board__summary strong) { font-size: 13px; }
+.root.root :global(.camp-command-panel--formation .camp-formation-board__footer) { margin-top: 10px; }
+.root.root :global(.camp-command-panel--formation .camp-formation-board__footer > button) { min-height: 46px; font-size: 12px; }
+
+@media (max-height: 700px) {
+  .root.root :global(.camp-command-panel__header) { min-height: 83px; padding-top: 22px; }
+  .root.root :global(.camp-train-stage) { min-height: 220px; }
+  .root.root :global(.camp-train-stage__portrait) { height: 120px; }
+  .root.root :global(.camp-train-stage__portrait img) { height: 114px; width: 114px; }
+  .root.root :global(.camp-equipment-stage) { min-height: 190px; flex-basis: 180px; }
+  .root.root :global(.camp-equipment-stage img) { width: 120px; height: 120px; }
+  .root.root :global(.camp-command-panel--formation .camp-formation-board__grid) { grid-template-rows: repeat(2, 90px); }
+}
+
+.root.root :global(.camp-level-buttons button:disabled) {
+  opacity: .72;
+  background: #eef3e9;
+  color: #849b88;
+}
+
+.root.root :global(.camp-management-header-actions) {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+}
+.root.root :global(.camp-management-header-actions > span) {
+  min-width: 51px;
+  padding: 9px 8px;
+  border: 1px solid rgba(64, 119, 74, .15);
+  border-radius: 11px;
+  background: rgba(255,255,255,.7);
+  color: #41764e;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+}
+.root.root :global(.camp-management-header-actions > button) {
+  min-height: var(--touch-target-min);
+  padding: 0 10px;
+  border: 1px solid rgba(53, 104, 65, .12);
+  border-radius: 12px;
+  background: #fff;
+  color: #356d43;
+  font-size: 11px;
+  font-weight: 900;
+}

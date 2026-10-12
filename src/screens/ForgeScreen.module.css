@@ -522,3 +522,22 @@
   from { opacity: 0; transform: translate(-50%, 7px) scale(.97); }
   to { opacity: 1; transform: translate(-50%, 0) scale(1); }
 }
+/* Do not reserve a large empty inventory well before the first key is earned. */
+.collectionEmpty { padding: 12px; font-size: 12px; }
+
+.earnKeys {
+  width: 100%;
+  min-height: 78px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 6px;
+  margin-top: 14px;
+  border: 1px solid rgba(235, 199, 108, .36);
+  border-radius: 15px;
+  background: linear-gradient(180deg, #ae8543, #846537);
+  color: #fff8df;
+  cursor: pointer;
+}
+.earnKeys strong { font-size: 14px; }
+.earnKeys span { font-size: 11px; color: rgba(255, 248, 225, .80); }

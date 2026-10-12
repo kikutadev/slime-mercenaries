@@ -37,25 +37,27 @@ export function CampManagementPanel({
           <span>{navigation.eyebrow}</span>
           <strong>{navigation.title}</strong>
         </div>
-        <button
-          type="button"
-          disabled={busy}
-          aria-label={navigation.backToMenu ? '仲間・育成メニューへ戻る' : 'キャンプへ戻る'}
-          onClick={navigation.backToMenu ? () => actions.setMode('none') : actions.closeManagement}
-        >
-          {navigation.backLabel}
-        </button>
+        <div className="camp-management-header-actions">
+          <span aria-label="所持ゴールド">G {model.gold}</span>
+          <button
+            type="button"
+            disabled={busy}
+            aria-label={navigation.backToMenu ? '仲間・育成メニューへ戻る' : 'キャンプへ戻る'}
+            onClick={navigation.backToMenu ? () => actions.setMode('none') : actions.closeManagement}
+          >
+            {navigation.backLabel}
+          </button>
+        </div>
       </div>
 
       {(mode === 'none' || mode === 'formation') && <CampRosterStrip model={model} actions={actions} />}
       {mode === 'none' && (
         <section className="camp-selected-summary" aria-label="選択中のスライム">
-          <img src={`${import.meta.env.BASE_URL}${detail.icon}`} alt="" />
           <div>
-            <span>選択中</span>
+            <span>選択中の仲間</span>
             <strong>{detail.name}</strong>
-            <small>{detail.role} · Lv.{detail.level} · 合成ランク {detail.fusionRank}</small>
           </div>
+          <small>{detail.role}　Lv.{detail.level}　合成ランク {detail.fusionRank}</small>
         </section>
       )}
       {mode === 'none' && <CampNextAction model={model} actions={actions} />}

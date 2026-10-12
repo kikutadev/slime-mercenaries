@@ -150,14 +150,14 @@ export function BattleScreen({
         </div>
       )}
 
-      <div className={[
+      {(battle.phase !== 'combat' || state.gameData.combat.retryFarmClearsRemaining > 0) && <div className={[
         styles.status,
         battle.result === null && state.gameData.combat.retryFarmClearsRemaining > 0 ? styles.warning : '',
         battle.phase === 'combat' && battle.result === null && state.gameData.combat.retryFarmClearsRemaining === 0 ? styles.routine : '',
       ].filter(Boolean).join(' ')}>
         <span className={styles.statusDot} />
         {battleStatus}
-      </div>
+      </div>}
 
       {(battle.result === 'defeat' || (battle.result === 'victory' && sceneModel.shouldCelebrateVictory)) && (
         <div

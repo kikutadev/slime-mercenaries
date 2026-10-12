@@ -24,6 +24,7 @@ export type CampRosterSlimes = SlimeMercenariesState['gameData']['roster']['slim
 export interface CampManagementModel {
   mode: CampMode;
   busy: boolean;
+  gold: string | number;
   roster: CampRosterSlimes;
   ownedIds: readonly SlimeInstanceId[];
   selected: SlimeInstanceId;

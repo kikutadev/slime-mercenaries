@@ -514,3 +514,35 @@
   cursor: default;
   filter: saturate(.55);
 }
+
+.transitionSurface {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #b5e2e4, #deedca 56%, #f1f5e9);
+}
+
+/* The four gameplay destinations remain primary; settings is a quieter utility. */
+.bottomNav { grid-template-columns: repeat(4, minmax(0, 1fr)) 42px; }
+.bottomNav > button:last-child {
+  border-left: 1px solid rgb(76 116 81 / 10%);
+  border-radius: 0 12px 12px 0;
+  font-size: 10px;
+  opacity: .70;
+}
+.battleReportPeek {
+  top: auto;
+  bottom: calc(var(--screen-bottom-reserve) + 126px);
+  right: 12px;
+  width: 120px;
+  padding: 6px 9px;
+  background: rgb(38 67 55 / 58%);
+}
+.battleReportPeek > span { font-size: 10px; }
+
+.initialScreenWaiting {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #c8eaf0 0%, #ddecce 100%);
+}

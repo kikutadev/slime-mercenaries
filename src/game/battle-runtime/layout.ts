@@ -50,12 +50,12 @@ export const TARGET_HOME = ENEMY_FORMATION_POSITIONS['front-center'];
  * Normal encounters are framed closer than the previous production camera so characters,
  * not empty road, dominate a portrait phone. Bosses keep the wider legacy framing.
  */
-export const CAMERA_BASE_POSITION = new THREE.Vector3(2.5, 4.9, 8.0);
-export const CAMERA_LOOK_AT = new THREE.Vector3(0, 0.36, -0.72);
-export const FIRST_SLIME_SHOWCASE_CAMERA_POSITION = new THREE.Vector3(1.58, 3.35, 5.42);
-export const FIRST_SLIME_SHOWCASE_LOOK_AT = new THREE.Vector3(-0.04, 0.30, -0.82);
-export const BOSS_CAMERA_BASE_POSITION = new THREE.Vector3(2.8, 5.35, 8.9);
-export const BOSS_CAMERA_LOOK_AT = new THREE.Vector3(0, 0.38, -1.05);
+export const CAMERA_BASE_POSITION = new THREE.Vector3(2.25, 4.35, 7.15);
+export const CAMERA_LOOK_AT = new THREE.Vector3(0, 0.30, -1.62);
+export const FIRST_SLIME_SHOWCASE_CAMERA_POSITION = new THREE.Vector3(1.48, 3.22, 5.28);
+export const FIRST_SLIME_SHOWCASE_LOOK_AT = new THREE.Vector3(-0.04, 0.26, -1.20);
+export const BOSS_CAMERA_BASE_POSITION = new THREE.Vector3(2.55, 4.90, 8.20);
+export const BOSS_CAMERA_LOOK_AT = new THREE.Vector3(0, 0.34, -1.58);
 
 /**
  * Stagger only the first visual attack after approach so six authored jobs do not

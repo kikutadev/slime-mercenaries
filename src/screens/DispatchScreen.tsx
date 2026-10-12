@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { Suspense, useCallback, useState } from 'react';
 import { useGameState } from '../app/GameProvider';
 import type { DispatchReturnCue } from '../application/presentation-events';
 import { selectDispatchScreen, selectGlobalHud } from '../application/selectors/ui-selectors';
@@ -65,10 +65,12 @@ export function DispatchScreen({
       </header>
 
       <div className={`${styles.map} ${departure !== null ? styles.mapDeparting : ''}`}>
-        <DispatchMapStage
-          travelers={travelers}
-          onAnchorPositionsChange={handleAnchorPositionsChange}
-        />
+        <Suspense fallback={null}>
+          <DispatchMapStage
+            travelers={travelers}
+            onAnchorPositionsChange={handleAnchorPositionsChange}
+          />
+        </Suspense>
         <div className={styles.home}>
           <span><DispatchHomeIcon /></span>
           <small>キャンプ</small>

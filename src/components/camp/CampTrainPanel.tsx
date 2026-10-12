@@ -21,15 +21,22 @@ export function CampTrainPanel({
 
   return (
     <div className="camp-inline-tool">
-      <div className="camp-inline-tool__heading">
-        <div>
-          <strong>{detail.name}を強化</strong>
-          <small>
-            Lv.{strengthenCeremony?.phase === 'charging'
-              ? strengthenCeremony.fromLevel
-              : detail.level}
-          </small>
+      <div className="camp-train-stage">
+        <div className="camp-train-stage__portrait">
+          <img src={`${import.meta.env.BASE_URL}${detail.icon}`} alt="" />
         </div>
+        <strong>{detail.name}</strong>
+        <span>{detail.role} · 合成ランク {detail.fusionRank}</span>
+        <div className="camp-train-stage__level">
+          <small>現在のレベル</small>
+          <strong>Lv.{strengthenCeremony?.phase === 'charging'
+            ? strengthenCeremony.fromLevel
+            : detail.level}</strong>
+        </div>
+      </div>
+      <div className="camp-train-actions-heading">
+        <strong>強化する</strong>
+        <span>回数を選択</span>
       </div>
 
       <div className={`camp-level-buttons ${strengthenBusy ? 'is-busy' : ''}`}>

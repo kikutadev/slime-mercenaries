@@ -75,7 +75,7 @@ export function CampNextAction({
         }}
       >
         <span>次にやること</span>
-        <strong>{cue.title}</strong>
+        <strong>{cue.action === 'Battle' ? '戦闘で試す' : cue.action === 'Fuse' ? '合成する' : '仲間を増やす'}</strong>
         <em>›</em>
       </button>
     );

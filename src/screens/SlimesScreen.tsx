@@ -23,6 +23,7 @@ import { campTemperamentForInstance, type CampTemperament } from '../game/camp-t
 import type { CampMode } from '../game/camp-types';
 import { getSlimePresentation } from '../game/slimes';
 import styles from './SlimesScreen.module.css';
+import layoutStyles from './CampManagementLayout.module.css';
 import { campRejectionLabel } from './camp/rejection-label';
 import { useCampInteractions } from './camp/useCampInteractions';
 
@@ -185,7 +186,7 @@ export function SlimesScreen({
   }
 
   return (
-    <section className={`screen screen--active ${styles.root}`} aria-label="キャンプ">
+    <section className={`screen screen--active ${styles.root} ${layoutStyles.root}`} aria-label="キャンプ">
       <header className="camp-topbar">
         <div className="camp-resources"><span>G</span><strong>{validationMode ? '∞' : hud.gold}</strong></div>
         {showValidationTools && (
@@ -272,6 +273,7 @@ export function SlimesScreen({
             model={{
               mode,
               busy: campInteractionBusy,
+              gold: validationMode ? '∞' : hud.gold,
               roster: state.gameData.roster.slimes,
               ownedIds,
               selected,

@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { useGameState } from '../app/GameProvider';
 import { selectForgeScreen, selectForgeWeaponTarget } from '../application/selectors/ui-selectors';
 import { ForgeStage } from '../components/ForgeStage';
@@ -14,7 +15,10 @@ import { forgeRarityLabel } from './forge/forge-result';
 import { useForgeSequence } from './forge/useForgeSequence';
 
 
-export function ForgeScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInstanceId) => void }) {
+export function ForgeScreen({ onOpenSlime, onOpenBattle }: {
+  onOpenSlime: (slimeId: SlimeInstanceId) => void;
+  onOpenBattle: () => void;
+}) {
   const state = useGameState();
   const {
     controller,
@@ -52,12 +56,14 @@ export function ForgeScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInsta
       </header>
 
       <div className={styles.room}>
-        <ForgeStage
-          phase={phase}
-          sequenceKey={sequenceKey}
-          weaponAsset={bestPresentation?.asset ?? null}
-          weaponRarity={(bestWeapon?.rarity as WeaponRarity | undefined) ?? null}
-        />
+        <Suspense fallback={null}>
+          <ForgeStage
+            phase={phase}
+            sequenceKey={sequenceKey}
+            weaponAsset={bestPresentation?.asset ?? null}
+            weaponRarity={(bestWeapon?.rarity as WeaponRarity | undefined) ?? null}
+          />
+        </Suspense>
 
         {phase === 'reveal' && bestWeapon !== null && (
           <div className={`${styles.reveal} ${forgeRarityClass(bestWeapon.rarity)} `}>
@@ -82,7 +88,12 @@ export function ForgeScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInsta
           <div className={styles.pityTrack}><i style={{ transform: `scaleX(${view.pityProgress})` }} /></div>
         </div>
 
-        <div className={styles.actions}>
+        {view.keys < view.singleCost && !validationMode && phase === 'idle' ? (
+          <button className={styles.earnKeys} type="button" onClick={onOpenBattle}>
+            <strong>戦闘で鍛造キーを集める</strong>
+            <span>戦利品を持ち帰って、武器を作ろう</span>
+          </button>
+        ) : <div className={styles.actions}>
           <button
             type="button"
             aria-busy={phase === 'charging' || phase === 'impact'}
@@ -104,7 +115,7 @@ export function ForgeScreen({ onOpenSlime }: { onOpenSlime: (slimeId: SlimeInsta
             <strong><ForgeKeyIcon />{view.tenCost}</strong>
             <small>武器10個</small>
           </button>
-        </div>
+        </div>}
 
         {phase === 'reveal' && bestWeapon !== null && resultTargetSlimeId !== null && (
           <button

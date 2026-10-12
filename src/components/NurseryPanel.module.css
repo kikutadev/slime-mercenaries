@@ -825,3 +825,15 @@
     box-shadow: 0 8px 20px rgba(49,104,62,.16);
   }
 }
+
+/* The creation scene, rather than unused panel space, carries the first-visit layout. */
+@media (max-width: 600px) {
+  .sheet {
+    height: auto;
+    max-height: calc(100dvh - 16px);
+    padding-bottom: max(18px, var(--safe-area-bottom));
+  }
+  .sheet :global(.nursery-stage) { min-height: min(48dvh, 400px); }
+  .sheet :global(.nursery-stage__scene) { height: min(41dvh, 336px); }
+  .sheet :global(.nursery-craft-panel) { margin-top: 6px; }
+}

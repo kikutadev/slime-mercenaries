@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState, useTransition } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { usePresentationQueue } from 'idle-game-kit/react';
 import { useGameBootstrap, useGameState } from './GameProvider';
 import { selectNavigationAttention, selectOwnedSlimeIds } from '../application/selectors/ui-selectors';
@@ -20,9 +20,11 @@ const loadBattleScreen = () => import('../screens/BattleScreen');
 const loadDispatchScreen = () => import('../screens/DispatchScreen');
 const loadForgeScreen = () => import('../screens/ForgeScreen');
 
-const BattleScreen = lazy(async () => ({ default: (await loadBattleScreen()).BattleScreen }));
-const DispatchScreen = lazy(async () => ({ default: (await loadDispatchScreen()).DispatchScreen }));
-const ForgeScreen = lazy(async () => ({ default: (await loadForgeScreen()).ForgeScreen }));
+type ScreenModules = {
+  battle: typeof import('../screens/BattleScreen')['BattleScreen'];
+  dispatch: typeof import('../screens/DispatchScreen')['DispatchScreen'];
+  forge: typeof import('../screens/ForgeScreen')['ForgeScreen'];
+};
 
 type ScreenId = PresentationScreenId;
 
@@ -33,6 +35,7 @@ export function AppShell() {
   const attention = selectNavigationAttention(state);
   const hasCombatSlime = ownedIds.length > 0;
   const [screen, setScreen] = useState<ScreenId | null>(null);
+  const [screenModules, setScreenModules] = useState<Partial<ScreenModules>>({});
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [selectedSlimeId, setSelectedSlimeId] = useState<SlimeInstanceId | null>(null);
@@ -40,6 +43,7 @@ export function AppShell() {
   const [offlineDismissed, setOfflineDismissed] = useState(false);
   const [handledCampDefeatId, setHandledCampDefeatId] = useState<string | null>(null);
   const [, startScreenTransition] = useTransition();
+  const pendingNavigation = useRef(0);
   const presentation = usePresentationQueue(presentationNoticeDurationMs);
   const initialScreen: ScreenId = ownedIds.length > 0 && state.gameData.roster.formationSlots.some((slot) => slot !== null)
     ? 'battle'
@@ -49,7 +53,18 @@ export function AppShell() {
 
   useEffect(() => installBattleAudioUnlock(), []);
   useEffect(() => {
-    void Promise.allSettled([loadBattleScreen(), loadDispatchScreen(), loadForgeScreen()]);
+    let mounted = true;
+    // Prepare screen code while the player is already interacting with Camp.
+    void Promise.allSettled([loadBattleScreen(), loadDispatchScreen(), loadForgeScreen()]).then((results) => {
+      if (!mounted) return;
+      setScreenModules((current) => ({
+        ...current,
+        ...(results[0]?.status === 'fulfilled' ? { battle: results[0].value.BattleScreen } : {}),
+        ...(results[1]?.status === 'fulfilled' ? { dispatch: results[1].value.DispatchScreen } : {}),
+        ...(results[2]?.status === 'fulfilled' ? { forge: results[2].value.ForgeScreen } : {}),
+      }));
+    });
+    return () => { mounted = false; };
   }, []);
 
   const {
@@ -124,9 +139,23 @@ export function AppShell() {
   }
 
   const navigateScreen = (next: ScreenId) => {
-    startScreenTransition(() => setScreen(next));
+    const revision = ++pendingNavigation.current;
+    if (next === 'slimes' || screenModules[next] !== undefined) {
+      startScreenTransition(() => setScreen(next));
+      return;
+    }
+    const load = next === 'battle'
+      ? loadBattleScreen().then((module) => ({ battle: module.BattleScreen }))
+      : next === 'dispatch'
+        ? loadDispatchScreen().then((module) => ({ dispatch: module.DispatchScreen }))
+        : loadForgeScreen().then((module) => ({ forge: module.ForgeScreen }));
+    // A new destination is selected only after its component is available.
+    void load.then((resolved) => {
+      if (pendingNavigation.current !== revision) return;
+      setScreenModules((current) => ({ ...current, ...resolved }));
+      startScreenTransition(() => setScreen(next));
+    });
   };
-
   const openCamp = (mode: CampMode = 'none', slimeId: SlimeInstanceId | null = null) => {
     if (slimeId !== null) {
       setSelectedSlimeId(slimeId);
@@ -145,9 +174,14 @@ export function AppShell() {
     <main className={styles.page}>
       <section className={styles.gameShell} aria-label="ゲーム画面">
         <div className={styles.appContent}>
-          <Suspense fallback={null}>
-            {activeScreen === 'battle' && (
-              <BattleScreen
+          {activeScreen !== 'slimes' && screenModules[activeScreen] === undefined && (
+            <div className={styles.initialScreenWaiting} aria-label="冒険の準備中">
+              <SlimeMark className={styles.loadingSlime} />
+            </div>
+          )}
+          <Suspense fallback={<div className={styles.transitionSurface} aria-hidden="true" />}>
+            {activeScreen === 'battle' && screenModules.battle !== undefined && (
+              <screenModules.battle
                 onOpenSlime={openSlime}
                 rewardCues={battleRewardCues}
                 onRewardCuePresented={handleBattleRewardCuePresented}
@@ -164,14 +198,19 @@ export function AppShell() {
                 defeatRecoveryActive={campDefeatRecoveryActive}
               />
             )}
-            {activeScreen === 'dispatch' && (
-              <DispatchScreen
+            {activeScreen === 'dispatch' && screenModules.dispatch !== undefined && (
+              <screenModules.dispatch
                 onOpenCampFormation={() => openCamp('formation')}
                 returnCue={dispatchReturnCues[0] ?? null}
                 onReturnCuePresented={dismissDispatchReturnCue}
               />
             )}
-            {activeScreen === 'forge' && <ForgeScreen onOpenSlime={(slimeId) => openCamp('equipment', slimeId)} />}
+            {activeScreen === 'forge' && screenModules.forge !== undefined && (
+              <screenModules.forge
+                onOpenSlime={(slimeId) => openCamp('equipment', slimeId)}
+                onOpenBattle={() => navigateScreen('battle')}
+              />
+            )}
           </Suspense>
         </div>
 

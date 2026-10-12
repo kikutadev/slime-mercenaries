@@ -44,16 +44,15 @@ export function CampEquipmentPanel({
 
   return (
     <div className="camp-inline-tool camp-equipment-tool">
-      <div className="camp-inline-tool__heading">
+      <div className="camp-equipment-stage">
+        <img src={`${import.meta.env.BASE_URL}${detail.icon}`} alt="" />
         <div>
-          <strong>{detail.name}の装備</strong>
-          <small>
-            {weaponView.current === null
-              ? '武器を選ぶと戦闘力へ反映されます'
-              : `現在: ${weaponView.current.name}`}
-          </small>
+          <span>{detail.name}</span>
+          <strong>{weaponView.current?.name ?? '武器未装備'}</strong>
+          <small>{weaponView.current === null ? '装備できる武器がありません' : '現在の装備'}</small>
         </div>
       </div>
+      <h2 className="camp-equipment-heading">装備する武器</h2>
 
       {weaponView.options.length === 0 ? (
         <div className="camp-equipment-empty">

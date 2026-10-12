@@ -70,7 +70,7 @@ export function CampWorld({
 
       {hero !== null && (
         <div className="camp-slime-stage">
-          <Suspense fallback={<div className="camp-resident-stage" aria-hidden="true" />}>
+          <Suspense fallback={<img className="camp-hero-loading" src={`${import.meta.env.BASE_URL}${hero.presentation.icon}`} alt="" />}>
             <CampSlimeStage
               presentation={hero.presentation}
               reaction={feedback.reaction}
