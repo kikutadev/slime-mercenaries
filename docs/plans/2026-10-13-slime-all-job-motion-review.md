@@ -1,7 +1,7 @@
 # Slime Mercenaries — 25-job animation visual review
 
 Date: 2026-10-13
-Status: Implemented, local production acceptance PASS; release pending
+Status: Implemented, deployed and production accepted
 
 ## Player value and acceptance
 
@@ -59,3 +59,13 @@ Individual profession-specific idle/move cycles, bespoke additional secondary bo
 - Tier 3 six-job runtime battle smoke on Clover Road and Dragon Crater boss at 390×844: **2 actual live scenes PASS**, frames captured (17.08s).
 - 25 distinct GLBs: 125 normalized attack frames and 75 final defeat frames individually inspected in contact sheets; front view shows eyes.
 - No GitHub Actions invoked. Tests, builds and browser QA ran locally.
+
+## Production release acceptance
+
+- Implementation commit `bad756a` pushed to `origin/main`.
+- Cloudflare Worker deployed as `8b291fcd-fc48-44cc-9519-dbcd4b61c494` on `https://games.kikuta.dev/slime-mercenaries/`.
+- Custom domain serves new `main-CyEGiYJN.js` and `BattleScreen-D2MkhSzf.js` (HTTP 200).
+- Public normal first-play Chrome for Testing at **390×844**: **PASS**, 15 screenshots, 7 assertions, zero errors, **37.29s**.
+- Public gallery all 25 **attack ×5** normalized poses: 125 real captures and zero errors, **52.17s**.
+- Public gallery all 25 **defeat ×3** normalized poses: 75 real captures and zero errors, **41.77s**. A production Archmage defeat sample was manually inspected and confirmed its hat and staff lie with the flattened jelly body while XX eyes remain visible.
+- Both game and portal projects use local builds/tests, without GitHub Actions. Other game source trees were not edited.
