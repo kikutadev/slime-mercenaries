@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SLIME_MOTION_TIMING } from '../game/slime-motion';
 import { slimeGalleryCatalog } from './catalog';
-import { galleryClipDuration, galleryTargetDistance } from './gallery-timing';
+import { galleryClipDuration, galleryReviewFrame, galleryTargetDistance } from './gallery-timing';
 
 function slime(id: string) {
   const definition = slimeGalleryCatalog.find((entry) => entry.id === id);
@@ -10,6 +10,15 @@ function slime(id: string) {
 }
 
 describe('gallery timing and framing', () => {
+  it('accepts only real normalized frames for deterministic art review', () => {
+    expect(galleryReviewFrame('?frame=0')).toBe(0);
+    expect(galleryReviewFrame('?slime=sword&frame=0.52')).toBe(0.52);
+    expect(galleryReviewFrame('?frame=1')).toBe(1);
+    for (const raw of ['', '?frame=', '?frame=NaN', '?frame=Infinity', '?frame=1.2', '?frame=-0.01']) {
+      expect(galleryReviewFrame(raw)).toBeNull();
+    }
+  });
+
   it('keeps ranged previews farther from their dummy than melee previews', () => {
     expect(galleryTargetDistance(slime('sniper'))).toBeGreaterThan(galleryTargetDistance(slime('blademaster')));
     expect(galleryTargetDistance(slime('wand'))).toBeGreaterThan(galleryTargetDistance(slime('shield')));

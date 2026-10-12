@@ -72,3 +72,11 @@ export function galleryClipDuration(
   }
   return SLIME_MOTION_TIMING.swordAttack;
 }
+
+/** Freeze a gallery attack at a known normalized time for reproducible visual QA. */
+export function galleryReviewFrame(search: string): number | null {
+  const raw = new URLSearchParams(search).get('frame');
+  if (raw === null || raw.trim() === '') return null;
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 && value <= 1 ? value : null;
+}

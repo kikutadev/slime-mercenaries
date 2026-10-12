@@ -116,7 +116,7 @@ import {
   resetGalleryModelParts,
   galleryEquipmentKind,
 } from './gallery-model-parts';
-import { galleryClipDuration, galleryTargetDistance } from './gallery-timing';
+import { galleryClipDuration, galleryReviewFrame, galleryTargetDistance } from './gallery-timing';
 import type { GalleryCameraId, GalleryMotionId, SlimeGalleryDefinition } from './types';
 
 interface StageProps {
@@ -179,7 +179,8 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
     }
     return new THREE.Vector3(0, 0, -1);
   }, [cameraMode, inspectionYaw]);
-  const baseYaw = cameraMode === 'inspection' ? inspectionYaw : Math.PI;
+  // A front inspection must show the face (+Z), while Battle correctly faces up-field.
+  const baseYaw = cameraMode === 'inspection' ? inspectionYaw : cameraMode === 'front' ? 0 : Math.PI;
 
   useEffect(() => {
     model.traverse((object) => {
@@ -285,7 +286,12 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
 
     const duration = galleryClipDuration(motion, definition);
     const elapsed = Math.max(0, (clock.elapsedTime - startedAt.current) * speed);
-    const local = loop ? elapsed % duration : Math.min(elapsed, duration);
+    const fixedFrame = galleryReviewFrame(window.location.search);
+    // Review URLs can inspect the exact same wind-up, release or recovery frame
+    // of every real model without approximating timing with wall-clock sleeps.
+    const local = fixedFrame === null
+      ? (loop ? elapsed % duration : Math.min(elapsed, duration))
+      : fixedFrame * duration;
 
     if (motion === 'idle') {
       const phase = definition.modelKind === 'bow' ? 1.1 : 0.2;
@@ -307,15 +313,26 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       const pose = getAllyDefeatMotion(u, -1);
       root.position.y = THREE.MathUtils.lerp(GALLERY_HOME.y, 0.005, 0.18);
       root.rotation.z = pose.rootRotationZ;
+      root.scale.y = GALLERY_PRODUCTION_SCALE * pose.bodyScaleY;
       if (parts.body) {
         parts.body.scale.set(
           parts.bodyBaseScale.x * pose.bodyScaleX,
-          parts.bodyBaseScale.y * pose.bodyScaleY,
+          parts.bodyBaseScale.y,
           parts.bodyBaseScale.z * pose.bodyScaleZ,
         );
       }
+      if (parts.faceRoot) parts.faceRoot.scale.set(pose.bodyScaleX, 1, pose.bodyScaleZ);
       parts.normalEyes.forEach((eye) => { eye.visible = false; });
-      parts.xEyes.forEach((eye) => { eye.visible = true; });
+      parts.xEyes.forEach((eye) => {
+        eye.visible = true;
+        const base = eye.userData.defeatEyeBasePosition as THREE.Vector3 | undefined;
+        if (base) eye.position.set(
+          base.x * pose.bodyScaleX,
+          base.y + (1 - pose.bodyScaleY) * 0.24 / Math.max(0.20, pose.bodyScaleY),
+          base.z * pose.bodyScaleZ,
+        );
+        eye.scale.set(1, 1 / Math.max(0.20, pose.bodyScaleY), 1);
+      });
       applyEquipmentPose(
         parts.equipment,
         parts.equipmentBaseQuaternion,

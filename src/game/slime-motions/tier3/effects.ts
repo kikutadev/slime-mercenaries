@@ -32,12 +32,45 @@ function makeBillboard(name: string, width: number, height: number, color: strin
   return mesh;
 }
 
+/** A pointed weapon streak, not a rectangular UI-looking billboard in 3D. */
+function makeTaperedSlash(name: string, width: number, height: number, color: string): THREE.Mesh {
+  const shape = new THREE.Shape();
+  shape.moveTo(-width / 2, 0);
+  shape.lineTo(-width * 0.10, height / 2);
+  shape.lineTo(width / 2, 0);
+  shape.lineTo(width * 0.10, -height / 2);
+  shape.closePath();
+  const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), material(color));
+  mesh.name = name;
+  mesh.visible = false;
+  return mesh;
+}
+
 function makeDiscBillboard(name: string, width: number, height: number, color: string): THREE.Mesh {
   const geometry = new THREE.CircleGeometry(0.5, 36);
   geometry.scale(width, height, 1);
   const mesh = new THREE.Mesh(geometry, material(color));
   mesh.name = name;
   mesh.visible = false;
+  return mesh;
+}
+
+/** Transparent-center activation ring: never a bright square or opaque disc over the slime. */
+function makeRingBillboard(name: string, width: number, height: number, color: string): THREE.Mesh {
+  const geometry = new THREE.RingGeometry(0.32, 0.50, 40);
+  geometry.scale(width, height, 1);
+  const mesh = new THREE.Mesh(geometry, material(color));
+  mesh.name = name;
+  mesh.visible = false;
+  return mesh;
+}
+
+/** Normal-blended smoke holds a translucent silhouette instead of white additive glare. */
+function makeSmokeBillboard(name: string, width: number, height: number, color: string): THREE.Mesh {
+  const mesh = makeDiscBillboard(name, width, height, color);
+  if (mesh.material instanceof THREE.MeshBasicMaterial) {
+    mesh.material.blending = THREE.NormalBlending;
+  }
   return mesh;
 }
 
@@ -111,18 +144,18 @@ export function createNinjaSignatureVfx(): THREE.Group {
   group.name = 'NinjaSignatureVfx';
   group.visible = false;
 
-  group.add(makeDiscBillboard('NinjaVanishSmoke', 0.42, 0.30, '#9b8ac7'));
-  group.add(makeDiscBillboard('NinjaReturnSmoke', 0.38, 0.28, '#b7a9df'));
+  group.add(makeSmokeBillboard('NinjaVanishSmoke', 0.42, 0.30, '#9b8ac7'));
+  group.add(makeSmokeBillboard('NinjaReturnSmoke', 0.38, 0.28, '#b7a9df'));
 
   for (let i = 0; i < 4; i += 1) {
-    const ghost = makeDiscBillboard(`NinjaAfterimage${i}`, 0.20, 0.34, i % 2 === 0 ? '#b9a8ff' : '#7d6cc7');
+    const ghost = makeSmokeBillboard(`NinjaAfterimage${i}`, 0.20, 0.34, i % 2 === 0 ? '#b9a8ff' : '#7d6cc7');
     group.add(ghost);
   }
   for (let i = 0; i < 5; i += 1) {
     group.add(makeBeam(`NinjaSpeedLine${i}`, 0.008 + i * 0.0015, '#d9d1ff'));
   }
   for (let i = 0; i < 4; i += 1) {
-    group.add(makeBillboard(`NinjaDelayedSlash${i}`, 0.68, 0.022, i % 2 === 0 ? '#f0ecff' : '#b68cff'));
+    group.add(makeTaperedSlash(`NinjaDelayedSlash${i}`, 0.68, 0.032, i % 2 === 0 ? '#e0d4ff' : '#b68cff'));
   }
   return group;
 }
@@ -207,12 +240,12 @@ export function createAssassinSignatureVfx(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'AssassinSignatureVfx';
   group.visible = false;
-  group.add(makeBillboard('AssassinShadowBlink', 0.34, 0.26, '#76538f'));
-  group.add(makeBillboard('AssassinCrossA', 0.72, 0.026, '#efe6ff'));
-  group.add(makeBillboard('AssassinCrossB', 0.72, 0.026, '#c185e8'));
-  group.add(makeBillboard('AssassinImpactFlash', 0.22, 0.22, '#ffffff'));
-  group.add(makeBillboard('AssassinExecutionGlow', 1.02, 0.055, '#74246f'));
-  group.add(makeBillboard('AssassinExecutionLine', 1.12, 0.024, '#ff5fc8'));
+  group.add(makeDiscBillboard('AssassinShadowBlink', 0.34, 0.26, '#76538f'));
+  group.add(makeTaperedSlash('AssassinCrossA', 0.72, 0.040, '#d1b5ef'));
+  group.add(makeTaperedSlash('AssassinCrossB', 0.72, 0.040, '#c185e8'));
+  group.add(makeRingBillboard('AssassinImpactFlash', 0.22, 0.22, '#f8ecff'));
+  group.add(makeTaperedSlash('AssassinExecutionGlow', 0.94, 0.055, '#74246f'));
+  group.add(makeTaperedSlash('AssassinExecutionLine', 0.96, 0.032, '#ff5fc8'));
   return group;
 }
 
@@ -264,7 +297,7 @@ export function applyAssassinSignatureVfx(
     group.getObjectByName('AssassinImpactFlash') as THREE.Mesh | undefined,
     TEMP_POSITION,
     cameraQuaternion,
-    pose.vfx.impactFlash,
+    pose.vfx.impactFlash * 0.65,
     0.72 + pose.vfx.impactFlash * 1.20,
     0.72 + pose.vfx.impactFlash * 1.20,
   );
@@ -272,10 +305,10 @@ export function applyAssassinSignatureVfx(
     group.getObjectByName('AssassinExecutionGlow') as THREE.Mesh | undefined,
     TEMP_POSITION,
     cameraQuaternion,
-    pose.vfx.executionGlow * 0.54,
+    pose.vfx.executionGlow * 0.42,
     0.82 + pose.vfx.executionGlow * 1.10,
     1,
-    -0.10,
+    -0.38,
   );
   setBillboard(
     group.getObjectByName('AssassinExecutionLine') as THREE.Mesh | undefined,
@@ -284,7 +317,7 @@ export function applyAssassinSignatureVfx(
     pose.vfx.executionLine,
     0.82 + pose.vfx.executionLine * 1.15,
     1,
-    -0.10,
+    -0.38,
   );
 }
 
@@ -435,14 +468,18 @@ export function createEngineerSignatureVfx(): THREE.Group {
       material(i % 2 === 0 ? '#f2b85d' : '#8da0a6'),
     );
     part.name = `EngineerLoosePart${i}`;
+    if (part.material instanceof THREE.MeshBasicMaterial) {
+      part.material.blending = THREE.NormalBlending;
+      part.material.depthTest = true;
+    }
     group.add(part);
   }
-  group.add(makeBillboard('EngineerEnergy', 0.32, 0.32, '#72e2ff'));
+  group.add(makeRingBillboard('EngineerEnergy', 0.32, 0.32, '#36c9ef'));
   for (let i = 0; i < 5; i += 1) {
     group.add(makeBillboard(`EngineerSpark${i}`, 0.16, 0.012, '#ffe19a'));
   }
-  group.add(makeBillboard('EngineerActivation', 0.36, 0.36, '#8ff3ff'));
-  group.add(makeBillboard('EngineerMuzzle', 0.20, 0.20, '#fff2b0'));
+  group.add(makeRingBillboard('EngineerActivation', 0.36, 0.36, '#52daef'));
+  group.add(makeDiscBillboard('EngineerMuzzle', 0.20, 0.20, '#fff2b0'));
   group.add(makeBeam('EngineerTracer', 0.010, '#ffd56d'));
   return group;
 }
@@ -484,7 +521,7 @@ export function applyEngineerSignatureVfx(
     group.getObjectByName('EngineerEnergy') as THREE.Mesh | undefined,
     TEMP_POSITION,
     cameraQuaternion,
-    pose.vfx.energyPulse * 0.58,
+    pose.vfx.energyPulse * 0.42,
     pose.vfx.energyScale,
     pose.vfx.energyScale,
     pose.vfx.partsRotation * 0.08,
@@ -509,9 +546,9 @@ export function applyEngineerSignatureVfx(
     group.getObjectByName('EngineerActivation') as THREE.Mesh | undefined,
     TEMP_POSITION.copy(turret).add(new THREE.Vector3(0, 0.13, 0)),
     cameraQuaternion,
-    pose.vfx.activationPulse * 0.82,
-    0.72 + pose.vfx.activationPulse * 1.45,
-    0.72 + pose.vfx.activationPulse * 1.45,
+    pose.vfx.activationPulse * 0.48,
+    0.72 + pose.vfx.activationPulse * 1.08,
+    0.72 + pose.vfx.activationPulse * 1.08,
   );
   setBillboard(
     group.getObjectByName('EngineerMuzzle') as THREE.Mesh | undefined,

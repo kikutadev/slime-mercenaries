@@ -39,6 +39,28 @@ describe('production branch motion poses', () => {
     expect(getGunAttackMotion(SLIME_MOTION_THRESHOLDS.gunReleaseU).shotProgress).toBeGreaterThanOrEqual(0);
   });
 
+  it('makes Guardian bracing stronger than Shield and restores equipment at the end', () => {
+    const tier1 = getShieldAttackMotion(0.32);
+    const tier2 = getGuardianAttackMotion(0.32);
+    expect(tier2.deformation.squash).toBeGreaterThan(tier1.deformation.squash + 0.05);
+    expect(tier2.equipment.lift).toBeGreaterThan(tier1.equipment.lift + 0.04);
+    expect(tier2.bodyOffset).toBeLessThan(tier1.bodyOffset + 0.05);
+    const end = getGuardianAttackMotion(1);
+    expect(end.equipment.angle).toBeCloseTo(0);
+    expect(end.equipment.lift).toBeCloseTo(0);
+    expect(end.deformation.squash).toBeCloseTo(0);
+  });
+
+  it('gives Gunner three alternating recoil beats, not three identical Gun attacks', () => {
+    const first = getGunnerAttackMotion(0.32 / 3 + 0.05);
+    const second = getGunnerAttackMotion(1 / 3 + 0.32 / 3 + 0.05);
+    const third = getGunnerAttackMotion(2 / 3 + 0.32 / 3 + 0.05);
+    expect(Math.sign(first.equipment.sweep)).toBe(-Math.sign(second.equipment.sweep));
+    expect(Math.sign(third.equipment.sweep)).toBe(Math.sign(first.equipment.sweep));
+    expect(Math.abs(first.deformation.lean - second.deformation.lean)).toBeGreaterThan(0.05);
+    expect(getGunnerAttackMotion(1).equipment.sweep).toBeCloseTo(0);
+  });
+
   it('keeps Fighter hits and Ranger shots ordered as connected two-step attacks', () => {
     const fighterFirst = getFighterAttackMotion(0.34);
     const fighterSecond = getFighterAttackMotion(0.78);

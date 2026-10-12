@@ -539,20 +539,28 @@ export function getGuardianAttackMotion(uInput: number): GuardianAttackMotionPos
   const base = getShieldAttackMotion(u);
   const pulseU = clamp01((u - SLIME_MOTION_THRESHOLDS.guardianContactU) / 0.34);
   const guardPulse = pulseU > 0 && pulseU < 1 ? Math.sin(pulseU * Math.PI) : 0;
+  // Tier 2 plants behind a lifted shield, absorbing the blow rather than
+  // copying the Tier 1 charge. This adds a distinct anticipation and recovery.
+  const braceIn = easeInOutCubic(clamp01(u / 0.24));
+  const braceOut = 1 - easeInOutCubic(clamp01((u - 0.65) / 0.35));
+  const planted = braceIn * braceOut;
   return {
     ...base,
-    bodyOffset: base.bodyOffset * 0.88,
+    bodyOffset: base.bodyOffset * 0.65,
     guardPulse,
     guardPulseProgress: pulseU,
     deformation: {
       ...base.deformation,
-      squash: Math.min(1, base.deformation.squash * 1.12 + guardPulse * 0.05),
-      lean: base.deformation.lean * 0.72,
-      wobble: guardPulse * 0.035,
+      squash: Math.min(1, base.deformation.squash + planted * 0.062 + guardPulse * 0.025),
+      stretch: base.deformation.stretch * 0.42,
+      lean: base.deformation.lean * 0.35,
+      wobble: guardPulse * 0.032,
     },
     equipment: {
       ...base.equipment,
-      angle: base.equipment.angle * 0.78,
+      angle: base.equipment.angle * 0.62 - planted * 0.070,
+      lift: base.equipment.lift + planted * 0.060,
+      sweep: planted * -0.08,
     },
   };
 }
@@ -717,20 +725,26 @@ export function getGunnerAttackMotion(uInput: number): GunnerAttackMotionPose {
   const localU = segment === 2 && u >= 1 ? 1 : clamp01((u - segmentStart) / (segmentEnd - segmentStart));
   const base = getGunAttackMotion(localU);
   const burstSettle = 1 - u;
+  // Alternating recoil makes the three-shot burst visibly different from the
+  // single-shot Gun Slime without resizing the jelly body or changing cadence.
+  const shotKick = Math.sin(clamp01((localU - 0.32) / 0.20) * Math.PI);
+  const rockingDirection = segment % 2 === 0 ? 1 : -1;
   return {
-    bodyOffset: base.bodyOffset * (0.62 + segment * 0.06),
+    bodyOffset: base.bodyOffset * (0.82 + segment * 0.08) - shotKick * 0.035,
     shotIndex: segment,
     shotProgress: base.shotProgress,
     muzzlePulse: base.muzzlePulse,
     deformation: {
       ...base.deformation,
-      squash: base.deformation.squash * 0.82,
-      lean: base.deformation.lean * 0.88,
-      wobble: base.deformation.wobble + Math.sin(u * Math.PI * 6) * 0.025 * burstSettle,
+      squash: base.deformation.squash * 0.95 + shotKick * 0.12,
+      lean: base.deformation.lean * 0.88 + rockingDirection * shotKick * 0.12,
+      wobble: base.deformation.wobble + rockingDirection * shotKick * 0.08
+        + Math.sin(u * Math.PI * 6) * 0.025 * burstSettle,
     },
     equipment: {
       ...base.equipment,
-      angle: base.equipment.angle * 0.86,
+      angle: base.equipment.angle * 0.96 - rockingDirection * shotKick * 0.14,
+      sweep: rockingDirection * shotKick * 0.13,
     },
   };
 }

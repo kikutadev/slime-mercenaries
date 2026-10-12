@@ -62,15 +62,24 @@ export function updateAllyDefeat(unit: AllyUnit, now: number): void {
 
   unit.root.position.y = THREE.MathUtils.lerp(unit.root.position.y, 0.005, 0.18);
   unit.root.rotation.z = pose.rootRotationZ;
+  // Collapse the whole authored jelly silhouette: hats, shields, bows and
+  // other unattached accessories must not stay suspended above the flat body.
+  unit.root.scale.set(SCALE, SCALE * pose.bodyScaleY, SCALE);
   unit.body.scale.set(
     unit.bodyBaseScale.x * pose.bodyScaleX,
-    unit.bodyBaseScale.y * pose.bodyScaleY,
+    unit.bodyBaseScale.y,
     unit.bodyBaseScale.z * pose.bodyScaleZ,
   );
   if (unit.faceRoot) {
-    unit.faceRoot.scale.set(pose.bodyScaleX, pose.bodyScaleY, pose.bodyScaleZ);
+    unit.faceRoot.scale.set(pose.bodyScaleX, 1, pose.bodyScaleZ);
   }
-  compensateAllyDefeatEyeScale(unit, pose.bodyScaleX, pose.bodyScaleY, pose.bodyScaleZ);
+  compensateAllyDefeatEyeScale(unit, pose.bodyScaleX, 1, pose.bodyScaleZ);
+  // Eyes are authored on the presentation root: compensate their strokes for
+  // the vertical squeeze so the mandatory XX expression remains readable.
+  unit.xEyes.forEach((eye) => {
+    eye.position.y += (1 - pose.bodyScaleY) * 0.24 / Math.max(0.20, pose.bodyScaleY);
+    eye.scale.y = 1 / Math.max(0.20, pose.bodyScaleY);
+  });
   setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
   if (u >= 1) unit.state = 'dead';
 }
