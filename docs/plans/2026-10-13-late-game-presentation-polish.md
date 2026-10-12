@@ -44,3 +44,11 @@ The first-play mobile layout correction left late-stage combat and non-first-use
 - Public 430×932 same dispatch and forge flow: PASS (6.19s, no game errors).
 - Public eight authored areas × stage 1 and stage 5/boss scenes: PASS (16 scenes, 28.46s, no game errors).
 - Production assets have been verified at the deployed custom domain, not merely assumed from a successful Git push. No GitHub Actions were used.
+
+## Release and final production acceptance
+
+- Implementation commit: `cb740d1` on `origin/main`.
+- Cloudflare Workers custom-domain deploy: version `4ca5e00c-7bae-4b73-9fb6-44565d9054e5`, `https://games.kikuta.dev/slime-mercenaries/`.
+- Public browser QA: 390×844 and 430×932 Dispatch full-party → reserve → departure → running and 10-result Forge inspection both PASS, game-origin errors 0; the 430×932 check took 6.33s.
+- Public normal-mode first-play browser QA at 390×844: PASS, 15 screenshots / 7 assertions, game-origin errors 0, 36.57s.
+- Verification rerun: 83 Vitest files / 500 tests PASS (3.61s), TypeScript PASS (3.88s), UI contract PASS (0.34s), production build PASS (2.48s), initial bundle 135.9KiB gzip under 160KiB budget (0.34s).
