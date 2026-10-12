@@ -1,6 +1,6 @@
 # Late-game visual readability, dispatch, and forge polish
 
-Status: Implemented; local production acceptance PASS, deploy pending
+Status: Implemented, deployed, public acceptance PASS
 Date: 2026-10-13
 
 ## Why
@@ -34,3 +34,13 @@ The first-play mobile layout correction left late-stage combat and non-first-use
 - Full Vitest: 83 files / 500 tests PASS in 3.63s. TypeScript: PASS in 3.40s; UI contract PASS in 0.34s. Vite production build PASS in 2.52s, initial bundle guard PASS in 0.35s (135.9 KiB gzip / 160 KiB limit).
 - Built production preview midgame UI PASS at 390×844 in 4.54s, including all ten weapons and real Dispatch departure.
 - GitHub Actions not used.
+
+## Deployment and public acceptance
+
+- Source commit: `cb740d1`, pushed to `origin/main`.
+- Portal build with `GAMES_ONLY=slime-mercenaries`: PASS (5.94s); publication of the game's static assets completed through Cloudflare Workers version `1c201896-b1f1-4f93-804b-bcade8304af8` (Wrangler deploy 10.20s). The public index contains `assets/main-PHgvf9dV.js`, HTTP 200.
+- Public 390×844 first-play UI acceptance: PASS (37.29s; 15 screenshots, no game errors).
+- Public 390×844 dispatch→reserve→running→ten-forge-result acceptance: PASS (6.90s, 10 readable and scrollable results, no game errors).
+- Public 430×932 same dispatch and forge flow: PASS (6.19s, no game errors).
+- Public eight authored areas × stage 1 and stage 5/boss scenes: PASS (16 scenes, 28.46s, no game errors).
+- Production assets have been verified at the deployed custom domain, not merely assumed from a successful Git push. No GitHub Actions were used.
