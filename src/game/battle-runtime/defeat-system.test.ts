@@ -123,7 +123,10 @@ describe('battle defeat lifecycle', () => {
     // Hat/weapon anchors share the flattened root instead of floating above it.
     expect(ally.root.scale.y).toBeLessThan(ally.root.scale.x * 0.35);
     expect(ally.body.scale.y).toBeCloseTo(ally.bodyBaseScale.y);
-    expect(ally.xEyes[0]?.scale.y).toBeGreaterThan(2);
+    expect(ally.xEyes[0]?.scale.y).toBe(1);
+    expect(ally.xEyes[0]?.position.z).toBeLessThan(0.65);
+    expect(ally.xEyes[0]?.position.y).toBeGreaterThan(1.0);
+    expect(ally.xEyes[0]?.rotation.x).toBeLessThan(-1);
 
     resetAllyForEncounter(ally);
 
@@ -134,6 +137,7 @@ describe('battle defeat lifecycle', () => {
     expect(ally.body.scale.toArray()).toEqual(ally.bodyBaseScale.toArray());
     expect(ally.root.scale.x).toBeCloseTo(ally.root.scale.y);
     expect(ally.xEyes[0]?.scale.y).toBe(1);
+    expect(ally.xEyes[0]?.rotation.x).toBe(0);
     expect(ally.body.morphTargetInfluences).toEqual([0]);
     expect(ally.normalEyes[0]?.visible).toBe(true);
     expect(ally.xEyes[0]?.visible).toBe(false);

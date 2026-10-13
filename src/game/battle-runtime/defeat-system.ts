@@ -16,7 +16,7 @@ import {
   setEquipmentSwing,
 } from './unit-presentation';
 import {
-  compensateAllyDefeatEyeScale,
+  poseAllyDefeatEyes,
   setAllyDefeatEyes,
   setEnemyDefeatEyes,
 } from './unit-visuals';
@@ -73,13 +73,7 @@ export function updateAllyDefeat(unit: AllyUnit, now: number): void {
   if (unit.faceRoot) {
     unit.faceRoot.scale.set(pose.bodyScaleX, 1, pose.bodyScaleZ);
   }
-  compensateAllyDefeatEyeScale(unit, pose.bodyScaleX, 1, pose.bodyScaleZ);
-  // Eyes are authored on the presentation root: compensate their strokes for
-  // the vertical squeeze so the mandatory XX expression remains readable.
-  unit.xEyes.forEach((eye) => {
-    eye.position.y += (1 - pose.bodyScaleY) * 0.24 / Math.max(0.20, pose.bodyScaleY);
-    eye.scale.y = 1 / Math.max(0.20, pose.bodyScaleY);
-  });
+  poseAllyDefeatEyes(unit.xEyes, pose.bodyScaleY);
   setEquipmentSwing(unit, pose.equipment.angle, pose.equipment.lift, pose.equipment.sweep);
   if (u >= 1) unit.state = 'dead';
 }

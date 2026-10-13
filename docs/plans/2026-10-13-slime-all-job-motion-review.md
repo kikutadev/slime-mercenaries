@@ -1,7 +1,7 @@
 # Slime Mercenaries — 25-job animation visual review
 
 Date: 2026-10-13
-Status: Implemented, deployed and production accepted
+Status: Previous general animation release verified; **defeat-eye placement acceptance withdrawn** (see `2026-10-13-defeat-eye-surface-regression.md`)
 
 ## Player value and acceptance
 
@@ -43,7 +43,7 @@ This pass reviews the **actual 25 GLB models** in the running gallery (six weapo
 
 - Front camera previously faced away from the slime. Gallery front view now shows the eyes; authored gameplay facing remains unchanged.
 - Added bounded `?frame=0..1` review pause, allowing deterministic animation phase review without unreliable fixed delays.
-- A shared defeat problem affected all 25: the jelly flattened but hats, shields and weapons remained standing above it. Root-space Y compression now sinks the entire model; body Y is not doubly compressed, and XX eyes are repositioned/compensated to remain legible. Regular alive size is unchanged; normal next-stage reset restores root scale.
+- The previous review claimed defeat X eyes were corrected. **That claim was false.** Its workaround made the eyes hover outside the flattened body; the tests checked presence and scale rather than facial attachment. The specific corrected implementation and new screenshot evidence are recorded in `2026-10-13-defeat-eye-surface-regression.md`. The shared root squash and equipment collapse were retained, but the X-eye approval is not part of this earlier signoff.
 - QA captured **25×3=75 live attack samples** for initial diagnosis; then **25×5=125 deterministic actual attack frames** across 12/35/56/72/91% normalized progress; plus **25×3=75 defeat frames** before and after the shared defeat fix, with contact sheets manually inspected. HTML/PNG evidence resides locally under `.tmp/slime-motion-*` and is not source-controlled.
 
 ## Further art production, not falsely accepted

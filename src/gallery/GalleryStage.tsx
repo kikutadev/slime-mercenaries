@@ -1,5 +1,6 @@
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo, useRef } from 'react';
+import { poseAllyDefeatEyes } from '../game/battle-runtime/unit-visuals';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import {
@@ -323,16 +324,8 @@ function GalleryModel({ definition, motion, speed, loop, cameraMode, showDummy, 
       }
       if (parts.faceRoot) parts.faceRoot.scale.set(pose.bodyScaleX, 1, pose.bodyScaleZ);
       parts.normalEyes.forEach((eye) => { eye.visible = false; });
-      parts.xEyes.forEach((eye) => {
-        eye.visible = true;
-        const base = eye.userData.defeatEyeBasePosition as THREE.Vector3 | undefined;
-        if (base) eye.position.set(
-          base.x * pose.bodyScaleX,
-          base.y + (1 - pose.bodyScaleY) * 0.24 / Math.max(0.20, pose.bodyScaleY),
-          base.z * pose.bodyScaleZ,
-        );
-        eye.scale.set(1, 1 / Math.max(0.20, pose.bodyScaleY), 1);
-      });
+      parts.xEyes.forEach((eye) => { eye.visible = true; });
+      poseAllyDefeatEyes(parts.xEyes, pose.bodyScaleY);
       applyEquipmentPose(
         parts.equipment,
         parts.equipmentBaseQuaternion,

@@ -89,11 +89,12 @@ export function createAllyDefeatEyes(root: THREE.Object3D): {
   if (normalEyes.length !== 2) return { normalEyes, xEyes: [] };
 
   const xMaterial = new THREE.MeshBasicMaterial({
-    color: '#ffe9f1',
-    depthTest: false,
+    color: '#fff4fa',
+    // An expression must sit on the jelly surface, not draw over the body.
+    depthTest: true,
     depthWrite: false,
   });
-  const barGeometry = new THREE.BoxGeometry(0.44, 0.09, 0.045);
+  const barGeometry = new THREE.BoxGeometry(0.32, 0.070, 0.020);
   const xEyes: THREE.Object3D[] = [];
   root.updateMatrixWorld(true);
 
@@ -106,7 +107,6 @@ export function createAllyDefeatEyes(root: THREE.Object3D): {
     group.userData.defeatEyeBasePosition = rootLocalPosition.clone();
     for (const rotation of [-Math.PI / 4, Math.PI / 4]) {
       const bar = new THREE.Mesh(barGeometry, xMaterial);
-      bar.renderOrder = 12;
       bar.rotation.z = rotation;
       group.add(bar);
     }
@@ -124,29 +124,34 @@ export function setAllyDefeatEyes(unit: AllyUnit, defeated: boolean): void {
     if (!defeated) {
       const base = eye.userData.defeatEyeBasePosition as THREE.Vector3 | undefined;
       if (base !== undefined) eye.position.copy(base);
+      eye.rotation.set(0, 0, 0);
       eye.scale.set(1, 1, 1);
     }
   });
 }
 
-/** Keep the mandatory × eyes on the flattened face without inheriting model-specific FaceRoot transforms. */
-export function compensateAllyDefeatEyeScale(
-  unit: AllyUnit,
-  bodyScaleX: number,
+/**
+ * Set two defeat crosses onto the *upper surface* of the squashed jelly.
+ * The original face faces +Z; while collapsing, the crosses turn onto the
+ * body and move back from the silhouette edge. Never screen-overlay them.
+ */
+export function poseAllyDefeatEyes(
+  eyes: readonly THREE.Object3D[],
   bodyScaleY: number,
-  bodyScaleZ: number,
 ): void {
-  unit.xEyes.forEach((eye) => {
+  const compression = clamp01(1 - bodyScaleY);
+  const settled = compression * compression * (3 - 2 * compression);
+  for (const eye of eyes) {
     const base = eye.userData.defeatEyeBasePosition as THREE.Vector3 | undefined;
-    if (base !== undefined) {
-      eye.position.set(
-        base.x * bodyScaleX,
-        base.y * bodyScaleY,
-        base.z * bodyScaleZ,
-      );
-    }
-    eye.scale.set(1, 1, 1);
-  });
+    if (base === undefined) continue;
+    eye.position.set(
+      base.x,
+      THREE.MathUtils.lerp(base.y, 1.24, settled),
+      THREE.MathUtils.lerp(base.z, 0.44, settled),
+    );
+    eye.rotation.x = -Math.PI / 2 * settled;
+    eye.scale.setScalar(1);
+  }
 }
 
 export function setEnemyDefeatEyes(

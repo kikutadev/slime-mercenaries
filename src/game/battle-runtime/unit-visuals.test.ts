@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import {
-  compensateAllyDefeatEyeScale,
+  poseAllyDefeatEyes,
   createAllyDefeatEyes,
   createShadow,
   createWorldHealthBar,
@@ -103,14 +103,20 @@ describe('battle unit visual helpers', () => {
     expect(eyes.xEyes.every((eye) => eye.visible)).toBe(true);
     const firstBar = eyes.xEyes[0]?.children[0];
     expect(firstBar).toBeInstanceOf(THREE.Mesh);
-    expect((firstBar as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>).material.depthTest).toBe(false);
-    expect(firstBar?.renderOrder).toBe(12);
+    expect((firstBar as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>).material.depthTest).toBe(true);
+    expect(firstBar?.renderOrder).toBe(0);
 
-    compensateAllyDefeatEyeScale(unit, 1.4, 0.28, 1.22);
-    expect(eyes.xEyes[0]?.position.y).toBeLessThan(0.3);
+    poseAllyDefeatEyes(eyes.xEyes, 0.25);
+    expect(eyes.xEyes[0]?.position.z).toBeLessThan(0.7);
+    expect(eyes.xEyes[0]?.position.z).toBeGreaterThan(0);
+    expect(eyes.xEyes[0]?.position.y).toBeGreaterThan(0.95);
+    // A real surface contact, not a screen-space X hovering above the jelly.
+    expect((eyes.xEyes[0]?.position.y ?? 0) * 0.25).toBeLessThan(0.33);
+    expect(eyes.xEyes[0]?.rotation.x).toBeLessThan(-1);
     expect(eyes.xEyes[0]?.scale.toArray()).toEqual([1, 1, 1]);
 
     setAllyDefeatEyes(unit, false);
     expect(eyes.xEyes[0]?.scale.toArray()).toEqual([1, 1, 1]);
+    expect(eyes.xEyes[0]?.rotation.x).toBe(0);
   });
 });
