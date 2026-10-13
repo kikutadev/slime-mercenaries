@@ -1,7 +1,7 @@
 # Ally defeat X-eye regression: visual review correction
 
 Date: 2026-10-13
-Status: Local correction verified; production release pending
+Status: Implemented, deployed, and verified on production domain
 
 ## What failed the player
 
@@ -34,3 +34,12 @@ The previous full-roster death-motion signoff (`2026-10-13-slime-all-job-motion-
 - Normal-mode first-play at 390×844: 15 captures / 7 assertions PASS, game-origin errors 0, 35.40s.
 
 We explicitly do **not** count these numerical test results as a substitute for inspecting the resulting geometry in the real mobile renderer. The acceptance statement above is backed by both screenshots and tests.
+
+## Public release and verification
+
+- Commit `21b829a` pushed to `origin/main`; deployed Cloudflare Worker version `2aead9a9-237d-412f-96bf-d33f330d8e35` at `https://games.kikuta.dev/slime-mercenaries/`.
+- Live gallery at 390×844: 25 GLB characters × 3 defeat phases = 75 screenshot samples. Captures successful, no browser/page/asset errors (40.84s). Sword, Archmage and Engineer final defeat images individually inspected: X eyes are on the flattened jelly surface.
+- Live Dragon Crater stage-5 boss battle: 48 rendered frames captured (16.40s) with six low-level combatants. This verifies actual battle rendering, **not** all 25 defeat animations in live combat. Do not call it a full animation acceptance.
+- Public normal first-play 390×844: 15 screenshots, seven assertions PASS, zero game-origin errors (37.07s).
+
+Future visual QA must include the explicit reject case of an X expression projected *in front of, above, or outside* the collapsed jelly silhouette. Merely checking that an X mesh exists or remains visible is insufficient.
