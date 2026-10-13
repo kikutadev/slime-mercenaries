@@ -23,7 +23,7 @@ async function main(){
  try {
  for(const id of ids.slice(Number(process.env.FROM || 0),Number(process.env.TO || ids.length))){
    const url=new URL(base);
-   url.search=new URLSearchParams({slime:id,motion,speed:'1',camera,frame:String(frames[0])}).toString();
+   url.search=new URLSearchParams({slime:id,motion,speed:'1',camera,qa:'1',frame:String(frames[0])}).toString();
    await p.goto(url.href,{waitUntil:'domcontentloaded'});
    await p.waitForFunction(id=>document.documentElement.dataset.galleryModelLoaded===id,id);
    const stage=p.locator('.gallery-stage');

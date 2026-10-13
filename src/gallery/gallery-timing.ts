@@ -73,10 +73,23 @@ export function galleryClipDuration(
   return SLIME_MOTION_TIMING.swordAttack;
 }
 
-/** Freeze a gallery attack at a known normalized time for reproducible visual QA. */
+/**
+ * A shared public URL must always animate by default. Fixed-frame inspection is
+ * available only behind an explicit QA flag, never through `frame` alone.
+ */
 export function galleryReviewFrame(search: string): number | null {
-  const raw = new URLSearchParams(search).get('frame');
+  const params = new URLSearchParams(search);
+  if (params.get('qa') !== '1') return null;
+  const raw = params.get('frame');
   if (raw === null || raw.trim() === '') return null;
   const value = Number(raw);
   return Number.isFinite(value) && value >= 0 && value <= 1 ? value : null;
+}
+
+/** Remove all fixed-frame QA parameters when the visitor interacts with playback. */
+export function galleryPlaybackSearch(search: string): string {
+  const params = new URLSearchParams(search);
+  params.delete('frame');
+  params.delete('qa');
+  return params.toString();
 }

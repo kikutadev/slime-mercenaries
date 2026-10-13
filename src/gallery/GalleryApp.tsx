@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { slimeGalleryCatalog } from './catalog';
 import { GalleryStage } from './GalleryStage';
+import { galleryPlaybackSearch } from './gallery-timing';
 import type { GalleryCameraId, GalleryMotionId } from './types';
 
 const MOTION_LABELS: Record<GalleryMotionId, string> = {
@@ -59,9 +60,16 @@ export default function GalleryApp() {
   const [showDummy, setShowDummy] = useState(true);
   const [replayKey, setReplayKey] = useState(0);
 
+  /** Leave fixed-frame QA only on an explicit QA URL; controls always resume playback. */
+  const resumePlayback = () => {
+    const clean = galleryPlaybackSearch(window.location.search);
+    window.history.replaceState(null, '', `${window.location.pathname}?${clean}${window.location.hash}`);
+  };
+
   useEffect(() => {
     if (!selected) return;
     const params = new URLSearchParams(window.location.search);
+    if (params.get('qa') !== '1') params.delete('frame');
     params.set('slime', selected.id);
     params.set('motion', motion);
     params.set('speed', String(speed));
@@ -76,6 +84,7 @@ export default function GalleryApp() {
   }
 
   const selectMotion = (next: GalleryMotionId) => {
+    resumePlayback();
     setMotion(next);
     setReplayKey((value) => value + 1);
   };
@@ -106,7 +115,7 @@ export default function GalleryApp() {
                 className={`gallery-roster__item ${item.id === selected.id ? 'is-active' : ''}`}
                 key={item.id}
                 type="button"
-                onClick={() => setSelectedId(item.id)}
+                onClick={() => { resumePlayback(); setSelectedId(item.id); }}
               >
                 <span className="gallery-roster__orb" style={{ '--accent': item.accent } as React.CSSProperties} />
                 <span>
@@ -161,7 +170,7 @@ export default function GalleryApp() {
                 <span className="gallery-control-label">SPEED</span>
                 <div className="gallery-chip-row">
                   {SPEEDS.map((value) => (
-                    <button className={speed === value ? 'is-active' : ''} key={value} type="button" onClick={() => setSpeed(value)}>
+                    <button className={speed === value ? 'is-active' : ''} key={value} type="button" onClick={() => { resumePlayback(); setSpeed(value); }}>
                       {value}×
                     </button>
                   ))}
@@ -171,20 +180,20 @@ export default function GalleryApp() {
               <div className="gallery-control-group">
                 <span className="gallery-control-label">CAMERA</span>
                 <div className="gallery-chip-row">
-                  <button className={cameraMode === 'inspection' ? 'is-active' : ''} type="button" onClick={() => setCameraMode('inspection')}>3/4 Inspect</button>
-                  <button className={cameraMode === 'gameplay' ? 'is-active' : ''} type="button" onClick={() => setCameraMode('gameplay')}>Battle</button>
-                  <button className={cameraMode === 'front' ? 'is-active' : ''} type="button" onClick={() => setCameraMode('front')}>Front</button>
+                  <button className={cameraMode === 'inspection' ? 'is-active' : ''} type="button" onClick={() => { resumePlayback(); setCameraMode('inspection'); }}>3/4 Inspect</button>
+                  <button className={cameraMode === 'gameplay' ? 'is-active' : ''} type="button" onClick={() => { resumePlayback(); setCameraMode('gameplay'); }}>Battle</button>
+                  <button className={cameraMode === 'front' ? 'is-active' : ''} type="button" onClick={() => { resumePlayback(); setCameraMode('front'); }}>Front</button>
                 </div>
               </div>
 
               <div className="gallery-control-group">
                 <span className="gallery-control-label">PLAYBACK</span>
                 <div className="gallery-chip-row">
-                  <button className={loop ? 'is-active' : ''} type="button" onClick={() => setLoop((value) => !value)}>Loop</button>
+                  <button className={loop ? 'is-active' : ''} type="button" onClick={() => { resumePlayback(); setLoop((value) => !value); }}>Loop</button>
                   {selected.availableMotions.includes('attack') && (
-                    <button className={showDummy ? 'is-active' : ''} type="button" onClick={() => setShowDummy((value) => !value)}>Dummy</button>
+                    <button className={showDummy ? 'is-active' : ''} type="button" onClick={() => { resumePlayback(); setShowDummy((value) => !value); }}>Dummy</button>
                   )}
-                  <button type="button" onClick={() => setReplayKey((value) => value + 1)}>Replay</button>
+                  <button type="button" onClick={() => { resumePlayback(); setReplayKey((value) => value + 1); }}>Replay</button>
                 </div>
               </div>
             </div>
