@@ -1,7 +1,7 @@
 # Gallery shared playback freeze regression
 
 Date: 2026-10-13
-Status: Implemented; local acceptance PASS, public verification pending
+Status: Implemented; public production acceptance PASS
 
 ## User-visible regression
 
@@ -29,3 +29,10 @@ Production Chrome for Testing (390×844) before this correction confirmed that t
 - Production custom domain **before fix**: no-frame defeat URL displayed changing real 3D poses, while `frame=1` stayed identical across five screenshots. Both loaded with zero page errors.
 - Local Chrome for Testing **after fix** (390×844, 7.34s): ordinary *old* shared URL produced 3 distinct rendered frames, explicit `qa=1&frame=1` produced exactly 1, Replay after QA produced 3, and selecting Attack resumed animation. JavaScript/asset errors: 0.
 - Full Vitest: 86 files/512 tests PASS (5.70s), TypeScript PASS (3.95s), UI contract PASS (0.37s), Vite build PASS (2.86s), initial bundle PASS (0.41s, gzip 135.9 KiB/160 KiB budget).
+
+## Public deployment and verified outcome
+
+- GitHub `origin/main` implementation commit `a01dfd7`.
+- Cloudflare Workers custom domain `https://games.kikuta.dev/slime-mercenaries/gallery/` deployed as version `b8da180b-9ce7-4caf-b69b-f643218d7f97`, serving `gallery-B0puqgOF.js`.
+- On the live domain, verified at 390×844 that the formerly frozen `frame=1` shared URL now generated **three distinct actual WebGL frames**, explicit `qa=1&frame=1` remained deterministic (**one distinct frame**), and Replay and Attack selection resumed playback (**three distinct frames each**). Zero page/asset errors, 10.38s.
+- The game combat system was not modified; this correction is confined to gallery playback URLs and QA tools.
