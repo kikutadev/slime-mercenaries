@@ -47,3 +47,7 @@ Combat occupied too little of the portrait canvas. Camp management was a stretch
 - On the public host, Cloudflare's `/cdn-cgi/rum` may return HTTP 404 independent of the game; the browser QA ignores that single host telemetry path but fails all game HTTP/request/JavaScript errors.
 
 - **Public browser acceptance PASS** at **390×844 (35.97s)** and **430×932 (35.89s)**: 15 captures and seven behavior assertions each, with zero game-origin errors. All checks were run against the actual custom domain.
+
+## Successor quality plan
+
+This completed first-pass layout correction is **not** an above-product-level UX signoff. The current quality target and remaining UI implementation sequence are governed by [`2026-10-14-ui-above-production-quality.md`](2026-10-14-ui-above-production-quality.md).
