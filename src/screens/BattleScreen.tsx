@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { BattleCanvas } from '../components/BattleCanvas';
 import { useGameState } from '../app/GameProvider';
 import { validationToolsVisible } from '../application/validation-mode';
@@ -7,7 +7,7 @@ import { selectEarlyGameCue, selectFormation, selectGlobalHud } from '../applica
 import { resolveAreaDefinition, type SlimeInstanceId } from '../domain';
 import type { BattleRewardCue } from '../game/battle-reward';
 import styles from './BattleScreen.module.css';
-import { battleStatusText, clampBattleRatio, visibleBattleRewardCue } from './battle/battle-screen-view';
+import { battleStatusText, clampBattleRatio, didBattleStageAdvance, visibleBattleRewardCue } from './battle/battle-screen-view';
 import { useBattlePresentation } from './battle/useBattlePresentation';
 
 
@@ -40,6 +40,19 @@ export function BattleScreen({
   const formation = selectFormation(state);
   const tutorialCue = selectEarlyGameCue(state);
   const sceneAreaLabel = resolveAreaDefinition(sceneModel.areaId)?.displayName ?? sceneModel.areaId;
+
+  // Track only an actual stage advance, not automatic farming or a passive page load.
+  const previousStageRef = useRef<{ areaId: string; stageNumber: number } | null>(null);
+  useEffect(() => {
+    const previous = previousStageRef.current;
+    const current = { areaId: sceneModel.areaId, stageNumber: sceneModel.stageNumber };
+    previousStageRef.current = current;
+    if (previous !== null && didBattleStageAdvance(previous, current)) {
+      (window as Window & {
+        KikutaAnalytics?: { track: (event: 'game_progress') => void };
+      }).KikutaAnalytics?.track('game_progress');
+    }
+  }, [sceneModel.areaId, sceneModel.stageNumber]);
 
   const hasBattleSlime = sceneModel.allies.length > 0;
   const hasEncounter = sceneModel.encounter !== null;
