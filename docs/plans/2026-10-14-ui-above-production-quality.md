@@ -4,6 +4,10 @@ Date: 2026-10-14
 Status: **Active — new governing UI improvement plan; implementation not yet started**
 Scope: Mobile portrait gameplay interaction, UI composition, GLB presentation, character/reward feedback, and actual-speed acceptance. Domain combat/progression authority remains unchanged unless a UI goal demonstrably requires a narrow change.
 
+## Current quantified baseline and binding acceptance (2026-10-15)
+
+**Measured/reviewer-scored current UI is approximately 60/100, not L2 production quality.** Fusion is ~45/100, Strengthen ~50/100, Battle ~68/100. See the [current scorecard, scoring anchors, observed deficits, exact acceptance states and per-phase target gains](2026-10-15-ui-quality-scorecard.md). This linked scorecard is authoritative for baseline evidence and the next release gates; L2 and L3 are not declarations that a clean build alone can earn. Unverified Fusion ready/merge/branch/result paths are explicitly unaccepted until live evidence exists.
+
 ## 1. Goal and why prior signoffs were insufficient
 
 > The game should make a player **enjoy watching slimes, want to fuse them, experience a real difference after progressing, and want to retry after losing**. UI is the delivery mechanism, not the goal.
